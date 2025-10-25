@@ -15,7 +15,7 @@ import stream from 'stream';
 import bcrypt from 'bcryptjs';
 import { OAuth2Client } from 'google-auth-library';
 
-// LangChain imports (متوافقة مع الإصدارات المثبّتة)
+// LangChain imports
 import { OpenAI } from '@langchain/openai';
 import { AgentExecutor, createReactAgent } from 'langchain/agents';
 import { pull } from 'langchain/hub';
@@ -26,14 +26,36 @@ const app = express();
 const PORT = process.env.PORT || 10000;
 const upload = multer({ dest: 'uploads/' });
 
-// ---------- Redis (للجلسات والـ OTP) ----------
+/* -------------------------------------------------
+   REDIS HANDLING (بدون سبام)
+   -------------------------------------------------
+   الفكرة:
+   - لو ما في REDIS_URL خارجي حقيقي -> ما نستخدم Redis
+   - لو حاولنا نستخدم localhost على Render -> رح يفشل، فـ منمنعه
+   - لو Redis مش شغال -> ما نخلي ioredis يظل يصرخ بالأخطاء
+------------------------------------------------- */
 let redis = null;
-try {
-  redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
-  console.log('[Redis] connected');
-} catch (e) {
-  console.log('[Redis] disabled, continuing without session cache');
-  redis = null;
+const REDIS_URL = process.env.REDIS_URL;
+
+// عندنا 3 حالات:
+if (
+  REDIS_URL &&                           // في متغير بيئة
+  !REDIS_URL.includes('localhost') &&    // مش وهمي محلي
+  !REDIS_URL.includes('127.0.0.1')       // مش لوكال
+) {
+  try {
+    redis = new Redis(REDIS_URL);
+    // منع سبام الأخطاء
+    redis.on('error', (err) => {
+      // ما نطبع اشي هون عشان ما يغرق اللوج
+    });
+    console.log('[Redis] init requested:', REDIS_URL);
+  } catch (e) {
+    console.log('[Redis] failed to init, disabling sessions/otp');
+    redis = null;
+  }
+} else {
+  console.log('[Redis] disabled (no external REDIS_URL)');
 }
 
 // ---------- Notion ----------
@@ -83,6 +105,7 @@ function makeToken() {
   );
 }
 
+// middleware لحماية الراوتات الإدارية
 function restrictTo(allowedRoles) {
   return async function (req, res, next) {
     try {
@@ -93,10 +116,12 @@ function restrictTo(allowedRoles) {
           .json({ ok: false, error: 'Missing session token' });
       }
 
+      // ما في Redis = ما في سيشن
       if (!redis) {
-        return res.status(500).json({
+        return res.status(503).json({
           ok: false,
-          error: 'Session system unavailable (no Redis on this plan)',
+          error:
+            'Session system unavailable on this plan (no Redis). Admin panel temporarily locked.',
         });
       }
 
@@ -123,7 +148,7 @@ function restrictTo(allowedRoles) {
   };
 }
 
-// ---------- سوبر أدمِن الأساسي (إلك) ----------
+// ---------- سوبر أدمِن الأساسي ----------
 const ROOT_SUPERADMIN_EMAIL =
   process.env.ROOT_SUPERADMIN_EMAIL || 'owner@example.com';
 const ROOT_SUPERADMIN_PASSWORD =
@@ -179,9 +204,10 @@ app.post('/api/auth/loginUser', async (req, res) => {
         .json({ ok: false, error: 'Invalid credentials' });
 
     if (!redis) {
-      return res.status(500).json({
+      return res.status(503).json({
         ok: false,
-        error: 'Session disabled (no Redis)',
+        error:
+          'Sessions disabled (no Redis in this environment). Login tokens are not available right now.',
       });
     }
 
@@ -218,9 +244,10 @@ app.post('/api/auth/requestPhoneCode', async (req, res) => {
         .json({ ok: false, error: 'Missing phone' });
 
     if (!redis) {
-      return res.status(500).json({
+      return res.status(503).json({
         ok: false,
-        error: 'OTP disabled (no Redis)',
+        error:
+          'OTP disabled (no Redis / no SMS infra in this environment).',
       });
     }
 
@@ -229,7 +256,7 @@ app.post('/api/auth/requestPhoneCode', async (req, res) => {
 
     await redis.setex(`otp:${phone}`, 60 * 5, otp);
 
-    // بالمستقبل تبعتها SMS، الآن بنرجعها بالـresponse للتجربة
+    // للبيئة الحالية، منرجعه مباشرة بدال SMS
     res.json({ ok: true, phone, debug_otp: otp });
   } catch (err) {
     console.error('[auth/requestPhoneCode]', err);
@@ -247,9 +274,10 @@ app.post('/api/auth/loginPhone', async (req, res) => {
         .json({ ok: false, error: 'Missing phone or otp' });
 
     if (!redis) {
-      return res.status(500).json({
+      return res.status(503).json({
         ok: false,
-        error: 'OTP disabled (no Redis)',
+        error:
+          'OTP login disabled (no Redis in this environment).',
       });
     }
 
@@ -351,9 +379,10 @@ app.post('/api/auth/loginGoogle', async (req, res) => {
     }
 
     if (!redis) {
-      return res.status(500).json({
+      return res.status(503).json({
         ok: false,
-        error: 'Session disabled (no Redis)',
+        error:
+          'Sessions disabled (no Redis in this environment). Cannot mint session token.',
       });
     }
 
@@ -382,7 +411,6 @@ app.post('/api/auth/loginGoogle', async (req, res) => {
 
 // ---------- SUPER ADMIN PANEL ----------
 
-// جلب كل المستخدمين
 app.get(
   '/api/admin/users',
   restrictTo(['super_admin']),
@@ -407,7 +435,6 @@ app.get(
   }
 );
 
-// ترقية مستخدم إلى super_admin
 app.post(
   '/api/admin/promote',
   restrictTo(['super_admin']),
@@ -426,7 +453,6 @@ app.post(
   }
 );
 
-// تنزيل رتبة مستخدم لـ admin
 app.post(
   '/api/admin/demote',
   restrictTo(['super_admin']),
@@ -445,7 +471,6 @@ app.post(
   }
 );
 
-// حذف مستخدم
 app.post(
   '/api/admin/deleteUser',
   restrictTo(['super_admin']),
@@ -469,7 +494,6 @@ app.post(
 
 // ---------- CLIENTS / VERSIONED BUILDS ----------
 
-// تسجيل عميل/براند
 app.post('/api/clients/register', async (req, res) => {
   try {
     const {
@@ -528,7 +552,6 @@ app.post('/api/clients/register', async (req, res) => {
   }
 });
 
-// جلب نسخ المشاريع لعميل
 app.get('/api/clients/:clientId/projects', async (req, res) => {
   try {
     const { clientId } = req.params;
@@ -561,7 +584,6 @@ app.get('/api/clients/:clientId/projects', async (req, res) => {
   }
 });
 
-// إنشاء نسخة مشروع جديدة (scaffold)
 app.post('/api/builder/scaffold', async (req, res) => {
   try {
     const {
@@ -591,7 +613,6 @@ app.post('/api/builder/scaffold', async (req, res) => {
 
     const db = await connectMongo();
 
-    // احسب رقم النسخة التالية
     const latest = await db
       .collection('generated_projects')
       .find({ clientId, projectName })
@@ -604,7 +625,6 @@ app.post('/api/builder/scaffold', async (req, res) => {
     const now = new Date();
     const files = {};
 
-    // frontend mock
     files[`frontend-${projectName}/README.md`] = `
 # ${brandName || projectName} Frontend
 Primary Color: ${primaryColor}
@@ -617,7 +637,6 @@ Tone: ${brandTone}
 Generated at: ${now.toISOString()}
 `;
 
-    // backend mock
     files[`backend-${projectName}/README.md`] = `
 # ${brandName || projectName} Backend
 Client: ${clientId}
@@ -625,7 +644,6 @@ Kind: ${kind}
 Generated at: ${now.toISOString()}
 `;
 
-    // mobile mock
     files[`mobile-${projectName}/README.md`] = `
 # ${brandName || projectName} Mobile App
 Client: ${clientId}
@@ -665,7 +683,6 @@ Generated at: ${now.toISOString()}
   }
 });
 
-// تنزيل نسخة ZIP لأي إصدار
 app.get('/api/builder/download', async (req, res) => {
   try {
     const { buildKey, projectName, clientId, version } = req.query;
@@ -722,7 +739,6 @@ app.get('/api/builder/download', async (req, res) => {
   }
 });
 
-// توليد خطة تقنية/بزنس بالذكاء
 app.post('/api/builder/plan', async (req, res) => {
   try {
     const { buildKey, clientId, businessType, features, scale, tone } =
@@ -789,7 +805,6 @@ app.post('/api/builder/plan', async (req, res) => {
   }
 });
 
-// حفظ الخطة في Notion
 app.post('/api/builder/savePlanToNotion', async (req, res) => {
   try {
     const { buildKey, clientId, planContent } = req.body;
@@ -848,20 +863,20 @@ app.post('/api/builder/savePlanToNotion', async (req, res) => {
 
 // ---------- AI AGENT (LangChain) ----------
 
-// 1) نموذج الذكاء
+// 1) LLM
 const llm = new OpenAI({
   temperature: 0,
   openAIApiKey: process.env.CF_API_TOKEN,
   basePath: `https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/ai/run/@cf/meta/llama-3.1-8b-instruct`
 });
 
-// 2) بدل MemorySummarizer: دالة بسيطة تبني سياق من آخر الرسائل
+// 2) بناء سياق محادثة بدل MemorySummarizer
 function buildConversationContext(historyArray = [], latestInput = '') {
-  const recent = historyArray.slice(-10); // آخر 10 رسائل فقط
+  const recent = historyArray.slice(-10);
   return [...recent, latestInput].join('\n');
 }
 
-// 3) الأدوات اللي الوكيل (الـ Agent) قادر يستخدمها
+// 3) أدوات الوكيل
 const tools = [
   {
     name: 'tts',
@@ -962,16 +977,16 @@ const tools = [
   },
 ];
 
-// 4) نجيب البرومبت الجاهز من LangChain Hub
+// 4) البرومبت الجاهز من LangChain Hub
 const prompt = await pull('hwchase17/react');
 
-// 5) نبني الوكيل
+// 5) بناء الوكيل
 const agent = await createReactAgent({ llm, tools, prompt });
 
-// 6) نلفّه داخل Executor
+// 6) AgentExecutor
 const agentExecutor = new AgentExecutor({ agent, tools });
 
-// 7) نقطة الوصول للذكاء
+// 7) Endpoint المحادثة
 app.post('/api/agent/execute', async (req, res) => {
   try {
     const { input, userId } = req.body;
@@ -984,7 +999,6 @@ app.post('/api/agent/execute', async (req, res) => {
         history: [],
       };
 
-    // بناء السياق من المحادثة السابقة بدون MemorySummarizer
     const fullInput = buildConversationContext(
       conversation.history,
       input
@@ -1015,6 +1029,7 @@ app.post('/api/agent/execute', async (req, res) => {
 
 // ---------- Health ----------
 app.get('/health', async (req, res) => {
+  // لو في Redis واشتغل
   if (redis) {
     try {
       const cache = await redis.get('/health');
@@ -1029,7 +1044,7 @@ app.get('/health', async (req, res) => {
       await redis.setex('/health', 60, JSON.stringify(data));
       return res.json(data);
     } catch (err) {
-      console.log('[health] Redis error, fallback no-cache');
+      // لو Redis وقع فجأة، نكمل بدون كاش
     }
   }
 
