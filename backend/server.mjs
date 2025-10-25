@@ -9,65 +9,43 @@ import rateLimit from 'express-rate-limit';
 import Redis from 'ioredis';
 import { google } from 'googleapis';
 import { Client as NotionClient } from '@notionhq/client';
-import { OpenAI } from '@langchain/openai';
-import { createAgentExecutor, createReactAgent } from 'langchain/agents';
-import { MemorySummarizer } from 'langchain/memory';
-import { pull } from 'langchain/hub';
 import fs from 'fs';
 import archiver from 'archiver';
 import stream from 'stream';
 import bcrypt from 'bcryptjs';
 import { OAuth2Client } from 'google-auth-library';
 
+// LangChain (الإصدارات المثبّتة)
+import { OpenAI } from '@langchain/openai';
+import { AgentExecutor, createReactAgent } from 'langchain/agents';
+import { MemorySummarizer } from 'langchain/memory';
+import { pull } from 'langchain/hub';
+
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 10000;
-
-// تخزين ملفات رفع مؤقت
 const upload = multer({ dest: 'uploads/' });
 
-// ---------- Redis (اختياري بالكامل) ----------
+// ---------- Redis (جلسات المستخدمين + OTP) ----------
 let redis = null;
 try {
   redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
   console.log('[Redis] connected');
 } catch (e) {
-  console.log('[Redis] disabled (no valid REDIS_URL). Continuing without cache.');
+  console.log('[Redis] disabled, continuing without session cache');
   redis = null;
 }
 
-// ---------- Notion (قد يكون مفصول) ----------
+// ---------- Notion ----------
 const notion = new NotionClient({
-  auth: process.env.NOTION_API_KEY || undefined
+  auth: process.env.NOTION_API_KEY || undefined,
 });
 
-// ---------- DB ----------
+// ---------- MongoDB ----------
 const dbName = process.env.DB_NAME || 'infinityx';
 let mongoDb = null;
 
-// ---------- middlewares / security ----------
-app.use(helmet());
-
-app.use(
-  rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 500 // نسمح أكثر لأنك بتجرب بنفسك ولسه ما عندك آلاف يوزرز
-  })
-);
-
-app.use(express.json({ limit: '2mb' }));
-
-app.use(
-  cors({
-    origin: process.env.CORS_ORIGINS
-      ? process.env.CORS_ORIGINS.split(',')
-      : ['*'],
-    credentials: true
-  })
-);
-
-// ---------- Mongo connection ----------
 async function connectMongo() {
   if (mongoDb) return mongoDb;
   const uri = process.env.MONGO_URI;
@@ -79,142 +57,33 @@ async function connectMongo() {
   return mongoDb;
 }
 
-// ---------- LLM / LangChain Agent Setup ----------
-const llm = new OpenAI({
-  temperature: 0,
-  openAIApiKey: process.env.CF_API_TOKEN,
-  basePath: `https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/ai/run/@cf/meta/llama-3.1-8b-instruct`
-});
+// ---------- Security / middlewares ----------
+app.use(helmet());
 
-const memory = new MemorySummarizer({ llm });
+app.use(
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 500,
+  })
+);
 
-// ---------- TOOLS (الأدوات) ----------
-// كل أداة الآن تتحقق من وجود المفاتيح قبل ما تحاول تنادي خدمة مدفوعة.
-// هذا مهم عشان المشروع يشتغل على المجاني بدون ما ينهار.
+app.use(express.json({ limit: '2mb' }));
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGINS
+      ? process.env.CORS_ORIGINS.split(',')
+      : ['*'],
+    credentials: true,
+  })
+);
 
-const tools = [
-  {
-    name: 'tts',
-    description: 'Generate speech from text using ElevenLabs (optional)',
-    func: async (text) => {
-      if (!process.env.ELEVEN_API_KEY) {
-        return 'TTS disabled (no ELEVEN_API_KEY).';
-      }
-      await axios.post(
-        `https://api.elevenlabs.io/v1/text-to-speech/${process.env.ELEVEN_DEFAULT_VOICE}`,
-        { text, model_id: process.env.ELEVEN_MODEL_ID },
-        {
-          headers: { 'xi-api-key': process.env.ELEVEN_API_KEY },
-          responseType: 'arraybuffer'
-        }
-      );
-      return 'Audio generated';
-    }
-  },
-  {
-    name: 'generate_image',
-    description: 'Generate image from prompt (optional)',
-    func: async (prompt) => {
-      if (!process.env.REPLICATE_API_TOKEN) {
-        return 'Image generation disabled (no REPLICATE_API_TOKEN).';
-      }
-      const response = await axios.post(
-        'https://api.replicate.com/v1/predictions',
-        {
-          version: 'stable-diffusion-3',
-          input: { prompt }
-        },
-        {
-          headers: {
-            Authorization: `Token ${process.env.REPLICATE_API_TOKEN}`
-          }
-        }
-      );
-      return response.data.output?.[0] || 'Image generated (no URL returned)';
-    }
-  },
-  {
-    name: 'add_calendar_event',
-    description: 'Add event to Google Calendar (optional)',
-    func: async (summary, start, end) => {
-      if (!process.env.GOOGLE_ACCESS_TOKEN) {
-        return 'Calendar disabled (no GOOGLE_ACCESS_TOKEN).';
-      }
-      const oauth2Client = new google.auth.OAuth2();
-      oauth2Client.setCredentials({
-        access_token: process.env.GOOGLE_ACCESS_TOKEN
-      });
-      const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
-      await calendar.events.insert({
-        calendarId: 'primary',
-        resource: {
-          summary,
-          start: { dateTime: start },
-          end: { dateTime: end }
-        }
-      });
-      return 'Event added';
-    }
-  },
-  {
-    name: 'create_notion_page',
-    description: 'Create page in Notion (optional)',
-    func: async (title, content) => {
-      if (
-        !process.env.NOTION_API_KEY ||
-        !process.env.NOTION_DATABASE_ID
-      ) {
-        return 'Notion disabled (missing NOTION credentials).';
-      }
-
-      await notion.pages.create({
-        parent: { database_id: process.env.NOTION_DATABASE_ID },
-        properties: {
-          Name: { title: [{ text: { content: title } }] }
-        },
-        children: [
-          {
-            object: 'block',
-            type: 'paragraph',
-            paragraph: {
-              rich_text: [{ text: { content } }]
-            }
-          }
-        ]
-      });
-      return 'Page created in Notion';
-    }
-  },
-  {
-    name: 'build_app',
-    description: 'Create app/project record in InfinityX DB',
-    func: async (spec) => {
-      const db = await connectMongo();
-      const appName = spec.split(' ')[0].toLowerCase();
-      await db.collection('apps').insertOne({
-        name: appName,
-        schema: { tasks: [] },
-        createdAt: new Date()
-      });
-      return `App "${appName}" created. Use /api/apps/${appName} to interact.`;
-    }
-  }
-];
-
-// ---------- Agent wiring ----------
-const prompt = await pull('hwchase17/react');
-const agent = createReactAgent({ llm, tools, prompt });
-const agentExecutor = createAgentExecutor({ agent, tools });
-
-// ---------- SESSION / ROLES ----------
+// ---------- Helpers: جلسات وصلاحيات ----------
 function makeToken() {
   return (
-    Math.random().toString(36).substring(2) +
-    Date.now().toString(36)
+    Math.random().toString(36).substring(2) + Date.now().toString(36)
   );
 }
 
-// ميدل وير لتقييد الوصول مثلاً لإدارة المستخدمين
 function restrictTo(allowedRoles) {
   return async function (req, res, next) {
     try {
@@ -228,39 +97,34 @@ function restrictTo(allowedRoles) {
       if (!redis) {
         return res.status(500).json({
           ok: false,
-          error:
-            'Session system temporarily unavailable (no Redis).'
+          error: 'Session system unavailable (no Redis on this plan)',
         });
       }
 
       const dataJson = await redis.get(`session:${token}`);
       if (!dataJson) {
-        return res.status(401).json({
-          ok: false,
-          error: 'Invalid or expired session'
-        });
+        return res
+          .status(401)
+          .json({ ok: false, error: 'Invalid or expired session' });
       }
 
       const data = JSON.parse(dataJson);
       if (!allowedRoles.includes(data.role)) {
-        return res.status(403).json({
-          ok: false,
-          error: 'Forbidden: insufficient role'
-        });
+        return res
+          .status(403)
+          .json({ ok: false, error: 'Forbidden: insufficient role' });
       }
 
       req.authUser = data;
       next();
     } catch (err) {
       console.error('[restrictTo]', err);
-      res
-        .status(500)
-        .json({ ok: false, error: err.message });
+      res.status(500).json({ ok: false, error: err.message });
     }
   };
 }
 
-// ---------- Super Admin bootstrap ----------
+// ---------- سوبر أونر الافتراضي (إنت) ----------
 const ROOT_SUPERADMIN_EMAIL =
   process.env.ROOT_SUPERADMIN_EMAIL || 'owner@example.com';
 const ROOT_SUPERADMIN_PASSWORD =
@@ -270,34 +134,30 @@ async function initSuperAdmin() {
   const db = await connectMongo();
   const usersCol = db.collection('users');
   const existing = await usersCol.findOne({
-    email: ROOT_SUPERADMIN_EMAIL
+    email: ROOT_SUPERADMIN_EMAIL,
   });
   if (existing) {
     console.log('[Auth] Super admin already exists');
     return;
   }
-  const passwordHash = await bcrypt.hash(
-    ROOT_SUPERADMIN_PASSWORD,
-    10
-  );
+  const passwordHash = await bcrypt.hash(ROOT_SUPERADMIN_PASSWORD, 10);
   await usersCol.insertOne({
     email: ROOT_SUPERADMIN_EMAIL,
     passwordHash,
     role: 'super_admin',
-    createdAt: new Date()
+    createdAt: new Date(),
   });
-  console.log(
-    '[Auth] Super admin created:',
-    ROOT_SUPERADMIN_EMAIL
-  );
+  console.log('[Auth] Super admin created:', ROOT_SUPERADMIN_EMAIL);
 }
 
-// ---------- Auth endpoints ----------
+// ---------- Google OAuth Client ----------
 const googleOauthClient = new OAuth2Client(
   process.env.GOOGLE_OAUTH_CLIENT_ID
 );
 
-// email/password login
+// ---------- AUTH ENDPOINTS ----------
+
+// 1) تسجيل الدخول بالإيميل والباسورد
 app.post('/api/auth/loginUser', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -313,10 +173,7 @@ app.post('/api/auth/loginUser', async (req, res) => {
         .status(401)
         .json({ ok: false, error: 'Invalid credentials' });
     }
-    const match = await bcrypt.compare(
-      password,
-      user.passwordHash
-    );
+    const match = await bcrypt.compare(password, user.passwordHash);
     if (!match)
       return res
         .status(401)
@@ -325,8 +182,7 @@ app.post('/api/auth/loginUser', async (req, res) => {
     if (!redis) {
       return res.status(500).json({
         ok: false,
-        error:
-          'Session disabled (no Redis available on this plan)'
+        error: 'Session disabled (no Redis)',
       });
     }
 
@@ -336,7 +192,7 @@ app.post('/api/auth/loginUser', async (req, res) => {
       60 * 60 * 24,
       JSON.stringify({
         email: user.email,
-        role: user.role
+        role: user.role,
       })
     );
 
@@ -345,17 +201,15 @@ app.post('/api/auth/loginUser', async (req, res) => {
       method: 'email_password',
       email: user.email,
       role: user.role,
-      sessionToken: token
+      sessionToken: token,
     });
   } catch (err) {
     console.error('[auth/loginUser]', err);
-    res
-      .status(500)
-      .json({ ok: false, error: err.message });
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
-// phone OTP - request code
+// 2) طلب OTP للموبايل
 app.post('/api/auth/requestPhoneCode', async (req, res) => {
   try {
     const { phone } = req.body;
@@ -367,68 +221,59 @@ app.post('/api/auth/requestPhoneCode', async (req, res) => {
     if (!redis) {
       return res.status(500).json({
         ok: false,
-        error:
-          'OTP disabled (no Redis available on this plan)'
+        error: 'OTP disabled (no Redis)',
       });
     }
 
-    const otp = (
-      Math.floor(Math.random() * 900000) + 100000
-    ).toString();
+    const otp =
+      (Math.floor(Math.random() * 900000) + 100000).toString();
 
     await redis.setex(`otp:${phone}`, 60 * 5, otp);
 
-    // في الإنتاج بنرسل SMS
+    // حاليا بنرجع الOTP للـresponse (ديبغ). الانتاج=SMS
     res.json({ ok: true, phone, debug_otp: otp });
   } catch (err) {
     console.error('[auth/requestPhoneCode]', err);
-    res
-      .status(500)
-      .json({ ok: false, error: err.message });
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
-// phone OTP - login
+// 3) تسجيل الدخول بالموبايل مع OTP
 app.post('/api/auth/loginPhone', async (req, res) => {
   try {
     const { phone, otp } = req.body;
     if (!phone || !otp)
-      return res.status(400).json({
-        ok: false,
-        error: 'Missing phone or otp'
-      });
+      return res
+        .status(400)
+        .json({ ok: false, error: 'Missing phone or otp' });
 
     if (!redis) {
       return res.status(500).json({
         ok: false,
-        error:
-          'OTP disabled (no Redis available on this plan)'
+        error: 'OTP disabled (no Redis)',
       });
     }
 
     const stored = await redis.get(`otp:${phone}`);
     if (!stored || stored !== otp) {
-      return res.status(401).json({
-        ok: false,
-        error: 'Invalid or expired code'
-      });
+      return res
+        .status(401)
+        .json({ ok: false, error: 'Invalid or expired code' });
     }
 
     await redis.del(`otp:${phone}`);
 
     const db = await connectMongo();
-    let user = await db
-      .collection('users')
-      .findOne({ phone });
+    let user = await db.collection('users').findOne({ phone });
     if (!user) {
-      // مستخدم جديد role=user
+      // يوزر جديد role=user
       const newUser = {
         email: null,
         phone,
         googleId: null,
         passwordHash: null,
         role: 'user',
-        createdAt: new Date()
+        createdAt: new Date(),
       };
       await db.collection('users').insertOne(newUser);
       user = newUser;
@@ -441,7 +286,7 @@ app.post('/api/auth/loginPhone', async (req, res) => {
       JSON.stringify({
         email: user.email || null,
         phone: user.phone || null,
-        role: user.role
+        role: user.role,
       })
     );
 
@@ -450,17 +295,15 @@ app.post('/api/auth/loginPhone', async (req, res) => {
       method: 'phone_otp',
       phone: user.phone,
       role: user.role,
-      sessionToken: token
+      sessionToken: token,
     });
   } catch (err) {
     console.error('[auth/loginPhone]', err);
-    res
-      .status(500)
-      .json({ ok: false, error: err.message });
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
-// Google OAuth login
+// 4) تسجيل الدخول بجوجل
 app.post('/api/auth/loginGoogle', async (req, res) => {
   try {
     const { idToken } = req.body;
@@ -471,28 +314,22 @@ app.post('/api/auth/loginGoogle', async (req, res) => {
 
     const ticket = await googleOauthClient.verifyIdToken({
       idToken,
-      audience: process.env.GOOGLE_OAUTH_CLIENT_ID
+      audience: process.env.GOOGLE_OAUTH_CLIENT_ID,
     });
     const payload = ticket.getPayload();
     const googleId = payload.sub;
     const email = payload.email;
 
     if (!googleId) {
-      return res.status(401).json({
-        ok: false,
-        error: 'Invalid google token'
-      });
+      return res
+        .status(401)
+        .json({ ok: false, error: 'Invalid google token' });
     }
 
     const db = await connectMongo();
-
-    let user = await db
-      .collection('users')
-      .findOne({ googleId });
+    let user = await db.collection('users').findOne({ googleId });
     if (!user && email) {
-      user = await db
-        .collection('users')
-        .findOne({ email });
+      user = await db.collection('users').findOne({ email });
     }
 
     if (!user) {
@@ -503,23 +340,21 @@ app.post('/api/auth/loginGoogle', async (req, res) => {
         googleId,
         passwordHash: null,
         role: 'user',
-        createdAt: new Date()
+        createdAt: new Date(),
       };
       await db.collection('users').insertOne(newUser);
       user = newUser;
     } else if (!user.googleId) {
-      await db.collection('users').updateOne(
-        { email: user.email },
-        { $set: { googleId } }
-      );
+      await db
+        .collection('users')
+        .updateOne({ email: user.email }, { $set: { googleId } });
       user.googleId = googleId;
     }
 
     if (!redis) {
       return res.status(500).json({
         ok: false,
-        error:
-          'Session disabled (no Redis available on this plan)'
+        error: 'Session disabled (no Redis)',
       });
     }
 
@@ -529,7 +364,7 @@ app.post('/api/auth/loginGoogle', async (req, res) => {
       60 * 60 * 24,
       JSON.stringify({
         email: user.email || null,
-        role: user.role
+        role: user.role,
       })
     );
 
@@ -538,17 +373,17 @@ app.post('/api/auth/loginGoogle', async (req, res) => {
       method: 'google_oauth',
       email: user.email,
       role: user.role,
-      sessionToken: token
+      sessionToken: token,
     });
   } catch (err) {
     console.error('[auth/loginGoogle]', err);
-    res
-      .status(500)
-      .json({ ok: false, error: err.message });
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
-// ---------- Super Admin User Management ----------
+// ---------- SUPER ADMIN PANEL ----------
+
+// عرض جميع المستخدمين
 app.get(
   '/api/admin/users',
   restrictTo(['super_admin']),
@@ -562,20 +397,18 @@ app.get(
           email: 1,
           phone: 1,
           role: 1,
-          createdAt: 1
+          createdAt: 1,
         })
         .toArray();
       res.json({ ok: true, users });
     } catch (err) {
       console.error('[admin/users]', err);
-      res.status(500).json({
-        ok: false,
-        error: err.message
-      });
+      res.status(500).json({ ok: false, error: err.message });
     }
   }
 );
 
+// ترقية مستخدم إلى super_admin
 app.post(
   '/api/admin/promote',
   restrictTo(['super_admin']),
@@ -585,24 +418,16 @@ app.post(
       const db = await connectMongo();
       const result = await db
         .collection('users')
-        .updateOne(
-          { email },
-          { $set: { role: 'super_admin' } }
-        );
-      res.json({
-        ok: true,
-        updatedCount: result.modifiedCount
-      });
+        .updateOne({ email }, { $set: { role: 'super_admin' } });
+      res.json({ ok: true, updatedCount: result.modifiedCount });
     } catch (err) {
       console.error('[admin/promote]', err);
-      res.status(500).json({
-        ok: false,
-        error: err.message
-      });
+      res.status(500).json({ ok: false, error: err.message });
     }
   }
 );
 
+// تنزيل رتبة مستخدم لـ admin
 app.post(
   '/api/admin/demote',
   restrictTo(['super_admin']),
@@ -612,24 +437,16 @@ app.post(
       const db = await connectMongo();
       const result = await db
         .collection('users')
-        .updateOne(
-          { email },
-          { $set: { role: 'admin' } }
-        );
-      res.json({
-        ok: true,
-        updatedCount: result.modifiedCount
-      });
+        .updateOne({ email }, { $set: { role: 'admin' } });
+      res.json({ ok: true, updatedCount: result.modifiedCount });
     } catch (err) {
       console.error('[admin/demote]', err);
-      res.status(500).json({
-        ok: false,
-        error: err.message
-      });
+      res.status(500).json({ ok: false, error: err.message });
     }
   }
 );
 
+// حذف مستخدم
 app.post(
   '/api/admin/deleteUser',
   restrictTo(['super_admin']),
@@ -642,19 +459,18 @@ app.post(
         .deleteOne({ email });
       res.json({
         ok: true,
-        deletedCount: result.deletedCount
+        deletedCount: result.deletedCount,
       });
     } catch (err) {
       console.error('[admin/deleteUser]', err);
-      res.status(500).json({
-        ok: false,
-        error: err.message
-      });
+      res.status(500).json({ ok: false, error: err.message });
     }
   }
 );
 
-// ---------- Client Registry / Versioned Projects ----------
+// ---------- CLIENTS / VERSIONED BUILDS ----------
+
+// تسجيل عميل/علامة جديدة
 app.post('/api/clients/register', async (req, res) => {
   try {
     const {
@@ -664,31 +480,29 @@ app.post('/api/clients/register', async (req, res) => {
       rtl,
       primaryColor,
       accentColor,
-      contactEmail
+      contactEmail,
     } = req.body;
 
     if (buildKey !== process.env.CONTINUE_ADMIN_KEY) {
-      return res
-        .status(403)
-        .json({ ok: false, error: 'Not allowed' });
+      return res.status(403).json({ ok: false, error: 'Not allowed' });
     }
 
     if (!clientId || !brandName) {
-      return res.status(400).json({
-        ok: false,
-        error: 'Missing clientId or brandName'
-      });
+      return res
+        .status(400)
+        .json({ ok: false, error: 'Missing clientId or brandName' });
     }
 
     const db = await connectMongo();
     const existing = await db
       .collection('clients')
       .findOne({ clientId });
+
     if (existing) {
       return res.json({
         ok: true,
         message: 'Client already exists',
-        client: existing
+        client: existing,
       });
     }
 
@@ -699,7 +513,7 @@ app.post('/api/clients/register', async (req, res) => {
       primaryColor: primaryColor || '#000000',
       accentColor: accentColor || '#d4af37',
       contactEmail: contactEmail || null,
-      createdAt: new Date()
+      createdAt: new Date(),
     };
 
     await db.collection('clients').insertOne(newClient);
@@ -707,24 +521,21 @@ app.post('/api/clients/register', async (req, res) => {
     res.json({
       ok: true,
       message: 'Client registered',
-      client: newClient
+      client: newClient,
     });
   } catch (err) {
     console.error('[clients/register]', err);
-    res
-      .status(500)
-      .json({ ok: false, error: err.message });
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
+// جلب الإصدارات المحفوظة للعميل
 app.get('/api/clients/:clientId/projects', async (req, res) => {
   try {
     const { clientId } = req.params;
     const { buildKey } = req.query;
     if (buildKey !== process.env.CONTINUE_ADMIN_KEY) {
-      return res
-        .status(403)
-        .json({ ok: false, error: 'Not allowed' });
+      return res.status(403).json({ ok: false, error: 'Not allowed' });
     }
 
     const db = await connectMongo();
@@ -736,24 +547,22 @@ app.get('/api/clients/:clientId/projects', async (req, res) => {
         projectName: 1,
         version: 1,
         'metadata.kind': 1,
-        createdAt: 1
+        createdAt: 1,
       })
       .toArray();
 
     res.json({
       ok: true,
       clientId,
-      projects: versions
+      projects: versions,
     });
   } catch (err) {
     console.error('[clients/:clientId/projects]', err);
-    res
-      .status(500)
-      .json({ ok: false, error: err.message });
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
-// ---------- Builder: scaffold project + save version ----------
+// إنشاء نسخة مشروع جديدة وتسجيلها (scaffold)
 app.post('/api/builder/scaffold', async (req, res) => {
   try {
     const {
@@ -768,39 +577,34 @@ app.post('/api/builder/scaffold', async (req, res) => {
       accentColor,
       title,
       heroLine,
-      ctaText
+      ctaText,
     } = req.body;
 
     if (buildKey !== process.env.CONTINUE_ADMIN_KEY) {
-      return res
-        .status(403)
-        .json({ ok: false, error: 'Not allowed' });
+      return res.status(403).json({ ok: false, error: 'Not allowed' });
     }
 
     if (!projectName || !clientId) {
-      return res.status(400).json({
-        ok: false,
-        error: 'Missing projectName or clientId'
-      });
+      return res
+        .status(400)
+        .json({ ok: false, error: 'Missing projectName or clientId' });
     }
 
     const db = await connectMongo();
 
-    // تحديد نسخة الإصدار
     const latest = await db
       .collection('generated_projects')
       .find({ clientId, projectName })
       .sort({ version: -1 })
       .limit(1)
       .toArray();
-    const nextVersion = latest.length
-      ? latest[0].version + 1
-      : 1;
+
+    const nextVersion = latest.length ? latest[0].version + 1 : 1;
 
     const now = new Date();
     const files = {};
 
-    // ملفات أولية بسيطة (frontend/backend/mobile)
+    // frontend placeholder
     files[`frontend-${projectName}/README.md`] = `
 # ${brandName || projectName} Frontend
 Primary Color: ${primaryColor}
@@ -813,6 +617,7 @@ Tone: ${brandTone}
 Generated at: ${now.toISOString()}
 `;
 
+    // backend placeholder
     files[`backend-${projectName}/README.md`] = `
 # ${brandName || projectName} Backend
 Client: ${clientId}
@@ -820,6 +625,7 @@ Kind: ${kind}
 Generated at: ${now.toISOString()}
 `;
 
+    // mobile placeholder
     files[`mobile-${projectName}/README.md`] = `
 # ${brandName || projectName} Mobile App
 Client: ${clientId}
@@ -840,10 +646,10 @@ Generated at: ${now.toISOString()}
         title,
         heroLine,
         ctaText,
-        brandTone
+        brandTone,
       },
       files,
-      createdAt: now
+      createdAt: now,
     });
 
     res.json({
@@ -851,70 +657,54 @@ Generated at: ${now.toISOString()}
       projectName,
       clientId,
       version: nextVersion,
-      message:
-        'Project scaffolded and version saved.'
+      message: 'Project scaffolded and version saved.',
     });
   } catch (err) {
     console.error('[builder/scaffold]', err);
-    res
-      .status(500)
-      .json({ ok: false, error: err.message });
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
-// ---------- Builder: download version as ZIP ----------
+// تنزيل ZIP لنسخة مشروع معيّنة
 app.get('/api/builder/download', async (req, res) => {
   try {
-    const {
-      buildKey,
-      projectName,
-      clientId,
-      version
-    } = req.query;
+    const { buildKey, projectName, clientId, version } = req.query;
 
     if (buildKey !== process.env.CONTINUE_ADMIN_KEY) {
-      return res
-        .status(403)
-        .json({ ok: false, error: 'Not allowed' });
+      return res.status(403).json({ ok: false, error: 'Not allowed' });
     }
     if (!projectName || !clientId || !version) {
       return res.status(400).json({
         ok: false,
-        error:
-          'Missing projectName, clientId, or version'
+        error: 'Missing projectName, clientId, or version',
       });
     }
 
     const db = await connectMongo();
-    const doc = await db
-      .collection('generated_projects')
-      .findOne({
-        projectName,
-        clientId,
-        version: parseInt(version, 10)
-      });
+    const doc = await db.collection('generated_projects').findOne({
+      projectName,
+      clientId,
+      version: parseInt(version, 10),
+    });
 
     if (!doc) {
-      return res.status(404).json({
-        ok: false,
-        error: 'Requested version not found'
-      });
+      return res
+        .status(404)
+        .json({ ok: false, error: 'Requested version not found' });
     }
 
     const files = doc.files || {};
 
     const zipStream = new stream.PassThrough();
     const archive = archiver('zip', {
-      zlib: { level: 9 }
+      zlib: { level: 9 },
     });
     archive.on('error', (err) => {
       throw err;
     });
     archive.pipe(zipStream);
 
-    for (const [filePath, fileContent] of Object.entries(
-      files
-    )) {
+    for (const [filePath, fileContent] of Object.entries(files)) {
       archive.append(fileContent, { name: filePath });
     }
 
@@ -928,27 +718,17 @@ app.get('/api/builder/download', async (req, res) => {
     zipStream.pipe(res);
   } catch (err) {
     console.error('[builder/download]', err);
-    res
-      .status(500)
-      .json({ ok: false, error: err.message });
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
-// ---------- Builder: AI Plan ----------
+// خطة عمل/تقنية جاهزة للعميل (باستخدام AI النصي)
 app.post('/api/builder/plan', async (req, res) => {
   try {
-    const {
-      buildKey,
-      clientId,
-      businessType,
-      features,
-      scale,
-      tone
-    } = req.body;
+    const { buildKey, clientId, businessType, features, scale, tone } =
+      req.body;
     if (buildKey !== process.env.CONTINUE_ADMIN_KEY) {
-      return res
-        .status(403)
-        .json({ ok: false, error: 'Not allowed' });
+      return res.status(403).json({ ok: false, error: 'Not allowed' });
     }
 
     const planningPrompt = `أنت InfinityX AI Architect.
@@ -969,7 +749,6 @@ app.post('/api/builder/plan', async (req, res) => {
 6. المخاطر والتنبيهات (Risks / Legal / Privacy)
 7. المطلوب من العميل قبل الإطلاق (Deliverables)`;
 
-    // لو مافي مفاتيح Cloudflare AI، رجّع نص fallback
     if (
       !process.env.CF_ACCOUNT_ID ||
       !process.env.CF_API_TOKEN ||
@@ -978,8 +757,7 @@ app.post('/api/builder/plan', async (req, res) => {
       return res.json({
         ok: true,
         clientId,
-        plan:
-          'AI planning disabled (missing Cloudflare AI credentials).'
+        plan: 'AI planning disabled (missing Cloudflare AI credentials).',
       });
     }
 
@@ -988,8 +766,8 @@ app.post('/api/builder/plan', async (req, res) => {
       { messages: [{ role: 'user', content: planningPrompt }] },
       {
         headers: {
-          Authorization: `Bearer ${process.env.CF_API_TOKEN}`
-        }
+          Authorization: `Bearer ${process.env.CF_API_TOKEN}`,
+        },
       }
     );
 
@@ -1003,40 +781,31 @@ app.post('/api/builder/plan', async (req, res) => {
     res.json({
       ok: true,
       clientId,
-      plan: planText
+      plan: planText,
     });
   } catch (err) {
     console.error('[builder/plan]', err);
-    res
-      .status(500)
-      .json({ ok: false, error: err.message });
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
-// ---------- Builder: Save Plan To Notion ----------
+// حفظ الخطة في Notion
 app.post('/api/builder/savePlanToNotion', async (req, res) => {
   try {
     const { buildKey, clientId, planContent } = req.body;
     if (buildKey !== process.env.CONTINUE_ADMIN_KEY) {
-      return res
-        .status(403)
-        .json({ ok: false, error: 'Not allowed' });
+      return res.status(403).json({ ok: false, error: 'Not allowed' });
     }
     if (!clientId || !planContent) {
-      return res.status(400).json({
-        ok: false,
-        error: 'Missing clientId or planContent'
-      });
+      return res
+        .status(400)
+        .json({ ok: false, error: 'Missing clientId or planContent' });
     }
 
-    if (
-      !process.env.NOTION_API_KEY ||
-      !process.env.NOTION_DATABASE_ID
-    ) {
+    if (!process.env.NOTION_API_KEY || !process.env.NOTION_DATABASE_ID) {
       return res.status(500).json({
         ok: false,
-        error:
-          'Notion disabled (missing NOTION credentials).'
+        error: 'Notion disabled (missing NOTION credentials).',
       });
     }
 
@@ -1047,97 +816,197 @@ app.post('/api/builder/savePlanToNotion', async (req, res) => {
           title: [
             {
               text: {
-                content: `Plan - ${clientId} - ${new Date().toISOString()}`
-              }
-            }
-          ]
+                content: `Plan - ${clientId} - ${new Date().toISOString()}`,
+              },
+            },
+          ],
         },
         Client: {
-          rich_text: [
-            { text: { content: clientId } }
-          ]
-        }
+          rich_text: [{ text: { content: clientId } }],
+        },
       },
       children: [
         {
           object: 'block',
           type: 'paragraph',
           paragraph: {
-            rich_text: [
-              { text: { content: planContent } }
-            ]
-          }
-        }
-      ]
+            rich_text: [{ text: { content: planContent } }],
+          },
+        },
+      ],
     });
 
     res.json({
       ok: true,
-      notionPageId: notionResp.id
+      notionPageId: notionResp.id,
     });
   } catch (err) {
     console.error('[builder/savePlanToNotion]', err);
-    res
-      .status(500)
-      .json({ ok: false, error: err.message });
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
-// ---------- Agent endpoint ----------
+// ---------- AI AGENT (LangChain) ----------
+
+const llm = new OpenAI({
+  temperature: 0,
+  openAIApiKey: process.env.CF_API_TOKEN,
+  basePath: `https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/ai/run/@cf/meta/llama-3.1-8b-instruct`
+});
+
+// ممكن نبدلها لاحق لو طلعت Error
+const memory = new MemorySummarizer({ llm });
+
+const tools = [
+  {
+    name: 'tts',
+    description: 'Generate speech from text using ElevenLabs',
+    func: async (text) => {
+      const response = await axios.post(
+        `https://api.elevenlabs.io/v1/text-to-speech/${process.env.ELEVEN_DEFAULT_VOICE}`,
+        { text, model_id: process.env.ELEVEN_MODEL_ID },
+        {
+          headers: { 'xi-api-key': process.env.ELEVEN_API_KEY },
+          responseType: 'arraybuffer',
+        }
+      );
+      return 'Audio generated';
+    },
+  },
+  {
+    name: 'generate_image',
+    description: 'Generate image from prompt',
+    func: async (promptTxt) => {
+      const response = await axios.post(
+        'https://api.replicate.com/v1/predictions',
+        {
+          version: 'stable-diffusion-3',
+          input: { prompt: promptTxt },
+        },
+        {
+          headers: {
+            Authorization: `Token ${process.env.REPLICATE_API_TOKEN}`,
+          },
+        }
+      );
+      return response.data.output[0];
+    },
+  },
+  {
+    name: 'add_calendar_event',
+    description: 'Add event to Google Calendar',
+    func: async (summary, start, end) => {
+      const oauth2Client = new google.auth.OAuth2();
+      oauth2Client.setCredentials({
+        access_token: process.env.GOOGLE_ACCESS_TOKEN,
+      });
+      const calendar = google.calendar({
+        version: 'v3',
+        auth: oauth2Client,
+      });
+      await calendar.events.insert({
+        calendarId: 'primary',
+        resource: {
+          summary,
+          start: { dateTime: start },
+          end: { dateTime: end },
+        },
+      });
+      return 'Event added';
+    },
+  },
+  {
+    name: 'create_notion_page',
+    description: 'Create page in Notion',
+    func: async (title, content) => {
+      await notion.pages.create({
+        parent: {
+          parent: { database_id: process.env.NOTION_DATABASE_ID },
+        },
+        properties: {
+          Name: {
+            title: [{ text: { content: title } }],
+          },
+        },
+        children: [
+          {
+            object: 'block',
+            type: 'paragraph',
+            paragraph: {
+              rich_text: [{ text: { content } }],
+            },
+          },
+        ],
+      });
+      return 'Page created';
+    },
+  },
+  {
+    name: 'build_app',
+    description: 'Build a simple CRUD app based on user specs',
+    func: async (spec) => {
+      const db = await connectMongo();
+      const appName = spec.split(' ')[0].toLowerCase();
+      await db.collection('apps').insertOne({
+        name: appName,
+        schema: { tasks: [] },
+        createdAt: new Date(),
+      });
+      return `App "${appName}" created. Use /api/apps/${appName} to interact.`;
+    },
+  },
+];
+
+const prompt = await pull('hwchase17/react');
+
+const agent = await createReactAgent({ llm, tools, prompt });
+
+// مهم: التغيير الجوهري
+const agentExecutor = new AgentExecutor({ agent, tools });
+
 app.post('/api/agent/execute', async (req, res) => {
   try {
     const { input, userId } = req.body;
-    const db = await connectMongo();
 
+    const db = await connectMongo();
     const conversationsCol = db.collection('conversations');
+
     const conversation =
       (await conversationsCol.findOne({ userId })) || {
-        history: []
+        history: [],
       };
 
-    // 👇 تسريع: ناخذ آخر 20 رسالة فقط بدل كل شي (أرخص وأسرع)
-    const recentHistory = (conversation.history || []).slice(
-      -20
-    );
-
     const summarizedHistory = await memory.summarize(
-      recentHistory.join('\n')
+      conversation.history.join('\n')
     );
-    const fullInput =
-      summarizedHistory + '\n' + input;
 
-    const result = await agentExecutor.invoke({
-      input: fullInput
-    });
+    const fullInput = summarizedHistory + '\n' + input;
+
+    const result = await agentExecutor.invoke({ input: fullInput });
 
     await conversationsCol.updateOne(
       { userId },
       {
         $push: {
           history: input,
-          response: result.output
-        }
+          response: result.output,
+        },
       },
       { upsert: true }
     );
 
-    res.json({
-      ok: true,
-      output: result.output
-    });
+    res.json({ ok: true, output: result.output });
   } catch (error) {
     console.error('[agent/execute]', error);
     res.status(500).json({
       ok: false,
-      error:
-        error.message || 'Agent execution failed'
+      error: error.message || 'Agent failed',
     });
   }
 });
 
 // ---------- Health ----------
 app.get('/health', async (req, res) => {
-  // إذا في Redis، جرّب تعمل كاش
   if (redis) {
     try {
       const cache = await redis.get('/health');
@@ -1147,31 +1016,23 @@ app.get('/health', async (req, res) => {
       const data = {
         ok: true,
         time: new Date().toISOString(),
-        cache: true
+        cache: true,
       };
-      await redis.setex(
-        '/health',
-        60,
-        JSON.stringify(data)
-      );
+      await redis.setex('/health', 60, JSON.stringify(data));
       return res.json(data);
     } catch (err) {
-      console.log(
-        '[health] Redis error, falling back:',
-        err.message
-      );
+      console.log('[health] Redis error, fallback no-cache');
     }
   }
 
-  // بدون Redis
   res.json({
     ok: true,
     time: new Date().toISOString(),
-    cache: false
+    cache: false,
   });
 });
 
-// ---------- deploy + feedback stubs ----------
+// ---------- Deploy & Feedback ----------
 app.post('/api/deploy/github', async (req, res) => {
   try {
     if (process.env.RENDER_DEPLOY_HOOK) {
@@ -1179,14 +1040,11 @@ app.post('/api/deploy/github', async (req, res) => {
     }
     res.json({
       ok: true,
-      message: 'Deploy triggered'
+      message: 'Deploy triggered',
     });
   } catch (err) {
     console.error('[deploy/github]', err);
-    res.status(500).json({
-      ok: false,
-      error: err.message
-    });
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
@@ -1194,18 +1052,14 @@ app.post('/api/feedback', async (req, res) => {
   try {
     const { feedback, context } = req.body;
 
-    // لو مافي مفاتيح HF، ما نوقف السيرفر
-    if (
-      process.env.HF_STT_MODEL &&
-      process.env.HF_TOKEN
-    ) {
+    if (process.env.HF_STT_MODEL && process.env.HF_TOKEN) {
       await axios.post(
         `https://api.huggingface.co/models/${process.env.HF_STT_MODEL}/fine-tune`,
         { feedback, content: context },
         {
           headers: {
-            Authorization: `Bearer ${process.env.HF_TOKEN}`
-          }
+            Authorization: `Bearer ${process.env.HF_TOKEN}`,
+          },
         }
       );
     }
@@ -1213,23 +1067,11 @@ app.post('/api/feedback', async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('[feedback]', err);
-    res.status(500).json({
-      ok: false,
-      error: err.message
-    });
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
-// ---------- Error handler ----------
-app.use((err, req, res, next) => {
-  console.error('[Unhandled Error]', err.stack);
-  res.status(500).json({
-    ok: false,
-    error: 'Something broke!'
-  });
-});
-
-// ---------- Start server & init super admin ----------
+// ---------- Start ----------
 connectMongo()
   .then(() => {
     return initSuperAdmin();
