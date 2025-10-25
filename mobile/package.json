@@ -1,0 +1,16 @@
+{
+  "name": "infinityx-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-native": "^0.75.0",
+    "react-chatbotify": "^2.0.0",
+    "axios": "^1.7.7"
+  },
+  "scripts": {
+    "start": "react-native start",
+    "android": "react-native run-android",
+    "ios": "react-native run-ios"
+  }
+}
