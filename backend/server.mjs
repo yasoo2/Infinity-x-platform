@@ -15,10 +15,9 @@ import stream from 'stream';
 import bcrypt from 'bcryptjs';
 import { OAuth2Client } from 'google-auth-library';
 
-// LangChain (الإصدارات المثبّتة)
+// LangChain imports (متوافقة مع الإصدارات المثبّتة)
 import { OpenAI } from '@langchain/openai';
 import { AgentExecutor, createReactAgent } from 'langchain/agents';
-import { MemorySummarizer } from 'langchain/memory';
 import { pull } from 'langchain/hub';
 
 dotenv.config();
@@ -27,7 +26,7 @@ const app = express();
 const PORT = process.env.PORT || 10000;
 const upload = multer({ dest: 'uploads/' });
 
-// ---------- Redis (جلسات المستخدمين + OTP) ----------
+// ---------- Redis (للجلسات والـ OTP) ----------
 let redis = null;
 try {
   redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
@@ -124,7 +123,7 @@ function restrictTo(allowedRoles) {
   };
 }
 
-// ---------- سوبر أونر الافتراضي (إنت) ----------
+// ---------- سوبر أدمِن الأساسي (إلك) ----------
 const ROOT_SUPERADMIN_EMAIL =
   process.env.ROOT_SUPERADMIN_EMAIL || 'owner@example.com';
 const ROOT_SUPERADMIN_PASSWORD =
@@ -157,7 +156,7 @@ const googleOauthClient = new OAuth2Client(
 
 // ---------- AUTH ENDPOINTS ----------
 
-// 1) تسجيل الدخول بالإيميل والباسورد
+// تسجيل الدخول بالإيميل/الباسورد
 app.post('/api/auth/loginUser', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -209,7 +208,7 @@ app.post('/api/auth/loginUser', async (req, res) => {
   }
 });
 
-// 2) طلب OTP للموبايل
+// طلب OTP للموبايل
 app.post('/api/auth/requestPhoneCode', async (req, res) => {
   try {
     const { phone } = req.body;
@@ -230,7 +229,7 @@ app.post('/api/auth/requestPhoneCode', async (req, res) => {
 
     await redis.setex(`otp:${phone}`, 60 * 5, otp);
 
-    // حاليا بنرجع الOTP للـresponse (ديبغ). الانتاج=SMS
+    // بالمستقبل تبعتها SMS، الآن بنرجعها بالـresponse للتجربة
     res.json({ ok: true, phone, debug_otp: otp });
   } catch (err) {
     console.error('[auth/requestPhoneCode]', err);
@@ -238,7 +237,7 @@ app.post('/api/auth/requestPhoneCode', async (req, res) => {
   }
 });
 
-// 3) تسجيل الدخول بالموبايل مع OTP
+// تسجيل الدخول بالموبايل باستخدام OTP
 app.post('/api/auth/loginPhone', async (req, res) => {
   try {
     const { phone, otp } = req.body;
@@ -266,7 +265,7 @@ app.post('/api/auth/loginPhone', async (req, res) => {
     const db = await connectMongo();
     let user = await db.collection('users').findOne({ phone });
     if (!user) {
-      // يوزر جديد role=user
+      // مستخدم جديد role=user
       const newUser = {
         email: null,
         phone,
@@ -303,7 +302,7 @@ app.post('/api/auth/loginPhone', async (req, res) => {
   }
 });
 
-// 4) تسجيل الدخول بجوجل
+// تسجيل الدخول عبر جوجل
 app.post('/api/auth/loginGoogle', async (req, res) => {
   try {
     const { idToken } = req.body;
@@ -333,7 +332,7 @@ app.post('/api/auth/loginGoogle', async (req, res) => {
     }
 
     if (!user) {
-      // مستخدم جديد role=user
+      // حساب جديد role=user
       const newUser = {
         email: email || null,
         phone: null,
@@ -383,7 +382,7 @@ app.post('/api/auth/loginGoogle', async (req, res) => {
 
 // ---------- SUPER ADMIN PANEL ----------
 
-// عرض جميع المستخدمين
+// جلب كل المستخدمين
 app.get(
   '/api/admin/users',
   restrictTo(['super_admin']),
@@ -470,7 +469,7 @@ app.post(
 
 // ---------- CLIENTS / VERSIONED BUILDS ----------
 
-// تسجيل عميل/علامة جديدة
+// تسجيل عميل/براند
 app.post('/api/clients/register', async (req, res) => {
   try {
     const {
@@ -529,7 +528,7 @@ app.post('/api/clients/register', async (req, res) => {
   }
 });
 
-// جلب الإصدارات المحفوظة للعميل
+// جلب نسخ المشاريع لعميل
 app.get('/api/clients/:clientId/projects', async (req, res) => {
   try {
     const { clientId } = req.params;
@@ -562,7 +561,7 @@ app.get('/api/clients/:clientId/projects', async (req, res) => {
   }
 });
 
-// إنشاء نسخة مشروع جديدة وتسجيلها (scaffold)
+// إنشاء نسخة مشروع جديدة (scaffold)
 app.post('/api/builder/scaffold', async (req, res) => {
   try {
     const {
@@ -592,6 +591,7 @@ app.post('/api/builder/scaffold', async (req, res) => {
 
     const db = await connectMongo();
 
+    // احسب رقم النسخة التالية
     const latest = await db
       .collection('generated_projects')
       .find({ clientId, projectName })
@@ -604,7 +604,7 @@ app.post('/api/builder/scaffold', async (req, res) => {
     const now = new Date();
     const files = {};
 
-    // frontend placeholder
+    // frontend mock
     files[`frontend-${projectName}/README.md`] = `
 # ${brandName || projectName} Frontend
 Primary Color: ${primaryColor}
@@ -617,7 +617,7 @@ Tone: ${brandTone}
 Generated at: ${now.toISOString()}
 `;
 
-    // backend placeholder
+    // backend mock
     files[`backend-${projectName}/README.md`] = `
 # ${brandName || projectName} Backend
 Client: ${clientId}
@@ -625,7 +625,7 @@ Kind: ${kind}
 Generated at: ${now.toISOString()}
 `;
 
-    // mobile placeholder
+    // mobile mock
     files[`mobile-${projectName}/README.md`] = `
 # ${brandName || projectName} Mobile App
 Client: ${clientId}
@@ -665,7 +665,7 @@ Generated at: ${now.toISOString()}
   }
 });
 
-// تنزيل ZIP لنسخة مشروع معيّنة
+// تنزيل نسخة ZIP لأي إصدار
 app.get('/api/builder/download', async (req, res) => {
   try {
     const { buildKey, projectName, clientId, version } = req.query;
@@ -722,7 +722,7 @@ app.get('/api/builder/download', async (req, res) => {
   }
 });
 
-// خطة عمل/تقنية جاهزة للعميل (باستخدام AI النصي)
+// توليد خطة تقنية/بزنس بالذكاء
 app.post('/api/builder/plan', async (req, res) => {
   try {
     const { buildKey, clientId, businessType, features, scale, tone } =
@@ -848,15 +848,20 @@ app.post('/api/builder/savePlanToNotion', async (req, res) => {
 
 // ---------- AI AGENT (LangChain) ----------
 
+// 1) نموذج الذكاء
 const llm = new OpenAI({
   temperature: 0,
   openAIApiKey: process.env.CF_API_TOKEN,
   basePath: `https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/ai/run/@cf/meta/llama-3.1-8b-instruct`
 });
 
-// ممكن نبدلها لاحق لو طلعت Error
-const memory = new MemorySummarizer({ llm });
+// 2) بدل MemorySummarizer: دالة بسيطة تبني سياق من آخر الرسائل
+function buildConversationContext(historyArray = [], latestInput = '') {
+  const recent = historyArray.slice(-10); // آخر 10 رسائل فقط
+  return [...recent, latestInput].join('\n');
+}
 
+// 3) الأدوات اللي الوكيل (الـ Agent) قادر يستخدمها
 const tools = [
   {
     name: 'tts',
@@ -957,13 +962,16 @@ const tools = [
   },
 ];
 
+// 4) نجيب البرومبت الجاهز من LangChain Hub
 const prompt = await pull('hwchase17/react');
 
+// 5) نبني الوكيل
 const agent = await createReactAgent({ llm, tools, prompt });
 
-// مهم: التغيير الجوهري
+// 6) نلفّه داخل Executor
 const agentExecutor = new AgentExecutor({ agent, tools });
 
+// 7) نقطة الوصول للذكاء
 app.post('/api/agent/execute', async (req, res) => {
   try {
     const { input, userId } = req.body;
@@ -976,11 +984,11 @@ app.post('/api/agent/execute', async (req, res) => {
         history: [],
       };
 
-    const summarizedHistory = await memory.summarize(
-      conversation.history.join('\n')
+    // بناء السياق من المحادثة السابقة بدون MemorySummarizer
+    const fullInput = buildConversationContext(
+      conversation.history,
+      input
     );
-
-    const fullInput = summarizedHistory + '\n' + input;
 
     const result = await agentExecutor.invoke({ input: fullInput });
 
