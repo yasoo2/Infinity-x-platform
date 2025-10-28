@@ -400,6 +400,206 @@ app.use('/api/dashboard', dashboardDataRouter(initMongo, redis));
 app.use('/api/public-site', publicSiteRouter(initMongo));
 
 // -------------------------
+// Complaints System
+// -------------------------
+app.post('/api/public/complaint', async (req, res) => {
+  try {
+    const { type, description, location, contactInfo, anonymous } = req.body;
+    if (!type || !description) {
+      return res.status(400).json({ error: 'MISSING_FIELDS' });
+    }
+    
+    const db = await initMongo();
+    const now = new Date();
+    
+    const complaint = {
+      createdAt: now,
+      type,
+      description,
+      location: location || 'Not specified',
+      contactInfo: contactInfo || null,
+      anonymous: !!anonymous,
+      status: 'NEW',
+      reviewed: false
+    };
+    
+    const ins = await db.collection('complaints').insertOne(complaint);
+    
+    return res.json({
+      ok: true,
+      complaintId: ins.insertedId.toString(),
+      msg: 'COMPLAINT_RECEIVED'
+    });
+  } catch (err) {
+    console.error('POST /api/public/complaint err', err);
+    res.status(500).json({ error: 'SERVER_ERR' });
+  }
+});
+
+app.post('/api/public/complaint/human-trafficking', async (req, res) => {
+  try {
+    const { description, location, victimInfo, contactInfo, anonymous } = req.body;
+    if (!description) {
+      return res.status(400).json({ error: 'MISSING_FIELDS' });
+    }
+    
+    const db = await initMongo();
+    const now = new Date();
+    
+    const complaint = {
+      createdAt: now,
+      type: 'HUMAN_TRAFFICKING',
+      description,
+      location: location || 'Not specified',
+      victimInfo: victimInfo || null,
+      contactInfo: contactInfo || null,
+      anonymous: !!anonymous,
+      status: 'URGENT',
+      reviewed: false,
+      priority: 'HIGH'
+    };
+    
+    const ins = await db.collection('complaints').insertOne(complaint);
+    
+    return res.json({
+      ok: true,
+      complaintId: ins.insertedId.toString(),
+      msg: 'URGENT_COMPLAINT_RECEIVED'
+    });
+  } catch (err) {
+    console.error('POST /api/public/complaint/human-trafficking err', err);
+    res.status(500).json({ error: 'SERVER_ERR' });
+  }
+});
+
+app.post('/api/public/complaint/behavioral', async (req, res) => {
+  try {
+    const { description, location, personInfo, contactInfo, anonymous } = req.body;
+    if (!description) {
+      return res.status(400).json({ error: 'MISSING_FIELDS' });
+    }
+    
+    const db = await initMongo();
+    const now = new Date();
+    
+    const complaint = {
+      createdAt: now,
+      type: 'BEHAVIORAL',
+      description,
+      location: location || 'Not specified',
+      personInfo: personInfo || null,
+      contactInfo: contactInfo || null,
+      anonymous: !!anonymous,
+      status: 'NEW',
+      reviewed: false
+    };
+    
+    const ins = await db.collection('complaints').insertOne(complaint);
+    
+    return res.json({
+      ok: true,
+      complaintId: ins.insertedId.toString(),
+      msg: 'COMPLAINT_RECEIVED'
+    });
+  } catch (err) {
+    console.error('POST /api/public/complaint/behavioral err', err);
+    res.status(500).json({ error: 'SERVER_ERR' });
+  }
+});
+
+app.get('/api/admin/complaints', requireRole(ROLES.ADMIN), async (req, res) => {
+  try {
+    const db = await initMongo();
+    const complaints = await db.collection('complaints')
+      .find({})
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .toArray();
+    
+    const stats = {
+      total: complaints.length,
+      new: complaints.filter(c => c.status === 'NEW').length,
+      urgent: complaints.filter(c => c.status === 'URGENT').length,
+      reviewed: complaints.filter(c => c.reviewed).length
+    };
+    
+    return res.json({
+      ok: true,
+      stats,
+      complaints: complaints.map(c => ({
+        id: c._id.toString(),
+        createdAt: c.createdAt,
+        type: c.type,
+        description: c.description,
+        location: c.location,
+        status: c.status,
+        reviewed: c.reviewed,
+        priority: c.priority || 'NORMAL'
+      }))
+    });
+  } catch (err) {
+    console.error('GET /api/admin/complaints err', err);
+    res.status(500).json({ error: 'SERVER_ERR' });
+  }
+});
+
+// -------------------------
+// System Metrics
+// -------------------------
+app.get('/api/system/metrics', requireRole(ROLES.ADMIN), async (req, res) => {
+  try {
+    const db = await initMongo();
+    const usersTotal = await db.collection('users').countDocuments({});
+    const activeSessions = await db.collection('sessions').countDocuments({ active: true });
+    
+    // Check Redis
+    let redisOnline = false;
+    if (redis) {
+      try {
+        await redis.ping();
+        redisOnline = true;
+      } catch (e) {
+        redisOnline = false;
+      }
+    }
+    
+    // Check Mongo
+    let mongoOnline = false;
+    try {
+      await db.admin().ping();
+      mongoOnline = true;
+    } catch (e) {
+      mongoOnline = false;
+    }
+    
+    // Get recent Joe activity
+    const joeRecent = await db.collection('joe_activity')
+      .find({})
+      .sort({ ts: -1 })
+      .limit(10)
+      .toArray();
+    
+    return res.json({
+      ok: true,
+      system: {
+        usersTotal,
+        activeSessions,
+        redisOnline,
+        mongoOnline
+      },
+      joeRecent: joeRecent.map(j => ({
+        ts: j.ts,
+        action: j.action,
+        detail: j.detail
+      }))
+    });
+  } catch (err) {
+    console.error('GET /api/system/metrics err', err);
+    res.status(500).json({ error: 'SERVER_ERR' });
+  }
+});
+
+// -------------------------
 app.get('/', (req, res) => {
   res.json({
     ok: true,
