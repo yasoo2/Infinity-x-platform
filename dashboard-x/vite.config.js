@@ -1,24 +1,17 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-
-// IMPORTANT:
-// عدّل الـ URL تحت على عنوان الـ backend تبعك على Render
-const BACKEND_BASE = 'https://infinity-x-platform.onrender.com'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 5173,
     strictPort: true,
-    proxy: {
-      '/api': {
-        target: BACKEND_BASE,
-        changeOrigin: true
-      }
-    }
+    port: 5173,
   },
   preview: {
-    port: 5173,
-    strictPort: true
+    port: 4173,
+  },
+  build: {
+    outDir: "dist",
+    sourcemap: false,
   }
-})
+});
