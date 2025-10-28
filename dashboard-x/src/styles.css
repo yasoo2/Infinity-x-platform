@@ -3,22 +3,8 @@
 @tailwind utilities;
 
 body {
-  @apply bg-zinc-950 text-zinc-100 antialiased;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Inter", "Roboto", sans-serif;
-}
-
-.card {
-  @apply bg-zinc-900/70 border border-zinc-700/50 rounded-xl p-6 shadow-xl;
-}
-
-.btn {
-  @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-40 disabled:cursor-not-allowed;
-}
-
-.input {
-  @apply w-full rounded-lg bg-zinc-800/70 border border-zinc-700 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:ring-2 focus:ring-indigo-500;
-}
-
-.label {
-  @apply text-xs font-medium text-zinc-300 mb-1 block;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Inter", "Roboto", "Segoe UI", "Helvetica Neue", Arial, "Noto Sans",
+    sans-serif;
+  background-color: #0a0b10;
 }
