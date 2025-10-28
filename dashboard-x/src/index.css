@@ -1,13 +1,10 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charSet="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>X Admin Panel</title>
-    <meta name="description" content="Future Systems internal control panel" />
-  </head>
-  <body style="margin:0;background:#0a0a0f;color:#fff;">
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
-</html>
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ألوان الواجهة الداكنة + نيون */
+body {
+  background-color: #0a0b10;
+  color: #fff;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Inter", "Roboto", sans-serif;
+}
