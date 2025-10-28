@@ -1,0 +1,17 @@
+{
+  "name": "infinity-x-platform",
+  "version": "1.0.0",
+  "description": "FutureSystems / X Elite Solutions core platform (backend API, worker brain, dashboard-x, public-site).",
+  "type": "module",
+  "scripts": {
+    "start:backend": "node backend/server.mjs",
+    "start:worker": "node worker/brain.mjs",
+    "start:all": "node backend/server.mjs & node worker/brain.mjs"
+  },
+  "dependencies": {
+    "express": "^4.19.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.0",
+    "node-fetch": "^3.3.2"
+  }
+}
