@@ -1,91 +1,46 @@
-// api.js
-const API_BASE = __API_BASE__
+import axios from "axios"
 
-// نخزن التوكن بالمتصفح
-export function saveSessionToken(token) {
-  localStorage.setItem('sessionToken', token)
-}
+// لو انت فاتح الداشبورد لوكالي:
+// - Vite حيعمل proxy على /api تلقائياً ل Render backend
+// لو نشرنا الداشبورد اونلاين، بنقدر نغير baseURL ل HTTPS تبع الـ backend
 
-export function getSessionToken() {
-  return localStorage.getItem('sessionToken')
-}
+const api = axios.create({
+  baseURL: "/api",
+})
 
-// login
-export async function login(email, password) {
-  const res = await fetch(`${API_BASE}/api/admin/login`, {
-    method: 'POST',
+// استرجع حالة النظام (users online, joe activity, redis, ...)
+export async function fetchStatus(sessionToken) {
+  const res = await api.get("/dashboard/status", {
     headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ email, password })
-  })
-
-  if (!res.ok) {
-    throw new Error('Network error')
-  }
-
-  const data = await res.json()
-  // المتوقع من الـ API تبعك (شفناه بالبوستمان):
-  // {
-  //   "ok": true,
-  //   "sessionToken": "...",
-  //   "user": {...}
-  // }
-
-  if (!data.ok || !data.sessionToken) {
-    throw new Error('Bad credentials')
-  }
-
-  saveSessionToken(data.sessionToken)
-  return data
-}
-
-// get system stats
-export async function getStatus() {
-  const token = getSessionToken()
-  const res = await fetch(`${API_BASE}/`, {
-    headers: {
-      'x-session-token': token ?? ''
+      "x-session-token": sessionToken
     }
   })
-  const data = await res.json()
-  return data
+  return res.data
 }
 
-// get users list
-export async function getUsers() {
-  const token = getSessionToken()
-  const res = await fetch(`${API_BASE}/api/admin/users`, {
+// استرجع آخر الشغل المباشر لجو (الشاشة الصغيرة)
+export async function fetchJoeActivity() {
+  const res = await api.get("/joe/activity-stream")
+  return res.data
+}
+
+// استرجع المستخدمين عشان تبويب إدارة الصلاحيات
+export async function fetchUsers(sessionToken) {
+  const res = await api.get("/admin/users", {
     headers: {
-      'Content-Type': 'application/json',
-      'x-session-token': token ?? ''
+      "x-session-token": sessionToken
     }
   })
-
-  if (!res.ok) {
-    throw new Error('Unauthorized or failed')
-  }
-
-  const data = await res.json()
-  return data
+  return res.data
 }
 
-// send command to Joe
-export async function sendJoeCommand(text, lang = 'ar') {
-  const token = getSessionToken()
-  const res = await fetch(`${API_BASE}/api/joe/command`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      sessionToken: token ?? '',
-      lang,
-      voice: false,
-      commandText: text
-    })
+// ارسال أمر لجو (أمر صوتي/نصي)
+export async function sendJoeCommand(sessionToken, text) {
+  const res = await api.post("/joe/command", {
+    sessionToken,
+    lang: "en",
+    voice: false,
+    commandText: text
   })
-
-  const data = await res.json()
-  return data
+  return res.data
 }
