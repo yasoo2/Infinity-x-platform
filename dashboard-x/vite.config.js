@@ -1,12 +1,24 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// هون بنحدد الـ API تبع الباكند تبعنا
-const API_BASE = 'https://api.xelitesolutions.com'
+// IMPORTANT:
+// عدّل الـ URL تحت على عنوان الـ backend تبعك على Render
+const BACKEND_BASE = 'https://infinity-x-platform.onrender.com'
 
 export default defineConfig({
   plugins: [react()],
-  define: {
-    __API_BASE__: JSON.stringify(API_BASE),
+  server: {
+    port: 5173,
+    strictPort: true,
+    proxy: {
+      '/api': {
+        target: BACKEND_BASE,
+        changeOrigin: true
+      }
+    }
+  },
+  preview: {
+    port: 5173,
+    strictPort: true
   }
 })
