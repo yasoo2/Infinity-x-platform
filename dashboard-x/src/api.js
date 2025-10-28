@@ -1,43 +1,91 @@
-import axios from 'axios'
+// api.js
+const API_BASE = __API_BASE__
 
-const BASE_URL = 'https://api.xelitesolutions.com'
-
-const api = axios.create({
-  baseURL: BASE_URL,
-  headers: { 'Content-Type': 'application/json' }
-})
-
-export function setSessionToken(token) {
-  if (token) api.defaults.headers['x-session-token'] = token
-  else delete api.defaults.headers['x-session-token']
+// نخزن التوكن بالمتصفح
+export function saveSessionToken(token) {
+  localStorage.setItem('sessionToken', token)
 }
 
-export async function login(emailOrPhone, password) {
-  const { data } = await api.post('/api/auth/login', { emailOrPhone, password })
+export function getSessionToken() {
+  return localStorage.getItem('sessionToken')
+}
+
+// login
+export async function login(email, password) {
+  const res = await fetch(`${API_BASE}/api/admin/login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ email, password })
+  })
+
+  if (!res.ok) {
+    throw new Error('Network error')
+  }
+
+  const data = await res.json()
+  // المتوقع من الـ API تبعك (شفناه بالبوستمان):
+  // {
+  //   "ok": true,
+  //   "sessionToken": "...",
+  //   "user": {...}
+  // }
+
+  if (!data.ok || !data.sessionToken) {
+    throw new Error('Bad credentials')
+  }
+
+  saveSessionToken(data.sessionToken)
   return data
 }
 
-export async function bootstrapSuper(email, phone, password) {
-  const { data } = await api.post('/api/auth/bootstrap-super', { email, phone, password })
+// get system stats
+export async function getStatus() {
+  const token = getSessionToken()
+  const res = await fetch(`${API_BASE}/`, {
+    headers: {
+      'x-session-token': token ?? ''
+    }
+  })
+  const data = await res.json()
   return data
 }
 
-export async function getDashboardStatus() {
-  const { data } = await api.get('/api/dashboard/status')
-  return data
-}
-
+// get users list
 export async function getUsers() {
-  const { data } = await api.get('/api/admin/users')
+  const token = getSessionToken()
+  const res = await fetch(`${API_BASE}/api/admin/users`, {
+    headers: {
+      'Content-Type': 'application/json',
+      'x-session-token': token ?? ''
+    }
+  })
+
+  if (!res.ok) {
+    throw new Error('Unauthorized or failed')
+  }
+
+  const data = await res.json()
   return data
 }
 
-export async function getJoeActivity() {
-  const { data } = await api.get('/api/joe/activity-stream')
-  return data
-}
+// send command to Joe
+export async function sendJoeCommand(text, lang = 'ar') {
+  const token = getSessionToken()
+  const res = await fetch(`${API_BASE}/api/joe/command`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      sessionToken: token ?? '',
+      lang,
+      voice: false,
+      commandText: text
+    })
+  })
 
-export async function sendJoeCommand(sessionToken, lang, commandText, voice=false) {
-  const { data } = await api.post('/api/joe/command', { sessionToken, lang, voice, commandText })
+  const data = await res.json()
   return data
 }
