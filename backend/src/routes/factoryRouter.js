@@ -3,6 +3,22 @@ import express from 'express';
 export function factoryRouter(initMongo, redis) {
   const router = express.Router();
 
+  // GET /api/factory/jobs - Get all factory jobs
+  router.get('/jobs', async (req, res) => {
+    try {
+      const db = await initMongo();
+      const jobs = await db.collection('factory_jobs')
+        .find({})
+        .sort({ createdAt: -1 })
+        .limit(50)
+        .toArray();
+      return res.json({ ok: true, jobs });
+    } catch (err) {
+      console.error('/api/factory/jobs err', err);
+      res.status(500).json({ error: 'SERVER_ERR' });
+    }
+  });
+
   router.post('/build-new', async (req, res) => {
     try {
       const db = await initMongo();

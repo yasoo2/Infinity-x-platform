@@ -396,7 +396,7 @@ app.post('/api/admin/users/setRole', requireRole(ROLES.SUPER_ADMIN), async (req,
 // -------------------------
 app.use('/api/joe', joeRouter(initMongo, redis));
 app.use('/api/factory', factoryRouter(initMongo, redis));
-app.use('/api/dashboard', dashboardDataRouter(initMongo, redis));
+app.use('/api/system', dashboardDataRouter(initMongo, redis));
 app.use('/api/public-site', publicSiteRouter(initMongo));
 
 // -------------------------

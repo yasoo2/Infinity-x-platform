@@ -3,7 +3,7 @@ import express from 'express';
 export function dashboardDataRouter(initMongo, redis) {
   const router = express.Router();
 
-  router.get('/status', async (req, res) => {
+  router.get('/metrics', async (req, res) => {
     try {
       const db = await initMongo();
 
