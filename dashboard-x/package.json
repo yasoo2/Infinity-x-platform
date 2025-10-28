@@ -1,0 +1,9 @@
+{
+  "name": "dashboard-x",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "echo 'dashboard-x frontend placeholder (React/Next UI will 
+live here)'"
+  }
+}
