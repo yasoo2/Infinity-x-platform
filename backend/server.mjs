@@ -1,8 +1,3 @@
-// =====================
-// InfinityX Backend
-// Full backend (fixed)
-// =====================
-
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -16,13 +11,12 @@ import { OAuth2Client } from 'google-auth-library';
 import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
-import crypto from 'node:crypto';
 import { fileURLToPath } from 'url';
+import crypto from 'crypto';
 
-import { ROLES, PERMISSIONS, can } from '../shared/roles.js';
+import { ROLES } from '../shared/roles.js';
 import { sanitizeUserForClient } from '../shared/userTypes.js';
 
-// Routers
 import { joeRouter } from './src/routes/joeRouter.js';
 import { factoryRouter } from './src/routes/factoryRouter.js';
 import { publicSiteRouter } from './src/routes/publicSiteRouter.js';
@@ -31,7 +25,7 @@ import { dashboardDataRouter } from './src/routes/dashboardDataRouter.js';
 dotenv.config();
 
 // -------------------------
-// basic express setup
+// express setup
 // -------------------------
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -42,18 +36,16 @@ app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200
 }));
-
 app.use(cors({
   origin: '*',
   credentials: true
 }));
-
 app.use(express.json({ limit: '2mb' }));
 
 const upload = multer({ dest: 'uploads/' });
 
 // -------------------------
-// Mongo setup
+// Mongo
 // -------------------------
 const DB_NAME = process.env.DB_NAME || 'future_system';
 let mongoClient = null;
@@ -74,7 +66,7 @@ async function initMongo() {
 }
 
 // -------------------------
-// Redis setup
+// Redis
 // -------------------------
 let redis = null;
 if (process.env.REDIS_URL) {
@@ -94,25 +86,26 @@ const googleOAuthClient = (googleClientId && googleClientSecret)
   : null;
 
 // -------------------------
-// Helpers
+// helpers
 // -------------------------
-
-// safe random session token (works everywhere)
 function cryptoRandom() {
   return crypto.randomBytes(32).toString('hex');
 }
 
-// Middleware to make sure caller has at least a role
-// example: requireRole(ROLES.ADMIN)
+// لو احتجنا لاحقاً role check داخل راوترات ثانية
 function requireRole(minRole) {
-  // يضمن فقط صلاحيات صح
+  const rolePriority = {
+    [ROLES.SUPER_ADMIN]: 3,
+    [ROLES.ADMIN]: 2,
+    [ROLES.USER]: 1,
+  };
+
   return async (req, res, next) => {
     try {
       const db = await initMongo();
       const token = req.headers['x-session-token'];
       if (!token) return res.status(401).json({ error: 'NO_TOKEN' });
 
-      // sessions collection: { token, userId, startedAt, active }
       const sessionDoc = await db.collection('sessions').findOne({ token, active: true });
       if (!sessionDoc) return res.status(401).json({ error: 'INVALID_SESSION' });
 
@@ -121,25 +114,17 @@ function requireRole(minRole) {
 
       req.user = userDoc;
 
-      const rolePriority = {
-        [ROLES.SUPER_ADMIN]: 3,
-        [ROLES.ADMIN]: 2,
-        [ROLES.USER]: 1,
-      };
-
       if (rolePriority[userDoc.role] < rolePriority[minRole]) {
         return res.status(403).json({ error: 'FORBIDDEN' });
       }
 
-      // update activity / last seen
+      // update activity (للعرض في لوحة X)
       await db.collection('users').updateOne(
         { _id: userDoc._id },
-        {
-          $set: {
-            lastSeenAt: new Date(),
-            activeSessionSince: sessionDoc.startedAt || new Date()
-          }
-        }
+        { $set: {
+          lastSeenAt: new Date(),
+          activeSessionSince: sessionDoc.startedAt || new Date()
+        }}
       );
 
       next();
@@ -154,16 +139,13 @@ function requireRole(minRole) {
 // AUTH ROUTES
 // -------------------------
 
-// 1) bootstrap super admin (first run)
-// السوبر الأدمن الأول بنخلقه أو منثبّته
+// (A) أول سوبر أدمن (bootstrap)
 app.post('/api/auth/bootstrap-super', async (req, res) => {
   try {
     const { email, phone, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'MISSING_FIELDS' });
 
     const db = await initMongo();
-
-    // إذا في سوبر من قبل ما نعمل دبل
     const exist = await db.collection('users').findOne({ role: ROLES.SUPER_ADMIN });
     if (exist) {
       console.log('[Auth] Super admin already exists');
@@ -171,7 +153,6 @@ app.post('/api/auth/bootstrap-super', async (req, res) => {
     }
 
     const hash = await bcrypt.hash(password, 10);
-
     const now = new Date();
     const newUser = {
       email,
@@ -195,7 +176,7 @@ app.post('/api/auth/bootstrap-super', async (req, res) => {
   }
 });
 
-// 2) classic login (email OR phone + password)
+// (B) لوجين طبيعي (إيميل/موبايل + باسورد)
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { emailOrPhone, password } = req.body;
@@ -231,11 +212,7 @@ app.post('/api/auth/login', async (req, res) => {
     return res.json({
       ok: true,
       sessionToken: token,
-      user: sanitizeUserForClient({
-        ...userDoc,
-        activeSessionSince: now,
-        lastLoginAt: now
-      })
+      user: sanitizeUserForClient({ ...userDoc, activeSessionSince: now, lastLoginAt: now })
     });
   } catch (err) {
     console.error('login err', err);
@@ -243,7 +220,7 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// 3) google login (لو عامل GOOGLE_CLIENT_ID/SECRET)
+// (C) لوجين بجوجل
 app.post('/api/auth/google', async (req, res) => {
   try {
     if (!googleOAuthClient) {
@@ -253,7 +230,6 @@ app.post('/api/auth/google', async (req, res) => {
     const { idToken } = req.body;
     if (!idToken) return res.status(400).json({ error: 'MISSING_ID_TOKEN' });
 
-    // verify token
     const ticket = await googleOAuthClient.verifyIdToken({
       idToken,
       audience: googleClientId
@@ -266,7 +242,6 @@ app.post('/api/auth/google', async (req, res) => {
     const now = new Date();
 
     if (!userDoc) {
-      // مستخدم جديد role=user
       const newUser = {
         email,
         phone: null,
@@ -296,11 +271,7 @@ app.post('/api/auth/google', async (req, res) => {
     return res.json({
       ok: true,
       sessionToken: token,
-      user: sanitizeUserForClient({
-        ...userDoc,
-        activeSessionSince: now,
-        lastLoginAt: now
-      })
+      user: sanitizeUserForClient({ ...userDoc, activeSessionSince: now, lastLoginAt: now })
     });
   } catch (err) {
     console.error('google login err', err);
@@ -308,11 +279,69 @@ app.post('/api/auth/google', async (req, res) => {
   }
 });
 
-// -------------------------
-// USERS MGMT (for dashboard X)
-// -------------------------
+// (D) الإندبوينت المؤقت: إصلاح/فرض السوبر أدمِن
+// IMPORTANT: بعد ما ندخل ونمشي الأمور، بتحذف هذا الراوت من السيرفر عشان الأمان.
+app.post('/api/auth/dev-force-super', async (req, res) => {
+  try {
+    const { email, phone, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: 'MISSING_FIELDS' });
+    }
 
-// احصائيات + لستة المستخدمين
+    const db = await initMongo();
+    const now = new Date();
+    const hash = await bcrypt.hash(password, 10);
+
+    const existingSuper = await db.collection('users').findOne({ role: ROLES.SUPER_ADMIN });
+
+    if (existingSuper) {
+      // عدّل السوبر أدمِن الحالي ليصير على بياناتك انت
+      await db.collection('users').updateOne(
+        { _id: existingSuper._id },
+        {
+          $set: {
+            email,
+            phone: phone || existingSuper.phone || null,
+            passwordHash: hash,
+            lastLoginAt: now,
+            activeSessionSince: now
+          }
+        }
+      );
+
+      return res.json({
+        ok: true,
+        mode: 'UPDATED_EXISTING_SUPER_ADMIN',
+        superAdminId: existingSuper._id.toString()
+      });
+    } else {
+      // ما في سوبر أدمِن؟ بننشئ واحد جديد إلك
+      const newUser = {
+        email,
+        phone: phone || null,
+        passwordHash: hash,
+        role: ROLES.SUPER_ADMIN,
+        createdAt: now,
+        lastLoginAt: now,
+        activeSessionSince: now,
+      };
+      const ins = await db.collection('users').insertOne(newUser);
+
+      return res.json({
+        ok: true,
+        mode: 'CREATED_NEW_SUPER_ADMIN',
+        superAdminId: ins.insertedId.toString()
+      });
+    }
+  } catch (err) {
+    console.error('dev-force-super err', err);
+    res.status(500).json({ error: 'SERVER_ERR' });
+  }
+});
+
+// -------------------------
+// USERS MGMT (admin panel)
+// -------------------------
 app.get('/api/admin/users', requireRole(ROLES.ADMIN), async (req, res) => {
   try {
     const db = await initMongo();
@@ -321,7 +350,6 @@ app.get('/api/admin/users', requireRole(ROLES.ADMIN), async (req, res) => {
       .sort({ lastLoginAt: -1 })
       .toArray();
 
-    // احصائيات لايف
     const totalActiveNow = await db.collection('sessions').countDocuments({ active: true });
     const totalSupers = arr.filter(u => u.role === ROLES.SUPER_ADMIN).length;
     const totalAdmins = arr.filter(u => u.role === ROLES.ADMIN).length;
@@ -345,49 +373,32 @@ app.get('/api/admin/users', requireRole(ROLES.ADMIN), async (req, res) => {
   }
 });
 
-// تغيير رول (بس السوبر أدمن يقدر)
-app.post(
-  '/api/admin/users/setRole',
-  requireRole(ROLES.SUPER_ADMIN),
-  async (req, res) => {
-    try {
-      const { userId, newRole } = req.body;
-      if (!userId || !newRole) {
-        return res.status(400).json({ error: 'MISSING_FIELDS' });
-      }
+app.post('/api/admin/users/setRole', requireRole(ROLES.SUPER_ADMIN), async (req, res) => {
+  try {
+    const { userId, newRole } = req.body;
+    if (!userId || !newRole) return res.status(400).json({ error: 'MISSING_FIELDS' });
 
-      const db = await initMongo();
-      await db.collection('users').updateOne(
-        { _id: new ObjectId(userId) },
-        { $set: { role: newRole } }
-      );
+    const db = await initMongo();
+    await db.collection('users').updateOne(
+      { _id: new ObjectId(userId) },
+      { $set: { role: newRole } }
+    );
 
-      return res.json({ ok: true });
-    } catch (err) {
-      console.error('POST /api/admin/users/setRole err', err);
-      res.status(500).json({ error: 'SERVER_ERR' });
-    }
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('POST /api/admin/users/setRole err', err);
+    res.status(500).json({ error: 'SERVER_ERR' });
   }
-);
+});
 
 // -------------------------
-// attach routers
+// attach feature routers
 // -------------------------
-
-// جو (ذكاء، أوامر، اقتراحات، طلب صلاحيات)
 app.use('/api/joe', joeRouter(initMongo, redis));
-
-// المصنع الذكي (بناء مشاريع وربط أنظمة خارجية)
 app.use('/api/factory', factoryRouter(initMongo, redis));
-
-// بيانات لوحة التحكم X (احصائيات النظام، نشاط جو لايف...)
 app.use('/api/dashboard', dashboardDataRouter(initMongo, redis));
-
-// الموقع العام للشركة (الخدمات + SEO boost requests)
 app.use('/api/public-site', publicSiteRouter(initMongo));
 
-// -------------------------
-// basic root
 // -------------------------
 app.get('/', (req, res) => {
   res.json({
@@ -400,8 +411,6 @@ app.get('/', (req, res) => {
 });
 
 // -------------------------
-// start server
-// -------------------------
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`InfinityX Backend running on ${PORT}`);
 });
