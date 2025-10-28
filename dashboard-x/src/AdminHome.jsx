@@ -1,7 +1,7 @@
 // dashboard-x/src/AdminHome.jsx
 
 import { useEffect, useState } from "react";
-import { getSystemStatus } from "./apiClient/adminApi";
+import { getSystemStatus, getjoeActivity } from "./apiClient/adminApi";
 
 export default function AdminHome() {
   const [status, setStatus] = useState(null);
