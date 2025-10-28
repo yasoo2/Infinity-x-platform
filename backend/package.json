@@ -1,22 +1,22 @@
 {
-  "name": "dashboard-x",
+  "name": "infinityx-backend",
   "version": "1.0.0",
-  "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview -p 5173"
+    "start": "node server.mjs",
+    "dev": "node server.mjs"
   },
   "dependencies": {
-    "axios": "^1.7.7",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
-  },
-  "devDependencies": {
-    "autoprefixer": "^10.4.20",
-    "postcss": "^8.4.47",
-    "tailwindcss": "^3.4.14",
-    "vite": "^5.4.10"
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.0.0",
+    "express-rate-limit": "^7.0.0",
+    "dotenv": "^16.4.5",
+    "mongodb": "^6.8.0",
+    "ioredis": "^5.4.1",
+    "bcryptjs": "^2.4.3",
+    "multer": "1.4.5-lts.1",
+    "google-auth-library": "^9.14.0",
+    "axios": "^1.7.7"
   }
 }
