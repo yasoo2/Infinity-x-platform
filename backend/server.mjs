@@ -3,58 +3,54 @@ import cors from "cors";
 import dotenv from "dotenv";
 import fetch from "node-fetch";
 
+import { registerSystemRoutes } from "./routes/system.mjs";
+
 dotenv.config();
 
+// نعمل السيرفر
 const app = express();
-app.use(express.json());
-app.use(cors({
-  origin: process.env.CORS_ORIGINS?.split(",") || 
-["http://localhost:3000","http://localhost:5173"],
-}));
 
-let liveState = {
+// نخلي السيرفر يفهم JSON
+app.use(express.json());
+
+// نحدد مين مسموحله يتصل (CORS)
+app.use(
+  cors({
+    origin:
+      process.env.CORS_ORIGINS?.split(",") || [
+        "http://localhost:3000",
+        "http://localhost:5173",
+      ],
+  })
+);
+
+// هاي الحالة الحية تبعة النظام
+// جو (الـ worker) رح يبعت نبضات heartbeat
+// وإحنا بنخزن آخر حالة هون
+const liveState = {
   status: "running",
   lastHeartbeat: new Date().toISOString(),
   activeTasks: [],
-  notes: []
+  notes: [],
 };
 
-app.get("/system/health", (req, res) => {
+// نربط كل روتات /system/* من ملف routes/system.mjs
+registerSystemRoutes(app, liveState);
+
+// في المستقبل:
+// هون فينا نضيف routes تانية مثل auth, admin, landing-factory, الخ
+// مثال سكافولد (مش شغّال لسا بس محجوز مكانه):
+app.get("/auth/placeholder-login", (req, res) => {
   return res.json({
     ok: true,
-    status: liveState.status,
-    lastHeartbeat: liveState.lastHeartbeat,
-    time: new Date().toISOString(),
+    note: "login endpoint placeholder (super_admin / admin / user / joe)",
   });
 });
 
-app.get("/system/live-feed", (req, res) => {
-  return res.json({
-    ok: true,
-    liveState,
-  });
-});
-
-app.post("/system/pulse", (req, res) => {
-  const { status, task, note } = req.body || {};
-
-  liveState.lastHeartbeat = new Date().toISOString();
-  if (status) liveState.status = status;
-  if (task) liveState.activeTasks.push({ task, at: new 
-Date().toISOString() });
-  if (note) liveState.notes.push({ note, at: new Date().toISOString() });
-
-  return res.json({ ok: true, liveState });
-});
-
-// TODO (بيكمّلها جو):
-// - auth أدوار
-// - MongoDB و Redis من env
-// - ربط GitHub
-// - إدارة التحكم الكامل لجو
-// - APIs للمصنع ولوحة X و SEO
-
+// بوابة تشغيل السيرفر
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
-  console.log(`FutureSystems backend running on port ${PORT}`);
+  console.log(
+    `✅ backend API running on port ${PORT} at ${new Date().toISOString()}`
+  );
 });
