@@ -1,3 +1,5 @@
+// backend/server.mjs
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -12,7 +14,7 @@ import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import crypto from 'crypto';
+import crypto from 'crypto'; // ✅ مضافة
 
 import { ROLES } from '../shared/roles.js';
 import { sanitizeUserForClient } from '../shared/userTypes.js';
@@ -24,29 +26,38 @@ import { dashboardDataRouter } from './src/routes/dashboardDataRouter.js';
 
 dotenv.config();
 
-// -------------------------
-// express setup
-// -------------------------
+// =========================
+// basic express setup
+// =========================
 const app = express();
 const PORT = process.env.PORT || 10000;
 app.set('trust proxy', 1);
 
+// أمن أساسي
 app.use(helmet());
+
+// Rate limit
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200
 }));
+
+// ✅ CORS CONFIG
+// إذا عندك دومين ثابت للداشبورد ("https://xelitesolutions.com") حطه هون بدل الـ *
 app.use(cors({
-  origin: '*',
+  origin: '*', // بدنا نخففها لاحقاً لدومينك بس
   credentials: true
 }));
+
+// JSON body
 app.use(express.json({ limit: '2mb' }));
 
+// uploads
 const upload = multer({ dest: 'uploads/' });
 
-// -------------------------
-// Mongo
-// -------------------------
+// =========================
+// Mongo setup
+// =========================
 const DB_NAME = process.env.DB_NAME || 'future_system';
 let mongoClient = null;
 let mongoDb = null;
@@ -65,41 +76,49 @@ async function initMongo() {
   return mongoDb;
 }
 
-// -------------------------
-// Redis
-// -------------------------
+// =========================
+// Redis setup
+// =========================
 let redis = null;
 if (process.env.REDIS_URL) {
-  redis = new Redis(process.env.REDIS_URL);
-  console.log('[Redis] init requested:', process.env.REDIS_URL);
+  try {
+    redis = new Redis(process.env.REDIS_URL);
+    redis.on('error', (err) => {
+      console.warn('[Redis WARNING]', err?.message || err);
+    });
+    console.log('[Redis] init requested:', process.env.REDIS_URL);
+  } catch (err) {
+    console.warn('[Redis init failed]', err?.message || err);
+  }
 } else {
   console.log('[Redis] disabled (no REDIS_URL)');
 }
 
-// -------------------------
+// =========================
 // Google OAuth setup
-// -------------------------
+// =========================
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
 const googleOAuthClient = (googleClientId && googleClientSecret)
   ? new OAuth2Client(googleClientId, googleClientSecret)
   : null;
 
-// -------------------------
-// helpers
-// -------------------------
+// =========================
+// Helpers
+// =========================
+
 function cryptoRandom() {
+  // عملنا توليد توكن سيشن عالطريقة الصح
   return crypto.randomBytes(32).toString('hex');
 }
 
-// لو احتجنا لاحقاً role check داخل راوترات ثانية
+// يعطيك middleware يشيك الصلاحية
 function requireRole(minRole) {
   const rolePriority = {
-    [ROLES.SUPER_ADMIN]: 3,
-    [ROLES.ADMIN]: 2,
-    [ROLES.USER]: 1,
+    super_admin: 3,
+    admin: 2,
+    user: 1,
   };
-
   return async (req, res, next) => {
     try {
       const db = await initMongo();
@@ -118,13 +137,15 @@ function requireRole(minRole) {
         return res.status(403).json({ error: 'FORBIDDEN' });
       }
 
-      // update activity (للعرض في لوحة X)
+      const now = new Date();
       await db.collection('users').updateOne(
         { _id: userDoc._id },
-        { $set: {
-          lastSeenAt: new Date(),
-          activeSessionSince: sessionDoc.startedAt || new Date()
-        }}
+        {
+          $set: {
+            lastSeenAt: now,
+            activeSessionSince: sessionDoc.startedAt || now
+          }
+        }
       );
 
       next();
@@ -135,30 +156,48 @@ function requireRole(minRole) {
   };
 }
 
-// -------------------------
+// =========================
 // AUTH ROUTES
-// -------------------------
+// =========================
 
-// (A) أول سوبر أدمن (bootstrap)
+// (1) Bootstrap super admin
 app.post('/api/auth/bootstrap-super', async (req, res) => {
   try {
     const { email, phone, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'MISSING_FIELDS' });
 
     const db = await initMongo();
-    const exist = await db.collection('users').findOne({ role: ROLES.SUPER_ADMIN });
+    const exist = await db.collection('users').findOne({ role: 'super_admin' });
+    const now = new Date();
+
     if (exist) {
+      // إذا السوبر أدمن موجود، نعمل له update (بمعنى تأكيد بياناته)
       console.log('[Auth] Super admin already exists');
-      return res.json({ ok: true, msg: 'Super admin already exists' });
+      await db.collection('users').updateOne(
+        { _id: exist._id },
+        {
+          $set: {
+            email,
+            phone: phone || exist.phone || null,
+            lastLoginAt: now,
+            activeSessionSince: now
+          }
+        }
+      );
+      return res.json({
+        ok: true,
+        mode: 'UPDATED_EXISTING_SUPER_ADMIN',
+        superAdminId: exist._id.toString()
+      });
     }
 
     const hash = await bcrypt.hash(password, 10);
-    const now = new Date();
+
     const newUser = {
       email,
       phone: phone || null,
       passwordHash: hash,
-      role: ROLES.SUPER_ADMIN,
+      role: 'super_admin',
       createdAt: now,
       lastLoginAt: now,
       activeSessionSince: now,
@@ -168,6 +207,7 @@ app.post('/api/auth/bootstrap-super', async (req, res) => {
 
     return res.json({
       ok: true,
+      mode: 'CREATED_NEW_SUPER_ADMIN',
       superAdminId: result.insertedId.toString()
     });
   } catch (err) {
@@ -176,7 +216,7 @@ app.post('/api/auth/bootstrap-super', async (req, res) => {
   }
 });
 
-// (B) لوجين طبيعي (إيميل/موبايل + باسورد)
+// (2) login email/phone + password
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { emailOrPhone, password } = req.body;
@@ -220,7 +260,7 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// (C) لوجين بجوجل
+// (3) login with google
 app.post('/api/auth/google', async (req, res) => {
   try {
     if (!googleOAuthClient) {
@@ -242,11 +282,12 @@ app.post('/api/auth/google', async (req, res) => {
     const now = new Date();
 
     if (!userDoc) {
+      // مستخدم جديد عادي
       const newUser = {
         email,
         phone: null,
         passwordHash: null,
-        role: ROLES.USER,
+        role: 'user',
         createdAt: now,
         lastLoginAt: now,
         activeSessionSince: now,
@@ -279,70 +320,12 @@ app.post('/api/auth/google', async (req, res) => {
   }
 });
 
-// (D) الإندبوينت المؤقت: إصلاح/فرض السوبر أدمِن
-// IMPORTANT: بعد ما ندخل ونمشي الأمور، بتحذف هذا الراوت من السيرفر عشان الأمان.
-app.post('/api/auth/dev-force-super', async (req, res) => {
-  try {
-    const { email, phone, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ error: 'MISSING_FIELDS' });
-    }
-
-    const db = await initMongo();
-    const now = new Date();
-    const hash = await bcrypt.hash(password, 10);
-
-    const existingSuper = await db.collection('users').findOne({ role: ROLES.SUPER_ADMIN });
-
-    if (existingSuper) {
-      // عدّل السوبر أدمِن الحالي ليصير على بياناتك انت
-      await db.collection('users').updateOne(
-        { _id: existingSuper._id },
-        {
-          $set: {
-            email,
-            phone: phone || existingSuper.phone || null,
-            passwordHash: hash,
-            lastLoginAt: now,
-            activeSessionSince: now
-          }
-        }
-      );
-
-      return res.json({
-        ok: true,
-        mode: 'UPDATED_EXISTING_SUPER_ADMIN',
-        superAdminId: existingSuper._id.toString()
-      });
-    } else {
-      // ما في سوبر أدمِن؟ بننشئ واحد جديد إلك
-      const newUser = {
-        email,
-        phone: phone || null,
-        passwordHash: hash,
-        role: ROLES.SUPER_ADMIN,
-        createdAt: now,
-        lastLoginAt: now,
-        activeSessionSince: now,
-      };
-      const ins = await db.collection('users').insertOne(newUser);
-
-      return res.json({
-        ok: true,
-        mode: 'CREATED_NEW_SUPER_ADMIN',
-        superAdminId: ins.insertedId.toString()
-      });
-    }
-  } catch (err) {
-    console.error('dev-force-super err', err);
-    res.status(500).json({ error: 'SERVER_ERR' });
-  }
-});
-
-// -------------------------
+// =========================
 // USERS MGMT (admin panel)
-// -------------------------
-app.get('/api/admin/users', requireRole(ROLES.ADMIN), async (req, res) => {
+// =========================
+
+// list users + stats
+app.get('/api/admin/users', requireRole('admin'), async (req, res) => {
   try {
     const db = await initMongo();
     const arr = await db.collection('users')
@@ -351,9 +334,9 @@ app.get('/api/admin/users', requireRole(ROLES.ADMIN), async (req, res) => {
       .toArray();
 
     const totalActiveNow = await db.collection('sessions').countDocuments({ active: true });
-    const totalSupers = arr.filter(u => u.role === ROLES.SUPER_ADMIN).length;
-    const totalAdmins = arr.filter(u => u.role === ROLES.ADMIN).length;
-    const totalUsers = arr.filter(u => u.role === ROLES.USER).length;
+    const totalSupers = arr.filter(u => u.role === 'super_admin').length;
+    const totalAdmins = arr.filter(u => u.role === 'admin').length;
+    const totalUsers = arr.filter(u => u.role === 'user').length;
 
     const mapped = arr.map(u => sanitizeUserForClient(u));
 
@@ -373,7 +356,8 @@ app.get('/api/admin/users', requireRole(ROLES.ADMIN), async (req, res) => {
   }
 });
 
-app.post('/api/admin/users/setRole', requireRole(ROLES.SUPER_ADMIN), async (req, res) => {
+// setRole
+app.post('/api/admin/users/setRole', requireRole('super_admin'), async (req, res) => {
   try {
     const { userId, newRole } = req.body;
     if (!userId || !newRole) return res.status(400).json({ error: 'MISSING_FIELDS' });
@@ -391,215 +375,40 @@ app.post('/api/admin/users/setRole', requireRole(ROLES.SUPER_ADMIN), async (req,
   }
 });
 
-// -------------------------
-// attach feature routers
-// -------------------------
+// =========================
+// attach routers
+// =========================
+
 app.use('/api/joe', joeRouter(initMongo, redis));
 app.use('/api/factory', factoryRouter(initMongo, redis));
-app.use('/api/system', dashboardDataRouter(initMongo, redis));
+app.use('/api/dashboard', dashboardDataRouter(initMongo, redis));
 app.use('/api/public-site', publicSiteRouter(initMongo));
 
-// -------------------------
-// Complaints System
-// -------------------------
-app.post('/api/public/complaint', async (req, res) => {
+// system health (بسيط، للوحة الـ dashboard-x)
+app.get('/api/system/metrics', async (req, res) => {
   try {
-    const { type, description, location, contactInfo, anonymous } = req.body;
-    if (!type || !description) {
-      return res.status(400).json({ error: 'MISSING_FIELDS' });
-    }
-    
     const db = await initMongo();
-    const now = new Date();
-    
-    const complaint = {
-      createdAt: now,
-      type,
-      description,
-      location: location || 'Not specified',
-      contactInfo: contactInfo || null,
-      anonymous: !!anonymous,
-      status: 'NEW',
-      reviewed: false
-    };
-    
-    const ins = await db.collection('complaints').insertOne(complaint);
-    
+
+    const totalUsers = await db.collection('users').countDocuments({});
+    const totalSessionsNow = await db.collection('sessions').countDocuments({ active: true });
+
     return res.json({
       ok: true,
-      complaintId: ins.insertedId.toString(),
-      msg: 'COMPLAINT_RECEIVED'
+      service: 'InfinityX Backend / Future Systems Core',
+      joeOnline: true,
+      factoryOnline: true,
+      usersTotal: totalUsers,
+      activeSessions: totalSessionsNow,
+      redisOnline: !!redis,
+      mongoOnline: true
     });
   } catch (err) {
-    console.error('POST /api/public/complaint err', err);
+    console.error('/api/system/metrics err', err);
     res.status(500).json({ error: 'SERVER_ERR' });
   }
 });
 
-app.post('/api/public/complaint/human-trafficking', async (req, res) => {
-  try {
-    const { description, location, victimInfo, contactInfo, anonymous } = req.body;
-    if (!description) {
-      return res.status(400).json({ error: 'MISSING_FIELDS' });
-    }
-    
-    const db = await initMongo();
-    const now = new Date();
-    
-    const complaint = {
-      createdAt: now,
-      type: 'HUMAN_TRAFFICKING',
-      description,
-      location: location || 'Not specified',
-      victimInfo: victimInfo || null,
-      contactInfo: contactInfo || null,
-      anonymous: !!anonymous,
-      status: 'URGENT',
-      reviewed: false,
-      priority: 'HIGH'
-    };
-    
-    const ins = await db.collection('complaints').insertOne(complaint);
-    
-    return res.json({
-      ok: true,
-      complaintId: ins.insertedId.toString(),
-      msg: 'URGENT_COMPLAINT_RECEIVED'
-    });
-  } catch (err) {
-    console.error('POST /api/public/complaint/human-trafficking err', err);
-    res.status(500).json({ error: 'SERVER_ERR' });
-  }
-});
-
-app.post('/api/public/complaint/behavioral', async (req, res) => {
-  try {
-    const { description, location, personInfo, contactInfo, anonymous } = req.body;
-    if (!description) {
-      return res.status(400).json({ error: 'MISSING_FIELDS' });
-    }
-    
-    const db = await initMongo();
-    const now = new Date();
-    
-    const complaint = {
-      createdAt: now,
-      type: 'BEHAVIORAL',
-      description,
-      location: location || 'Not specified',
-      personInfo: personInfo || null,
-      contactInfo: contactInfo || null,
-      anonymous: !!anonymous,
-      status: 'NEW',
-      reviewed: false
-    };
-    
-    const ins = await db.collection('complaints').insertOne(complaint);
-    
-    return res.json({
-      ok: true,
-      complaintId: ins.insertedId.toString(),
-      msg: 'COMPLAINT_RECEIVED'
-    });
-  } catch (err) {
-    console.error('POST /api/public/complaint/behavioral err', err);
-    res.status(500).json({ error: 'SERVER_ERR' });
-  }
-});
-
-app.get('/api/admin/complaints', requireRole(ROLES.ADMIN), async (req, res) => {
-  try {
-    const db = await initMongo();
-    const complaints = await db.collection('complaints')
-      .find({})
-      .sort({ createdAt: -1 })
-      .limit(100)
-      .toArray();
-    
-    const stats = {
-      total: complaints.length,
-      new: complaints.filter(c => c.status === 'NEW').length,
-      urgent: complaints.filter(c => c.status === 'URGENT').length,
-      reviewed: complaints.filter(c => c.reviewed).length
-    };
-    
-    return res.json({
-      ok: true,
-      stats,
-      complaints: complaints.map(c => ({
-        id: c._id.toString(),
-        createdAt: c.createdAt,
-        type: c.type,
-        description: c.description,
-        location: c.location,
-        status: c.status,
-        reviewed: c.reviewed,
-        priority: c.priority || 'NORMAL'
-      }))
-    });
-  } catch (err) {
-    console.error('GET /api/admin/complaints err', err);
-    res.status(500).json({ error: 'SERVER_ERR' });
-  }
-});
-
-// -------------------------
-// System Metrics
-// -------------------------
-app.get('/api/system/metrics', requireRole(ROLES.ADMIN), async (req, res) => {
-  try {
-    const db = await initMongo();
-    const usersTotal = await db.collection('users').countDocuments({});
-    const activeSessions = await db.collection('sessions').countDocuments({ active: true });
-    
-    // Check Redis
-    let redisOnline = false;
-    if (redis) {
-      try {
-        await redis.ping();
-        redisOnline = true;
-      } catch (e) {
-        redisOnline = false;
-      }
-    }
-    
-    // Check Mongo
-    let mongoOnline = false;
-    try {
-      await db.admin().ping();
-      mongoOnline = true;
-    } catch (e) {
-      mongoOnline = false;
-    }
-    
-    // Get recent Joe activity
-    const joeRecent = await db.collection('joe_activity')
-      .find({})
-      .sort({ ts: -1 })
-      .limit(10)
-      .toArray();
-    
-    return res.json({
-      ok: true,
-      system: {
-        usersTotal,
-        activeSessions,
-        redisOnline,
-        mongoOnline
-      },
-      joeRecent: joeRecent.map(j => ({
-        ts: j.ts,
-        action: j.action,
-        detail: j.detail
-      }))
-    });
-  } catch (err) {
-    console.error('GET /api/system/metrics err', err);
-    res.status(500).json({ error: 'SERVER_ERR' });
-  }
-});
-
-// -------------------------
+// root
 app.get('/', (req, res) => {
   res.json({
     ok: true,
@@ -610,7 +419,7 @@ app.get('/', (req, res) => {
   });
 });
 
-// -------------------------
-app.listen(PORT, async () => {
+// start server
+app.listen(PORT, () => {
   console.log(`InfinityX Backend running on ${PORT}`);
 });
