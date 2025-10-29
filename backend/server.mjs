@@ -13,12 +13,13 @@ import { OAuth2Client } from 'google-auth-library';
 import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
-import crypto from 'crypto'; // ✅ مضافة
 
 import { ROLES } from '../shared/roles.js';
 import { sanitizeUserForClient } from '../shared/userTypes.js';
 
+// راوترات
 import { joeRouter } from './src/routes/joeRouter.js';
 import { factoryRouter } from './src/routes/factoryRouter.js';
 import { publicSiteRouter } from './src/routes/publicSiteRouter.js';
@@ -27,36 +28,51 @@ import { dashboardDataRouter } from './src/routes/dashboardDataRouter.js';
 dotenv.config();
 
 // =========================
-// basic express setup
+// إعداد السيرفر الأساسي
 // =========================
 const app = express();
 const PORT = process.env.PORT || 10000;
 app.set('trust proxy', 1);
 
-// أمن أساسي
+// helmet + rateLimit
 app.use(helmet());
-
-// Rate limit
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200
 }));
 
-// ✅ CORS CONFIG
-// إذا عندك دومين ثابت للداشبورد ("https://xelitesolutions.com") حطه هون بدل الـ *
+// -------------------------
+// CORS CONFIG
+// -------------------------
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://admin.xelitesolutions.com',
+  'https://dashboard.xelitesolutions.com',
+  'https://xelitesolutions.com',
+  'https://www.xelitesolutions.com'
+];
+
+// نسمح مؤقت لأي Origin إذا مو موجود بالقائمة (حتى ما نوقف التطوير)
 app.use(cors({
-  origin: '*', // بدنا نخففها لاحقاً لدومينك بس
-  credentials: true
+  origin: function (origin, cb) {
+    if (!origin) return cb(null, true);
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    // لو ما كان موجود بالقائمة نسمح برضو بس بنطبع تحذير
+    console.warn('[CORS] Origin not in whitelist:', origin);
+    cb(null, true);
+  },
+  credentials: true,
 }));
 
-// JSON body
+// لقراءة JSON من البودي
 app.use(express.json({ limit: '2mb' }));
 
-// uploads
+// Multer للملفات (ممكن جو يرفع/يحمل snapshots)
 const upload = multer({ dest: 'uploads/' });
 
 // =========================
-// Mongo setup
+// MongoDB
 // =========================
 const DB_NAME = process.env.DB_NAME || 'future_system';
 let mongoClient = null;
@@ -77,25 +93,24 @@ async function initMongo() {
 }
 
 // =========================
-// Redis setup
+// Redis (اختياري حاليًّا)
 // =========================
+const useRedis = true; // إذا بدك توقفه مؤقت = false
 let redis = null;
-if (process.env.REDIS_URL) {
-  try {
-    redis = new Redis(process.env.REDIS_URL);
-    redis.on('error', (err) => {
-      console.warn('[Redis WARNING]', err?.message || err);
-    });
-    console.log('[Redis] init requested:', process.env.REDIS_URL);
-  } catch (err) {
-    console.warn('[Redis init failed]', err?.message || err);
-  }
+
+if (useRedis && process.env.REDIS_URL) {
+  redis = new Redis(process.env.REDIS_URL);
+  console.log('[Redis] init requested:', process.env.REDIS_URL);
+
+  redis.on('error', (err) => {
+    console.error('[Redis] error:', err?.message || err);
+  });
 } else {
-  console.log('[Redis] disabled (no REDIS_URL)');
+  console.log('[Redis] disabled or missing REDIS_URL');
 }
 
 // =========================
-// Google OAuth setup
+// Google OAuth
 // =========================
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -107,36 +122,46 @@ const googleOAuthClient = (googleClientId && googleClientSecret)
 // Helpers
 // =========================
 
+// دالة تعمل random token للجلسة
 function cryptoRandom() {
-  // عملنا توليد توكن سيشن عالطريقة الصح
   return crypto.randomBytes(32).toString('hex');
 }
 
-// يعطيك middleware يشيك الصلاحية
+// ترتيب الأولوية بين الرولز
+const rolePriority = {
+  [ROLES.SUPER_ADMIN]: 3,
+  [ROLES.ADMIN]: 2,
+  [ROLES.USER]: 1,
+};
+
+// ميدلوير يتحقق من التوكن ويجيب المستخدم ويشيك إذا صلاحياته كافية
 function requireRole(minRole) {
-  const rolePriority = {
-    super_admin: 3,
-    admin: 2,
-    user: 1,
-  };
   return async (req, res, next) => {
     try {
       const db = await initMongo();
+
       const token = req.headers['x-session-token'];
       if (!token) return res.status(401).json({ error: 'NO_TOKEN' });
 
-      const sessionDoc = await db.collection('sessions').findOne({ token, active: true });
+      const sessionDoc = await db.collection('sessions').findOne({
+        token,
+        active: true
+      });
+
       if (!sessionDoc) return res.status(401).json({ error: 'INVALID_SESSION' });
 
-      const userDoc = await db.collection('users').findOne({ _id: new ObjectId(sessionDoc.userId) });
+      const userDoc = await db.collection('users').findOne({
+        _id: new ObjectId(sessionDoc.userId)
+      });
+
       if (!userDoc) return res.status(401).json({ error: 'NO_USER' });
 
-      req.user = userDoc;
-
+      // تحقّق رول
       if (rolePriority[userDoc.role] < rolePriority[minRole]) {
         return res.status(403).json({ error: 'FORBIDDEN' });
       }
 
+      // تحديث نشاط المستخدم
       const now = new Date();
       await db.collection('users').updateOne(
         { _id: userDoc._id },
@@ -148,6 +173,7 @@ function requireRole(minRole) {
         }
       );
 
+      req.user = userDoc;
       next();
     } catch (err) {
       console.error('requireRole err', err);
@@ -160,63 +186,69 @@ function requireRole(minRole) {
 // AUTH ROUTES
 // =========================
 
-// (1) Bootstrap super admin
+// bootstrap-super
+// أول سوبر أدمن / أو تحديث السوبر أدمن الحالي
 app.post('/api/auth/bootstrap-super', async (req, res) => {
   try {
     const { email, phone, password } = req.body;
-    if (!email || !password) return res.status(400).json({ error: 'MISSING_FIELDS' });
+    if (!email || !password) {
+      return res.status(400).json({ error: 'MISSING_FIELDS' });
+    }
 
     const db = await initMongo();
-    const exist = await db.collection('users').findOne({ role: 'super_admin' });
+    const exist = await db.collection('users').findOne({ role: ROLES.SUPER_ADMIN });
+
     const now = new Date();
+    const hash = await bcrypt.hash(password, 10);
 
     if (exist) {
-      // إذا السوبر أدمن موجود، نعمل له update (بمعنى تأكيد بياناته)
-      console.log('[Auth] Super admin already exists');
+      // إذا عندنا سوبر أدمن، منحدّث بياناته
       await db.collection('users').updateOne(
         { _id: exist._id },
         {
           $set: {
             email,
             phone: phone || exist.phone || null,
+            passwordHash: hash,
             lastLoginAt: now,
-            activeSessionSince: now
+            activeSessionSince: now,
           }
         }
       );
+
       return res.json({
         ok: true,
         mode: 'UPDATED_EXISTING_SUPER_ADMIN',
         superAdminId: exist._id.toString()
       });
+    } else {
+      // ما في سوبر، مننشئ واحد جديد
+      const newUser = {
+        email,
+        phone: phone || null,
+        passwordHash: hash,
+        role: ROLES.SUPER_ADMIN,
+        createdAt: now,
+        lastLoginAt: now,
+        activeSessionSince: now,
+      };
+
+      const ins = await db.collection('users').insertOne(newUser);
+
+      return res.json({
+        ok: true,
+        mode: 'CREATED_NEW_SUPER_ADMIN',
+        superAdminId: ins.insertedId.toString()
+      });
     }
 
-    const hash = await bcrypt.hash(password, 10);
-
-    const newUser = {
-      email,
-      phone: phone || null,
-      passwordHash: hash,
-      role: 'super_admin',
-      createdAt: now,
-      lastLoginAt: now,
-      activeSessionSince: now,
-    };
-
-    const result = await db.collection('users').insertOne(newUser);
-
-    return res.json({
-      ok: true,
-      mode: 'CREATED_NEW_SUPER_ADMIN',
-      superAdminId: result.insertedId.toString()
-    });
   } catch (err) {
     console.error('bootstrap-super err', err);
     res.status(500).json({ error: 'SERVER_ERR' });
   }
 });
 
-// (2) login email/phone + password
+// login (emailOrPhone + password)
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { emailOrPhone, password } = req.body;
@@ -225,17 +257,25 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     const db = await initMongo();
+
     const userDoc = await db.collection('users').findOne({
-      $or: [{ email: emailOrPhone }, { phone: emailOrPhone }]
+      $or: [
+        { email: emailOrPhone },
+        { phone: emailOrPhone }
+      ]
     });
 
-    if (!userDoc) return res.status(401).json({ error: 'BAD_CREDENTIALS' });
+    if (!userDoc) {
+      return res.status(401).json({ error: 'BAD_CREDENTIALS' });
+    }
 
     const match = await bcrypt.compare(password, userDoc.passwordHash || '');
-    if (!match) return res.status(401).json({ error: 'BAD_CREDENTIALS' });
+    if (!match) {
+      return res.status(401).json({ error: 'BAD_CREDENTIALS' });
+    }
 
-    const token = cryptoRandom();
     const now = new Date();
+    const token = cryptoRandom();
 
     await db.collection('sessions').insertOne({
       token,
@@ -246,21 +286,31 @@ app.post('/api/auth/login', async (req, res) => {
 
     await db.collection('users').updateOne(
       { _id: userDoc._id },
-      { $set: { lastLoginAt: now, activeSessionSince: now } }
+      {
+        $set: {
+          lastLoginAt: now,
+          activeSessionSince: now
+        }
+      }
     );
 
     return res.json({
       ok: true,
       sessionToken: token,
-      user: sanitizeUserForClient({ ...userDoc, activeSessionSince: now, lastLoginAt: now })
+      user: sanitizeUserForClient({
+        ...userDoc,
+        lastLoginAt: now,
+        activeSessionSince: now
+      })
     });
+
   } catch (err) {
     console.error('login err', err);
     res.status(500).json({ error: 'SERVER_ERR' });
   }
 });
 
-// (3) login with google
+// login with Google
 app.post('/api/auth/google', async (req, res) => {
   try {
     if (!googleOAuthClient) {
@@ -268,7 +318,9 @@ app.post('/api/auth/google', async (req, res) => {
     }
 
     const { idToken } = req.body;
-    if (!idToken) return res.status(400).json({ error: 'MISSING_ID_TOKEN' });
+    if (!idToken) {
+      return res.status(400).json({ error: 'MISSING_ID_TOKEN' });
+    }
 
     const ticket = await googleOAuthClient.verifyIdToken({
       idToken,
@@ -282,12 +334,12 @@ app.post('/api/auth/google', async (req, res) => {
     const now = new Date();
 
     if (!userDoc) {
-      // مستخدم جديد عادي
+      // مستخدم جديد
       const newUser = {
         email,
         phone: null,
         passwordHash: null,
-        role: 'user',
+        role: ROLES.USER,
         createdAt: now,
         lastLoginAt: now,
         activeSessionSince: now,
@@ -297,7 +349,12 @@ app.post('/api/auth/google', async (req, res) => {
     } else {
       await db.collection('users').updateOne(
         { _id: userDoc._id },
-        { $set: { lastLoginAt: now, activeSessionSince: now } }
+        {
+          $set: {
+            lastLoginAt: now,
+            activeSessionSince: now
+          }
+        }
       );
     }
 
@@ -312,8 +369,13 @@ app.post('/api/auth/google', async (req, res) => {
     return res.json({
       ok: true,
       sessionToken: token,
-      user: sanitizeUserForClient({ ...userDoc, activeSessionSince: now, lastLoginAt: now })
+      user: sanitizeUserForClient({
+        ...userDoc,
+        lastLoginAt: now,
+        activeSessionSince: now
+      })
     });
+
   } catch (err) {
     console.error('google login err', err);
     res.status(500).json({ error: 'SERVER_ERR' });
@@ -321,24 +383,26 @@ app.post('/api/auth/google', async (req, res) => {
 });
 
 // =========================
-// USERS MGMT (admin panel)
+// إدارة المستخدمين (لوحة X)
 // =========================
 
-// list users + stats
-app.get('/api/admin/users', requireRole('admin'), async (req, res) => {
+// احصائيات المستخدمين + أونلاين + آخر دخول
+app.get('/api/admin/users', requireRole(ROLES.ADMIN), async (req, res) => {
   try {
     const db = await initMongo();
+
     const arr = await db.collection('users')
       .find({})
       .sort({ lastLoginAt: -1 })
       .toArray();
 
-    const totalActiveNow = await db.collection('sessions').countDocuments({ active: true });
-    const totalSupers = arr.filter(u => u.role === 'super_admin').length;
-    const totalAdmins = arr.filter(u => u.role === 'admin').length;
-    const totalUsers = arr.filter(u => u.role === 'user').length;
+    const totalActiveNow = await db.collection('sessions').countDocuments({
+      active: true
+    });
 
-    const mapped = arr.map(u => sanitizeUserForClient(u));
+    const totalSupers = arr.filter(u => u.role === ROLES.SUPER_ADMIN).length;
+    const totalAdmins = arr.filter(u => u.role === ROLES.ADMIN).length;
+    const totalUsers = arr.filter(u => u.role === ROLES.USER).length;
 
     return res.json({
       ok: true,
@@ -348,24 +412,31 @@ app.get('/api/admin/users', requireRole('admin'), async (req, res) => {
         totalAdmins,
         totalUsers,
       },
-      users: mapped
+      users: arr.map(u => sanitizeUserForClient(u))
     });
+
   } catch (err) {
     console.error('GET /api/admin/users err', err);
     res.status(500).json({ error: 'SERVER_ERR' });
   }
 });
 
-// setRole
-app.post('/api/admin/users/setRole', requireRole('super_admin'), async (req, res) => {
+// تعديل رول المستخدم (بس السوبر أدمن)
+app.post('/api/admin/users/setRole', requireRole(ROLES.SUPER_ADMIN), async (req, res) => {
   try {
     const { userId, newRole } = req.body;
-    if (!userId || !newRole) return res.status(400).json({ error: 'MISSING_FIELDS' });
+    if (!userId || !newRole) {
+      return res.status(400).json({ error: 'MISSING_FIELDS' });
+    }
 
     const db = await initMongo();
     await db.collection('users').updateOne(
       { _id: new ObjectId(userId) },
-      { $set: { role: newRole } }
+      {
+        $set: {
+          role: newRole
+        }
+      }
     );
 
     return res.json({ ok: true });
@@ -376,31 +447,36 @@ app.post('/api/admin/users/setRole', requireRole('super_admin'), async (req, res
 });
 
 // =========================
-// attach routers
+// system metrics (للوحة X)
 // =========================
-
-app.use('/api/joe', joeRouter(initMongo, redis));
-app.use('/api/factory', factoryRouter(initMongo, redis));
-app.use('/api/dashboard', dashboardDataRouter(initMongo, redis));
-app.use('/api/public-site', publicSiteRouter(initMongo));
-
-// system health (بسيط، للوحة الـ dashboard-x)
-app.get('/api/system/metrics', async (req, res) => {
+app.get('/api/system/metrics', requireRole(ROLES.ADMIN), async (req, res) => {
   try {
     const db = await initMongo();
 
     const totalUsers = await db.collection('users').countDocuments({});
-    const totalSessionsNow = await db.collection('sessions').countDocuments({ active: true });
+    const totalSessionsNow = await db.collection('sessions').countDocuments({
+      active: true
+    });
 
-    return res.json({
+    const recentActivity = await db.collection('joe_activity')
+      .find({})
+      .sort({ ts: -1 })
+      .limit(10)
+      .toArray();
+
+    res.json({
       ok: true,
-      service: 'InfinityX Backend / Future Systems Core',
-      joeOnline: true,
-      factoryOnline: true,
-      usersTotal: totalUsers,
-      activeSessions: totalSessionsNow,
-      redisOnline: !!redis,
-      mongoOnline: true
+      system: {
+        usersTotal: totalUsers,
+        activeSessions: totalSessionsNow,
+        redisOnline: !!redis,
+        mongoOnline: true
+      },
+      joeRecent: recentActivity.map(e => ({
+        ts: e.ts,
+        action: e.action,
+        detail: e.detail
+      }))
     });
   } catch (err) {
     console.error('/api/system/metrics err', err);
@@ -408,8 +484,44 @@ app.get('/api/system/metrics', async (req, res) => {
   }
 });
 
-// root
-app.get('/', (req, res) => {
+// =========================
+// راوترات جو / المصنع / الداشبورد / الموقع العام
+// =========================
+app.use('/api/joe', joeRouter(initMongo, redis));
+app.use('/api/factory', factoryRouter(initMongo, redis));
+app.use('/api/dashboard', dashboardDataRouter(initMongo, redis));
+app.use('/api/public-site', publicSiteRouter(initMongo));
+
+// هذه للوحة المصنع: عرض آخر jobs
+app.get('/api/factory/jobs', requireRole(ROLES.ADMIN), async (req, res) => {
+  try {
+    const db = await initMongo();
+    const jobs = await db.collection('factory_jobs')
+      .find({})
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .toArray();
+
+    res.json({
+      ok: true,
+      jobs: jobs.map(j => ({
+        id: j._id.toString(),
+        projectType: j.projectType,
+        status: j.status,
+        createdAt: j.createdAt,
+        shortDescription: j.shortDescription || ''
+      }))
+    });
+  } catch (err) {
+    console.error('/api/factory/jobs err', err);
+    res.status(500).json({ error: 'SERVER_ERR' });
+  }
+});
+
+// =========================
+// روت فحص سريع
+// =========================
+app.get('/', async (req, res) => {
   res.json({
     ok: true,
     service: 'InfinityX Backend / Future Systems Core',
@@ -419,7 +531,9 @@ app.get('/', (req, res) => {
   });
 });
 
-// start server
+// =========================
+// Start server
+// =========================
 app.listen(PORT, () => {
   console.log(`InfinityX Backend running on ${PORT}`);
 });
