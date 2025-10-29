@@ -1,0 +1,56 @@
+version: "3.9"
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: infinityx-mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: future_system
+    volumes:
+      - ./devdata/mongo:/data/db
+
+  redis:
+    image: redis:7-alpine
+    container_name: infinityx-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - ./devdata/redis:/data
+
+  backend:
+    build:
+      context: ./backend
+    container_name: infinityx-backend
+    restart: always
+    depends_on:
+      - mongo
+      - redis
+    ports:
+      - "10000:10000"
+    environment:
+      NODE_ENV: development
+      PORT: 10000
+
+      # مهم: هدول لازم تعبيهم إنت صح محلياً قبل التشغيل
+      MONGO_URI: mongodb://mongo:27017/future_system
+      DB_NAME: future_system
+
+      REDIS_URL: redis://redis:6379
+
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+
+      # هذا هو الإيميل/التلفون تبع السوبر أدمِن
+      INITIAL_SUPER_EMAIL: ${INITIAL_SUPER_EMAIL}
+      INITIAL_SUPER_PHONE: ${INITIAL_SUPER_PHONE}
+      INITIAL_SUPER_PASSWORD: ${INITIAL_SUPER_PASSWORD}
+
+    command: ["node", "server.mjs"]
+
+volumes:
+  # volumes معرفة فوق بالأبثولدر devdata (عشان الداتا ما تروح لو الكونتينر وقف)

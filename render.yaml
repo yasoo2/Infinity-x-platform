@@ -1,0 +1,47 @@
+services:
+  - type: web
+    name: infinityx-backend
+    env: node
+    region: frankfurt
+    plan: starter
+    branch: main
+    repo: https://github.com/yasoo2/Infinity-x-platform
+    rootDir: backend
+    buildCommand: npm install --legacy-peer-deps
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: DB_NAME
+        value: future_system
+      - key: MONGO_URI
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: NODE_ENV
+        value: production
+
+    routes:
+      - type: rewrite
+        source: /
+        destination: /        # الباك إند بيرد JSON "Running"
+
+  - type: static_site
+    name: infinityx-dashboard
+    region: frankfurt
+    plan: starter
+    branch: main
+    repo: https://github.com/yasoo2/Infinity-x-platform
+    rootDir: dashboard-x
+    buildCommand: |
+      pnpm install
+      pnpm run build
+    staticPublishPath: dashboard-x/dist
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-store

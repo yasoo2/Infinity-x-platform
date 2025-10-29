@@ -1,0 +1,8 @@
+{
+  "name": "public-site",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "echo 'public marketing site placeholder'"
+  }
+}
