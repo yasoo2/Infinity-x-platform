@@ -1,0 +1,20 @@
+{
+  "name": "infinityx-worker",
+  "version": "1.0.0",
+  "description": "InfinityX AI Worker - Project Generator",
+  "type": "module",
+  "main": "worker-enhanced.mjs",
+  "scripts": {
+    "start": "node worker-enhanced.mjs",
+    "dev": "node --watch worker-enhanced.mjs"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "mongodb": "^6.3.0",
+    "ioredis": "^5.3.2",
+    "openai": "^4.28.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
