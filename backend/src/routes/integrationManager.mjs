@@ -137,40 +137,45 @@ const deployToCloudflare = async (apiToken, accountId, projectName, branch = 'ma
 };
 
 // =======================
-// BACKGROUND WORKER
+// BACKGROUND WORKER (Optional - only if Redis is available)
 // =======================
 
-new Worker('integration-deploy', async (job) => {
-  const { data, id: jobId } = job;
-  logger.info({ jobId }, 'Auto-deploy job started');
+if (redis && deployQueue) {
+  new Worker('integration-deploy', async (job) => {
+    const { data, id: jobId } = job;
+    logger.info({ jobId }, 'Auto-deploy job started');
 
-  const results = { github: { ok: true }, render: {}, cloudflare: {} };
+    const results = { github: { ok: true }, render: {}, cloudflare: {} };
 
-  if (data.render) {
-    try {
-      const res = await deployToRender(data.render.apiKey, data.render.serviceId, data.render.clearCache);
-      results.render = { ok: true, deployId: res.data.id };
-    } catch (err) {
-      results.render = { ok: false, error: err.message };
+    if (data.render) {
+      try {
+        const res = await deployToRender(data.render.apiKey, data.render.serviceId, data.render.clearCache);
+        results.render = { ok: true, deployId: res.data.id };
+      } catch (err) {
+        results.render = { ok: false, error: err.message };
+      }
     }
-  }
 
-  if (data.cloudflare) {
-    try {
-      const res = await deployToCloudflare(
-        data.cloudflare.apiToken,
-        data.cloudflare.accountId,
-        data.cloudflare.projectName,
-        data.cloudflare.branch
-      );
-      results.cloudflare = { ok: true, deploymentId: res.data.result?.id };
-    } catch (err) {
-      results.cloudflare = { ok: false, error: err.message };
+    if (data.cloudflare) {
+      try {
+        const res = await deployToCloudflare(
+          data.cloudflare.apiToken,
+          data.cloudflare.accountId,
+          data.cloudflare.projectName,
+          data.cloudflare.branch
+        );
+        results.cloudflare = { ok: true, deploymentId: res.data.result?.id };
+      } catch (err) {
+        results.cloudflare = { ok: false, error: err.message };
+      }
     }
-  }
 
-  return results;
-}, { connection: redis });
+    return results;
+  }, { connection: redis });
+  console.log('✅ Integration Worker started');
+} else {
+  console.log('⚠️ Integration Worker disabled - Redis not available');
+}
 
 // =======================
 // ROUTES
