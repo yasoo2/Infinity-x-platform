@@ -1,16 +1,28 @@
 // backend/src/db.mjs
-import mongoose from 'mongoose';
+import { MongoClient } from 'mongodb';
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/infinityx';
+const DB_NAME = process.env.DB_NAME || 'future_system';
+let mongoClient = null;
+let mongoDb = null;
 
-const connectDB = async () => {
-    try {
-        await mongoose.connect(MONGODB_URI);
-        console.log('MongoDB connected successfully');
-    } catch (error) {
-        console.error('MongoDB connection error:', error);
-        process.exit(1);
-    }
-};
+export async function initMongo() {
+  if (mongoDb) return mongoDb;
+  
+  const uri = process.env.MONGO_URI;
+  if (!uri) throw new Error('MONGO_URI missing');
+  
+  mongoClient = new MongoClient(uri);
+  await mongoClient.connect();
+  mongoDb = mongoClient.db(DB_NAME);
+  console.log('[Mongo] Connected');
+  return mongoDb;
+}
 
-export default connectDB;
+export function getDB() {
+  if (!mongoDb) throw new Error('Database not initialized');
+  return mongoDb;
+}
+
+export function getMongoClient() {
+  return mongoClient;
+}
