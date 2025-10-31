@@ -64,6 +64,120 @@ router.post('/add-message', async (req, res) => {
   }
 });
 
-// باقي الروابط (create, list, get, etc.) زي ما هي...
+// Create new conversation
+router.post('/create', async (req, res) => {
+  try {
+    const { userId, title } = req.body;
+    if (!userId) return res.json({ ok: false, error: 'userId required' });
+
+    const db = await getDb();
+    const now = new Date();
+
+    const conversation = {
+      userId,
+      title: title || 'محادثة جديدة',
+      messages: [],
+      createdAt: now,
+      updatedAt: now
+    };
+
+    const result = await db.collection('conversations').insertOne(conversation);
+
+    res.json({
+      ok: true,
+      conversationId: result.insertedId.toString()
+    });
+  } catch (error) {
+    res.json({ ok: false, error: error.message });
+  }
+});
+
+// List all conversations for a user
+router.post('/list', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) return res.json({ ok: false, error: 'userId required' });
+
+    const db = await getDb();
+    const conversations = await db.collection('conversations')
+      .find({ userId })
+      .sort({ updatedAt: -1 })
+      .limit(50)
+      .toArray();
+
+    const list = conversations.map(c => ({
+      id: c._id.toString(),
+      title: c.title,
+      messageCount: c.messages?.length || 0,
+      lastMessage: c.messages?.[c.messages.length - 1]?.content?.substring(0, 50) || '',
+      updatedAt: c.updatedAt
+    }));
+
+    res.json({ ok: true, conversations: list });
+  } catch (error) {
+    res.json({ ok: false, error: error.message });
+  }
+});
+
+// Get a specific conversation
+router.post('/get', async (req, res) => {
+  try {
+    const { conversationId } = req.body;
+    if (!conversationId) return res.json({ ok: false, error: 'conversationId required' });
+
+    const db = await getDb();
+    const conversation = await db.collection('conversations')
+      .findOne({ _id: new ObjectId(conversationId) });
+
+    if (!conversation) {
+      return res.json({ ok: false, error: 'Conversation not found' });
+    }
+
+    res.json({ ok: true, conversation });
+  } catch (error) {
+    res.json({ ok: false, error: error.message });
+  }
+});
+
+// Delete a conversation
+router.post('/delete', async (req, res) => {
+  try {
+    const { conversationId } = req.body;
+    if (!conversationId) return res.json({ ok: false, error: 'conversationId required' });
+
+    const db = await getDb();
+    await db.collection('conversations').deleteOne({ _id: new ObjectId(conversationId) });
+
+    res.json({ ok: true });
+  } catch (error) {
+    res.json({ ok: false, error: error.message });
+  }
+});
+
+// Generate title using AI
+router.post('/generate-title', async (req, res) => {
+  try {
+    const { conversationId, firstMessage } = req.body;
+    if (!conversationId || !firstMessage) {
+      return res.json({ ok: false, error: 'Required fields missing' });
+    }
+
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    const prompt = `Generate a short, concise Arabic title (max 5 words) for a conversation that starts with: "${firstMessage}". Only return the title, nothing else.`;
+    
+    const result = await model.generateContent(prompt);
+    const title = result.response.text().trim();
+
+    const db = await getDb();
+    await db.collection('conversations').updateOne(
+      { _id: new ObjectId(conversationId) },
+      { $set: { title } }
+    );
+
+    res.json({ ok: true, title });
+  } catch (error) {
+    res.json({ ok: false, error: error.message });
+  }
+});
 
 export default router;
