@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import apiClient from '../api/client';
+import VoiceInput from '../components/VoiceInput';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://api.xelitesolutions.com';
 
@@ -281,6 +282,10 @@ export default function Joe() {
       {/* Input Area */}
       <div className="border-t border-borderDim bg-cardDark p-4">
         <form onSubmit={handleSubmit} className="flex gap-3">
+          <VoiceInput 
+            onTranscript={(text) => setInput(text)}
+            disabled={isProcessing}
+          />
           <input
             type="text"
             value={input}
