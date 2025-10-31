@@ -20,8 +20,10 @@ export default function Joe() {
     render: localStorage.getItem('joe_render_token') || ''
   });
   const [buildResult, setBuildResult] = useState(null);
+  const [canStop, setCanStop] = useState(false);
   const messagesEndRef = useRef(null);
   const formRef = useRef(null);
+  const stopTypingRef = useRef(false);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -64,6 +66,12 @@ export default function Joe() {
     });
   };
 
+  const closeTokenModal = () => {
+    setShowTokenModal(false);
+    setTokenType('');
+    setTokenValue('');
+  };
+
   const saveToken = () => {
     if (tokenType === 'github') {
       localStorage.setItem('joe_github_token', tokenValue);
@@ -82,10 +90,24 @@ export default function Joe() {
 
   const simulateTyping = async (text, delay = 30) => {
     const msgId = addMessage('', 'assistant', true);
+    setCanStop(true);
+    stopTypingRef.current = false;
+    
     for (let i = 0; i <= text.length; i++) {
+      if (stopTypingRef.current) {
+        updateMessage(msgId, text.substring(0, i) + ' [متوقف]');
+        break;
+      }
       await new Promise(resolve => setTimeout(resolve, delay));
       updateMessage(msgId, text.substring(0, i));
     }
+    
+    setCanStop(false);
+  };
+
+  const stopTyping = () => {
+    stopTypingRef.current = true;
+    setCanStop(false);
   };
 
   const handleSelfEvolve = async () => {
@@ -341,6 +363,15 @@ export default function Joe() {
             className="input-field flex-1 text-lg"
             disabled={isProcessing}
           />
+          {canStop && (
+            <button
+              type="button"
+              onClick={stopTyping}
+              className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-lg transition-all duration-200"
+            >
+              ⏹️ إيقاف
+            </button>
+          )}
           <button
             type="submit"
             className="btn-primary px-8"
@@ -354,7 +385,13 @@ export default function Joe() {
       {/* Token Modal */}
       {showTokenModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-cardDark border border-borderDim rounded-lg p-6 max-w-md w-full">
+          <div className="bg-cardDark border border-borderDim rounded-lg p-6 max-w-md w-full relative">
+            <button
+              onClick={closeTokenModal}
+              className="absolute top-4 right-4 text-textDim hover:text-white text-2xl"
+            >
+              ×
+            </button>
             <h3 className="text-xl font-bold mb-4">
               {tokenType === 'github' && '🔑 GitHub Token Required'}
               {tokenType === 'cloudflare' && '🔑 Cloudflare Token Required'}
@@ -393,13 +430,21 @@ export default function Joe() {
               </>
             )}
 
-            <button
-              onClick={saveToken}
-              className="btn-primary w-full"
-              disabled={!tokenValue || (tokenType === 'github' && !tokens.githubUsername)}
-            >
-              💾 Save & Continue
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={closeTokenModal}
+                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-all duration-200"
+              >
+                ❌ Cancel
+              </button>
+              <button
+                onClick={saveToken}
+                className="flex-1 btn-primary"
+                disabled={!tokenValue || (tokenType === 'github' && !tokens.githubUsername)}
+              >
+                💾 Save
+              </button>
+            </div>
           </div>
         </div>
       )}
