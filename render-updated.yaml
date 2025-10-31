@@ -1,0 +1,51 @@
+services:
+  # Backend API
+  - type: web
+    name: infinityx-backend
+    runtime: node
+    region: oregon
+    plan: free
+    branch: main
+    rootDir: backend
+    buildCommand: npm install --legacy-peer-deps
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false
+      - key: DB_NAME
+        value: future_system
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: REDIS_URL
+        sync: false
+    healthCheckPath: /api/health
+
+  # AI Worker (Background Job Processor)
+  - type: worker
+    name: infinityx-worker
+    runtime: node
+    region: oregon
+    plan: free
+    branch: main
+    rootDir: worker
+    buildCommand: npm install
+    startCommand: node worker-enhanced.mjs
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false
+      - key: DB_NAME
+        value: future_system
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: CLOUDFLARE_ACCOUNT_ID
+        sync: false
+      - key: CLOUDFLARE_API_TOKEN
+        sync: false
+      - key: PROJECTS_DIR
+        value: /tmp/infinity-projects
