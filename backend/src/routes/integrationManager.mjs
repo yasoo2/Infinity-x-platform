@@ -25,8 +25,7 @@ const PLATFORMS = {
   cloudflare: { baseUrl: 'https://api.cloudflare.com/client/v4', timeout: 15000 },
 };
 
-const redis = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379');
-const deployQueue = new Queue('integration-deploy', { connection: redis });
+// Redis and Queue removed - not needed for basic integration
 
 // =======================
 // MIDDLEWARES
