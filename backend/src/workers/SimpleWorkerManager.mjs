@@ -1,12 +1,14 @@
 /**
- * SimpleWorkerManager - جو المنفذ (النسخة النهائية)
- * يولد + يعدل + يرفع على GitHub + ينشر على Cloudflare
+ * SimpleWorkerManager - جو المنفذ (النسخة النهائية الكاملة)
+ * يولد + يحفظ + يرفع على GitHub + ينشر على Cloudflare + يفتح المتصفح
+ * يعطي: رابط + sessionId + لقطة حية
  */
 
 import { EventEmitter } from 'events';
 import { MongoClient } from 'mongodb';
 import { Octokit } from '@octokit/rest';
 import { improveCode } from '../lib/geminiEngine.mjs';
+import { buildWebsite } from '../lib/projectGenerator.mjs';
 import { deployToCloudflare } from '../lib/cloudflareDeployer.mjs';
 import fs from 'fs/promises';
 import path from 'path';
@@ -14,6 +16,8 @@ import path from 'path';
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const OWNER = process.env.OWNER;
 const REPO = process.env.REPO;
+const PROJECTS_DIR = process.env.PROJECTS_DIR || '/tmp/jo-projects';
+const BROWSER_API = process.env.BROWSER_API || 'http://localhost:3000/api/browser';
 
 const octokit = new Octokit({ auth: GITHUB_TOKEN });
 
@@ -31,12 +35,13 @@ export class SimpleWorkerManager extends EventEmitter {
     if (this.isRunning) return;
     await this.initialize();
     this.isRunning = true;
-    console.log('جو شغال: يولد + يرفع + ينشر');
+    console.log('جو المنفذ شغال: يولد + يرفع + ينشر + يفتح المتصفح');
     this.watchJobs();
     this.emit('started');
   }
 
   async initialize() {
+    console.log('جو: جاري الاتصال بـ MongoDB...');
     const client = await MongoClient.connect(process.env.MONGO_URI);
     this.db = client.db(process.env.DB_NAME);
     console.log('MongoDB متصل');
@@ -71,36 +76,77 @@ export class SimpleWorkerManager extends EventEmitter {
         { $set: { status: 'WORKING', startedAt: new Date() } }
       );
 
-      // 1. فحص repo
-      const files = await this.scanRepo();
+      this.emit('job-started', job);
 
-      // 2. تحليل بـ Gemini
-      const updates = [];
-      for (const file of files) {
-        if (/\.(html|js|css)$/.test(file.path)) {
-          const result = await improveCode(file.content, job.command || 'حسّن الكود');
-          if (result && result.content) {
+      let finalUrl = `https://github.com/${OWNER}/${REPO}`;
+      let updates = [];
+      let sessionId = null;
+
+      // === 1. إنشاء موقع جديد ===
+      if (job.command && (job.command.includes('أنشئ') || job.command.includes('create') || job.command.includes('build'))) {
+        const result = await buildWebsite(jobId, job.command, {
+          title: job.title || 'موقع جديد',
+          style: job.style || 'modern'
+        });
+
+        if (!result.success) throw new Error("فشل إنشاء المشروع");
+
+        const projectPath = result.projectPath;
+        const files = await fs.readdir(projectPath, { recursive: true });
+        updates = [];
+
+        for (const file of files) {
+          const filePath = path.join(projectPath, file);
+          const stat = await fs.stat(filePath);
+          if (stat.isFile()) {
+            const content = await fs.readFile(filePath, 'utf-8');
             updates.push({
-              path: file.path,
-              content: result.content,
-              message: result.message || `جو: تحديث ${file.path}`,
-              sha: file.sha
+              path: file,
+              content,
+              message: `جو: إنشاء ${file}`,
+              sha: null
             });
           }
         }
+
+        finalUrl = result.projectPath;
       }
 
-      if (updates.length === 0) {
-        throw new Error("لا توجد تحديثات");
+      // === 2. تحديث كود موجود ===
+      else {
+        const files = await this.scanRepo();
+        updates = [];
+
+        for (const file of files) {
+          if (/\.(html|js|css)$/.test(file.path)) {
+            try {
+              const result = await improveCode(file.content, job.command || 'حسّن الكود');
+              if (result && result.content && result.content.length > 100) {
+                updates.push({
+                  path: file.path,
+                  content: result.content,
+                  message: result.message || `جو: تحديث ${file.path}`,
+                  sha: file.sha
+                });
+              }
+            } catch (e) {
+              console.warn(`فشل تحليل ${file.path}:`, e.message);
+            }
+          }
+        }
+
+        if (updates.length === 0) {
+          throw new Error("لا توجد تحديثات");
+        }
       }
 
-      // 3. رفع على GitHub
+      // === 3. رفع على GitHub ===
       await this.applyUpdates(updates);
 
-      // 4. نشر على Cloudflare (إذا كان مطلوب)
+      // === 4. نشر على Cloudflare ===
       let deployUrl = null;
       if (job.deploy !== false) {
-        const tempDir = path.join(process.cwd(), 'temp', jobId);
+        const tempDir = path.join(PROJECTS_DIR, jobId);
         await fs.mkdir(tempDir, { recursive: true });
 
         for (const update of updates) {
@@ -109,14 +155,31 @@ export class SimpleWorkerManager extends EventEmitter {
           await fs.writeFile(filePath, update.content);
         }
 
-        const deployResult = await deployToCloudflare(jobId, tempDir, job.title || 'jo-site');
+        const deployResult = await deployToCloudflare(jobId, tempDir, job.title || 'jo-project');
         deployUrl = deployResult.success ? deployResult.url : null;
 
-        // حذف المجلد المؤقت
-        await fs.rm(tempDir, { recursive: true, force: true });
+        await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
       }
 
-      // 5. حفظ النتيجة
+      // === 5. فتح المتصفح تلقائيًا ===
+      if (deployUrl) {
+        try {
+          const res = await fetch(`${BROWSER_API}/start`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: deployUrl })
+          });
+          const data = await res.json();
+          if (data.ok) {
+            sessionId = data.sessionId;
+            finalUrl = deployUrl;
+          }
+        } catch (e) {
+          console.warn('فشل فتح المتصفح:', e.message);
+        }
+      }
+
+      // === 6. حفظ النتيجة ===
       await this.db.collection('jobs').updateOne(
         { _id: job._id },
         {
@@ -125,8 +188,12 @@ export class SimpleWorkerManager extends EventEmitter {
             completedAt: new Date(),
             result: {
               success: true,
-              url: deployUrl || `https://github.com/${OWNER}/${REPO}`,
-              report: `تم التعديل والنشر: ${deployUrl || 'GitHub'}`
+              updates: updates.map(u => u.path),
+              url: finalUrl,
+              sessionId: sessionId,
+              report: deployUrl
+                ? (sessionId ? `تم النشر والفتح: ${deployUrl}` : `تم النشر: ${deployUrl}`)
+                : `تم الرفع على GitHub`
             }
           }
         }
@@ -137,38 +204,47 @@ export class SimpleWorkerManager extends EventEmitter {
       this.stats.totalProcessingTime += time;
       this.stats.avgProcessingTime = this.stats.totalProcessingTime / this.stats.processed;
 
-      console.log(`جو: انتهى في ${time}ms — رابط: ${deployUrl}`);
-      this.emit('job-completed', { jobId, time, url: deployUrl });
+      console.log(`جو: انتهى في ${time}ms — رابط: ${finalUrl} — session: ${sessionId || 'لا يوجد'}`);
+      this.emit('job-completed', { jobId, time, url: finalUrl, sessionId });
 
     } catch (error) {
       await this.db.collection('jobs').updateOne(
         { _id: job._id },
-        { $set: { status: 'FAILED', error: error.message } }
+        { $set: { status: 'FAILED', error: error.message || "فشل التنفيذ" } }
       );
       this.stats.failed++;
+      this.emit('job-failed', { jobId, error: error.message });
     } finally {
       this.activeJobs.delete(jobId);
     }
   }
 
+  // === فحص repo ===
   async scanRepo() {
-    const { data: ref } = await octokit.git.getRef({ owner: OWNER, repo: REPO, ref: 'heads/main' });
-    const { data: commit } = await octokit.git.getCommit({ owner: OWNER, repo: REPO, commit_sha: ref.object.sha });
-    const { data: tree } = await octokit.git.getTree({ owner: OWNER, repo: REPO, tree_sha: commit.tree.sha, recursive: true });
+    try {
+      const { data: ref } = await octokit.git.getRef({ owner: OWNER, repo: REPO, ref: 'heads/main' });
+      const { data: commit } = await octokit.git.getCommit({ owner: OWNER, repo: REPO, commit_sha: ref.object.sha });
+      const { data: tree } = await octokit.git.getTree({ owner: OWNER, repo: REPO, tree_sha: commit.tree.sha, recursive: true });
 
-    const codeFiles = tree.tree
-      .filter(f => f.type === 'blob' && /\.(js|html|css|json|md)$/.test(f.path))
-      .slice(0, 20);
+      const codeFiles = tree.tree
+        .filter(f => f.type === 'blob' && /\.(js|html|css|json|md)$/.test(f.path))
+        .slice(0, 20);
 
-    const files = [];
-    for (const f of codeFiles) {
-      const { data } = await octokit.repos.getContent({ owner: OWNER, repo: REPO, path: f.path });
-      const content = Buffer.from(data.content, 'base64').toString('utf-8');
-      files.push({ path: f.path, content, sha: data.sha });
+      const files = [];
+      for (const f of codeFiles) {
+        try {
+          const { data } = await octokit.repos.getContent({ owner: OWNER, repo: REPO, path: f.path });
+          const content = Buffer.from(data.content, 'base64').toString('utf-8');
+          files.push({ path: f.path, content, sha: data.sha });
+        } catch (e) {}
+      }
+      return files;
+    } catch (e) {
+      throw new Error("فشل فحص المشروع: " + e.message);
     }
-    return files;
   }
 
+  // === رفع التغييرات ===
   async applyUpdates(updates) {
     for (const update of updates) {
       await octokit.repos.createOrUpdateFileContents({
@@ -177,7 +253,7 @@ export class SimpleWorkerManager extends EventEmitter {
         path: update.path,
         message: update.message,
         content: Buffer.from(update.content).toString('base64'),
-        sha: update.sha
+        sha: update.sha || undefined
       });
     }
   }
@@ -189,5 +265,6 @@ export class SimpleWorkerManager extends EventEmitter {
   async stop() {
     this.isRunning = false;
     this.emit('stopped');
+    console.log('جو توقف');
   }
 }
