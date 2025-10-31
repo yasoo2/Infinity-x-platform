@@ -1,0 +1,36 @@
+services:
+  # Backend API
+  - type: web
+    name: infinityx-backend
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && node server.mjs
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false
+      - key: DB_NAME
+        value: future_system
+      - key: GEMINI_API_KEY
+        sync: false
+
+  # Worker Service
+  - type: worker
+    name: infinityx-worker
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: cd worker && npm install
+    startCommand: cd worker && node worker-gemini.mjs
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false
+      - key: DB_NAME
+        value: future_system
+      - key: GEMINI_API_KEY
+        sync: false
