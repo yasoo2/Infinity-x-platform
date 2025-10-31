@@ -1,3 +1,9 @@
+/**
+ * chatHistory.mjs - إدارة المحادثات (النسخة النهائية)
+ * يدعم: إنشاء، قائمة، إضافة رسالة، توليد عنوان، حذف، تعديل
+ * + ربط تلقائي بالمهام عند طلب "أنشئ"
+ */
+
 import express from 'express';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { getDb } from '../db.mjs';
@@ -5,14 +11,11 @@ import { getDb } from '../db.mjs';
 const router = express.Router();
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Create new conversation
+// === إنشاء محادثة جديدة ===
 router.post('/create', async (req, res) => {
   try {
     const { userId, title } = req.body;
-
-    if (!userId) {
-      return res.json({ ok: false, error: 'User ID required' });
-    }
+    if (!userId) return res.json({ ok: false, error: 'User ID required' });
 
     const db = await getDb();
     const conversation = {
@@ -30,21 +33,17 @@ router.post('/create', async (req, res) => {
       conversationId: result.insertedId.toString(),
       conversation: { ...conversation, _id: result.insertedId }
     });
-
   } catch (error) {
-    console.error('Create conversation error:', error);
+    console.error('Create error:', error);
     res.json({ ok: false, error: error.message });
   }
 });
 
-// Get all conversations for a user
+// === جلب قائمة المحادثات ===
 router.post('/list', async (req, res) => {
   try {
     const { userId } = req.body;
-
-    if (!userId) {
-      return res.json({ ok: false, error: 'User ID required' });
-    }
+    if (!userId) return res.json({ ok: false, error: 'User ID required' });
 
     const db = await getDb();
     const conversations = await db.collection('conversations')
@@ -53,47 +52,35 @@ router.post('/list', async (req, res) => {
       .toArray();
 
     res.json({ ok: true, conversations });
-
   } catch (error) {
-    console.error('List conversations error:', error);
     res.json({ ok: false, error: error.message });
   }
 });
 
-// Get single conversation
+// === جلب محادثة واحدة ===
 router.post('/get', async (req, res) => {
   try {
     const { conversationId } = req.body;
-
-    if (!conversationId) {
-      return res.json({ ok: false, error: 'Conversation ID required' });
-    }
+    if (!conversationId) return res.json({ ok: false, error: 'ID required' });
 
     const db = await getDb();
     const { ObjectId } = await import('mongodb');
     const conversation = await db.collection('conversations')
       .findOne({ _id: new ObjectId(conversationId) });
 
-    if (!conversation) {
-      return res.json({ ok: false, error: 'Conversation not found' });
-    }
+    if (!conversation) return res.json({ ok: false, error: 'Not found' });
 
     res.json({ ok: true, conversation });
-
   } catch (error) {
-    console.error('Get conversation error:', error);
     res.json({ ok: false, error: error.message });
   }
 });
 
-// Add message to conversation
+// === إضافة رسالة + ربط بالمهمة ===
 router.post('/add-message', async (req, res) => {
   try {
     const { conversationId, message } = req.body;
-
-    if (!conversationId || !message) {
-      return res.json({ ok: false, error: 'Conversation ID and message required' });
-    }
+    if (!conversationId || !message) return res.json({ ok: false, error: 'Required fields missing' });
 
     const db = await getDb();
     const { ObjectId } = await import('mongodb');
@@ -106,6 +93,7 @@ router.post('/add-message', async (req, res) => {
       createdAt: new Date()
     };
 
+    // حفظ الرسالة
     await db.collection('conversations').updateOne(
       { _id: new ObjectId(conversationId) },
       {
@@ -114,33 +102,45 @@ router.post('/add-message', async (req, res) => {
       }
     );
 
-    res.json({ ok: true, message: messageObj });
+    // === ربط بالمهمة إذا كان أمر إنشاء ===
+    const content = message.content.toLowerCase();
+    if (
+      message.type === 'user' &&
+      (content.includes('أنشئ') || content.includes('create') || content.includes('سوي') || content.includes('build'))
+    ) {
+      const job = {
+        conversationId,
+        command: message.content,
+        title: 'إنشاء موقع',
+        style: 'modern',
+        deploy: true,
+        status: 'QUEUED',
+        createdAt: new Date()
+      };
 
+      const jobResult = await db.collection('jobs').insertOne(job);
+      console.log('مهمة جديدة في المحادثة:', jobResult.insertedId.toString());
+    }
+
+    res.json({ ok: true, message: messageObj });
   } catch (error) {
     console.error('Add message error:', error);
     res.json({ ok: false, error: error.message });
   }
 });
 
-// Generate title for conversation
+// === توليد عنوان تلقائي ===
 router.post('/generate-title', async (req, res) => {
   try {
     const { conversationId, firstMessage } = req.body;
-
-    if (!conversationId) {
-      return res.json({ ok: false, error: 'Conversation ID required' });
-    }
+    if (!conversationId) return res.json({ ok: false, error: 'ID required' });
 
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
-
-    const prompt = `Generate a short, concise title (max 5 words) in Arabic for a conversation that starts with: "${firstMessage}"
-
-Just return the title, nothing else.`;
+    const prompt = `أنشئ عنوان قصير (5 كلمات كحد أقصى) بالعربية لمحادثة تبدأ بـ: "${firstMessage}"\nرجّع العنوان فقط.`;
 
     const result = await model.generateContent(prompt);
-    const title = result.response.text().trim();
+    const title = result.response.text().trim().replace(/["']/g, '');
 
-    // Update conversation title
     const db = await getDb();
     const { ObjectId } = await import('mongodb');
     await db.collection('conversations').updateOne(
@@ -149,42 +149,33 @@ Just return the title, nothing else.`;
     );
 
     res.json({ ok: true, title });
-
   } catch (error) {
     console.error('Generate title error:', error);
     res.json({ ok: false, error: error.message });
   }
 });
 
-// Delete conversation
+// === حذف محادثة ===
 router.post('/delete', async (req, res) => {
   try {
     const { conversationId } = req.body;
-
-    if (!conversationId) {
-      return res.json({ ok: false, error: 'Conversation ID required' });
-    }
+    if (!conversationId) return res.json({ ok: false, error: 'ID required' });
 
     const db = await getDb();
     const { ObjectId } = await import('mongodb');
     await db.collection('conversations').deleteOne({ _id: new ObjectId(conversationId) });
 
-    res.json({ ok: true, message: 'Conversation deleted' });
-
+    res.json({ ok: true, message: 'تم الحذف' });
   } catch (error) {
-    console.error('Delete conversation error:', error);
     res.json({ ok: false, error: error.message });
   }
 });
 
-// Update conversation title
+// === تعديل العنوان ===
 router.post('/update-title', async (req, res) => {
   try {
     const { conversationId, title } = req.body;
-
-    if (!conversationId || !title) {
-      return res.json({ ok: false, error: 'Conversation ID and title required' });
-    }
+    if (!conversationId || !title) return res.json({ ok: false, error: 'Required' });
 
     const db = await getDb();
     const { ObjectId } = await import('mongodb');
@@ -193,10 +184,8 @@ router.post('/update-title', async (req, res) => {
       { $set: { title, updatedAt: new Date() } }
     );
 
-    res.json({ ok: true, message: 'Title updated' });
-
+    res.json({ ok: true, message: 'تم التعديل' });
   } catch (error) {
-    console.error('Update title error:', error);
     res.json({ ok: false, error: error.message });
   }
 });
