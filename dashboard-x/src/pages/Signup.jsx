@@ -4,12 +4,39 @@ import apiClient from '../api/client';
 
 export default function Signup() {
   const [email, setEmail] = useState('');
+  const [countryCode, setCountryCode] = useState('+90'); // Default to Turkey
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+
+  // Popular country codes
+  const countryCodes = [
+    { code: '+1', country: 'USA/Canada' },
+    { code: '+20', country: 'Egypt' },
+    { code: '+44', country: 'UK' },
+    { code: '+49', country: 'Germany' },
+    { code: '+90', country: 'Turkey' },
+    { code: '+91', country: 'India' },
+    { code: '+212', country: 'Morocco' },
+    { code: '+213', country: 'Algeria' },
+    { code: '+216', country: 'Tunisia' },
+    { code: '+218', country: 'Libya' },
+    { code: '+249', country: 'Sudan' },
+    { code: '+966', country: 'Saudi Arabia' },
+    { code: '+971', country: 'UAE' },
+    { code: '+974', country: 'Qatar' },
+    { code: '+962', country: 'Jordan' },
+    { code: '+961', country: 'Lebanon' },
+    { code: '+963', country: 'Syria' },
+    { code: '+964', code: 'Iraq' },
+    { code: '+965', country: 'Kuwait' },
+    { code: '+968', country: 'Oman' },
+    { code: '+973', country: 'Bahrain' },
+    { code: '+967', country: 'Yemen' },
+  ];
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -39,7 +66,7 @@ export default function Signup() {
       // استدعاء API للتسجيل
       const response = await apiClient.post('/api/auth/register', {
         email: email,
-        phone: phone || null,
+        phone: phone ? `${countryCode}${phone}` : null,
         password: password
       });
       
@@ -114,14 +141,31 @@ export default function Signup() {
               <label className="block text-sm font-medium text-textDim mb-2">
                 Phone (Optional)
               </label>
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="input-field w-full"
-                placeholder="+1234567890"
-                disabled={loading || success}
-              />
+              <div className="flex gap-2">
+                <select
+                  value={countryCode}
+                  onChange={(e) => setCountryCode(e.target.value)}
+                  className="input-field w-32"
+                  disabled={loading || success}
+                >
+                  {countryCodes.map((item) => (
+                    <option key={item.code} value={item.code}>
+                      {item.code} {item.country}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="input-field flex-1"
+                  placeholder="5013715391"
+                  disabled={loading || success}
+                />
+              </div>
+              <p className="text-xs text-textDim mt-1">
+                Example: Select +90 and enter 5013715391
+              </p>
             </div>
 
             <div>
