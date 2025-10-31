@@ -22,10 +22,7 @@ export default function VoiceInput({ onTranscript, onAutoSubmit, disabled }) {
         const transcript = event.results[0][0].transcript;
         onTranscript(transcript);
         setIsListening(false);
-        // Auto-submit after 1 second
-        if (onAutoSubmit) {
-          setTimeout(() => onAutoSubmit(), 1000);
-        }
+        // No auto-submit - user must click send button manually
       };
       
       recognition.onerror = (event) => {
