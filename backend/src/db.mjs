@@ -29,3 +29,12 @@ export const getDb = getDB;
 export function getMongoClient() {
   return mongoClient;
 }
+
+export async function closeMongoConnection() {
+  if (mongoClient) {
+    await mongoClient.close();
+    mongoClient = null;
+    mongoDb = null;
+    console.log('[Mongo] Disconnected');
+  }
+}
