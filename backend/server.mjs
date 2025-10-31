@@ -24,6 +24,7 @@ import { joeRouter } from './src/routes/joeRouter.js';
 import { factoryRouter } from './src/routes/factoryRouter.js';
 import { publicSiteRouter } from './src/routes/publicSiteRouter.js';
 import { dashboardDataRouter } from './src/routes/dashboardDataRouter.js';
+import { SimpleWorkerManager } from './src/workers/SimpleWorkerManager.mjs';
 
 dotenv.config();
 
@@ -585,8 +586,31 @@ app.get('/', async (req, res) => {
 });
 
 // =========================
+// Initialize Worker Manager
+// =========================
+const workerManager = new SimpleWorkerManager({
+  maxConcurrent: 3
+});
+
+// Start Worker Manager
+workerManager.start().then(() => {
+  console.log('✅ Worker Manager started successfully');
+}).catch((error) => {
+  console.error('❌ Worker Manager failed to start:', error);
+});
+
+// Worker Manager stats endpoint
+app.get('/api/worker/stats', (req, res) => {
+  res.json({
+    ok: true,
+    stats: workerManager.getStats()
+  });
+});
+
+// =========================
 // Start server
 // =========================
 app.listen(PORT, () => {
-  console.log(`InfinityX Backend running on ${PORT}`);
+  console.log(`🚀 InfinityX Backend running on port ${PORT}`);
+  console.log(`📊 Worker Manager: ${workerManager.isRunning ? 'ONLINE' : 'OFFLINE'}`);
 });
