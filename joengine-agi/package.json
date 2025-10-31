@@ -1,0 +1,42 @@
+{
+  "name": "joengine-agi",
+  "version": "2.0.0",
+  "description": "JOEngine - Advanced AGI System for autonomous problem solving, self-development, and system building",
+  "main": "index.mjs",
+  "type": "module",
+  "scripts": {
+    "start": "node index.mjs",
+    "dev": "node --watch index.mjs",
+    "test": "node --test"
+  },
+  "keywords": [
+    "agi",
+    "artificial-intelligence",
+    "autonomous-agent",
+    "self-learning",
+    "system-builder"
+  ],
+  "author": "InfinityX Platform",
+  "license": "MIT",
+  "dependencies": {
+    "openai": "^4.20.0",
+    "playwright": "^1.40.0",
+    "langchain": "^0.0.200",
+    "@langchain/openai": "^0.0.10",
+    "mongodb": "^6.3.0",
+    "express": "^4.18.2",
+    "ws": "^8.14.2",
+    "dotenv": "^16.3.1",
+    "axios": "^1.6.2",
+    "cheerio": "^1.0.0-rc.12",
+    "fs-extra": "^11.2.0",
+    "uuid": "^9.0.1",
+    "chalk": "^5.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

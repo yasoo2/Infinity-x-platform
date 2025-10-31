@@ -1,0 +1,36 @@
+{
+  "name": "infinity-x-worker-agi",
+  "version": "2.0.0",
+  "description": "InfinityX Worker with JOEngine AGI integration",
+  "main": "worker-agi.mjs",
+  "type": "module",
+  "scripts": {
+    "start": "node worker-agi.mjs",
+    "start:basic": "node worker.mjs",
+    "start:enhanced": "node worker-enhanced.mjs",
+    "dev": "node --watch worker-agi.mjs"
+  },
+  "keywords": [
+    "worker",
+    "agi",
+    "ai",
+    "automation"
+  ],
+  "author": "InfinityX Platform",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.3.1",
+    "mongodb": "^6.3.0",
+    "ioredis": "^5.3.2",
+    "openai": "^4.20.0",
+    "playwright": "^1.40.0",
+    "axios": "^1.6.2",
+    "cheerio": "^1.0.0-rc.12",
+    "fs-extra": "^11.2.0",
+    "uuid": "^9.0.1",
+    "chalk": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
