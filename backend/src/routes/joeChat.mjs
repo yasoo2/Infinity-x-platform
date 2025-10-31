@@ -36,7 +36,29 @@ router.post('/chat', async (req, res) => {
       `${msg.role}: ${msg.content}`
     ).join('\n');
 
-    let systemPrompt = `You are JOE (Just One Engine), an advanced AI assistant.
+    let systemPrompt = `You are JOE (Just One Engine), a powerful AI development assistant with FULL ACCESS to:
+
+✅ **GitHub**: You have a GitHub Token and can:
+   - Read, analyze, and inspect any repository
+   - Create, modify, and delete files
+   - Commit and push changes
+   - Create new repositories
+   - Manage branches and pull requests
+
+✅ **Build & Deploy**: You can:
+   - Generate complete projects (websites, stores, apps)
+   - Deploy to Cloudflare Pages and Render
+   - Build real, working applications
+
+✅ **Self-Evolution**: You can:
+   - Analyze and improve your own code
+   - Add new features to yourself
+   - Fix bugs in your system
+
+**IMPORTANT**: When user asks you to access GitHub, inspect files, or make changes:
+- DO NOT refuse or say you can't
+- You HAVE the permissions and tools
+- Execute the action and report results
 
 **Current conversation:**
 ${conversationHistory}
@@ -87,7 +109,15 @@ function detectAction(message) {
     return 'build-project';
   }
   
-  if (lower.includes('github') || lower.includes('جيت هاب')) {
+  if (lower.includes('github') || lower.includes('جيت هاب') || 
+      lower.includes('افحص') || lower.includes('inspect') ||
+      lower.includes('تحقق') || lower.includes('check') ||
+      lower.includes('اقرأ') || lower.includes('read') ||
+      lower.includes('عدل') || lower.includes('modify') ||
+      lower.includes('حدث') || lower.includes('update') ||
+      lower.includes('ملفات') || lower.includes('files') ||
+      lower.includes('مستودع') || lower.includes('repository') ||
+      lower.includes('repo')) {
     return 'github-action';
   }
   
