@@ -27,6 +27,7 @@ import { dashboardDataRouter } from './src/routes/dashboardDataRouter.js';
 import { SimpleWorkerManager } from './src/workers/SimpleWorkerManager.mjs';
 import selfDesignRouter from './src/routes/selfDesign.mjs';
 import storeIntegrationRouter from './src/routes/storeIntegration.mjs';
+import universalStoreRouter from './src/routes/universalStore.mjs';
 
 dotenv.config();
 
@@ -549,6 +550,7 @@ app.use('/api/dashboard', dashboardDataRouter(initMongo, redis));
 app.use('/api/public-site', publicSiteRouter(initMongo));
 app.use('/api/self-design', selfDesignRouter);
 app.use('/api/store', storeIntegrationRouter);
+app.use('/api/universal-store', universalStoreRouter);
 
 // هذه للوحة المصنع: عرض آخر jobs
 app.get('/api/factory/jobs', requireRole(ROLES.ADMIN), async (req, res) => {
