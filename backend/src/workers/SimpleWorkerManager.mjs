@@ -1,6 +1,6 @@
-import { getDb } from '../db.mjs';
 import { Octokit } from '@octokit/rest';
 import { ObjectId } from 'mongodb';
+import { initMongo, getDB } from '../db.mjs';
 
 export class SimpleWorkerManager {
   constructor() {
@@ -11,13 +11,16 @@ export class SimpleWorkerManager {
   }
 
   async start() {
-    const { connectToDb } = await import('../db.mjs');
-    await new Promise((resolve, reject) => {
-      connectToDb((err) => err ? reject(err) : resolve());
-    });
-    this.db = getDb();
-    this.isRunning = true;
-    this.watchJobs();
+    try {
+      await initMongo();
+      this.db = getDB();
+      this.isRunning = true;
+      this.watchJobs();
+      console.log('✅ Worker Manager started');
+    } catch (error) {
+      console.error('❌ Worker Manager failed to start:', error.message);
+      throw error;
+    }
   }
 
   async watchJobs() {
