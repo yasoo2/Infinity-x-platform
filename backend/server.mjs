@@ -1,5 +1,4 @@
-// backend/server.mjs
-
+// backend/server.mjs - النسخة الكاملة والمعدلة
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -16,8 +15,8 @@ import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 
-import { ROLES } from '../shared/roles.js';
-import { sanitizeUserForClient } from '../shared/userTypes.js';
+import { ROLES } from './shared/roles.js';
+import { sanitizeUserForClient } from './shared/userTypes.js';
 
 // راوترات
 import { joeRouter } from './src/routes/joeRouter.js';
@@ -36,6 +35,9 @@ import joeChatRouter from './src/routes/joeChat.mjs';
 import browserControlRouter from './src/routes/browserControl.mjs';
 import chatHistoryRouter from './src/routes/chatHistory.mjs';
 
+// إعدادات قاعدة البيانات
+import { initMongo, getDB, closeMongoConnection } from './src/db.mjs';
+
 dotenv.config();
 
 // =========================
@@ -45,11 +47,16 @@ const app = express();
 const PORT = process.env.PORT || 10000;
 app.set('trust proxy', 1);
 
-// helmet + rateLimit
-app.use(helmet());
+// إعدادات الأمان
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  contentSecurityPolicy: false
+}));
+
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200
+  max: 200,
+  message: { error: 'TOO_MANY_REQUESTS' }
 }));
 
 // -------------------------
@@ -64,49 +71,37 @@ const allowedOrigins = [
   'https://www.xelitesolutions.com'
 ];
 
-// نسمح مؤقت لأي Origin إذا مو موجود بالقائمة (حتى ما نوقف التطوير)
 app.use(cors({
   origin: function (origin, cb) {
     if (!origin) return cb(null, true);
     if (allowedOrigins.includes(origin)) return cb(null, true);
-    // لو ما كان موجود بالقائمة نسمح برضو بس بنطبع تحذير
     console.warn('[CORS] Origin not in whitelist:', origin);
     cb(null, true);
   },
   credentials: true,
 }));
 
+// middleware للـ logging
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`${req.method} ${req.originalUrl} ${res.statusCode} - ${duration}ms`);
+  });
+  next();
+});
+
 // لقراءة JSON من البودي
 app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: true }));
 
-// Multer للملفات (ممكن جو يرفع/يحمل snapshots)
+// Multer للملفات
 const upload = multer({ dest: 'uploads/' });
-
-// =========================
-// MongoDB
-// =========================
-const DB_NAME = process.env.DB_NAME || 'future_system';
-let mongoClient = null;
-let mongoDb = null;
-
-async function initMongo() {
-  if (mongoDb) return mongoDb;
-  const uri = process.env.MONGO_URI;
-  if (!uri) {
-    console.error('[Mongo] MONGO_URI missing in env');
-    throw new Error('MONGO_URI missing');
-  }
-  mongoClient = new MongoClient(uri);
-  await mongoClient.connect();
-  mongoDb = mongoClient.db(DB_NAME);
-  console.log('[Mongo] Connected');
-  return mongoDb;
-}
 
 // =========================
 // Redis (اختياري حاليًّا)
 // =========================
-const useRedis = true; // إذا بدك توقفه مؤقت = false
+const useRedis = true;
 let redis = null;
 
 if (useRedis && process.env.REDIS_URL) {
@@ -194,11 +189,47 @@ function requireRole(minRole) {
 }
 
 // =========================
+// Health Checks
+// =========================
+app.get('/health', async (req, res) => {
+  const checks = {
+    database: false,
+    redis: false,
+    workers: false
+  };
+  
+  try {
+    const db = await initMongo();
+    await db.command({ ping: 1 });
+    checks.database = true;
+  } catch (err) {
+    console.error('Health check - DB failed:', err);
+  }
+  
+  if (redis) {
+    try {
+      await redis.ping();
+      checks.redis = true;
+    } catch (err) {
+      console.error('Health check - Redis failed:', err);
+    }
+  }
+  
+  checks.workers = workerManager?.isRunning || false;
+  
+  const isHealthy = checks.database && (!redis || checks.redis);
+  res.status(isHealthy ? 200 : 503).json({
+    status: isHealthy ? 'healthy' : 'unhealthy',
+    checks,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// =========================
 // AUTH ROUTES
 // =========================
 
 // bootstrap-super
-// أول سوبر أدمن / أو تحديث السوبر أدمن الحالي
 app.post('/api/auth/bootstrap-super', async (req, res) => {
   try {
     const { email, phone, password } = req.body;
@@ -213,7 +244,6 @@ app.post('/api/auth/bootstrap-super', async (req, res) => {
     const hash = await bcrypt.hash(password, 10);
 
     if (exist) {
-      // إذا عندنا سوبر أدمن، منحدّث بياناته
       await db.collection('users').updateOne(
         { _id: exist._id },
         {
@@ -233,7 +263,6 @@ app.post('/api/auth/bootstrap-super', async (req, res) => {
         superAdminId: exist._id.toString()
       });
     } else {
-      // ما في سوبر، مننشئ واحد جديد
       const newUser = {
         email,
         phone: phone || null,
@@ -325,11 +354,11 @@ app.post('/api/auth/login', async (req, res) => {
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, phone, password } = req.body;
-    
+
     if (!email || !password) {
       return res.status(400).json({ error: 'MISSING_FIELDS' });
     }
-    
+
     if (password.length < 8) {
       return res.status(400).json({ error: 'PASSWORD_TOO_SHORT' });
     }
@@ -398,7 +427,6 @@ app.post('/api/auth/google', async (req, res) => {
     const now = new Date();
 
     if (!userDoc) {
-      // مستخدم جديد
       const newUser = {
         email,
         phone: null,
@@ -593,6 +621,38 @@ app.get('/api/factory/jobs', requireRole(ROLES.ADMIN), async (req, res) => {
 });
 
 // =========================
+// Initialize Worker Manager
+// =========================
+let workerManager;
+
+try {
+  workerManager = new SimpleWorkerManager({
+    maxConcurrent: 3
+  });
+
+  // Start Worker Manager
+  workerManager.start().then(() => {
+    console.log('✅ Worker Manager started successfully');
+  }).catch((error) => {
+    console.error('❌ Worker Manager failed to start:', error);
+  });
+} catch (error) {
+  console.error('❌ Failed to initialize Worker Manager:', error);
+  workerManager = {
+    isRunning: false,
+    getStats: () => ({ error: 'Worker Manager not available' })
+  };
+}
+
+// Worker Manager stats endpoint
+app.get('/api/worker/stats', (req, res) => {
+  res.json({
+    ok: true,
+    stats: workerManager?.getStats?.() || { error: 'Worker Manager not available' }
+  });
+});
+
+// =========================
 // روت فحص سريع
 // =========================
 app.get('/', async (req, res) => {
@@ -601,30 +661,51 @@ app.get('/', async (req, res) => {
     service: 'InfinityX Backend / Future Systems Core',
     msg: 'Running',
     joeOnline: true,
-    factoryOnline: true
+    factoryOnline: true,
+    timestamp: new Date().toISOString()
   });
 });
 
 // =========================
-// Initialize Worker Manager
+// Error Handling
 // =========================
-const workerManager = new SimpleWorkerManager({
-  maxConcurrent: 3
+app.use((req, res) => {
+  res.status(404).json({ error: 'ROUTE_NOT_FOUND' });
 });
 
-// Start Worker Manager
-workerManager.start().then(() => {
-  console.log('✅ Worker Manager started successfully');
-}).catch((error) => {
-  console.error('❌ Worker Manager failed to start:', error);
-});
-
-// Worker Manager stats endpoint
-app.get('/api/worker/stats', (req, res) => {
-  res.json({
-    ok: true,
-    stats: workerManager.getStats()
+app.use((err, req, res, next) => {
+  console.error('Unhandled Error:', err);
+  res.status(500).json({ 
+    error: 'INTERNAL_SERVER_ERROR',
+    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
   });
+});
+
+// =========================
+// Graceful Shutdown
+// =========================
+async function gracefulShutdown() {
+  console.log('Shutting down gracefully...');
+  
+  if (workerManager && workerManager.stop) {
+    await workerManager.stop().catch(console.error);
+  }
+  
+  await closeMongoConnection();
+  
+  if (redis) {
+    await redis.quit().catch(console.error);
+  }
+  
+  console.log('Shutdown completed');
+  process.exit(0);
+}
+
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);
+
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled Rejection:', err);
 });
 
 // =========================
@@ -632,5 +713,8 @@ app.get('/api/worker/stats', (req, res) => {
 // =========================
 app.listen(PORT, () => {
   console.log(`🚀 InfinityX Backend running on port ${PORT}`);
-  console.log(`📊 Worker Manager: ${workerManager.isRunning ? 'ONLINE' : 'OFFLINE'}`);
+  console.log(`📊 Worker Manager: ${workerManager?.isRunning ? 'ONLINE' : 'OFFLINE'}`);
+  console.log(`🌐 Health check available at: http://localhost:${PORT}/health`);
 });
+
+export default app;
