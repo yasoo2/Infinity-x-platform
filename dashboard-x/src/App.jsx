@@ -10,7 +10,7 @@ import Build from './pages/Build';
 import SelfDesign from './pages/SelfDesign';
 import UniversalStoreIntegration from './pages/UniversalStoreIntegration';
 import PageBuilder from './pages/PageBuilder';
-import ManusLike from './pages/ManusLike';
+import Joe from './pages/Joe';
 
 function App() {
   return (
@@ -35,7 +35,7 @@ function App() {
           <Route path="self-design" element={<SelfDesign />} />
           <Route path="store-integration" element={<UniversalStoreIntegration />} />
           <Route path="page-builder" element={<PageBuilder />} />
-          <Route path="manus" element={<ManusLike />} />
+          <Route path="joe" element={<Joe />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/overview" replace />} />

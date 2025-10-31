@@ -3,7 +3,7 @@ import apiClient from '../api/client';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://api.xelitesolutions.com';
 
-export default function ManusLike() {
+export default function Joe() {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -176,7 +176,7 @@ export default function ManusLike() {
         <h1 className="text-3xl font-bold mb-2">
           <span className="text-neonGreen">Infinity</span>
           <span className="text-neonBlue">X</span>
-          <span className="text-textDim text-xl ml-3">Manus-like AI Builder</span>
+            <span className="text-textDim text-xl ml-3">JOE - Just One Engine</span>
         </h1>
         <p className="text-textDim">
           اكتب ما تريد بناءه، وسأقوم ببنائه ونشره تلقائياً! 🚀
@@ -188,7 +188,7 @@ export default function ManusLike() {
         {messages.length === 0 && (
           <div className="text-center text-textDim py-12">
             <div className="text-6xl mb-4">🤖</div>
-            <h2 className="text-2xl font-bold mb-2">مرحباً! أنا InfinityX AI</h2>
+            <h2 className="text-2xl font-bold mb-2">مرحباً! أنا JOE</h2>
             <p className="mb-4">اكتب ما تريد بناءه وسأقوم بكل شيء تلقائياً!</p>
             <div className="text-sm space-y-2">
               <p>مثال: "أريد متجر إلكتروني للإكسسوارات والعطور"</p>
