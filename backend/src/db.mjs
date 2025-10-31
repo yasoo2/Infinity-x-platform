@@ -23,6 +23,9 @@ export function getDB() {
   return mongoDb;
 }
 
+// Alias for compatibility
+export const getDb = getDB;
+
 export function getMongoClient() {
   return mongoClient;
 }
