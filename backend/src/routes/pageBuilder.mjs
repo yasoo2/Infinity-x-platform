@@ -36,7 +36,11 @@ router.post('/create', async (req, res) => {
       cloudflareApiToken
     } = req.body;
 
-    if (!description || !githubToken || !githubUsername) {
+    // Use GITHUB_TOKEN from env if not provided
+    const finalGithubToken = githubToken || process.env.GITHUB_TOKEN;
+    const finalGithubUsername = githubUsername || 'yasoo2';
+
+    if (!description || !finalGithubToken || !finalGithubUsername) {
       return res.status(400).json({
         ok: false,
         error: 'Missing required fields: description, githubToken, githubUsername'
@@ -53,8 +57,8 @@ router.post('/create', async (req, res) => {
     console.log('📤 Step 2: Pushing to GitHub...');
     const finalRepoName = repoName || generateRepoName(description);
     const githubUrl = await pushToGitHub(
-      githubToken,
-      githubUsername,
+      finalGithubToken,
+      finalGithubUsername,
       finalRepoName,
       code,
       projectType
@@ -68,7 +72,7 @@ router.post('/create', async (req, res) => {
         cloudflareAccountId,
         cloudflareApiToken,
         finalRepoName,
-        githubUsername,
+        finalGithubUsername,
         code
       );
     }
