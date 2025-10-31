@@ -1,13 +1,15 @@
 /**
- * SimpleWorkerManager - جو المنفذ (نسخة 1.0 المتكاملة)
- * يفحص repo، يحلل بـ geminiEngine، يرفع على GitHub، يحتفظ بالكود كامل
- * لا يمسح، لا يختصر، يضيف فقط
+ * SimpleWorkerManager - جو المنفذ (النسخة النهائية)
+ * يولد + يعدل + يرفع على GitHub + ينشر على Cloudflare
  */
 
 import { EventEmitter } from 'events';
 import { MongoClient } from 'mongodb';
 import { Octokit } from '@octokit/rest';
 import { improveCode } from '../lib/geminiEngine.mjs';
+import { deployToCloudflare } from '../lib/cloudflareDeployer.mjs';
+import fs from 'fs/promises';
+import path from 'path';
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const OWNER = process.env.OWNER;
@@ -20,35 +22,26 @@ export class SimpleWorkerManager extends EventEmitter {
     super();
     this.maxConcurrent = options.maxConcurrent || 3;
     this.activeJobs = new Map();
-    this.stats = {
-      processed: 0,
-      failed: 0,
-      avgProcessingTime: 0,
-      totalProcessingTime: 0
-    };
+    this.stats = { processed: 0, failed: 0, avgProcessingTime: 0, totalProcessingTime: 0 };
     this.isRunning = false;
     this.db = null;
   }
 
-  // === بدء التشغيل ===
   async start() {
     if (this.isRunning) return;
     await this.initialize();
     this.isRunning = true;
-    console.log('جو المنفذ شغال بـ Gemini! (محصّن 100%)');
+    console.log('جو شغال: يولد + يرفع + ينشر');
     this.watchJobs();
     this.emit('started');
   }
 
-  // === الاتصال بـ MongoDB ===
   async initialize() {
-    console.log('جو: جاري الاتصال بـ MongoDB...');
     const client = await MongoClient.connect(process.env.MONGO_URI);
     this.db = client.db(process.env.DB_NAME);
     console.log('MongoDB متصل');
   }
 
-  // === مراقبة المهام الجديدة ===
   async watchJobs() {
     if (!this.isRunning) return;
 
@@ -67,53 +60,63 @@ export class SimpleWorkerManager extends EventEmitter {
     setTimeout(() => this.watchJobs(), 3000);
   }
 
-  // === معالجة مهمة واحدة ===
   async processJob(job) {
     const jobId = job._id.toString();
     const startTime = Date.now();
     this.activeJobs.set(jobId, { job, startTime });
 
     try {
-      // تحديث الحالة إلى WORKING
       await this.db.collection('jobs').updateOne(
         { _id: job._id },
         { $set: { status: 'WORKING', startedAt: new Date() } }
       );
 
-      this.emit('job-started', job);
-
-      // 1. فحص المشروع على GitHub
+      // 1. فحص repo
       const files = await this.scanRepo();
 
-      // 2. تحليل كل ملف بـ geminiEngine.mjs
+      // 2. تحليل بـ Gemini
       const updates = [];
       for (const file of files) {
         if (/\.(html|js|css)$/.test(file.path)) {
-          try {
-            const result = await improveCode(file.content, job.command || 'حسّن الكود');
-            if (result && result.content && result.content.length > 100) {
-              updates.push({
-                path: file.path,
-                content: result.content,
-                message: result.message || `جو: تحديث ${file.path}`,
-                sha: file.sha
-              });
-            }
-          } catch (e) {
-            console.warn(`فشل تحليل ${file.path}:`, e.message);
+          const result = await improveCode(file.content, job.command || 'حسّن الكود');
+          if (result && result.content) {
+            updates.push({
+              path: file.path,
+              content: result.content,
+              message: result.message || `جو: تحديث ${file.path}`,
+              sha: file.sha
+            });
           }
         }
       }
 
-      // إذا ما في تحديثات → فشل
       if (updates.length === 0) {
-        throw new Error("لا توجد تحديثات بعد التحليل");
+        throw new Error("لا توجد تحديثات");
       }
 
-      // 3. رفع التغييرات على GitHub
-      const result = await this.applyUpdates(updates);
+      // 3. رفع على GitHub
+      await this.applyUpdates(updates);
 
-      // 4. حفظ النتيجة في MongoDB
+      // 4. نشر على Cloudflare (إذا كان مطلوب)
+      let deployUrl = null;
+      if (job.deploy !== false) {
+        const tempDir = path.join(process.cwd(), 'temp', jobId);
+        await fs.mkdir(tempDir, { recursive: true });
+
+        for (const update of updates) {
+          const filePath = path.join(tempDir, update.path);
+          await fs.mkdir(path.dirname(filePath), { recursive: true });
+          await fs.writeFile(filePath, update.content);
+        }
+
+        const deployResult = await deployToCloudflare(jobId, tempDir, job.title || 'jo-site');
+        deployUrl = deployResult.success ? deployResult.url : null;
+
+        // حذف المجلد المؤقت
+        await fs.rm(tempDir, { recursive: true, force: true });
+      }
+
+      // 5. حفظ النتيجة
       await this.db.collection('jobs').updateOne(
         { _id: job._id },
         {
@@ -122,102 +125,69 @@ export class SimpleWorkerManager extends EventEmitter {
             completedAt: new Date(),
             result: {
               success: true,
-              updates: result,
-              report: `تم تعديل ${updates.length} ملف بنجاح`
+              url: deployUrl || `https://github.com/${OWNER}/${REPO}`,
+              report: `تم التعديل والنشر: ${deployUrl || 'GitHub'}`
             }
           }
         }
       );
 
-      // 5. تحديث الإحصائيات
       const time = Date.now() - startTime;
       this.stats.processed++;
       this.stats.totalProcessingTime += time;
       this.stats.avgProcessingTime = this.stats.totalProcessingTime / this.stats.processed;
 
-      console.log(`جو: انتهى في ${time}ms — تم تعديل ${updates.length} ملف`);
-      this.emit('job-completed', { jobId, time, updates: result });
+      console.log(`جو: انتهى في ${time}ms — رابط: ${deployUrl}`);
+      this.emit('job-completed', { jobId, time, url: deployUrl });
 
     } catch (error) {
-      // حفظ الفشل
       await this.db.collection('jobs').updateOne(
         { _id: job._id },
-        {
-          $set: {
-            status: 'FAILED',
-            error: error.message || "فشل التنفيذ",
-            failedAt: new Date()
-          }
-        }
+        { $set: { status: 'FAILED', error: error.message } }
       );
       this.stats.failed++;
-      this.emit('job-failed', { jobId, error: error.message });
     } finally {
       this.activeJobs.delete(jobId);
     }
   }
 
-  // === فحص repo على GitHub ===
   async scanRepo() {
-    try {
-      const { data: ref } = await octokit.git.getRef({ owner: OWNER, repo: REPO, ref: 'heads/main' });
-      const { data: commit } = await octokit.git.getCommit({ owner: OWNER, repo: REPO, commit_sha: ref.object.sha });
-      const { data: tree } = await octokit.git.getTree({ owner: OWNER, repo: REPO, tree_sha: commit.tree.sha, recursive: true });
+    const { data: ref } = await octokit.git.getRef({ owner: OWNER, repo: REPO, ref: 'heads/main' });
+    const { data: commit } = await octokit.git.getCommit({ owner: OWNER, repo: REPO, commit_sha: ref.object.sha });
+    const { data: tree } = await octokit.git.getTree({ owner: OWNER, repo: REPO, tree_sha: commit.tree.sha, recursive: true });
 
-      const codeFiles = tree.tree
-        .filter(f => f.type === 'blob' && /\.(js|html|css|json|md)$/.test(f.path))
-        .slice(0, 20);
+    const codeFiles = tree.tree
+      .filter(f => f.type === 'blob' && /\.(js|html|css|json|md)$/.test(f.path))
+      .slice(0, 20);
 
-      const files = [];
-      for (const f of codeFiles) {
-        try {
-          const { data } = await octokit.repos.getContent({ owner: OWNER, repo: REPO, path: f.path });
-          const content = Buffer.from(data.content, 'base64').toString('utf-8');
-          files.push({ path: f.path, content, sha: data.sha });
-        } catch (e) {
-          console.warn(`لا يمكن قراءة ${f.path}`);
-        }
-      }
-      return files;
-    } catch (e) {
-      throw new Error("فشل فحص المشروع: " + e.message);
+    const files = [];
+    for (const f of codeFiles) {
+      const { data } = await octokit.repos.getContent({ owner: OWNER, repo: REPO, path: f.path });
+      const content = Buffer.from(data.content, 'base64').toString('utf-8');
+      files.push({ path: f.path, content, sha: data.sha });
     }
+    return files;
   }
 
-  // === رفع التغييرات على GitHub ===
   async applyUpdates(updates) {
-    const results = [];
     for (const update of updates) {
-      try {
-        await octokit.repos.createOrUpdateFileContents({
-          owner: OWNER,
-          repo: REPO,
-          path: update.path,
-          message: update.message,
-          content: Buffer.from(update.content).toString('base64'),
-          sha: update.sha
-        });
-        results.push({ path: update.path, success: true });
-      } catch (err) {
-        results.push({ path: update.path, success: false, error: err.message });
-      }
+      await octokit.repos.createOrUpdateFileContents({
+        owner: OWNER,
+        repo: REPO,
+        path: update.path,
+        message: update.message,
+        content: Buffer.from(update.content).toString('base64'),
+        sha: update.sha
+      });
     }
-    return results;
   }
 
-  // === إحصائيات النظام ===
   getStats() {
-    return {
-      ...this.stats,
-      activeJobs: this.activeJobs.size,
-      isRunning: this.isRunning
-    };
+    return { ...this.stats, activeJobs: this.activeJobs.size, isRunning: this.isRunning };
   }
 
-  // === إيقاف النظام ===
   async stop() {
     this.isRunning = false;
     this.emit('stopped');
-    console.log('جو المنفذ توقف');
   }
 }
