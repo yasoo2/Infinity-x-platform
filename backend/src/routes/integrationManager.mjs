@@ -6,8 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Octokit } from '@octokit/rest';
 import axios from 'axios';
 import pRetry from 'p-retry';
-import { Queue, Worker } from 'bullmq';
-import IORedis from 'ioredis';
+// Removed bullmq and ioredis - not needed for basic integration
 import crypto from 'crypto';
 import { body, validationResult } from 'express-validator';
 import pino from 'pino';
