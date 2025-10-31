@@ -3,6 +3,7 @@ import apiClient from '../api/client';
 import VoiceInput from '../components/VoiceInput';
 import BrowserViewer from '../components/BrowserViewer';
 import ChatSidebar from '../components/ChatSidebar';
+import FileUpload from '../components/FileUpload';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://api.xelitesolutions.com';
 
@@ -465,6 +466,13 @@ export default function Joe() {
 
         {/* Input Area */}
         <div className="border-t border-borderDim bg-cardDark p-4">
+          {/* File Upload */}
+          <div className="mb-4">
+            <FileUpload onFileAnalyzed={(data) => {
+              addMessage(`📎 تم رفع: ${data.fileName}\n\n${data.analysis}`, 'assistant');
+            }} />
+          </div>
+          
           <form ref={formRef} onSubmit={handleSubmit} className="flex gap-3">
             <VoiceInput 
               onTranscript={(text) => setInput(text)}

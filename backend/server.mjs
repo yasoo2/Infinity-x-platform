@@ -34,6 +34,7 @@ import selfEvolutionRouter from './src/routes/selfEvolution.mjs';
 import joeChatRouter from './src/routes/joeChat.mjs';
 import browserControlRouter from './src/routes/browserControl.mjs';
 import chatHistoryRouter from './src/routes/chatHistory.mjs';
+import fileUploadRouter from './src/routes/fileUpload.mjs';
 
 // إعدادات قاعدة البيانات
 import { initMongo, getDB, closeMongoConnection } from './src/db.mjs';
@@ -593,6 +594,7 @@ app.use('/api/self-evolution', selfEvolutionRouter);
 app.use('/api/joe', joeChatRouter);
 app.use('/api/browser', browserControlRouter);
 app.use('/api/chat-history', chatHistoryRouter);
+app.use('/api/file', fileUploadRouter);
 
 // هذه للوحة المصنع: عرض آخر jobs
 app.get('/api/factory/jobs', requireRole(ROLES.ADMIN), async (req, res) => {
