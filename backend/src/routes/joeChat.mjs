@@ -133,7 +133,7 @@ async function handleBuildProject(message, userId) {
   try {
     console.log('🚀 JOE is building project...');
     
-    const baseURL = process.env.API_BASE_URL || 'http://localhost:3000';
+    const baseURL = process.env.API_BASE_URL || 'https://admin.xelitesolutions.com';
     const response = await axios.post(`${baseURL}/api/page-builder/create`, {
       projectType: 'website',
       description: message,
@@ -166,7 +166,7 @@ async function handleSelfEvolution(userId) {
   try {
     console.log('🧬 JOE is evolving...');
     
-    const baseURL = process.env.API_BASE_URL || 'http://localhost:3000';
+    const baseURL = process.env.API_BASE_URL || 'https://admin.xelitesolutions.com';
     const response = await axios.post(`${baseURL}/api/self-evolution/analyze-self`, {
       userId
     });
@@ -193,7 +193,7 @@ async function handleGitHubAction(message, userId) {
   try {
     console.log('📂 JOE is accessing GitHub...');
     
-    const baseURL = process.env.API_BASE_URL || 'http://localhost:3000';
+    const baseURL = process.env.API_BASE_URL || 'https://admin.xelitesolutions.com';
     const response = await axios.post(`${baseURL}/api/github-manager/scan`, {
       owner: 'yasoo2',
       repo: 'Infinity-x-platform'
@@ -222,7 +222,8 @@ async function handleDeploy(message, userId) {
   try {
     console.log('🚀 JOE is deploying...');
     
-    const response = await axios.post('http://localhost:3000/api/integrations/auto-deploy', {
+    const baseURL = process.env.API_BASE_URL || 'https://admin.xelitesolutions.com';
+    const response = await axios.post(`${baseURL}/api/integrations/auto-deploy`, {
       owner: 'yasoo2',
       repo: 'Infinity-x-platform',
       githubToken: process.env.GITHUB_TOKEN,
