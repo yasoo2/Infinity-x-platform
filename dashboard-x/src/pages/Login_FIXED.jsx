@@ -23,13 +23,17 @@ export default function Login() {
     setLoading(true);
     
     try {
+      // استدعاء API للمصادقة
       const response = await apiClient.post('/api/auth/login', {
         emailOrPhone: email,
         password: password
       });
       
       if (response.data.ok && response.data.sessionToken) {
+        // حفظ الـ token
         saveToken(response.data.sessionToken);
+        
+        // التوجيه إلى Dashboard
         navigate('/overview');
       } else {
         setError('Login failed. Please try again.');

@@ -310,6 +310,59 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// Register new user
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { email, phone, password } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({ error: 'MISSING_FIELDS' });
+    }
+    
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'PASSWORD_TOO_SHORT' });
+    }
+
+    const db = await initMongo();
+
+    const existingUser = await db.collection('users').findOne({
+      $or: [
+        { email: email },
+        ...(phone ? [{ phone: phone }] : [])
+      ]
+    });
+
+    if (existingUser) {
+      return res.status(409).json({ error: 'EMAIL_EXISTS' });
+    }
+
+    const now = new Date();
+    const hash = await bcrypt.hash(password, 10);
+
+    const newUser = {
+      email,
+      phone: phone || null,
+      passwordHash: hash,
+      role: ROLES.USER,
+      createdAt: now,
+      lastLoginAt: null,
+      activeSessionSince: null,
+    };
+
+    const result = await db.collection('users').insertOne(newUser);
+
+    return res.json({
+      ok: true,
+      userId: result.insertedId.toString(),
+      message: 'User created successfully'
+    });
+
+  } catch (err) {
+    console.error('register err', err);
+    res.status(500).json({ error: 'SERVER_ERR' });
+  }
+});
+
 // login with Google
 app.post('/api/auth/google', async (req, res) => {
   try {
