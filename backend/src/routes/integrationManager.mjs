@@ -6,7 +6,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { Octokit } from '@octokit/rest';
 import axios from 'axios';
 import pRetry from 'p-retry';
-// Removed bullmq and ioredis - not needed for basic integration
+import { Queue, Worker } from 'bullmq';
+import IORedis from 'ioredis';
 import crypto from 'crypto';
 import { body, validationResult } from 'express-validator';
 import pino from 'pino';
@@ -25,7 +26,24 @@ const PLATFORMS = {
   cloudflare: { baseUrl: 'https://api.cloudflare.com/client/v4', timeout: 15000 },
 };
 
-// Redis and Queue removed - not needed for basic integration
+// Redis connection (optional - will work without it)
+let redis = null;
+let deployQueue = null;
+
+try {
+  if (process.env.REDIS_URL) {
+    redis = new IORedis(process.env.REDIS_URL, {
+      maxRetriesPerRequest: null,
+      enableReadyCheck: false
+    });
+    deployQueue = new Queue('integration-deploy', { connection: redis });
+    console.log('✅ Redis connected for integrationManager');
+  } else {
+    console.log('⚠️ Redis not configured - running without queue');
+  }
+} catch (error) {
+  console.log('⚠️ Redis connection failed - running without queue:', error.message);
+}
 
 // =======================
 // MIDDLEWARES
