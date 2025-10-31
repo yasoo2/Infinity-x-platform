@@ -1,202 +1,194 @@
-import { parentPort, workerData } from 'worker_threads';
-import { MongoClient, ObjectId } from 'mongodb';
+import { EventEmitter } from 'events';
+import { MongoClient } from 'mongodb';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { Octokit } from '@octokit/rest';
 
-const { workerId } = workerData;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+const OWNER = process.env.OWNER;
+const REPO = process.env.REPO;
 
-let db = null;
-let genAI = null;
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+const octokit = new Octokit({ auth: GITHUB_TOKEN });
 
-/**
- * Initialize connections
- */
-async function initialize() {
-  try {
-    // Connect to MongoDB
-    const client = await MongoClient.connect(process.env.MONGO_URI);
-    db = client.db(process.env.DB_NAME);
-    
-    // Initialize Gemini
-    genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    
-    sendLog('✅ Worker initialized successfully');
-  } catch (error) {
-    sendLog(`❌ Initialization failed: ${error.message}`);
-    throw error;
+export class SimpleWorkerManager extends EventEmitter {
+  constructor(options = {}) {
+    super();
+    this.maxConcurrent = options.maxConcurrent || 3;
+    this.activeJobs = new Map();
+    this.stats = { processed: 0, failed: 0, avgProcessingTime: 0, totalProcessingTime: 0 };
+    this.isRunning = false;
+    this.db = null;
   }
-}
 
-/**
- * Process a job
- */
-async function processJob(job) {
-  try {
-    sendLog(`🔄 Processing job ${job._id}`);
-    sendProgress(job._id, 10, 'Starting...');
-    
-    // Update job status to WORKING
-    await db.collection('jobs').updateOne(
-      { _id: new ObjectId(job._id) },
-      {
-        $set: {
-          status: 'WORKING',
-          startedAt: new Date(),
-          workerId
-        }
+  async initialize() {
+    console.log('جو المنفذ: جاري الاتصال...');
+    const client = await MongoClient.connect(process.env.MONGO_URI);
+    this.db = client.db(process.env.DB_NAME);
+    console.log('MongoDB متصل');
+  }
+
+  async start() {
+    if (this.isRunning) return;
+    await this.initialize();
+    this.isRunning = true;
+    console.log('جو المنفذ شغال بـ Gemini!');
+    this.watchJobs();
+    this.emit('started');
+  }
+
+  async watchJobs() {
+    if (!this.isLeave) return;
+
+    if (this.activeJobs.size < this.maxConcurrent) {
+      const jobs = await this.db.collection('jobs')
+        .find({ status: 'QUEUED' })
+        .sort({ createdAt: 1 })
+        .limit(this.maxConcurrent - this.activeJobs.size)
+        .toArray();
+
+      for (const job of jobs) {
+        this.processJob(job);
       }
-    );
-    
-    sendProgress(job._id, 20, 'Generating code with AI...');
-    
-    // Generate code using Gemini
-    const code = await generateCode(job);
-    
-    sendProgress(job._id, 70, 'Code generated, preparing deployment...');
-    
-    // Save generated code
-    await db.collection('jobs').updateOne(
-      { _id: new ObjectId(job._id) },
-      {
-        $set: {
-          generatedCode: code,
-          updatedAt: new Date()
-        }
-      }
-    );
-    
-    sendProgress(job._id, 90, 'Finalizing...');
-    
-    // Update job status to DONE
-    await db.collection('jobs').updateOne(
-      { _id: new ObjectId(job._id) },
-      {
-        $set: {
-          status: 'DONE',
-          completedAt: new Date(),
-          result: {
-            success: true,
-            url: `https://project-${job._id}.pages.dev`,
-            code
+    }
+
+    setTimeout(() => this.watchJobs(), 3000);
+  }
+
+  async processJob(job) {
+    const jobId = job._id.toString();
+    const startTime = Date.now();
+    this.activeJobs.set(jobId, { job, startTime });
+
+    try {
+      await this.db.collection('jobs').updateOne(
+        { _id: job._id },
+        { $set: { status: 'WORKING', startedAt: new Date() } }
+      );
+
+      this.emit('job-started', job);
+
+      const files = await this.scanRepo();
+      const analysis = await this.analyzeWithGemini(files, job.command || 'حسّن المشروع');
+      const result = await this.applyUpdates(analysis.updates);
+
+      await this.db.collection('jobs').updateOne(
+        { _id: job._id },
+        {
+          $set: {
+            status: 'DONE',
+            completedAt: new Date(),
+            result: { success: true, updates: result, report: analysis.report }
           }
         }
+      );
+
+      const time = Date.now() - startTime;
+      this.stats.processed++;
+      this.stats.totalProcessingTime += time;
+      this.stats.avgProcessingTime = this.stats.totalProcessingTime / this.stats.processed;
+
+      console.log(`جو: انتهى في ${time}ms`);
+      this.emit('job-completed', { jobId, time });
+
+    } catch (error) {
+      await this.db.collection('jobs').updateOne(
+        { _id: job._id },
+        { $set: { status: 'FAILED', error: error.message } }
+      );
+      this.stats.failed++;
+      this.emit('job-failed', { jobId, error: error.message });
+    } finally {
+      this.activeJobs.delete(jobId);
+    }
+  }
+
+  async scanRepo() {
+    const { data: ref } = await octokit.git.getRef({ owner: OWNER, repo: REPO, ref: 'heads/main' });
+    const { data: commit } = await octokit.git.getCommit({ owner: OWNER, repo: REPO, commit_sha: ref.object.sha });
+    const { data: tree } = await octokit.git.getTree({ owner: OWNER, repo: REPO, tree_sha: commit.tree.sha, recursive: true });
+
+    const codeFiles = tree.tree
+      .filter(f => f.type === 'blob' && /\.(js|html|css|json|md)$/.test(f.path))
+      .slice(0, 30);
+
+    const files = [];
+    for (const f of codeFiles) {
+      try {
+        const { data } = await octokit.repos.getContent({ owner: OWNER, repo: REPO, path: f.path });
+        files.push({
+          path: f.path,
+          content: Buffer.from(data.content, 'base64').toString('utf-8')
+        });
+      } catch (e) {}
+    }
+    return files;
+  }
+
+  async analyzeWithGemini(files, command) {
+    const fileList = files.map(f => `File: ${f.path}\n\`\`\`\n${f.content.substring(0, 800)}\n\`\`\``).join('\n\n');
+
+    const prompt = `
+أنت "جو" — وكيل AI يطور المشروع.
+
+**الأمر:** ${command}
+**الملفات:** ${fileList}
+
+**مهمتك:**
+1. فحص الأخطاء
+2. اقتراح تحسينات
+3. كتابة الكود المعدل
+4. رد بـ JSON:
+
+{
+  "report": "ملخص التحليل",
+  "updates": [
+    {
+      "path": "index.html",
+      "content": "<!DOCTYPE html>...",
+      "message": "تحسين الأداء"
+    }
+  ]
+}
+`;
+
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    return jsonMatch ? JSON.parse(jsonMatch[0]) : { report: "فشل التحليل", updates: [] };
+  }
+
+  async applyUpdates(updates) {
+    const results = [];
+    for (const update of updates) {
+      try {
+        const { data: existing } = await octokit.repos.getContent({
+          owner: OWNER, repo: REPO, path: update.path
+        }).catch(() => ({}));
+
+        await octokit.repos.createOrUpdateFileContents({
+          owner: OWNER,
+          repo: REPO,
+          path: update.path,
+          message: update.message || `جو: تحديث ${update.path}`,
+          content: Buffer.from(update.content).toString('base64'),
+          sha: existing.sha
+        });
+        results.push({ path: update.path, success: true });
+      } catch (err) {
+        results.push({ path: update.path, success: false, error: err.message });
       }
-    );
-    
-    sendProgress(job._id, 100, 'Completed!');
-    sendCompleted(job._id, {
-      success: true,
-      url: `https://project-${job._id}.pages.dev`
-    });
-    
-  } catch (error) {
-    sendLog(`❌ Job ${job._id} failed: ${error.message}`);
-    
-    // Update job status to FAILED
-    await db.collection('jobs').updateOne(
-      { _id: new ObjectId(job._id) },
-      {
-        $set: {
-          status: 'FAILED',
-          error: error.message,
-          failedAt: new Date()
-        }
-      }
-    );
-    
-    sendFailed(job._id, error.message);
+    }
+    return results;
+  }
+
+  getStats() {
+    return { ...this.stats, activeJobs: this.activeJobs.size, isRunning: this.isRunning };
+  }
+
+  async stop() {
+    this.isRunning = false;
+    this.emit('stopped');
   }
 }
-
-/**
- * Generate code using Gemini AI
- */
-async function generateCode(job) {
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
-  
-  const prompt = `Generate a complete ${job.projectType} with the following details:
-
-Title: ${job.title}
-Description: ${job.description}
-Style: ${job.style || 'Modern'}
-
-Requirements:
-- Generate a complete, production-ready HTML file
-- Include inline CSS and JavaScript
-- Make it responsive and modern
-- Use best practices
-- Include beautiful UI/UX
-- Add animations and transitions
-- Make it SEO-friendly
-
-Return ONLY the HTML code, no explanations.`;
-
-  const result = await model.generateContent(prompt);
-  const response = result.response;
-  let code = response.text();
-  
-  // Clean up code markers
-  code = code.replace(/```html/g, '').replace(/```/g, '').trim();
-  
-  return code;
-}
-
-/**
- * Send log message to main thread
- */
-function sendLog(message) {
-  parentPort.postMessage({
-    type: 'log',
-    data: `[Worker ${workerId}] ${message}`
-  });
-}
-
-/**
- * Send progress update
- */
-function sendProgress(jobId, progress, message) {
-  parentPort.postMessage({
-    type: 'progress',
-    jobId: jobId.toString(),
-    progress,
-    data: message
-  });
-}
-
-/**
- * Send completion message
- */
-function sendCompleted(jobId, result) {
-  parentPort.postMessage({
-    type: 'completed',
-    jobId: jobId.toString(),
-    data: result
-  });
-}
-
-/**
- * Send failure message
- */
-function sendFailed(jobId, error) {
-  parentPort.postMessage({
-    type: 'failed',
-    jobId: jobId.toString(),
-    error
-  });
-}
-
-/**
- * Handle messages from main thread
- */
-parentPort.on('message', async (message) => {
-  const { type, job } = message;
-  
-  if (type === 'process') {
-    await processJob(job);
-  }
-});
-
-// Initialize worker
-initialize().catch((error) => {
-  sendLog(`❌ Fatal error: ${error.message}`);
-  process.exit(1);
-});
