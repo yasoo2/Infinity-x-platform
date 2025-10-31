@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import apiClient from '../api/client';
 import VoiceInput from '../components/VoiceInput';
 import BrowserViewer from '../components/BrowserViewer';
+import ChatSidebar from '../components/ChatSidebar';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://api.xelitesolutions.com';
 
@@ -24,13 +25,82 @@ export default function Joe() {
   const [canStop, setCanStop] = useState(false);
   const [browserSessionId, setBrowserSessionId] = useState(null);
   const [showBrowser, setShowBrowser] = useState(false);
+  
+  // Chat History
+  const [currentConversationId, setCurrentConversationId] = useState(null);
+  const [userId] = useState(localStorage.getItem('userId') || 'user-' + Date.now());
+  
   const messagesEndRef = useRef(null);
   const formRef = useRef(null);
   const stopTypingRef = useRef(false);
 
   useEffect(() => {
+    // Save userId
+    if (!localStorage.getItem('userId')) {
+      localStorage.setItem('userId', userId);
+    }
+    
+    // Create initial conversation
+    createNewConversation();
+  }, []);
+
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const createNewConversation = async () => {
+    try {
+      const response = await apiClient.post(`${API_BASE}/api/chat-history/create`, {
+        userId,
+        title: 'محادثة جديدة'
+      });
+
+      if (response.data.ok) {
+        setCurrentConversationId(response.data.conversationId);
+        setMessages([]);
+        setBuildResult(null);
+      }
+    } catch (error) {
+      console.error('Create conversation error:', error);
+    }
+  };
+
+  const loadConversation = async (conversationId) => {
+    try {
+      const response = await apiClient.post(`${API_BASE}/api/chat-history/get`, {
+        conversationId
+      });
+
+      if (response.data.ok) {
+        setCurrentConversationId(conversationId);
+        setMessages(response.data.conversation.messages || []);
+        setBuildResult(null);
+      }
+    } catch (error) {
+      console.error('Load conversation error:', error);
+    }
+  };
+
+  const saveMessage = async (message) => {
+    if (!currentConversationId) return;
+
+    try {
+      await apiClient.post(`${API_BASE}/api/chat-history/add-message`, {
+        conversationId: currentConversationId,
+        message
+      });
+
+      // Generate title if this is the first user message
+      if (messages.length === 0 && message.type === 'user') {
+        await apiClient.post(`${API_BASE}/api/chat-history/generate-title`, {
+          conversationId: currentConversationId,
+          firstMessage: message.content
+        });
+      }
+    } catch (error) {
+      console.error('Save message error:', error);
+    }
+  };
 
   const addMessage = (content, type = 'assistant', isTyping = false) => {
     const msg = {
@@ -41,6 +111,12 @@ export default function Joe() {
       isTyping
     };
     setMessages(prev => [...prev, msg]);
+    
+    // Save to database (don't wait)
+    if (!isTyping) {
+      saveMessage(msg);
+    }
+    
     return msg.id;
   };
 
@@ -98,11 +174,19 @@ export default function Joe() {
     
     for (let i = 0; i <= text.length; i++) {
       if (stopTypingRef.current) {
-        updateMessage(msgId, text.substring(0, i) + ' [متوقف]');
+        const finalContent = text.substring(0, i) + ' [متوقف]';
+        updateMessage(msgId, finalContent);
+        // Save stopped message
+        await saveMessage({ content: finalContent, type: 'assistant' });
         break;
       }
       await new Promise(resolve => setTimeout(resolve, delay));
       updateMessage(msgId, text.substring(0, i));
+    }
+    
+    // Save complete message
+    if (!stopTypingRef.current) {
+      await saveMessage({ content: text, type: 'assistant' });
     }
     
     setCanStop(false);
@@ -260,148 +344,159 @@ export default function Joe() {
   };
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-primary/20 to-secondary/20 border-b border-borderDim p-6">
-        <h1 className="text-3xl font-bold mb-2">
-          <span className="text-neonGreen">Infinity</span>
-          <span className="text-neonBlue">X</span>
-          <span className="text-textDim text-xl ml-3">JOE - Just One Engine</span>
-        </h1>
-        <p className="text-textDim">
-          اكتب أو تحدث معي، وسأقوم بكل شيء تلقائياً! 🚀
-        </p>
-      </div>
+    <div className="h-[calc(100vh-4rem)] flex">
+      {/* Chat Sidebar */}
+      <ChatSidebar
+        userId={userId}
+        currentConversationId={currentConversationId}
+        onSelectConversation={loadConversation}
+        onNewConversation={createNewConversation}
+      />
 
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-bgDark">
-        {messages.length === 0 && (
-          <div className="text-center text-textDim py-12">
-            <div className="text-6xl mb-4">🤖</div>
-            <h2 className="text-2xl font-bold mb-2">مرحباً! أنا JOE</h2>
-            <p className="mb-4">تحدث معي أو اكتب ما تريد!</p>
-            <div className="text-sm space-y-2">
-              <p>💬 مثال: "مرحباً جو"</p>
-              <p>🏪 مثال: "ابني متجر إلكتروني للإكسسوارات"</p>
-              <p>🧬 مثال: "طور نفسك"</p>
-              <p>🌐 مثال: "صمم موقع لمطعم"</p>
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-primary/20 to-secondary/20 border-b border-borderDim p-6">
+          <h1 className="text-3xl font-bold mb-2">
+            <span className="text-neonGreen">Infinity</span>
+            <span className="text-neonBlue">X</span>
+            <span className="text-textDim text-xl ml-3">JOE - Just One Engine</span>
+          </h1>
+          <p className="text-textDim">
+            اكتب أو تحدث معي، وسأقوم بكل شيء تلقائياً! 🚀
+          </p>
+        </div>
+
+        {/* Messages Area */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-bgDark">
+          {messages.length === 0 && (
+            <div className="text-center text-textDim py-12">
+              <div className="text-6xl mb-4">🤖</div>
+              <h2 className="text-2xl font-bold mb-2">مرحباً! أنا JOE</h2>
+              <p className="mb-4">تحدث معي أو اكتب ما تريد!</p>
+              <div className="text-sm space-y-2">
+                <p>💬 مثال: "مرحباً جو"</p>
+                <p>🏪 مثال: "ابني متجر إلكتروني للإكسسوارات"</p>
+                <p>🧬 مثال: "طور نفسك"</p>
+                <p>🌐 مثال: "صمم موقع لمطعم"</p>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
+          {messages.map((msg) => (
             <div
-              className={`max-w-[80%] rounded-lg p-4 ${
-                msg.type === 'user'
-                  ? 'bg-primary text-white'
-                  : 'bg-cardDark border border-borderDim'
-              }`}
+              key={msg.id}
+              className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              <div className="flex items-start gap-3">
-                {msg.type === 'assistant' && (
-                  <div className="text-2xl">🤖</div>
-                )}
-                <div className="flex-1">
-                  <div className="whitespace-pre-wrap">
-                    {msg.content}
-                    {msg.isTyping && <span className="animate-pulse">▊</span>}
+              <div
+                className={`max-w-[80%] rounded-lg p-4 ${
+                  msg.type === 'user'
+                    ? 'bg-primary text-white'
+                    : 'bg-cardDark border border-borderDim'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  {msg.type === 'assistant' && (
+                    <div className="text-2xl">🤖</div>
+                  )}
+                  <div className="flex-1">
+                    <div className="whitespace-pre-wrap">
+                      {msg.content}
+                      {msg.isTyping && <span className="animate-pulse">▊</span>}
+                    </div>
+                    <div className="text-xs text-textDim mt-2">{msg.timestamp}</div>
                   </div>
-                  <div className="text-xs text-textDim mt-2">{msg.timestamp}</div>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))}
 
-        {/* Progress Bar */}
-        {isProcessing && progress > 0 && (
-          <div className="bg-cardDark border border-borderDim rounded-lg p-4">
-            <div className="flex justify-between text-sm mb-2">
-              <span className="text-textDim">{currentStep}</span>
-              <span className="text-primary font-bold">{progress}%</span>
-            </div>
-            <div className="w-full bg-bgDark rounded-full h-3">
-              <div
-                className="bg-gradient-to-r from-primary to-secondary h-3 rounded-full transition-all duration-500 animate-pulse"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Build Result */}
-        {buildResult && (
-          <div className="bg-gradient-to-br from-green-500/10 to-teal-500/10 border border-green-500/50 rounded-lg p-6">
-            <h3 className="text-xl font-bold text-green-400 mb-4">🎉 المشروع جاهز!</h3>
-            <div className="space-y-3">
-              <div>
-                <p className="text-sm text-textDim mb-1">GitHub Repository:</p>
-                <a
-                  href={buildResult.githubUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline break-all"
-                >
-                  {buildResult.githubUrl} ↗
-                </a>
+          {/* Progress Bar */}
+          {isProcessing && progress > 0 && (
+            <div className="bg-cardDark border border-borderDim rounded-lg p-4">
+              <div className="flex justify-between text-sm mb-2">
+                <span className="text-textDim">{currentStep}</span>
+                <span className="text-primary font-bold">{progress}%</span>
               </div>
-              {buildResult.liveUrl && (
+              <div className="w-full bg-bgDark rounded-full h-3">
+                <div
+                  className="bg-gradient-to-r from-primary to-secondary h-3 rounded-full transition-all duration-500 animate-pulse"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Build Result */}
+          {buildResult && (
+            <div className="bg-gradient-to-br from-green-500/10 to-teal-500/10 border border-green-500/50 rounded-lg p-6">
+              <h3 className="text-xl font-bold text-green-400 mb-4">🎉 المشروع جاهز!</h3>
+              <div className="space-y-3">
                 <div>
-                  <p className="text-sm text-textDim mb-1">Live Website:</p>
+                  <p className="text-sm text-textDim mb-1">GitHub Repository:</p>
                   <a
-                    href={buildResult.liveUrl}
+                    href={buildResult.githubUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-secondary hover:underline break-all"
+                    className="text-primary hover:underline break-all"
                   >
-                    {buildResult.liveUrl} ↗
+                    {buildResult.githubUrl} ↗
                   </a>
                 </div>
-              )}
+                {buildResult.liveUrl && (
+                  <div>
+                    <p className="text-sm text-textDim mb-1">Live Website:</p>
+                    <a
+                      href={buildResult.liveUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-secondary hover:underline break-all"
+                    >
+                      {buildResult.liveUrl} ↗
+                    </a>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
-
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Input Area */}
-      <div className="border-t border-borderDim bg-cardDark p-4">
-        <form ref={formRef} onSubmit={handleSubmit} className="flex gap-3">
-          <VoiceInput 
-            onTranscript={(text) => setInput(text)}
-            onAutoSubmit={handleAutoSubmit}
-            disabled={isProcessing}
-          />
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="اكتب أو تحدث... (مثال: مرحباً جو، ابني متجر، طور نفسك)"
-            className="input-field flex-1 text-lg"
-            disabled={isProcessing}
-          />
-          {canStop && (
-            <button
-              type="button"
-              onClick={stopTyping}
-              className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-lg transition-all duration-200"
-            >
-              ⏹️ إيقاف
-            </button>
           )}
-          <button
-            type="submit"
-            className="btn-primary px-8"
-            disabled={isProcessing || !input.trim()}
-          >
-            {isProcessing ? '⚙️ جاري...' : '🚀 إرسال'}
-          </button>
-        </form>
+
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input Area */}
+        <div className="border-t border-borderDim bg-cardDark p-4">
+          <form ref={formRef} onSubmit={handleSubmit} className="flex gap-3">
+            <VoiceInput 
+              onTranscript={(text) => setInput(text)}
+              onAutoSubmit={handleAutoSubmit}
+              disabled={isProcessing}
+            />
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="اكتب أو تحدث... (مثال: مرحباً جو، ابني متجر، طور نفسك)"
+              className="input-field flex-1 text-lg"
+              disabled={isProcessing}
+            />
+            {canStop && (
+              <button
+                type="button"
+                onClick={stopTyping}
+                className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-lg transition-all duration-200"
+              >
+                ⏹️ إيقاف
+              </button>
+            )}
+            <button
+              type="submit"
+              className="btn-primary px-8"
+              disabled={isProcessing || !input.trim()}
+            >
+              {isProcessing ? '⚙️ جاري...' : '🚀 إرسال'}
+            </button>
+          </form>
+        </div>
       </div>
 
       {/* Token Modal */}
