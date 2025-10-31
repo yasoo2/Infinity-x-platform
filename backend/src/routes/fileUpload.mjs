@@ -79,8 +79,9 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     });
 
   } catch (error) {
-    console.error('File upload error:', error);
-    res.json({ ok: false, error: error.message });
+    console.error('❌ File upload error:', error.message);
+    console.error('Stack:', error.stack);
+    res.status(500).json({ ok: false, error: error.message, stack: error.stack });
   }
 });
 
