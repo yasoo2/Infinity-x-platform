@@ -133,7 +133,8 @@ async function handleBuildProject(message, userId) {
   try {
     console.log('🚀 JOE is building project...');
     
-    const response = await axios.post('http://localhost:3000/api/page-builder/create', {
+    const baseURL = process.env.API_BASE_URL || 'http://localhost:3000';
+    const response = await axios.post(`${baseURL}/api/page-builder/create`, {
       projectType: 'website',
       description: message,
       style: 'modern',
@@ -165,7 +166,8 @@ async function handleSelfEvolution(userId) {
   try {
     console.log('🧬 JOE is evolving...');
     
-    const response = await axios.post('http://localhost:3000/api/self-evolution/analyze-self', {
+    const baseURL = process.env.API_BASE_URL || 'http://localhost:3000';
+    const response = await axios.post(`${baseURL}/api/self-evolution/analyze-self`, {
       userId
     });
     
@@ -191,7 +193,8 @@ async function handleGitHubAction(message, userId) {
   try {
     console.log('📂 JOE is accessing GitHub...');
     
-    const response = await axios.post('http://localhost:3000/api/github-manager/scan', {
+    const baseURL = process.env.API_BASE_URL || 'http://localhost:3000';
+    const response = await axios.post(`${baseURL}/api/github-manager/scan`, {
       owner: 'yasoo2',
       repo: 'Infinity-x-platform',
       githubToken: process.env.GITHUB_TOKEN
