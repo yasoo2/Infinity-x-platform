@@ -14,13 +14,14 @@ export default function Joe() {
   const [tokenType, setTokenType] = useState('');
   const [tokenValue, setTokenValue] = useState('');
   const [tokens, setTokens] = useState({
-    github: localStorage.getItem('manus_github_token') || '',
-    githubUsername: localStorage.getItem('manus_github_username') || '',
-    cloudflare: localStorage.getItem('manus_cloudflare_token') || '',
-    render: localStorage.getItem('manus_render_token') || ''
+    github: localStorage.getItem('joe_github_token') || '',
+    githubUsername: localStorage.getItem('joe_github_username') || '',
+    cloudflare: localStorage.getItem('joe_cloudflare_token') || '',
+    render: localStorage.getItem('joe_render_token') || ''
   });
   const [buildResult, setBuildResult] = useState(null);
   const messagesEndRef = useRef(null);
+  const formRef = useRef(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -28,7 +29,7 @@ export default function Joe() {
 
   const addMessage = (content, type = 'assistant', isTyping = false) => {
     const msg = {
-      id: Date.now(),
+      id: Date.now() + Math.random(),
       content,
       type,
       timestamp: new Date().toLocaleTimeString(),
@@ -50,9 +51,9 @@ export default function Joe() {
       setShowTokenModal(true);
       
       const checkToken = setInterval(() => {
-        const key = type === 'github' ? 'manus_github_token' : 
-                    type === 'cloudflare' ? 'manus_cloudflare_token' :
-                    type === 'render' ? 'manus_render_token' : '';
+        const key = type === 'github' ? 'joe_github_token' : 
+                    type === 'cloudflare' ? 'joe_cloudflare_token' :
+                    type === 'render' ? 'joe_render_token' : '';
         const token = localStorage.getItem(key);
         if (token) {
           clearInterval(checkToken);
@@ -65,14 +66,14 @@ export default function Joe() {
 
   const saveToken = () => {
     if (tokenType === 'github') {
-      localStorage.setItem('manus_github_token', tokenValue);
-      localStorage.setItem('manus_github_username', tokens.githubUsername);
+      localStorage.setItem('joe_github_token', tokenValue);
+      localStorage.setItem('joe_github_username', tokens.githubUsername);
       setTokens(prev => ({ ...prev, github: tokenValue }));
     } else if (tokenType === 'cloudflare') {
-      localStorage.setItem('manus_cloudflare_token', tokenValue);
+      localStorage.setItem('joe_cloudflare_token', tokenValue);
       setTokens(prev => ({ ...prev, cloudflare: tokenValue }));
     } else if (tokenType === 'render') {
-      localStorage.setItem('manus_render_token', tokenValue);
+      localStorage.setItem('joe_render_token', tokenValue);
       setTokens(prev => ({ ...prev, render: tokenValue }));
     }
     setTokenValue('');
@@ -87,86 +88,130 @@ export default function Joe() {
     }
   };
 
+  const handleSelfEvolve = async () => {
+    try {
+      await simulateTyping('🧬 حسناً! سأبدأ بتحليل نفسي...');
+      setCurrentStep('تحليل ذاتي');
+      setProgress(20);
+
+      const response = await apiClient.post(`${API_BASE}/api/self-evolution/evolve`, {
+        githubToken: tokens.github || await requestToken('github'),
+        owner: tokens.githubUsername || 'yasoo2',
+        repo: 'Infinity-x-platform'
+      });
+
+      if (!response.data.ok) throw new Error(response.data.error);
+
+      setProgress(60);
+      await simulateTyping(`✅ تم التحليل!\n\n📊 النتائج:\n- إجمالي الملفات: ${response.data.analysis.totalFiles}\n- ملفات الكود: ${response.data.analysis.codeFiles}\n- ملفات الإعدادات: ${response.data.analysis.configFiles}`);
+
+      setProgress(80);
+      await simulateTyping('\n\n💡 اقتراحات التحسين:\n' + 
+        response.data.suggestions.improvements.slice(0, 3).map((imp, i) => 
+          `${i + 1}. ${imp.title}: ${imp.description}`
+        ).join('\n')
+      );
+
+      setProgress(100);
+      await simulateTyping('\n\n✨ التحليل اكتمل! هل تريد مني تطبيق هذه التحسينات؟');
+
+    } catch (error) {
+      await simulateTyping(`❌ حدث خطأ: ${error.message}`);
+    } finally {
+      setProgress(0);
+      setCurrentStep('');
+    }
+  };
+
+  const handleBuildProject = async (userMessage) => {
+    try {
+      await simulateTyping('🤔 فهمت! سأبني لك هذا المشروع...');
+      setCurrentStep('فهم المتطلبات');
+      setProgress(10);
+      await new Promise(r => setTimeout(r, 1000));
+
+      await simulateTyping('🤖 الآن سأستخدم Gemini AI لتوليد الكود الكامل...');
+      setCurrentStep('توليد الكود بواسطة AI');
+      setProgress(25);
+
+      const response = await apiClient.post(`${API_BASE}/api/page-builder/create`, {
+        projectType: userMessage.includes('متجر') ? 'store' : 'website',
+        description: userMessage,
+        style: 'modern',
+        features: ['Responsive design', 'Modern UI', 'Fast loading'],
+        githubToken: tokens.github || await requestToken('github'),
+        githubUsername: tokens.githubUsername,
+        repoName: `project-${Date.now()}`
+      });
+
+      if (!response.data.ok) throw new Error(response.data.error);
+
+      setProgress(50);
+      await simulateTyping('✅ تم توليد الكود بنجاح!');
+      
+      setCurrentStep('رفع الكود على GitHub');
+      setProgress(75);
+      await simulateTyping('📤 جاري الرفع على GitHub...');
+      
+      await new Promise(r => setTimeout(r, 2000));
+      setProgress(100);
+      await simulateTyping(`🎉 تم بنجاح!\n\nالمستودع: ${response.data.githubUrl}`);
+
+      setBuildResult(response.data);
+
+    } catch (error) {
+      await simulateTyping(`❌ حدث خطأ: ${error.message}`);
+    } finally {
+      setProgress(0);
+      setCurrentStep('');
+    }
+  };
+
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!input.trim() || isProcessing) return;
 
     const userMessage = input.trim();
     setInput('');
     addMessage(userMessage, 'user');
     setIsProcessing(true);
-    setProgress(0);
     setBuildResult(null);
 
     try {
-      // Step 1: Understanding
-      await simulateTyping('🤔 فهمت طلبك! سأبني لك متجر إلكتروني للإكسسوارات والعطور...');
-      setCurrentStep('فهم المتطلبات');
-      setProgress(10);
-      await new Promise(r => setTimeout(r, 1000));
-
-      // Step 2: AI Generation
-      await simulateTyping('🤖 الآن سأستخدم Gemini AI لتوليد الكود الكامل...');
-      setCurrentStep('توليد الكود بواسطة AI');
-      setProgress(25);
-
-      const response = await apiClient.post(`${API_BASE}/api/page-builder/create`, {
-        projectType: 'store',
-        description: userMessage,
-        style: 'modern',
-        features: ['Product catalog', 'Shopping cart', 'Checkout', 'Search'],
-        githubToken: tokens.github || await requestToken('github'),
-        githubUsername: tokens.githubUsername,
-        repoName: 'accessories-perfume-store'
+      // Get JOE's response
+      const chatResponse = await apiClient.post(`${API_BASE}/api/joe/chat`, {
+        message: userMessage,
+        context: messages.slice(-5).map(m => ({
+          role: m.type === 'user' ? 'user' : 'assistant',
+          content: m.content
+        }))
       });
 
-      if (!response.data.ok) throw new Error(response.data.error);
+      if (!chatResponse.data.ok) throw new Error(chatResponse.data.error);
 
-      setProgress(50);
-      await simulateTyping('✅ تم توليد الكود بنجاح!\n\nالملفات المولدة:\n- index.html\n- styles.css\n- script.js\n- products.json');
-      
-      // Step 3: GitHub
-      setCurrentStep('رفع الكود على GitHub');
-      setProgress(60);
-      await simulateTyping('📤 الآن سأرفع الكود على GitHub...');
-      
-      if (!tokens.github) {
-        await simulateTyping('⚠️ أحتاج إلى GitHub Token للمتابعة...');
-        const githubToken = await requestToken('github');
-        setTokens(prev => ({ ...prev, github: githubToken }));
+      const { response, action } = chatResponse.data;
+
+      // Type JOE's response
+      await simulateTyping(response);
+
+      // Execute action if needed
+      if (action === 'self-evolve') {
+        await handleSelfEvolve();
+      } else if (action === 'build-project' || action === 'build-store' || action === 'build-website') {
+        await handleBuildProject(userMessage);
       }
-
-      await new Promise(r => setTimeout(r, 2000));
-      setProgress(75);
-      await simulateTyping(`✅ تم الرفع على GitHub بنجاح!\n\nالمستودع: ${response.data.githubUrl}`);
-
-      // Step 4: Deployment
-      setCurrentStep('نشر المشروع');
-      setProgress(85);
-      await simulateTyping('🌐 الآن سأنشر المشروع على الإنترنت...');
-      
-      await new Promise(r => setTimeout(r, 2000));
-      setProgress(95);
-
-      if (response.data.liveUrl) {
-        await simulateTyping(`🎉 تم النشر بنجاح!\n\nالموقع المباشر: ${response.data.liveUrl}`);
-      } else {
-        await simulateTyping('✅ المشروع جاهز على GitHub! يمكنك نشره يدوياً على Cloudflare Pages أو Netlify.');
-      }
-
-      setProgress(100);
-      setCurrentStep('اكتمل!');
-      setBuildResult(response.data);
-
-      await simulateTyping('✨ المشروع جاهز! هل تريد بناء شيء آخر؟');
 
     } catch (error) {
       console.error('Error:', error);
       await simulateTyping(`❌ حدث خطأ: ${error.message}`);
     } finally {
       setIsProcessing(false);
-      setCurrentStep('');
-      setProgress(0);
+    }
+  };
+
+  const handleAutoSubmit = () => {
+    if (formRef.current) {
+      formRef.current.requestSubmit();
     }
   };
 
@@ -177,10 +222,10 @@ export default function Joe() {
         <h1 className="text-3xl font-bold mb-2">
           <span className="text-neonGreen">Infinity</span>
           <span className="text-neonBlue">X</span>
-            <span className="text-textDim text-xl ml-3">JOE - Just One Engine</span>
+          <span className="text-textDim text-xl ml-3">JOE - Just One Engine</span>
         </h1>
         <p className="text-textDim">
-          اكتب ما تريد بناءه، وسأقوم ببنائه ونشره تلقائياً! 🚀
+          اكتب أو تحدث معي، وسأقوم بكل شيء تلقائياً! 🚀
         </p>
       </div>
 
@@ -190,11 +235,12 @@ export default function Joe() {
           <div className="text-center text-textDim py-12">
             <div className="text-6xl mb-4">🤖</div>
             <h2 className="text-2xl font-bold mb-2">مرحباً! أنا JOE</h2>
-            <p className="mb-4">اكتب ما تريد بناءه وسأقوم بكل شيء تلقائياً!</p>
+            <p className="mb-4">تحدث معي أو اكتب ما تريد!</p>
             <div className="text-sm space-y-2">
-              <p>مثال: "أريد متجر إلكتروني للإكسسوارات والعطور"</p>
-              <p>مثال: "بناء موقع لمطعم إيطالي مع قائمة طعام"</p>
-              <p>مثال: "صفحة رئيسية لشركة تقنية"</p>
+              <p>💬 مثال: "مرحباً جو"</p>
+              <p>🏪 مثال: "ابني متجر إلكتروني للإكسسوارات"</p>
+              <p>🧬 مثال: "طور نفسك"</p>
+              <p>🌐 مثال: "صمم موقع لمطعم"</p>
             </div>
           </div>
         )}
@@ -281,16 +327,17 @@ export default function Joe() {
 
       {/* Input Area */}
       <div className="border-t border-borderDim bg-cardDark p-4">
-        <form onSubmit={handleSubmit} className="flex gap-3">
+        <form ref={formRef} onSubmit={handleSubmit} className="flex gap-3">
           <VoiceInput 
             onTranscript={(text) => setInput(text)}
+            onAutoSubmit={handleAutoSubmit}
             disabled={isProcessing}
           />
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="اكتب ما تريد بناءه... (مثال: أريد متجر إلكتروني للإكسسوارات)"
+            placeholder="اكتب أو تحدث... (مثال: مرحباً جو، ابني متجر، طور نفسك)"
             className="input-field flex-1 text-lg"
             disabled={isProcessing}
           />
@@ -299,7 +346,7 @@ export default function Joe() {
             className="btn-primary px-8"
             disabled={isProcessing || !input.trim()}
           >
-            {isProcessing ? '⚙️ جاري البناء...' : '🚀 ابني!'}
+            {isProcessing ? '⚙️ جاري...' : '🚀 إرسال'}
           </button>
         </form>
       </div>
@@ -344,36 +391,6 @@ export default function Joe() {
                   </p>
                 </div>
               </>
-            )}
-
-            {tokenType === 'cloudflare' && (
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-textDim mb-2">
-                  Cloudflare API Token
-                </label>
-                <input
-                  type="password"
-                  value={tokenValue}
-                  onChange={(e) => setTokenValue(e.target.value)}
-                  className="input-field w-full"
-                  placeholder="Your Cloudflare API Token"
-                />
-              </div>
-            )}
-
-            {tokenType === 'render' && (
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-textDim mb-2">
-                  Render API Key
-                </label>
-                <input
-                  type="password"
-                  value={tokenValue}
-                  onChange={(e) => setTokenValue(e.target.value)}
-                  className="input-field w-full"
-                  placeholder="rnd_xxxxxxxxxxxx"
-                />
-              </div>
             )}
 
             <button

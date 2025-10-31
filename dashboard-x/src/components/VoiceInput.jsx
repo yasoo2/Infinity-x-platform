@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 
-export default function VoiceInput({ onTranscript, disabled }) {
+export default function VoiceInput({ onTranscript, onAutoSubmit, disabled }) {
   const [isListening, setIsListening] = useState(false);
   const [isSupported, setIsSupported] = useState(false);
   const recognitionRef = useRef(null);
@@ -21,6 +21,10 @@ export default function VoiceInput({ onTranscript, disabled }) {
         const transcript = event.results[0][0].transcript;
         onTranscript(transcript);
         setIsListening(false);
+        // Auto-submit after 1 second
+        if (onAutoSubmit) {
+          setTimeout(() => onAutoSubmit(), 1000);
+        }
       };
       
       recognition.onerror = (event) => {
