@@ -42,8 +42,12 @@ router.get('/list-repos', async (req, res) => {
 // === 2. فحص ريبو واحد ===
 router.post('/scan', async (req, res) => {
   try {
-    const { githubToken, owner, repo } = req.body;
-    if (!githubToken || !owner || !repo) return res.json({ ok: false, error: 'Missing fields' });
+    const { owner, repo } = req.body;
+    const githubToken = req.body.githubToken || process.env.GITHUB_TOKEN;
+    
+    if (!githubToken || !owner || !repo) {
+      return res.json({ ok: false, error: 'Missing fields (token, owner, or repo)' });
+    }
 
     const octokit = new Octokit({ auth: githubToken });
     const { data: repoData } = await octokit.repos.get({ owner, repo });

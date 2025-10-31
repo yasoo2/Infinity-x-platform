@@ -196,8 +196,8 @@ async function handleGitHubAction(message, userId) {
     const baseURL = process.env.API_BASE_URL || 'http://localhost:3000';
     const response = await axios.post(`${baseURL}/api/github-manager/scan`, {
       owner: 'yasoo2',
-      repo: 'Infinity-x-platform',
-      githubToken: process.env.GITHUB_TOKEN
+      repo: 'Infinity-x-platform'
+      // githubToken will be read from ENV in github-manager API
     });
     
     console.log('✅ GitHub scan complete!');
