@@ -13,6 +13,8 @@ export default function Navbar() {
   const navLinks = [
     { to: '/overview', label: 'Overview' },
     { to: '/build', label: '🎨 Build' },
+    { to: '/self-design', label: '🤖 Self-Design' },
+    { to: '/store-integration', label: '🛍️ Stores' },
     { to: '/activity', label: 'Activity' },
     { to: '/command', label: 'Command' },
     { to: '/users', label: 'Users' },

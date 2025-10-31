@@ -25,6 +25,8 @@ import { factoryRouter } from './src/routes/factoryRouter.js';
 import { publicSiteRouter } from './src/routes/publicSiteRouter.js';
 import { dashboardDataRouter } from './src/routes/dashboardDataRouter.js';
 import { SimpleWorkerManager } from './src/workers/SimpleWorkerManager.mjs';
+import selfDesignRouter from './src/routes/selfDesign.mjs';
+import storeIntegrationRouter from './src/routes/storeIntegration.mjs';
 
 dotenv.config();
 
@@ -545,6 +547,8 @@ app.use('/api/joe', joeRouter(initMongo, redis));
 app.use('/api/factory', factoryRouter(initMongo, redis));
 app.use('/api/dashboard', dashboardDataRouter(initMongo, redis));
 app.use('/api/public-site', publicSiteRouter(initMongo));
+app.use('/api/self-design', selfDesignRouter);
+app.use('/api/store', storeIntegrationRouter);
 
 // هذه للوحة المصنع: عرض آخر jobs
 app.get('/api/factory/jobs', requireRole(ROLES.ADMIN), async (req, res) => {

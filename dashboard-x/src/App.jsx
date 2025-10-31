@@ -7,6 +7,8 @@ import Activity from './pages/Activity';
 import Command from './pages/Command';
 import Users from './pages/Users';
 import Build from './pages/Build';
+import SelfDesign from './pages/SelfDesign';
+import StoreIntegration from './pages/StoreIntegration';
 
 function App() {
   return (
@@ -28,6 +30,8 @@ function App() {
           <Route path="command" element={<Command />} />
           <Route path="users" element={<Users />} />
           <Route path="build" element={<Build />} />
+          <Route path="self-design" element={<SelfDesign />} />
+          <Route path="store-integration" element={<StoreIntegration />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/overview" replace />} />
