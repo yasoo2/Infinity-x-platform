@@ -11,6 +11,7 @@ export default function Navbar() {
   };
 
   const navLinks = [
+    { to: '/manus', label: '🧠 Manus AI' },
     { to: '/overview', label: 'Overview' },
     { to: '/build', label: '🎨 Build' },
     { to: '/page-builder', label: '🚀 Page Builder' },
