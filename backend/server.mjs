@@ -31,6 +31,7 @@ import universalStoreRouter from './src/routes/universalStore.mjs';
 import pageBuilderRouter from './src/routes/pageBuilder.mjs';
 import githubManagerRouter from './src/routes/githubManager.mjs';
 import integrationManagerRouter from './src/routes/integrationManager.mjs';
+import selfEvolutionRouter from './src/routes/selfEvolution.mjs';
 
 dotenv.config();
 
@@ -557,6 +558,7 @@ app.use('/api/universal-store', universalStoreRouter);
 app.use('/api/page-builder', pageBuilderRouter);
 app.use('/api/github-manager', githubManagerRouter);
 app.use('/api/integrations', integrationManagerRouter);
+app.use('/api/self-evolution', selfEvolutionRouter);
 
 // هذه للوحة المصنع: عرض آخر jobs
 app.get('/api/factory/jobs', requireRole(ROLES.ADMIN), async (req, res) => {
