@@ -33,6 +33,7 @@ import githubManagerRouter from './src/routes/githubManager.mjs';
 import integrationManagerRouter from './src/routes/integrationManager.mjs';
 import selfEvolutionRouter from './src/routes/selfEvolution.mjs';
 import joeChatRouter from './src/routes/joeChat.mjs';
+import browserControlRouter from './src/routes/browserControl.mjs';
 
 dotenv.config();
 
@@ -561,6 +562,7 @@ app.use('/api/github-manager', githubManagerRouter);
 app.use('/api/integrations', integrationManagerRouter);
 app.use('/api/self-evolution', selfEvolutionRouter);
 app.use('/api/joe', joeChatRouter);
+app.use('/api/browser', browserControlRouter);
 
 // هذه للوحة المصنع: عرض آخر jobs
 app.get('/api/factory/jobs', requireRole(ROLES.ADMIN), async (req, res) => {

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import apiClient from '../api/client';
 import VoiceInput from '../components/VoiceInput';
+import BrowserViewer from '../components/BrowserViewer';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://api.xelitesolutions.com';
 
@@ -21,6 +22,8 @@ export default function Joe() {
   });
   const [buildResult, setBuildResult] = useState(null);
   const [canStop, setCanStop] = useState(false);
+  const [browserSessionId, setBrowserSessionId] = useState(null);
+  const [showBrowser, setShowBrowser] = useState(false);
   const messagesEndRef = useRef(null);
   const formRef = useRef(null);
   const stopTypingRef = useRef(false);
@@ -145,6 +148,23 @@ export default function Joe() {
     }
   };
 
+  const startBrowserSession = async (url = 'https://www.google.com') => {
+    try {
+      const response = await apiClient.post(`${API_BASE}/api/browser/start`, {
+        sessionId: `joe-${Date.now()}`,
+        url
+      });
+
+      if (response.data.ok) {
+        setBrowserSessionId(response.data.sessionId);
+        setShowBrowser(true);
+        await simulateTyping(`✅ تم فتح المتصفح! الآن يمكنك مشاهدة ما أفعله...`);
+      }
+    } catch (error) {
+      await simulateTyping(`❌ خطأ في فتح المتصفح: ${error.message}`);
+    }
+  };
+
   const handleBuildProject = async (userMessage) => {
     try {
       await simulateTyping('🤔 فهمت! سأبني لك هذا المشروع...');
@@ -221,6 +241,8 @@ export default function Joe() {
         await handleSelfEvolve();
       } else if (action === 'build-project' || action === 'build-store' || action === 'build-website') {
         await handleBuildProject(userMessage);
+      } else if (userMessage.includes('متصفح') || userMessage.includes('browser')) {
+        await startBrowserSession();
       }
 
     } catch (error) {
@@ -447,6 +469,17 @@ export default function Joe() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Browser Viewer */}
+      {showBrowser && browserSessionId && (
+        <BrowserViewer
+          sessionId={browserSessionId}
+          onClose={() => {
+            setShowBrowser(false);
+            setBrowserSessionId(null);
+          }}
+        />
       )}
     </div>
   );
