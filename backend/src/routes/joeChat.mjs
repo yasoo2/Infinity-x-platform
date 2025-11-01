@@ -342,8 +342,6 @@ async function handleDeploy(message, userId) {
   }
 }
 
-export default router;
-
 // REAL ACTION: Test
 async function handleTest(message, userId) {
   try {
