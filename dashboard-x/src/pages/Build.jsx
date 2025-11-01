@@ -5,14 +5,35 @@ import apiClient from '../api/client';
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://api.xelitesolutions.com';
 
 export default function Build() {
+export default function Build() {
   const _TOKEN = useSessionToken();
+
+  // اضبط الهيدر للتوكن (ويُحلّ تحذير "token غير مستخدم")
   useEffect(() => {
+    apiClient.defaults.baseURL = API_BASE;
     if (_TOKEN) {
       apiClient.defaults.headers.common.Authorization = `Bearer ${_TOKEN}`;
     } else {
       delete apiClient.defaults.headers.common.Authorization;
     }
   }, [_TOKEN]);
+
+  const [projectType, setProjectType] = useState('page');
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [features, setFeatures] = useState('');
+  const [style, setStyle] = useState('modern');
+
+  // GitHub settings (stored in localStorage)
+  const [githubToken, setGithubToken] = useState(localStorage.getItem('github_token') ?? '');
+  const [githubUsername, setGithubUsername] = useState(localStorage.getItem('github_username') ?? '');
+
+  // Building state
+  const [building, setBuilding] = useState(false);
+  const [buildProgress, setBuildProgress] = useState(0);
+  const [buildLogs, setBuildLogs] = useState([]);
+  const [buildResult, setBuildResult] = useState(null);
+  const [error, setError] = useState('');
   const [projectType, setProjectType] = useState('page');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
