@@ -5,15 +5,6 @@ import apiClient from '../api/client';
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://api.xelitesolutions.com';
 
 export default function Build() {
-export default function Build() {
-  const _TOKEN = useSessionToken(); // متعمد عدم الاستخدام الآن لتجاوز lint
-  const [projectType, setProjectType] = useState('page');
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [features, setFeatures] = useState('');
-  const [style, setStyle] = useState('modern');
-  // ... أكمل بقية الحالة/المنطق
-}
   const [projectType, setProjectType] = useState('page');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
