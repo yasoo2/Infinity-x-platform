@@ -371,7 +371,7 @@ export default function Joe() {
 
         {/* Messages Area */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-transparent">
-          {messages.length === 0 && (
+          {messages.length === 0 && !buildResult && (
             <div className="text-center text-gray-500 py-12 bg-gray-800/30 rounded-xl p-8">
               <div className="text-6xl mb-4 animate-pulse">🤖</div>
               <h2 className="text-2xl font-bold mb-2 text-cyan-400">مرحباً! أنا JOE</h2>
@@ -430,35 +430,33 @@ export default function Joe() {
           )}
 
           {/* Build Result */}
-          {buildResult && (
-            <div className="bg-gray-800/50 border border-green-500/50 rounded-lg p-6 shadow-2xl shadow-green-500/20">
-              <h3 className="text-xl font-bold text-green-400 mb-4 drop-shadow-[0_0_5px_rgba(0,255,0,0.5)]">🎉 المشروع جاهز!</h3>
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm text-gray-400 mb-1">GitHub Repository:</p>
-                  <a
-                    href={buildResult.githubUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-cyan-400 hover:underline break-all"
-                  >
-                    {buildResult.githubUrl} ↗
+{buildResult && (
+            <div className="build-result p-6 bg-gradient-to-r from-cyan-500/10 to-purple-500/10 rounded-xl border border-cyan-500/20">
+              <div className="text-6xl mb-4 animate-pulse">🤖</div>
+              <h2 className="text-2xl font-bold mb-2 text-cyan-400">مرحباً! أنا JOE</h2>
+              <p className="text-gray-400 mb-4">تحدث معي أو اكتب ما تريد!</p>
+              <div className="text-sm space-y-2 text-gray-400">
+                <p>💬 مثال: "مرحباً جو"</p>
+                <p>🔍 مثال: "فحص الكود في backend"</p>
+                <p>🚀 مثال: "بني موقع جديد"</p>
+              </div>
+              {/* باقي الـ build result section، لو موجود */}
+              {buildResult.githubUrl && (
+                <div className="mt-4 p-4 bg-green-500/10 rounded-lg">
+                  <p className="text-sm font-medium text-green-400">GitHub Repo جاهز:</p>
+                  <a href={buildResult.githubUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-300 hover:text-cyan-200">
+                    {buildResult.githubUrl}
                   </a>
                 </div>
-                {buildResult.liveUrl && (
-                  <div>
-                    <p className="text-sm text-gray-400 mb-1">Live Website:</p>
-                    <a
-                      href={buildResult.liveUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-fuchsia-400 hover:underline break-all"
-                    >
-                      {buildResult.liveUrl} ↗
-                    </a>
-                  </div>
-                )}
-              </div>
+              )}
+              {buildResult.liveUrl && (
+                <div className="mt-2 p-4 bg-blue-500/10 rounded-lg">
+                  <p className="text-sm font-medium text-blue-400">Live Demo:</p>
+                  <a href={buildResult.liveUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-300 hover:text-cyan-200">
+                    {buildResult.liveUrl}
+                  </a>
+                </div>
+              )}
             </div>
           )}
 
