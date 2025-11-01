@@ -131,6 +131,9 @@ function detectAction(message) {
       lower.includes('عدل') || lower.includes('modify') ||
       lower.includes('غير') || lower.includes('change') ||
       lower.includes('حدث') || lower.includes('update') ||
+      lower.includes('لون') || lower.includes('color') ||
+      lower.includes('خلفية') || lower.includes('background') ||
+      lower.includes('تصميم') || lower.includes('design') ||
       lower.includes('ملفات') || lower.includes('files') ||
       lower.includes('مستودع') || lower.includes('repository') ||
       lower.includes('repo')) {
