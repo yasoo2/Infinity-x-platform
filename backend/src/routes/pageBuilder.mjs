@@ -146,9 +146,9 @@ router.post('/preview', async (req, res) => {
 async function generateCode(projectType, description, style, features) {
   const prompt = buildPrompt(projectType, description, style, features);
   
-  // Use OpenAI-compatible API with gemini-2.5-flash
+  // Use OpenAI-compatible API with gpt-4.1-mini
   const completion = await openai.chat.completions.create({
-    model: 'gemini-2.5-flash',
+    model: 'gpt-4.1-mini',
     messages: [{ role: 'user', content: prompt }],
     temperature: 0.7
   });

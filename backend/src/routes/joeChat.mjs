@@ -76,7 +76,7 @@ ${conversationHistory}
     systemPrompt += `\n\n**Respond in Arabic, naturally and friendly. If an action was performed, tell the user what happened and provide the GitHub URL if available.**`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gemini-2.5-flash',
+      model: 'gpt-4.1-mini',
       messages: [{ role: 'user', content: systemPrompt }],
       temperature: 0.7
     });
