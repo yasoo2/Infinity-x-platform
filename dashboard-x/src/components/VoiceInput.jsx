@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 
-export default function VoiceInput({ onTranscript, onAutoSubmit, disabled }) {
+export default function VoiceInput({ onTranscript, disabled }) {
   const [isListening, setIsListening] = useState(false);
   const [isSupported, setIsSupported] = useState(false);
   const recognitionRef = useRef(null);
@@ -49,7 +49,7 @@ export default function VoiceInput({ onTranscript, onAutoSubmit, disabled }) {
       
       recognitionRef.current = recognition;
     }
-  }, [onTranscript]);
+  }, [onTranscript, isListening]);
 
   const toggleListening = () => {
     if (!recognitionRef.current) return;
