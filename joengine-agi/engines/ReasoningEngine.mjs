@@ -52,6 +52,7 @@ Your tools:
 - search: Search the internet for up-to-date information
 - shell: Execute system shell commands (e.g., ls, mkdir, npm install)
 - api: Call any external API
+- github: Interact with GitHub repositories (create issues, pull requests, branches)
 - database: Connect to any database (SQL, NoSQL)
 - deploy: Deploy projects to cloud platforms
 

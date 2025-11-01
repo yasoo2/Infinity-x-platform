@@ -16,6 +16,7 @@ import { FileTool } from './tools/FileTool.mjs';
 import { SearchTool } from './tools/SearchTool.mjs';
 import { ShellTool } from './tools/ShellTool.mjs';
 import { APITool } from './tools/APITool.mjs';
+import { GitHubTool } from './tools/GitHubTool.mjs';
 
 // تحميل متغيرات البيئة
 dotenv.config();
@@ -83,6 +84,10 @@ class JOEngine {
     // API Tool
     const apiTool = new APITool();
     this.toolsSystem.registerTool('api', apiTool);
+
+    // GitHub Tool
+    const githubTool = new GitHubTool();
+    this.toolsSystem.registerTool('github', githubTool);
 
     // TODO: إضافة المزيد من الأدوات
     // - DatabaseTool
