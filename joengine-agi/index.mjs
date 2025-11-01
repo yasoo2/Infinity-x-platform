@@ -8,6 +8,7 @@
 import dotenv from 'dotenv';
 import chalk from 'chalk';
 import { ReasoningEngine } from './engines/ReasoningEngine.mjs';
+import { MemorySystem } from './core/MemorySystem.mjs';
 import { AgentLoop } from './core/AgentLoop.mjs';
 import { ToolsSystem } from './tools/ToolsSystem.mjs';
 import { BrowserTool } from './tools/BrowserTool.mjs';
@@ -17,6 +18,7 @@ import { SearchTool } from './tools/SearchTool.mjs';
 import { ShellTool } from './tools/ShellTool.mjs';
 import { APITool } from './tools/APITool.mjs';
 import { GitHubTool } from './tools/GitHubTool.mjs';
+import { PlannerTool } from './tools/PlannerTool.mjs';
 
 // تحميل متغيرات البيئة
 dotenv.config();
@@ -42,7 +44,8 @@ class JOEngine {
     console.log(chalk.cyan.bold('\n🚀 Initializing JOEngine AGI...\n'));
 
     // إنشاء المكونات الأساسية
-    this.reasoningEngine = new ReasoningEngine(this.config);
+    this.memorySystem = new MemorySystem(); // إضافة نظام الذاكرة
+    this.reasoningEngine = new ReasoningEngine(this.config, this.memorySystem); // تمرير الذاكرة إلى المحرك
     this.toolsSystem = new ToolsSystem();
     this.agentLoop = new AgentLoop(this.reasoningEngine, this.toolsSystem);
 
@@ -88,6 +91,10 @@ class JOEngine {
     // GitHub Tool
     const githubTool = new GitHubTool();
     this.toolsSystem.registerTool('github', githubTool);
+
+    // Planner Tool (الأداة الجديدة)
+    const plannerTool = new PlannerTool();
+    this.toolsSystem.registerTool('planner', plannerTool);
 
     // TODO: إضافة المزيد من الأدوات
     // - DatabaseTool
@@ -182,7 +189,11 @@ class JOEngine {
     return {
       agentLoop: this.agentLoop.getStatus(),
       tools: this.toolsSystem.getStats(),
-      memory: this.reasoningEngine.getMemoryStats()
+      memory: {
+        shortTerm: this.memorySystem.shortTermMemory.length,
+        longTerm: this.memorySystem.longTermMemory.length,
+        // يمكن إضافة المزيد من الإحصائيات هنا
+      }
     };
   }
 
@@ -204,8 +215,6 @@ class JOEngine {
     console.log(chalk.yellow('\nMemory:'));
     console.log(chalk.gray(`  Short-term: ${status.memory.shortTerm} items`));
     console.log(chalk.gray(`  Long-term: ${status.memory.longTerm} experiences`));
-    console.log(chalk.gray(`  Plans: ${status.memory.plans} plans`));
-    console.log(chalk.gray(`  Success Rate: ${status.memory.successRate.toFixed(1)}%`));
 
     console.log(chalk.yellow('\nTools:'));
     for (const [name, stats] of Object.entries(status.tools)) {

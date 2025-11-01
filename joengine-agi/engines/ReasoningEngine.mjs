@@ -47,6 +47,7 @@ Your capabilities:
 
 Your tools:
 - browser: Browse web pages, analyze content, fill forms
+- planner: Analyzes a complex task and breaks it down into a sequence of logical, actionable steps.
 - code: Write, edit, execute, analyze, and search code (Python, JavaScript, etc.)
 - file: Read, write, delete, and list files and directories
 - search: Search the internet for up-to-date information
