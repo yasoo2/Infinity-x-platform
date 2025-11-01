@@ -270,7 +270,6 @@ const Joe = () => {
         </div>
       )}
     </div>
-    
     {/* Joe's Computer Screen (Bottom Right) */}
     <JoeScreen 
       currentStep={currentStep} 
