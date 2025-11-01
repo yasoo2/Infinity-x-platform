@@ -35,7 +35,7 @@ const Joe = () => {
   } = useJoeChat();
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex bg-gray-900 text-white">
+    <div className="h-[calc(100vh-4rem)] flex bg-gray-950 text-white">
       {/* Chat Sidebar */}
       <ChatSidebar
         userId={userId}
@@ -48,13 +48,13 @@ const Joe = () => {
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col backdrop-blur-sm bg-gray-900/80">
         {/* Header */}
-        <div className="border-b border-indigo-700/50 p-6 bg-gray-800/50 backdrop-blur-md">
+        <div className="border-b border-fuchsia-500/50 p-6 bg-gray-900/50 backdrop-blur-md shadow-xl shadow-fuchsia-900/20">
           <h1 className="text-3xl font-bold mb-2">
-            <span className="text-cyan-400 drop-shadow-[0_0_5px_rgba(0,255,255,0.5)]">Infinity</span>
-            <span className="text-fuchsia-400 drop-shadow-[0_0_5px_rgba(255,0,255,0.5)]">X</span>
-            <span className="text-gray-400 text-xl ml-3">JOE - Just One Engine</span>
+            <span className="text-cyan-400 drop-shadow-[0_0_5px_rgba(0,255,255,0.8)]">xElite</span>
+            <span className="text-fuchsia-400 drop-shadow-[0_0_5px_rgba(255,0,255,0.8)]">Solutions</span>
+            <span className="text-gray-500 text-xl ml-3">| AGI Platform</span>
           </h1>
-          <p className="text-gray-400">
+          <p className="text-gray-400 font-light">
             🚀 Your intelligent assistant for building and developing projects
           </p>
         </div>
@@ -62,9 +62,9 @@ const Joe = () => {
         {/* Messages Area */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-transparent">
           {messages.length === 0 && (
-            <div className="text-center text-gray-500 py-12 bg-gray-800/30 rounded-xl p-8">
+            <div className="text-center text-gray-500 py-12 bg-gray-800/20 border border-cyan-500/10 rounded-xl p-8 shadow-inner shadow-cyan-900/30">
               <div className="text-6xl mb-4 animate-pulse">🤖</div>
-              <h2 className="text-2xl font-bold mb-2 text-cyan-400">Welcome! I'm JOE</h2>
+              <h2 className="text-2xl font-bold mb-2 text-cyan-400 drop-shadow-[0_0_5px_rgba(0,255,255,0.5)]">Welcome to xEliteSolutions AGI</h2>
               <p className="text-gray-400 mb-4">Talk to me or type what you want!</p>
               <div className="text-sm space-y-2 text-gray-400">
                 <p>💬 Example: "Hello Joe"</p>
@@ -104,7 +104,7 @@ const Joe = () => {
 
           {/* Progress Bar */}
           {isProcessing && progress > 0 && (
-            <div className="bg-gray-800/50 border border-indigo-700/50 rounded-lg p-4 shadow-xl">
+            <div className="bg-gray-800/50 border border-fuchsia-500/50 rounded-lg p-4 shadow-xl shadow-fuchsia-900/30">
               <div className="flex justify-between text-sm mb-2">
                 <span className="text-gray-400">{currentStep}</span>
                 <span className="text-cyan-400 font-bold">{progress}%</span>
@@ -153,7 +153,7 @@ const Joe = () => {
         </div>
 
         {/* Input Area */}
-        <div className="border-t border-indigo-700/50 bg-gray-800/50 p-4 backdrop-blur-md">
+        <div className="border-t border-cyan-500/50 bg-gray-900/50 p-4 backdrop-blur-md shadow-2xl shadow-cyan-900/20">
           {/* File Upload */}
           <div className="mb-4">
             <FileUpload onFileAnalyzed={(data) => {
@@ -205,7 +205,7 @@ const Joe = () => {
       {/* Token Modal */}
       {showTokenModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 border border-indigo-700/50 rounded-lg p-6 max-w-md w-full relative shadow-2xl shadow-indigo-900/50">
+          <div className="bg-gray-900 border border-fuchsia-500/50 rounded-lg p-6 max-w-md w-full relative shadow-2xl shadow-fuchsia-900/50">
             <button
               onClick={closeTokenModal}
               className="absolute top-4 right-4 text-gray-400 hover:text-cyan-400 text-2xl"

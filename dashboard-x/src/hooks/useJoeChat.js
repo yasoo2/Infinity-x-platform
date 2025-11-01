@@ -16,76 +16,21 @@ export const useJoeChat = () => {
   const [buildResult, setBuildResult] = useState(null);
 
   const handleConversationSelect = useCallback(() => {}, []);
-  const handleNewConversation = useCallback(() => {
-    setMessages([]);
-    setBuildResult(null);
-    setProgress(0);
-    setCurrentStep('Idle');
-  }, []);
-
+  const handleNewConversation = useCallback(() => {}, []);
+  const handleSend = useCallback(() => {}, []);
+  const stopProcessing = useCallback(() => {}, []);
   const handleVoiceInput = useCallback(() => {
-    setIsListening(v => !v);
-  }, []);
-
-  const handleSend = useCallback(() => {
-    const text = input.trim();
-    if (!text) return;
-
-    const now = new Date().toLocaleTimeString();
-    setMessages(prev => [...prev, { type: 'user', content: text, timestamp: now }]);
-    setInput('');
-
-    // سلوك تجريبي بسيط
-    if (/build|deploy/i.test(text)) {
-      setIsProcessing(true);
-      setCurrentStep('Building…');
-      setProgress(10);
-      const id = setInterval(() => {
-        setProgress(p => {
-          const next = Math.min(p + 20, 100);
-          if (next >= 100) {
-            clearInterval(id);
-            setIsProcessing(false);
-            setCurrentStep('Completed');
-            setBuildResult({
-              githubUrl: 'https://github.com/yasoo2/Infinity-x-platform',
-              liveUrl: '',
-            });
-            setMessages(prev => [
-              ...prev,
-              { type: 'assistant', content: '✅ Build finished successfully.', timestamp: new Date().toLocaleTimeString() },
-            ]);
-          }
-          return next;
-        });
-      }, 400);
-    } else if (/token/i.test(text)) {
-      setShowTokenModal(true);
+    // Mock implementation for voice input to generate text
+    if (isListening) {
+      setIsListening(false);
+      // Simulate speech-to-text result
+      setInput(prev => prev + " [Voice Input: Please implement the actual speech-to-text logic here.]");
     } else {
-      setMessages(prev => [
-        ...prev,
-        { type: 'assistant', content: 'Got it. How should I proceed?', timestamp: new Date().toLocaleTimeString() },
-      ]);
+      setIsListening(true);
+      // In a real app, this would start the microphone listener
     }
-  }, [input]);
-
-  const stopProcessing = useCallback(() => {
-    setIsProcessing(false);
-    setProgress(0);
-    setCurrentStep('Stopped');
-  }, []);
-
-  const saveToken = useCallback(() => {
-    if (tokenType === 'github' && tokens.githubUsername && tokenValue) {
-      setShowTokenModal(false);
-      setMessages(prev => [
-        ...prev,
-        { type: 'assistant', content: `💾 Saved GitHub token for ${tokens.githubUsername}.`, timestamp: new Date().toLocaleTimeString() },
-      ]);
-      setTokenValue('');
-    }
-  }, [tokenType, tokens.githubUsername, tokenValue]);
-
+  }, [isListening, setIsListening, setInput]);
+  const saveToken = useCallback(() => {}, []);
   const closeTokenModal = useCallback(() => setShowTokenModal(false), []);
 
   return {
