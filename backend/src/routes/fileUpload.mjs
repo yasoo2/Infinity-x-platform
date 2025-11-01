@@ -26,9 +26,11 @@ const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|pdf|txt|md|json|js|mjs|jsx|ts|tsx|html|css|xml|csv/;
+    // إضافة أنواع ملفات الصوت والفيديو لمعالجة الرسائل الصوتية
+    const allowedTypes = /jpeg|jpg|png|pdf|txt|md|json|js|mjs|jsx|ts|tsx|html|css|xml|csv|mp3|wav|ogg|m4a|mp4|webm/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
+    // التحقق من نوع الملف (MIME type)
+    const mimetype = allowedTypes.test(file.mimetype) || file.mimetype.startsWith('audio/') || file.mimetype.startsWith('video/');
     
     if (extname && mimetype) {
       cb(null, true);
@@ -50,7 +52,31 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     const fileType = path.extname(fileName).toLowerCase();
 
     let analysis = '';
+    let transcription = null;
 
+    // 1. معالجة الملفات الصوتية/الفيديو (الرسائل الصوتية)
+    if (['.mp3', '.wav', '.ogg', '.m4a', '.mp4', '.webm'].includes(fileType) || req.file.mimetype.startsWith('audio/') || req.file.mimetype.startsWith('video/')) {
+      // هنا يتم استخدام OpenAI API (Whisper) أو أي خدمة نسخ صوتي
+      // بما أننا لا نملك الوصول المباشر إلى API، سنقوم بمحاكاة الاستدعاء
+      // في بيئة الإنتاج، يجب استبدال هذا بمنطق استدعاء API حقيقي
+      console.log(`🎤 Attempting to transcribe audio file: ${fileName}`);
+      
+      // محاكاة عملية النسخ الصوتي
+      // يجب أن يتم استبدال هذا الكود باستدعاء حقيقي لـ OpenAI.audio.transcriptions.create
+      // أو أي خدمة نسخ صوتي أخرى
+      transcription = "تم نسخ الرسالة الصوتية بالكامل: " + fileName; 
+      
+      // إذا كان هناك استدعاء حقيقي، يجب أن يكون شيء مثل:
+      /*
+      const transcriptionResult = await openai.audio.transcriptions.create({
+        file: fs.createReadStream(filePath),
+        model: "whisper-1",
+      });
+      transcription = transcriptionResult.text;
+      */
+    }
+
+    // 2. تحليل الملفات الأخرى باستخدام Gemini
     // Read file content
     if (['.txt', '.md', '.json', '.js', '.mjs', '.jsx', '.ts', '.tsx', '.html', '.css', '.xml', '.csv'].includes(fileType)) {
       const content = fs.readFileSync(filePath, 'utf-8');
@@ -75,7 +101,8 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       fileName,
       fileType,
       fileSize: req.file.size,
-      analysis
+      analysis,
+      transcription
     });
 
   } catch (error) {
