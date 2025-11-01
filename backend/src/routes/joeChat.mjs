@@ -2,6 +2,11 @@ import express from 'express';
 import axios from 'axios';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { githubTools } from '../tools/githubTools.mjs';
+import { renderTools } from '../tools/renderTools.mjs';
+import { mongodbTools } from '../tools/mongodbTools.mjs';
+import { cloudflareTools } from '../tools/cloudflareTools.mjs';
+import { testingTools } from '../tools/testingTools.mjs';
+import { evolutionTools } from '../tools/evolutionTools.mjs';
 
 const router = express.Router();
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -28,6 +33,14 @@ router.post('/chat', async (req, res) => {
       actionResult = await handleGitHubAction(message, userId);
     } else if (action === 'deploy') {
       actionResult = await handleDeploy(message, userId);
+    } else if (action === 'test') {
+      actionResult = await handleTest(message, userId);
+    } else if (action === 'database') {
+      actionResult = await handleDatabase(message, userId);
+    } else if (action === 'render') {
+      actionResult = await handleRender(message, userId);
+    } else if (action === 'cloudflare') {
+      actionResult = await handleCloudflare(message, userId);
     }
 
     // Generate AI response using OpenAI-compatible API
@@ -124,6 +137,23 @@ function detectAction(message) {
   
   if (lower.includes('deploy') || lower.includes('نشر')) {
     return 'deploy';
+  }
+  
+  if (lower.includes('test') || lower.includes('اختبر') || lower.includes('فحص')) {
+    return 'test';
+  }
+  
+  if (lower.includes('database') || lower.includes('قاعدة بيانات') || lower.includes('mongodb') || 
+      lower.includes('users') || lower.includes('مستخدمين')) {
+    return 'database';
+  }
+  
+  if (lower.includes('render') || lower.includes('logs') || lower.includes('errors')) {
+    return 'render';
+  }
+  
+  if (lower.includes('cloudflare') || lower.includes('dns')) {
+    return 'cloudflare';
   }
   
   return 'chat';
@@ -298,6 +328,213 @@ async function handleDeploy(message, userId) {
     console.error('❌ Deploy failed:', error.message);
     return {
       type: 'deploy',
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+export default router;
+
+// REAL ACTION: Test
+async function handleTest(message, userId) {
+  try {
+    console.log('🧪 JOE is running tests...');
+    
+    const lower = message.toLowerCase();
+    
+    if (lower.includes('health') || lower.includes('صحة')) {
+      const result = await testingTools.runHealthChecks();
+      return {
+        type: 'test-health',
+        success: true,
+        data: result
+      };
+    } else if (lower.includes('diagnostic') || lower.includes('تشخيص')) {
+      const result = await testingTools.runDiagnostic();
+      return {
+        type: 'test-diagnostic',
+        success: true,
+        data: result
+      };
+    } else if (lower.includes('integration') || lower.includes('تكامل')) {
+      const result = await testingTools.runIntegrationTests();
+      return {
+        type: 'test-integration',
+        success: true,
+        data: result
+      };
+    } else {
+      // Default: health check
+      const result = await testingTools.runHealthChecks();
+      return {
+        type: 'test-health',
+        success: true,
+        data: result
+      };
+    }
+  } catch (error) {
+    console.error('❌ Test failed:', error.message);
+    return {
+      type: 'test',
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+// REAL ACTION: Database
+async function handleDatabase(message, userId) {
+  try {
+    console.log('💾 JOE is accessing database...');
+    
+    const lower = message.toLowerCase();
+    
+    if (lower.includes('count') || lower.includes('عدد') || lower.includes('كم')) {
+      // Count users or documents
+      if (lower.includes('users') || lower.includes('مستخدمين')) {
+        const result = await mongodbTools.count('users');
+        return {
+          type: 'database-count',
+          success: true,
+          collection: 'users',
+          count: result.count
+        };
+      }
+    } else if (lower.includes('analyze') || lower.includes('تحليل')) {
+      // Analyze database
+      const result = await mongodbTools.analyzeDatabase();
+      return {
+        type: 'database-analyze',
+        success: true,
+        data: result
+      };
+    } else if (lower.includes('list') || lower.includes('قائمة')) {
+      // List collections
+      const result = await mongodbTools.listCollections();
+      return {
+        type: 'database-list',
+        success: true,
+        collections: result.collections
+      };
+    } else {
+      // Default: analyze
+      const result = await mongodbTools.analyzeDatabase();
+      return {
+        type: 'database-analyze',
+        success: true,
+        data: result
+      };
+    }
+  } catch (error) {
+    console.error('❌ Database action failed:', error.message);
+    return {
+      type: 'database',
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+// REAL ACTION: Render
+async function handleRender(message, userId) {
+  try {
+    console.log('🔧 JOE is accessing Render...');
+    
+    const lower = message.toLowerCase();
+    
+    if (lower.includes('logs') || lower.includes('سجلات')) {
+      const result = await renderTools.getLogs(50);
+      return {
+        type: 'render-logs',
+        success: true,
+        logs: result.logs,
+        count: result.count
+      };
+    } else if (lower.includes('errors') || lower.includes('أخطاء')) {
+      const result = await renderTools.searchErrors(50);
+      return {
+        type: 'render-errors',
+        success: true,
+        errors: result.errors,
+        count: result.count
+      };
+    } else if (lower.includes('status') || lower.includes('حالة')) {
+      const result = await renderTools.healthCheck();
+      return {
+        type: 'render-status',
+        success: true,
+        data: result
+      };
+    } else if (lower.includes('deploy') || lower.includes('نشر')) {
+      const result = await renderTools.triggerDeploy();
+      return {
+        type: 'render-deploy',
+        success: true,
+        deploy: result.deploy
+      };
+    } else {
+      // Default: status
+      const result = await renderTools.healthCheck();
+      return {
+        type: 'render-status',
+        success: true,
+        data: result
+      };
+    }
+  } catch (error) {
+    console.error('❌ Render action failed:', error.message);
+    return {
+      type: 'render',
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+// REAL ACTION: Cloudflare
+async function handleCloudflare(message, userId) {
+  try {
+    console.log('☁️ JOE is accessing Cloudflare...');
+    
+    const lower = message.toLowerCase();
+    
+    if (lower.includes('zones') || lower.includes('domains') || lower.includes('نطاقات')) {
+      const result = await cloudflareTools.listZones();
+      return {
+        type: 'cloudflare-zones',
+        success: true,
+        zones: result.zones
+      };
+    } else if (lower.includes('dns')) {
+      // Need zone ID - for now, list zones
+      const result = await cloudflareTools.listZones();
+      return {
+        type: 'cloudflare-zones',
+        success: true,
+        zones: result.zones,
+        message: 'Use zone ID to get DNS records'
+      };
+    } else if (lower.includes('pages') || lower.includes('صفحات')) {
+      const result = await cloudflareTools.listPagesProjects();
+      return {
+        type: 'cloudflare-pages',
+        success: true,
+        projects: result.projects
+      };
+    } else {
+      // Default: list zones
+      const result = await cloudflareTools.listZones();
+      return {
+        type: 'cloudflare-zones',
+        success: true,
+        zones: result.zones
+      };
+    }
+  } catch (error) {
+    console.error('❌ Cloudflare action failed:', error.message);
+    return {
+      type: 'cloudflare',
       success: false,
       error: error.message
     };
