@@ -9,11 +9,11 @@ export const useJoeChat = () => {
   const [tokenValue, setTokenValue] = useState('');
   const [tokens, setTokens] = useState({ githubUsername: '' });
 
-  const [messages, setMessages] = useState([]);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [currentStep, setCurrentStep] = useState('Idle');
-  const [buildResult, setBuildResult] = useState(null);
+  const [messages] = useState([]);
+  const [isProcessing] = useState(false);
+  const [progress] = useState(0);
+  const [currentStep] = useState('Idle');
+  const [buildResult] = useState(null);
 
   const handleConversationSelect = useCallback(() => {}, []);
   const handleNewConversation = useCallback(() => {}, []);

@@ -17,7 +17,7 @@ export default function ChatSidebar({
     if (userId) {
       loadConversations();
     }
-  }, [userId]);
+  }, [userId, loadConversations]);
 
   const loadConversations = async () => {
     setIsLoading(true);
