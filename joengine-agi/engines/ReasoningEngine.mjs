@@ -16,6 +16,8 @@ export class ReasoningEngine {
     this.openai = new OpenAI({
       apiKey: config.openaiApiKey
     });
+    // تحديث النموذج الافتراضي بناءً على طلب المستخدم
+    this.config.model = 'gpt-4o-mini';
     
     this.memory = {
       shortTerm: [],  // الذاكرة قصيرة المدى (المحادثة الحالية)
@@ -44,7 +46,8 @@ Your capabilities:
 
 Your tools:
 - browser: Browse web pages, analyze content, fill forms
-- code: Write, edit, and execute code (Python, JavaScript, etc.)
+- code: Write, edit, execute, analyze, and search code (Python, JavaScript, etc.)
+- file: Read, write, delete, and list files and directories
 - file: Read, write, and modify files
 - shell: Execute system commands
 - search: Search the internet (Google, Bing)
@@ -108,8 +111,8 @@ Your response MUST be in JSON format:
     ];
 
     try {
-      const response = await this.openai.chat.completions.create({
-        model: this.config.model || 'gpt-4-turbo-preview',
+	      const response = await this.openai.chat.completions.create({
+	        model: this.config.model,
         messages,
         temperature: 0.7,
         response_format: { type: 'json_object' }
@@ -170,8 +173,8 @@ Response format (JSON):
     ];
 
     try {
-      const response = await this.openai.chat.completions.create({
-        model: this.config.model || 'gpt-4-turbo-preview',
+	      const response = await this.openai.chat.completions.create({
+	        model: this.config.model,
         messages,
         temperature: 0.3,
         response_format: { type: 'json_object' }
@@ -225,8 +228,8 @@ Response format (JSON):
     ];
 
     try {
-      const response = await this.openai.chat.completions.create({
-        model: this.config.model || 'gpt-4-turbo-preview',
+	      const response = await this.openai.chat.completions.create({
+	        model: this.config.model,
         messages,
         temperature: 0.5,
         response_format: { type: 'json_object' }

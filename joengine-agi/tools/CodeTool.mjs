@@ -7,6 +7,7 @@
  * - تنفيذ كود (Python, JavaScript, Shell)
  * - تحليل كود
  * - إصلاح أخطاء
+ * - البحث في الكود باستخدام Glob و Grep
  */
 
 import { exec } from 'child_process';
@@ -21,12 +22,12 @@ export class CodeTool extends BaseTool {
   constructor() {
     super(
       'code',
-      'Write, edit, execute, and analyze code in multiple languages',
+      'Write, edit, execute, analyze, and search code in multiple languages',
       {
         action: {
           type: 'string',
           required: true,
-          enum: ['write', 'edit', 'execute', 'analyze'],
+          enum: ['write', 'edit', 'execute', 'analyze', 'search'],
           description: 'Action to perform'
         },
         language: {
@@ -43,12 +44,30 @@ export class CodeTool extends BaseTool {
         file: {
           type: 'string',
           required: false,
-          description: 'File path to read/write'
+          description: 'File path to read/write/edit/execute'
+        },
+        // معاملات جديدة للبحث
+        scope: {
+          type: 'string',
+          required: false,
+          description: 'Glob pattern for file search scope (e.g., **/*.js)'
+        },
+        regex: {
+          type: 'string',
+          required: false,
+          description: 'Regex pattern for content search (required for search action)'
+        },
+        searchType: {
+          type: 'string',
+          required: false,
+          enum: ['glob', 'grep'],
+          description: 'Type of search: glob (file names) or grep (file content)'
         }
       }
     );
 
-    this.workDir = '/tmp/joengine-workspace';
+    // تغيير مسار العمل ليكون جذر المستودع
+    this.workDir = path.join(process.cwd(), 'Infinity-x-platform');
     fs.ensureDirSync(this.workDir);
   }
 
@@ -72,6 +91,9 @@ export class CodeTool extends BaseTool {
       
       case 'analyze':
         return await this.analyzeCode(params);
+
+      case 'search':
+        return await this.searchCode(params);
       
       default:
         throw new Error(`Unknown action: ${action}`);
@@ -84,18 +106,11 @@ export class CodeTool extends BaseTool {
   async writeCode(params) {
     const { code, file, language } = params;
     
-    if (!code) {
-      throw new Error('Code is required for write action');
+    if (!code || !file) {
+      throw new Error('Code and file path are required for write action');
     }
 
-    let filePath;
-    
-    if (file) {
-      filePath = path.isAbsolute(file) ? file : path.join(this.workDir, file);
-    } else {
-      const ext = this.getExtension(language);
-      filePath = path.join(this.workDir, `code-${Date.now()}.${ext}`);
-    }
+    const filePath = path.join(this.workDir, file);
 
     console.log(`📝 Writing code to: ${filePath}`);
     
@@ -115,11 +130,11 @@ export class CodeTool extends BaseTool {
   async editCode(params) {
     const { file, code } = params;
     
-    if (!file) {
-      throw new Error('File is required for edit action');
+    if (!file || !code) {
+      throw new Error('File and code are required for edit action');
     }
 
-    const filePath = path.isAbsolute(file) ? file : path.join(this.workDir, file);
+    const filePath = path.join(this.workDir, file);
     
     console.log(`✏️  Editing code in: ${filePath}`);
     
@@ -146,7 +161,7 @@ export class CodeTool extends BaseTool {
     let filePath;
     
     if (file) {
-      filePath = path.isAbsolute(file) ? file : path.join(this.workDir, file);
+      filePath = path.join(this.workDir, file);
     } else if (code) {
       // كتابة الكود في ملف مؤقت
       const ext = this.getExtension(language);
@@ -192,7 +207,7 @@ export class CodeTool extends BaseTool {
     let codeContent;
     
     if (file) {
-      const filePath = path.isAbsolute(file) ? file : path.join(this.workDir, file);
+      const filePath = path.join(this.workDir, file);
       codeContent = await fs.readFile(filePath, 'utf8');
     } else if (code) {
       codeContent = code;
@@ -216,6 +231,72 @@ export class CodeTool extends BaseTool {
       success: true,
       analysis
     };
+  }
+
+  /**
+   * البحث في الكود باستخدام glob و grep
+   */
+  async searchCode(params) {
+    const { searchType, scope, regex } = params;
+
+    if (!scope) {
+      throw new Error('Scope (glob pattern) is required for search action');
+    }
+
+    let command;
+    let cwd = this.workDir;
+
+    if (searchType === 'glob') {
+      // البحث عن الملفات
+      command = `find ${cwd} -path "${cwd}/${scope}" -print`;
+    } else if (searchType === 'grep') {
+      // البحث في محتوى الملفات
+      if (!regex) {
+        throw new Error('Regex pattern is required for grep search');
+      }
+      // استخدام grep مع نمط glob
+      command = `grep -r -n -H -E "${regex}" ${cwd} --include="${scope}"`;
+    } else {
+      throw new Error('Invalid searchType. Must be "glob" or "grep"');
+    }
+
+    console.log(`🔎 Searching code with command: ${command}`);
+
+    try {
+      const { stdout, stderr } = await execAsync(command, {
+        cwd: '/', // يجب أن يكون المسار المطلق
+        timeout: 60000,
+        maxBuffer: 1024 * 1024 * 10 // 10MB
+      });
+
+      if (stderr) {
+        // grep يضع رسائل "No such file or directory" في stderr، لكننا نريد فقط النتائج
+        // إذا كان هناك نتائج، سنتجاهل رسائل الخطأ البسيطة
+        if (stdout.trim() === '' && stderr.includes('No such file or directory')) {
+             return { success: true, results: 'No files found matching the scope.' };
+        }
+        // إذا كان هناك خطأ حقيقي
+        if (stderr.trim() !== '') {
+          console.error('Search command stderr:', stderr);
+        }
+      }
+
+      return {
+        success: true,
+        results: stdout.trim()
+      };
+    } catch (error) {
+      // في حالة عدم العثور على نتائج، grep يرجع رمز خروج 1
+      if (error.code === 1 && error.stdout.trim() === '') {
+        return { success: true, results: 'No matches found.' };
+      }
+      return {
+        success: false,
+        error: error.message,
+        stdout: error.stdout?.trim() || '',
+        stderr: error.stderr?.trim() || ''
+      };
+    }
   }
 
   /**

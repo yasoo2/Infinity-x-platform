@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import { MongoClient, ObjectId } from 'mongodb';
 import Redis from 'ioredis';
+import JOEngine from '../joengine-agi/index.mjs'; // استيراد JOEngine
 
 dotenv.config();
 
@@ -37,7 +38,7 @@ async function proposePlan(db, type, text) {
   });
 }
 
-async function handleCommand(db, cmd) {
+async function handleCommand(db, cmd, joengine) {
   await db.collection('joe_commands').updateOne(
     { _id: cmd._id },
     { $set: { status: 'WORKING', startedAt: new Date() } }
@@ -45,12 +46,30 @@ async function handleCommand(db, cmd) {
 
   await logActivity(db, 'COMMAND_WORKING', cmd.commandText);
 
-  await db.collection('joe_commands').updateOne(
-    { _id: cmd._id },
-    { $set: { status: 'DONE', finishedAt: new Date() } }
-  );
+  try {
+    // استخدام JOEngine لتحليل وتنفيذ الأمر
+    const taskId = await joengine.addTask(cmd.commandText, {
+      source: 'worker_command',
+      commandId: cmd._id.toString()
+    });
 
-  await logActivity(db, 'COMMAND_DONE', cmd.commandText);
+    // يمكننا هنا الانتظار حتى تكتمل المهمة أو تركها تعمل في الخلفية
+    // لغرض هذا التطوير، سنفترض أن JOEngine سيعالجها بشكل مستقل.
+    
+    await db.collection('joe_commands').updateOne(
+      { _id: cmd._id },
+      { $set: { status: 'DONE', finishedAt: new Date(), taskId } }
+    );
+
+    await logActivity(db, 'COMMAND_DONE', `Task ${taskId} created for: ${cmd.commandText}`);
+
+  } catch (error) {
+    await db.collection('joe_commands').updateOne(
+      { _id: cmd._id },
+      { $set: { status: 'FAILED', finishedAt: new Date(), error: error.message } }
+    );
+    await logActivity(db, 'COMMAND_FAILED', `Error: ${error.message}`);
+  }
 }
 
 async function handleSeoTask(db, task) {
@@ -117,7 +136,7 @@ async function handleExternalLink(db, link) {
   await logActivity(db, 'EXTERNAL_READY_FOR_MOD', link.externalUrl);
 }
 
-async function maybeProposeSelfImprovements(db) {
+async function maybeProposeSelfImprovements(db, joengine) {
   const oneMinAgo = new Date(Date.now() - 60*1000);
   const recent = await db.collection('joe_plans').find({
     createdAt: { $gte: oneMinAgo },
@@ -126,18 +145,28 @@ async function maybeProposeSelfImprovements(db) {
   }).toArray();
 
   if (recent.length === 0) {
+    // المهمة الجديدة: تحليل الكود باستخدام CodeTool واقتراح تحسينات
+    const goal = `Analyze the entire 'joengine-agi' directory using the 'code' and 'file' tools. Identify areas for performance, security, and structural improvements. Propose a plan to implement the top 3 most critical improvements.`;
+
+    const taskId = await joengine.addTask(goal, {
+      source: 'self_evolution_worker',
+      evolutionType: 'SELF_UPGRADE'
+    });
+
     await proposePlan(
       db,
       'SELF_UPGRADE',
-      'Upgrade Joe self-knowledge using latest engineering patterns 
-without breaking existing functions.'
+      `Self-Evolution task started (Task ID: ${taskId}). Goal: ${goal}`
     );
-    await logActivity(db, 'SELF_UPGRADE_PROPOSED', 'Joe proposed 
-self-upgrade');
+    await logActivity(db, 'SELF_UPGRADE_PROPOSED', `Joe proposed self-upgrade with Task ID: ${taskId}`);
   }
 }
 
 async function mainLoop() {
+  // تهيئة JOEngine
+  const joengine = new JOEngine();
+  await joengine.start();
+
   while (true) {
     try {
       await withDb(async db => {
@@ -146,7 +175,7 @@ async function mainLoop() {
           .limit(5)
           .toArray();
         for (const cmd of pendingCmds) {
-          await handleCommand(db, cmd);
+          await handleCommand(db, cmd, joengine);
         }
 
         const seoTasks = await db.collection('seo_tasks')
@@ -173,7 +202,7 @@ async function mainLoop() {
           await handleExternalLink(db, link);
         }
 
-        await maybeProposeSelfImprovements(db);
+        await maybeProposeSelfImprovements(db, joengine);
       });
     } catch (err) {
       console.error('[worker loop error]', err);
@@ -183,6 +212,7 @@ async function mainLoop() {
   }
 }
 
-mainLoop().catch(err => {
+mainLoop().catch(async err => {
   console.error('worker fatal err', err);
+  // يجب إضافة منطق لإيقاف JOEngine هنا إذا كان قد بدأ
 });

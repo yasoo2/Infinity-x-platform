@@ -12,6 +12,7 @@ import { AgentLoop } from './core/AgentLoop.mjs';
 import { ToolsSystem } from './tools/ToolsSystem.mjs';
 import { BrowserTool } from './tools/BrowserTool.mjs';
 import { CodeTool } from './tools/CodeTool.mjs';
+import { FileTool } from './tools/FileTool.mjs';
 
 // تحميل متغيرات البيئة
 dotenv.config();
@@ -64,9 +65,12 @@ class JOEngine {
     const codeTool = new CodeTool();
     this.toolsSystem.registerTool('code', codeTool);
 
+    // File Tool
+    const fileTool = new FileTool();
+    this.toolsSystem.registerTool('file', fileTool);
+
     // TODO: إضافة المزيد من الأدوات
     // - SearchTool
-    // - FileTool
     // - ShellTool
     // - APITool
     // - DatabaseTool
