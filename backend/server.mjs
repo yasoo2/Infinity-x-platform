@@ -25,6 +25,8 @@ import { publicSiteRouter } from './src/routes/publicSiteRouter.js';
 import { dashboardDataRouter } from './src/routes/dashboardDataRouter.js';
 import { SimpleWorkerManager } from './src/workers/SimpleWorkerManager.mjs';
 import { BullMQWorkerManager } from './src/workers/BullMQWorkerManager.mjs';
+import { getUpstashRedis, testRedisConnection } from './src/utils/upstashRedis.mjs';
+import { cacheManager } from './src/utils/cacheManager.mjs';
 import selfDesignRouter from './src/routes/selfDesign.mjs';
 import storeIntegrationRouter from './src/routes/storeIntegration.mjs';
 import universalStoreRouter from './src/routes/universalStore.mjs';
@@ -630,7 +632,19 @@ let workerManager;
 
 // Try BullMQ first, fallback to SimpleWorkerManager
 async function initializeWorkerManager() {
-  // Try BullMQ if REDIS_URL is available
+  // Initialize Upstash Redis first
+  const redis = getUpstashRedis();
+  if (redis) {
+    const testResult = await testRedisConnection();
+    if (testResult.ok) {
+      console.log('✅ Upstash Redis is ready');
+      console.log('✅ Cache Manager:', cacheManager.isEnabled() ? 'ENABLED' : 'DISABLED');
+    } else {
+      console.warn('⚠️ Upstash Redis test failed:', testResult.error);
+    }
+  }
+
+  // Try BullMQ if REDIS_URL is available (ioredis)
   if (process.env.REDIS_URL) {
     try {
       console.log('🔄 Attempting to start BullMQ Worker Manager...');
