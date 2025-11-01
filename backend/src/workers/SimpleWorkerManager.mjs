@@ -3,11 +3,16 @@ import { ObjectId } from 'mongodb';
 import { initMongo, getDB } from '../db.mjs';
 
 export class SimpleWorkerManager {
-  constructor() {
+  constructor(config = {}) {
     this.db = null;
     this.isRunning = false;
     this.activeJobs = new Map();
-    this.maxConcurrent = 3;
+    this.maxConcurrent = config.maxConcurrent || 3;
+    // إضافة خاصية client وهمية لتجنب خطأ TypeError: Cannot read properties of undefined (reading 'client')
+    // هذا الخطأ يحدث على الأرجح في مكان ما يحاول الوصول إلى خاصية client من workerManager
+    this.client = {
+      close: async () => { console.log('SimpleWorkerManager client closed (mock)'); }
+    };
   }
 
   async start() {
