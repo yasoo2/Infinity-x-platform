@@ -128,12 +128,28 @@ export class AgentLoop extends EventEmitter {
       const results = await this.executePlan(plan, task);
       task.results = results;
 
-      // المرحلة 3: التحقق من النجاح
-      console.log('\n✅ Phase 3: Verification');
-      const success = await this.verifySuccess(plan, results);
-
-      if (success) {
-        // نجحت المهمة
+	      // المرحلة 3: التحقق من النجاح والتقييم الذاتي
+	      console.log('\n✅ Phase 3: Verification & Self-Correction');
+	      let success = await this.verifySuccess(plan, results);
+	
+	      if (!success && task.retries < this.config.maxRetries) {
+	        console.log('\n🔄 Verification failed. Attempting self-correction...');
+	        const correctionPlan = await this.reasoningEngine.selfCorrect(task, plan, results);
+	        
+	        if (correctionPlan && correctionPlan.subtasks && correctionPlan.subtasks.length > 0) {
+	          console.log(`\n✨ Applying self-correction plan with ${correctionPlan.subtasks.length} steps.`);
+	          // دمج الخطة التصحيحية في الخطة الأصلية
+	          plan.subtasks.push(...correctionPlan.subtasks);
+	          // إعادة تنفيذ الخطة (أو جزء منها)
+	          const correctionResults = await this.executePlan(correctionPlan, task);
+	          results.push(...correctionResults);
+	          // إعادة التحقق بعد التصحيح
+	          success = await this.verifySuccess(plan, results);
+	        }
+	      }
+	
+	      if (success) {
+	        // نجحت المهمة
         task.status = 'completed';
         task.completedAt = new Date();
         task.duration = task.completedAt - task.startedAt;
@@ -269,19 +285,19 @@ export class AgentLoop extends EventEmitter {
   /**
    * التحقق من نجاح المهمة
    */
-  async verifySuccess(plan, results) {
-    // التحقق البسيط: كل المهام الفرعية نجحت
-    const allSuccessful = results.every(r => r.success);
-    
-    if (!allSuccessful) {
-      return false;
-    }
-
-    // يمكننا إضافة تحقق أكثر ذكاءً باستخدام LLM
-    // للتأكد من أن النتائج تحقق معايير النجاح
-
-    return true;
-  }
+	  async verifySuccess(plan, results) {
+	    // التحقق البسيط: كل المهام الفرعية نجحت
+	    const allSuccessful = results.every(r => r.success);
+	    
+	    if (!allSuccessful) {
+	      return false;
+	    }
+	
+	    // التحقق الذكي: استخدام LLM للتأكد من أن النتائج تحقق معايير النجاح
+	    // يمكن إضافة استدعاء لـ ReasoningEngine هنا
+	
+	    return true;
+	  }
 
   /**
    * الحصول على حالة Agent Loop

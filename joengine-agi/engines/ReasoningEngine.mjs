@@ -19,11 +19,12 @@ export class ReasoningEngine {
     // تحديث النموذج الافتراضي بناءً على طلب المستخدم
     this.config.model = 'gpt-4o-mini';
     
-    this.memory = {
-      shortTerm: [],  // الذاكرة قصيرة المدى (المحادثة الحالية)
-      longTerm: [],   // الذاكرة طويلة المدى (التجارب السابقة)
-      plans: []       // الخطط المُنشأة
-    };
+	    this.memory = {
+	      shortTerm: [],  // الذاكرة قصيرة المدى (المحادثة الحالية)
+	      longTerm: [],   // الذاكرة طويلة المدى (التجارب السابقة)
+	      plans: [],       // الخطط المُنشأة
+	      workingMemory: {} // ذاكرة العمل لتخزين السياق الحالي للمهمة
+	    };
     
     this.systemPrompt = this.buildSystemPrompt();
   }
@@ -73,14 +74,17 @@ You are autonomous, intelligent, and capable of solving ANY problem.`;
   /**
    * تحليل هدف وإنشاء خطة تنفيذ
    */
-  async analyzeGoal(goal, context = {}) {
-    console.log(`\n🧠 Reasoning Engine: Analyzing goal...`);
-    console.log(`Goal: ${goal}`);
-
-    const messages = [
-      { role: 'system', content: this.systemPrompt },
-      ...this.memory.shortTerm,
-      {
+	  async analyzeGoal(goal, context = {}) {
+	    console.log(`\n🧠 Reasoning Engine: Analyzing goal...`);
+	    console.log(`Goal: ${goal}`);
+	
+	    // تحديث ذاكرة العمل (Working Memory)
+	    this.memory.workingMemory = { goal, context, timestamp: new Date() };
+	
+	    const messages = [
+	      { role: 'system', content: this.systemPrompt },
+	      ...this.memory.shortTerm,
+	      {
         role: 'user',
         content: `Goal: ${goal}
 
@@ -193,16 +197,50 @@ Response format (JSON):
   /**
    * التعلم من نتيجة مهمة
    */
-  async learnFromExperience(task, result, success) {
-    console.log(`\n📚 Learning from experience...`);
-
-    const experience = {
-      task,
-      result,
-      success,
-      timestamp: new Date(),
-      lessons: []
-    };
+	  async learnFromExperience(task, result, success) {
+	    console.log(`\n📚 Learning from experience...`);
+	
+	    // 1. تحديث الذاكرة طويلة المدى (Long-Term Memory)
+	    const experience = {
+	      taskId: task.id,
+	      goal: task.goal,
+	      success: success,
+	      timestamp: new Date(),
+	      summary: `Task ${task.id} ${success ? 'succeeded' : 'failed'}. Goal: ${task.goal}`,
+	      // يمكن استخدام LLM لتلخيص النتائج
+	    };
+	
+	    // إضافة التجربة إلى الذاكرة طويلة المدى
+	    this.memory.longTerm.push(experience);
+	
+	    // الحفاظ على حجم الذاكرة طويلة المدى
+	    if (this.memory.longTerm.length > 100) {
+	      this.memory.longTerm.shift();
+	    }
+	
+	    // 2. تحديث الذاكرة قصيرة المدى (Short-Term Memory)
+	    // يمكن استخدام LLM لتلخيص المهمة الناجحة وإضافتها كـ "درس مستفاد"
+	    if (success) {
+	      const lesson = {
+	        role: 'system',
+	        content: `LESSON LEARNED: Task "${task.goal}" was successfully completed. The key to success was: [LLM will summarize the key steps and tools used].`
+	      };
+	      this.memory.shortTerm.push(lesson);
+	      // الحفاظ على حجم الذاكرة قصيرة المدى
+	      if (this.memory.shortTerm.length > 10) {
+	        this.memory.shortTerm.shift();
+	      }
+	    }
+	
+	    // 3. تحليل الفشل واقتراح نهج بديل
+	    if (!success) {
+	      console.log('🧠 Analyzing failure for alternative approach...');
+	      const analysis = await this.analyzeFailure(task, result);
+	      return analysis;
+	    }
+	
+	    return null;
+	  }
 
     // تحليل التجربة
     const messages = [

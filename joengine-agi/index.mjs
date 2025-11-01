@@ -15,6 +15,7 @@ import { CodeTool } from './tools/CodeTool.mjs';
 import { FileTool } from './tools/FileTool.mjs';
 import { SearchTool } from './tools/SearchTool.mjs';
 import { ShellTool } from './tools/ShellTool.mjs';
+import { APITool } from './tools/APITool.mjs';
 
 // تحميل متغيرات البيئة
 dotenv.config();
@@ -79,8 +80,11 @@ class JOEngine {
     const shellTool = new ShellTool();
     this.toolsSystem.registerTool('shell', shellTool);
 
+    // API Tool
+    const apiTool = new APITool();
+    this.toolsSystem.registerTool('api', apiTool);
+
     // TODO: إضافة المزيد من الأدوات
-    // - APITool
     // - DatabaseTool
     // - DeployTool
 
