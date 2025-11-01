@@ -347,11 +347,6 @@ class GitHubTools {
       return { success: false, error: error.message };
     }
   }
-}
-
-// Export singleton
-export const githubTools = new GitHubTools(process.env.GITHUB_TOKEN);
-export default GitHubTools;
 
   /**
    * Search and replace in SPECIFIC files (Smart Detection)
@@ -436,3 +431,7 @@ export default GitHubTools;
     }
   }
 }
+
+// Export singleton
+export const githubTools = new GitHubTools(process.env.GITHUB_TOKEN);
+export default GitHubTools;
