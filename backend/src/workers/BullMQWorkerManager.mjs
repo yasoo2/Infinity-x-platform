@@ -7,18 +7,35 @@ import { Octokit } from '@octokit/rest';
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // Redis connection for Upstash with TLS
-const connection = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
-  maxRetriesPerRequest: null,
-  tls: process.env.REDIS_URL?.includes('upstash.io') ? {} : undefined,
-  enableReadyCheck: false,
-  retryStrategy: (times) => {
-    if (times > 3) {
-      console.error('❌ Redis connection failed after 3 retries');
-      return null;
+let connection;
+try {
+  connection = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+    maxRetriesPerRequest: 3,
+    tls: process.env.REDIS_URL?.includes('upstash.io') ? {
+      rejectUnauthorized: false
+    } : undefined,
+    enableReadyCheck: false,
+    connectTimeout: 10000,
+    retryStrategy: (times) => {
+      if (times > 3) {
+        console.error('❌ Redis connection failed after 3 retries');
+        return null;
+      }
+      return Math.min(times * 1000, 3000);
+    },
+    reconnectOnError: (err) => {
+      console.log('⚠️ Redis reconnect on error:', err.message);
+      return false; // Don't reconnect on error
     }
-    return Math.min(times * 100, 3000);
-  }
-});
+  });
+  
+  connection.on('error', (err) => {
+    console.error('❌ Redis connection error:', err.message);
+  });
+} catch (error) {
+  console.error('❌ Failed to create Redis connection:', error.message);
+  throw error;
+}
 
 // Create BullMQ Queue
 export const factoryQueue = new Queue('factory-jobs', { connection });
