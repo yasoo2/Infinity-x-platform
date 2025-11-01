@@ -69,20 +69,20 @@ export default function FileUpload({ onFileAnalyzed }) {
   };
 
   const getFileIcon = () => {
-    if (!selectedFile) return <Upload className="w-12 h-12 text-textDim" />;
+    if (!selectedFile) return <Upload className="w-6 h-6 text-cyan-400 drop-shadow-[0_0_5px_rgba(0,255,255,0.5)]" />;
     
     const type = selectedFile.type;
-    if (type.startsWith('image/')) return <Image className="w-12 h-12 text-neonBlue" />;
-    if (type.includes('text') || type.includes('json')) return <FileText className="w-12 h-12 text-neonGreen" />;
-    return <File className="w-12 h-12 text-textDim" />;
+    if (type.startsWith('image/')) return <Image className="w-6 h-6 text-fuchsia-400 drop-shadow-[0_0_5px_rgba(255,0,255,0.5)]" />;
+    if (type.includes('text') || type.includes('json')) return <FileText className="w-6 h-6 text-cyan-400 drop-shadow-[0_0_5px_rgba(0,255,255,0.5)]" />;
+    return <File className="w-6 h-6 text-fuchsia-400 drop-shadow-[0_0_5px_rgba(255,0,255,0.5)]" />;
   };
 
   return (
     <div
       className={`border-2 border-dashed rounded-lg p-8 text-center transition-all ${
         isDragging
-          ? 'border-neonBlue bg-neonBlue/10'
-          : 'border-borderDim hover:border-neonGreen/50'
+          ? 'border-cyan-500 bg-cyan-500/10 shadow-lg shadow-cyan-900/50'
+          : 'border-gray-700 hover:border-fuchsia-500/50'
       }`}
       onDragEnter={handleDrag}
       onDragLeave={handleDrag}
@@ -102,21 +102,21 @@ export default function FileUpload({ onFileAnalyzed }) {
           {getFileIcon()}
 
           {uploading ? (
-            <div className="text-neonBlue">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neonBlue mx-auto mb-2"></div>
+            <div className="text-cyan-400 drop-shadow-[0_0_5px_rgba(0,255,255,0.5)]">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400 mx-auto mb-2"></div>
               <p>جاري الرفع...</p>
             </div>
           ) : selectedFile ? (
             <div>
-              <p className="text-textPrimary font-medium">{selectedFile.name}</p>
-              <p className="text-textDim text-sm">{(selectedFile.size / 1024).toFixed(2)} KB</p>
+              <p className="text-white font-medium">{selectedFile.name}</p>
+              <p className="text-gray-400 text-sm">{(selectedFile.size / 1024).toFixed(2)} KB</p>
             </div>
           ) : (
             <div>
               <p className="text-textPrimary font-medium mb-2">
                 اسحب الملف هنا أو اضغط للاختيار
               </p>
-              <p className="text-textDim text-sm">
+              <p className="text-gray-400 text-sm">
                 الأنواع المدعومة: نصوص، صور، PDF، كود
               </p>
             </div>

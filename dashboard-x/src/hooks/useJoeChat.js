@@ -14,7 +14,17 @@ export const useJoeChat = () => {
   const handleNewConversation = useCallback(() => {}, []);
   const handleSend = useCallback(() => {}, []);
   const stopProcessing = useCallback(() => {}, []);
-  const handleVoiceInput = useCallback(() => {}, []);
+  const handleVoiceInput = useCallback(() => {
+    // Mock implementation for voice input to generate text
+    if (isListening) {
+      setIsListening(false);
+      // Simulate speech-to-text result
+      setInput(prev => prev + " [Voice Input: Please implement the actual speech-to-text logic here.]");
+    } else {
+      setIsListening(true);
+      // In a real app, this would start the microphone listener
+    }
+  }, [isListening, setIsListening, setInput]);
   const saveToken = useCallback(() => {}, []);
   const closeTokenModal = useCallback(() => setShowTokenModal(false), []);
 
