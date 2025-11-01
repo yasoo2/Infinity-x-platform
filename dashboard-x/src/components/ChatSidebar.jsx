@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import apiClient from '../api/client';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://api.xelitesolutions.com';
@@ -17,9 +17,9 @@ export default function ChatSidebar({
     if (userId) {
       loadConversations();
     }
-  }, [userId]);
+  }, [userId, loadConversations]);
 
-  const loadConversations = async () => {
+  const loadConversations = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await apiClient.post(`${API_BASE}/api/chat-history/list`, {
@@ -34,7 +34,7 @@ export default function ChatSidebar({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [userId]);
 
   const handleDelete = async (conversationId, e) => {
     e.stopPropagation();

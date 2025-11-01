@@ -92,7 +92,7 @@ export const useSessionToken = (opts = {}) => {
     try {
       const store = getStore();
       if (store) store.removeItem(key);
-    } catch {}
+    } catch { /* Ignore quota/access errors */ }
     setToken(null);
   };
 
