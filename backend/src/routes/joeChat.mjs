@@ -7,6 +7,7 @@ import { mongodbTools } from '../tools/mongodbTools.mjs';
 import { cloudflareTools } from '../tools/cloudflareTools.mjs';
 import { testingTools } from '../tools/testingTools.mjs';
 import { evolutionTools } from '../tools/evolutionTools.mjs';
+import { detectTargetFiles } from '../tools/smartFileDetector.mjs';
 
 const router = express.Router();
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -232,26 +233,27 @@ async function handleGitHubAction(message, userId) {
       // Edit action
       console.log('✏️ Editing files...');
       
+      // 🎯 SMART FILE DETECTION
+      console.log('🧠 Using Smart File Detector...');
+      const detection = await detectTargetFiles(message);
+      console.log(`📍 Detected files (${detection.confidence * 100}% confidence):`, detection.files);
+      console.log(`💡 Reasoning: ${detection.reasoning}`);
+      
       // Extract what to change
-      // Example: "عدل اللون الكحلي إلى أزرق"
       let pattern, replacement;
       
       if (lower.includes('لون') || lower.includes('color')) {
-        // Color change
-        if (lower.includes('كحلي') || lower.includes('#2196F3')) {
-          pattern = '#2196F3|#2196F3';
-          
-          if (lower.includes('أزرق فاتح') || lower.includes('light blue')) {
-            replacement = '#2196F3';
-          } else if (lower.includes('أزرق') || lower.includes('blue')) {
-            replacement = '#2196F3';
-          }
-        }
+        // Extract colors from message
+        const colors = extractColors(message);
+        pattern = colors.from;
+        replacement = colors.to;
       }
       
-      if (pattern && replacement) {
-        const result = await githubTools.searchReplaceAndPush(
+      if (pattern && replacement && detection.files.length > 0) {
+        // Use detected files instead of scanning all
+        const result = await githubTools.searchReplaceInFiles(
           repoName,
+          detection.files,
           pattern,
           replacement,
           `JOE: ${message}`
@@ -265,7 +267,12 @@ async function handleGitHubAction(message, userId) {
             action: 'edit',
             modified: result.modified,
             count: result.modified.length,
-            message: result.message
+            message: result.message,
+            detection: {
+              files: detection.files,
+              confidence: detection.confidence,
+              method: detection.method
+            }
           };
         } else {
           return {
@@ -542,3 +549,51 @@ async function handleCloudflare(message, userId) {
 }
 
 export default router;
+
+// Helper: Extract colors from message
+function extractColors(message) {
+  const lower = message.toLowerCase();
+  
+  // Color mappings
+  const colorMap = {
+    'أسود': '#000000',
+    'black': '#000000',
+    'أبيض': '#FFFFFF',
+    'white': '#FFFFFF',
+    'أحمر': '#FF0000',
+    'red': '#FF0000',
+    'أزرق': '#0000FF',
+    'blue': '#0000FF',
+    'كحلي': '#1e3a8a',
+    'navy': '#1e3a8a',
+    'أخضر': '#00FF00',
+    'green': '#00FF00',
+    'أصفر': '#FFFF00',
+    'yellow': '#FFFF00'
+  };
+  
+  let from = null;
+  let to = null;
+  
+  // Extract "from" color
+  for (const [name, hex] of Object.entries(colorMap)) {
+    if (lower.includes(name)) {
+      if (!from) {
+        from = hex;
+      } else if (!to) {
+        to = hex;
+      }
+    }
+  }
+  
+  // Also check for hex colors
+  const hexMatches = message.match(/#[0-9A-Fa-f]{6}/g);
+  if (hexMatches && hexMatches.length >= 2) {
+    from = hexMatches[0];
+    to = hexMatches[1];
+  } else if (hexMatches && hexMatches.length === 1) {
+    if (!to) to = hexMatches[0];
+  }
+  
+  return { from, to };
+}

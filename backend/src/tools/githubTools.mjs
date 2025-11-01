@@ -352,3 +352,87 @@ class GitHubTools {
 // Export singleton
 export const githubTools = new GitHubTools(process.env.GITHUB_TOKEN);
 export default GitHubTools;
+
+  /**
+   * Search and replace in SPECIFIC files (Smart Detection)
+   * @param {string} repoName - Repository name
+   * @param {string[]} targetFiles - Specific files to modify
+   * @param {string} pattern - Pattern to search for
+   * @param {string} replacement - Replacement text
+   * @param {string} commitMessage - Commit message
+   */
+  async searchReplaceInFiles(repoName, targetFiles, pattern, replacement, commitMessage) {
+    try {
+      console.log(`🎯 Targeting specific files:`, targetFiles);
+      
+      // Clone repository
+      const cloneResult = await this.cloneRepo(repoName);
+      if (!cloneResult.success) {
+        return cloneResult;
+      }
+
+      const repoPath = path.join(this.workDir, repoName);
+      const modified = [];
+
+      // Process only target files
+      for (const file of targetFiles) {
+        const filePath = path.join(repoPath, file);
+        
+        try {
+          // Check if file exists
+          await fs.access(filePath);
+          
+          // Read file
+          const content = await fs.readFile(filePath, 'utf-8');
+          
+          // Check if pattern exists
+          if (content.includes(pattern) || new RegExp(pattern).test(content)) {
+            // Replace
+            const newContent = content.replace(new RegExp(pattern, 'g'), replacement);
+            
+            // Write back
+            await fs.writeFile(filePath, newContent, 'utf-8');
+            modified.push(file);
+            console.log(`✅ Modified: ${file}`);
+          } else {
+            console.log(`⚠️ Pattern not found in: ${file}`);
+          }
+        } catch (error) {
+          console.log(`⚠️ File not found or error: ${file}`);
+        }
+      }
+
+      if (modified.length === 0) {
+        return {
+          success: false,
+          error: 'No files were modified (pattern not found in target files)'
+        };
+      }
+
+      // Commit
+      const commitResult = await this.commit(repoName, commitMessage);
+      if (!commitResult.success) {
+        return commitResult;
+      }
+
+      // Push
+      const pushResult = await this.push(repoName);
+      if (!pushResult.success) {
+        return pushResult;
+      }
+
+      return {
+        success: true,
+        modified,
+        count: modified.length,
+        message: `Modified ${modified.length} files and pushed`
+      };
+    } catch (error) {
+      console.error(`❌ searchReplaceInFiles failed:`, error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+}
