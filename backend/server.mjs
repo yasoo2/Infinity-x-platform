@@ -103,21 +103,12 @@ app.use(express.urlencoded({ extended: true }));
 const upload = multer({ dest: 'uploads/' });
 
 // =========================
-// Redis (اختياري حاليًّا)
+// Redis (Disabled - Using Upstash REST API instead)
 // =========================
-const useRedis = true;
+// Old ioredis connection disabled to avoid connection errors
+// Now using Upstash REST API via @upstash/redis
 let redis = null;
-
-if (useRedis && process.env.REDIS_URL) {
-  redis = new Redis(process.env.REDIS_URL);
-  console.log('[Redis] init requested:', process.env.REDIS_URL);
-
-  redis.on('error', (err) => {
-    console.error('[Redis] error:', err?.message || err);
-  });
-} else {
-  console.log('[Redis] disabled or missing REDIS_URL');
-}
+console.log('✅ Redis: Using Upstash REST API (see upstashRedis.mjs)');
 
 // =========================
 // Google OAuth
