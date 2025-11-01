@@ -374,12 +374,12 @@ export default function Joe() {
           {messages.length === 0 && (
             <div className="text-center text-gray-500 py-12 bg-gray-800/30 rounded-xl p-8">
               <div className="text-6xl mb-4 animate-pulse">🤖</div>
-         <h2 className="text-2xl font-bold mb-2 text-cyan-400">{'مرحباً! أنا JOE'}</h2>            <p className="text-gray-400 mb-4">{'تحدث معي أو اكتب ما تريد!'}</p>
+         <h2 className="text-2xl font-bold mb-2 text-cyan-400">Welcome! I am JOE</h2>            <p className="text-gray-400 mb-4">Start chatting or type a command!</p>
               <div className="text-sm space-y-2 text-gray-400">
-                <p>{'💬 مثال: "مرحباً جو"'}</p>
-                <p>{'🏪 مثال: "ابني متجر إلكتروني للإكسسوارات"'}</p>
-                <p>{'🧬 مثال: "طور نفسك"'}</p>
-                <p>{'🌐 مثال: "صمم موقع لمطعم"'}</p>
+                <p>💬 Example: "Hello Joe"</p>
+                <p>🏪 Example: "Build an e-commerce store"</p>
+                <p>🧬 Example: "Evolve yourself"</p>
+                <p>🌐 Example: "Design a website for a restaurant"</p>
               </div>
             </div>
           )}
