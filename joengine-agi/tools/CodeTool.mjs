@@ -62,6 +62,16 @@ export class CodeTool extends BaseTool {
           required: false,
           enum: ['glob', 'grep'],
           description: 'Type of search: glob (file names) or grep (file content)'
+        },
+        leading: {
+          type: 'integer',
+          required: false,
+          description: 'Number of lines to include before each match as context (only for grep)'
+        },
+        trailing: {
+          type: 'integer',
+          required: false,
+          description: 'Number of lines to include after each match as context (only for grep)'
         }
       }
     );
@@ -255,7 +265,9 @@ export class CodeTool extends BaseTool {
         throw new Error('Regex pattern is required for grep search');
       }
       // استخدام grep مع نمط glob
-      command = `grep -r -n -H -E "${regex}" ${cwd} --include="${scope}"`;
+      const leading = params.leading ? `-B ${params.leading}` : '';
+      const trailing = params.trailing ? `-A ${params.trailing}` : '';
+      command = `grep -r -n -H -E ${leading} ${trailing} "${regex}" ${cwd} --include="${scope}"`;
     } else {
       throw new Error('Invalid searchType. Must be "glob" or "grep"');
     }

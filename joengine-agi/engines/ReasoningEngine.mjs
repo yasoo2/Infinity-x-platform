@@ -81,6 +81,44 @@ You are autonomous, intelligent, and capable of solving ANY problem.`;
 	    // تحديث ذاكرة العمل (Working Memory)
 	    this.memory.workingMemory = { goal, context, timestamp: new Date() };
 	
+	    // **التحسين: تجاوز التخطيط المعقد للمهام البسيطة (مثل البحث عن الكود)**
+	    if (goal.toLowerCase().includes('search') || goal.toLowerCase().includes('find') || goal.toLowerCase().includes('glob') || goal.toLowerCase().includes('grep')) {
+	      const isCodeSearch = goal.toLowerCase().includes('code') || goal.toLowerCase().includes('file') || goal.toLowerCase().includes('glob') || goal.toLowerCase().includes('grep');
+	      
+	      if (isCodeSearch) {
+	        console.log('⚡️ Bypassing complex planning for quick code search...');
+	        
+	        // محاولة استخراج regex من الهدف
+	        const regexMatch = goal.match(/"(.*?)"/);
+	        const regex = regexMatch ? regexMatch[1] : goal.split(' ').slice(-1)[0];
+	        
+	        // محاولة استخراج النطاق
+	        const scopeMatch = goal.match(/scope: (.*?)(?:\s|$)/);
+	        const scope = scopeMatch ? scopeMatch[1] : '**/*';
+	        
+	        return {
+	          analysis: `The goal is a simple code search. Bypassing complex planning to execute a direct search using the enhanced CodeTool.`,
+	          complexity: 'low',
+	          estimatedTime: '0.5 min',
+	          subtasks: [{
+	            id: 1,
+	            title: `Execute quick code search for: ${goal}`,
+	            tool: 'code',
+	            reasoning: 'Direct execution of a simple search task for speed and efficiency.',
+	            params: {
+	              action: 'search',
+	              scope: scope,
+	              regex: regex,
+	              searchType: 'grep'
+	            }
+	          }],
+	          risks: [],
+	          successCriteria: ['Search results are returned.']
+	        };
+	      }
+	    }
+	    // **نهاية التحسين**
+	
 	    const messages = [
 	      { role: 'system', content: this.systemPrompt },
 	      ...this.memory.shortTerm,
