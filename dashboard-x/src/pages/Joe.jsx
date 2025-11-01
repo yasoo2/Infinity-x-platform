@@ -121,7 +121,7 @@ return (
           {/* File Upload */}
           <div className="mb-4">
             <FileUpload onFileAnalyzed={(data) => {
-              setInput(prev => prev + `\\n\\nملف مرفوع: ${data.fileName}\\n${data.content}`);
+              setInput(prev => prev + `\n\nملف مرفوع: ${data.fileName}\n${data.content}`);
             }} />
           </div>
 
