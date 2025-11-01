@@ -1,14 +1,19 @@
+// src/hooks/useJoeChat.js
 import { useState, useCallback } from 'react';
 
-// Mock hook to resolve the build error.
-// The actual implementation should be restored later.
 export const useJoeChat = () => {
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [showTokenModal, setShowTokenModal] = useState(false);
-  const [tokenType, setTokenType] = useState(null);
+  const [tokenType, setTokenType] = useState('github'); // كان null — خليته "github" عشان العنوان يظهر
   const [tokenValue, setTokenValue] = useState('');
   const [tokens, setTokens] = useState({ githubUsername: '' });
+
+  const [messages, setMessages] = useState([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [currentStep, setCurrentStep] = useState('Idle');
+  const [buildResult, setBuildResult] = useState(null);
 
   const handleConversationSelect = useCallback(() => {}, []);
   const handleNewConversation = useCallback(() => {}, []);
@@ -30,14 +35,14 @@ export const useJoeChat = () => {
 
   return {
     userId: 'mock-user-id',
-    conversations: [],
-    currentConversation: null,
-    messages: [],
-    isProcessing: false,
-    progress: 0,
-    currentStep: 'Mocking build process...',
-    buildResult: null,
-    canStop: false,
+    conversations: [],          // اتركها فاضية الآن
+    currentConversation: null,  // نفس الشيء
+    messages,
+    isProcessing,
+    progress,
+    currentStep,
+    buildResult,
+    canStop: isProcessing,
     input,
     setInput,
     isListening,
@@ -56,6 +61,6 @@ export const useJoeChat = () => {
     stopProcessing,
     handleVoiceInput,
     saveToken,
-    closeTokenModal
+    closeTokenModal,
   };
 };
