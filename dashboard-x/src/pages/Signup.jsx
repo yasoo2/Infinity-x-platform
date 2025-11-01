@@ -31,7 +31,7 @@ export default function Signup() {
     { code: '+962', country: 'Jordan' },
     { code: '+961', country: 'Lebanon' },
     { code: '+963', country: 'Syria' },
-    { code: '+964', code: 'Iraq' },
+    { code: '+964', country: 'Iraq' },
     { code: '+965', country: 'Kuwait' },
     { code: '+968', country: 'Oman' },
     { code: '+973', country: 'Bahrain' },
