@@ -5,7 +5,14 @@ import apiClient from '../api/client';
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://api.xelitesolutions.com';
 
 export default function Build() {
-  const { token } = useSessionToken();
+  const _TOKEN = useSessionToken();
+  useEffect(() => {
+    if (_TOKEN) {
+      apiClient.defaults.headers.common.Authorization = `Bearer ${_TOKEN}`;
+    } else {
+      delete apiClient.defaults.headers.common.Authorization;
+    }
+  }, [_TOKEN]);
   const [projectType, setProjectType] = useState('page');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
