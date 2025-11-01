@@ -64,7 +64,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       // محاكاة عملية النسخ الصوتي
       // يجب أن يتم استبدال هذا الكود باستدعاء حقيقي لـ OpenAI.audio.transcriptions.create
       // أو أي خدمة نسخ صوتي أخرى
-      transcription = "تم نسخ الرسالة الصوتية بالكامل: " + fileName; 
+      transcription = `[تحذير: هذا نسخ صوتي مُحاكى. يجب ربط هذا الكود بـ OpenAI Whisper API أو خدمة نسخ صوتي أخرى للحصول على النص الكامل.] الملف: ${fileName}`; 
       
       // إذا كان هناك استدعاء حقيقي، يجب أن يكون شيء مثل:
       /*

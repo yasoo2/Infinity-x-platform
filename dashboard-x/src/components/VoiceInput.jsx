@@ -13,16 +13,23 @@ export default function VoiceInput({ onTranscript, onAutoSubmit, disabled }) {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       const recognition = new SpeechRecognition();
       
-      recognition.continuous = true;
-      recognition.interimResults = true;
+      recognition.continuous = true; // استمرار الاستماع بعد التوقف المؤقت
+      recognition.interimResults = true; // إظهار النتائج المؤقتة
       recognition.lang = 'ar-SA'; // Arabic
       recognition.maxAlternatives = 1;
       
       recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        onTranscript(transcript);
-        setIsListening(false);
-        recognition.stop();
+        let finalTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          }
+        }
+        // إرسال النص النهائي فقط
+        if (finalTranscript) {
+          onTranscript(finalTranscript);
+        }
+        // لا توقف recognition.stop() هنا، بل دعه يستمر إذا كانت continuous = true
       };
       
       recognition.onerror = (event) => {
@@ -31,7 +38,13 @@ export default function VoiceInput({ onTranscript, onAutoSubmit, disabled }) {
       };
       
       recognition.onend = () => {
-        setIsListening(false);
+        // إذا كانت continuous = true، فإن onend يتم استدعاؤها بعد التوقف المؤقت
+        // يجب أن نبدأ الاستماع مرة أخرى إذا لم يتم إيقافه يدوياً
+        if (recognitionRef.current && isListening) {
+          recognitionRef.current.start();
+        } else {
+          setIsListening(false);
+        }
       };
       
       recognitionRef.current = recognition;
