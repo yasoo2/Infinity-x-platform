@@ -208,8 +208,8 @@ async function handleGitHubAction(message, userId) {
       
       if (lower.includes('لون') || lower.includes('color')) {
         // Color change
-        if (lower.includes('كحلي') || lower.includes('navy')) {
-          pattern = '#001f3f|navy';
+        if (lower.includes('كحلي') || lower.includes('#3498db')) {
+          pattern = '#3498db|#3498db';
           
           if (lower.includes('أزرق فاتح') || lower.includes('light blue')) {
             replacement = '#3498db';
