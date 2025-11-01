@@ -22,7 +22,7 @@ export default function VoiceInput({ onTranscript, onAutoSubmit, disabled }) {
         const transcript = event.results[0][0].transcript;
         onTranscript(transcript);
         setIsListening(false);
-        // No auto-submit - user must click send button manually
+        recognition.stop();
       };
       
       recognition.onerror = (event) => {

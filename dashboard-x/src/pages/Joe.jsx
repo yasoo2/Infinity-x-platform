@@ -4,6 +4,7 @@ import VoiceInput from '../components/VoiceInput';
 import BrowserViewer from '../components/BrowserViewer';
 import ChatSidebar from '../components/ChatSidebar';
 import FileUpload from '../components/FileUpload';
+import PreviewScreen from '../components/PreviewScreen';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://api.xelitesolutions.com';
 
@@ -92,11 +93,11 @@ export default function Joe() {
       });
 
       // Generate title if this is the first user message
-      if (messages.length === 0 && message.type === 'user') {
-        await apiClient.post(`${API_BASE}/api/chat-history/generate-title`, {
+      if (messages.length <= 1 && message.type === 'user') {
+        apiClient.post(`${API_BASE}/api/chat-history/generate-title`, {
           conversationId: currentConversationId,
           firstMessage: message.content
-        });
+        }).catch(err => console.error('Generate title error:', err));
       }
     } catch (error) {
       console.error('Save message error:', error);
@@ -475,7 +476,7 @@ export default function Joe() {
           
           <form ref={formRef} onSubmit={handleSubmit} className="flex gap-3">
             <VoiceInput 
-              onTranscript={(text) => setInput(text)}
+              onTranscript={(text) => setInput(prev => prev + (prev ? ' ' : '') + text)}
               onAutoSubmit={handleAutoSubmit}
               disabled={isProcessing}
             />
@@ -584,6 +585,14 @@ export default function Joe() {
           }}
         />
       )}
+
+      {/* Preview Screen */}
+      <PreviewScreen
+        currentStep={currentStep}
+        progress={progress}
+        actionResult={buildResult}
+        isProcessing={isProcessing}
+      />
     </div>
   );
 }
