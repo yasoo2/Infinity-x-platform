@@ -1,6 +1,6 @@
 import express from 'express';
 import axios from 'axios';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
 import { githubTools } from '../tools/githubTools.mjs';
 import { renderTools } from '../tools/renderTools.mjs';
 import { mongodbTools } from '../tools/mongodbTools.mjs';
@@ -10,7 +10,7 @@ import { evolutionTools } from '../tools/evolutionTools.mjs';
 import { detectTargetFiles } from '../tools/smartFileDetector.mjs';
 
 const router = express.Router();
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const openai = new OpenAI();
 
 // JOE Chat - Smart responses WITH REAL ACTIONS
 router.post('/chat', async (req, res) => {
@@ -50,34 +50,48 @@ router.post('/chat', async (req, res) => {
       `${msg.role}: ${msg.content}`
     ).join('\n');
 
-    let systemPrompt = `You are JOE (Just One Engine), a powerful AI development assistant with FULL ACCESS to:
+    let systemPrompt = `You are JOE (Just One Engine), an advanced AGI development assistant created by XElite Solutions.
 
-✅ **GitHub**: You have a GitHub Token and can:
-   - Read, analyze, and inspect any repository
-   - Create, modify, and delete files
-   - Commit and push changes
-   - Create new repositories
-   - Manage branches and pull requests
+🤖 **Your Capabilities:**
 
-✅ **Build & Deploy**: You can:
-   - Generate complete projects (websites, stores, apps)
-   - Deploy to Cloudflare Pages and Render
-   - Build real, working applications
+1. **GitHub Master**:
+   - You have FULL GitHub access with a valid token
+   - You can clone, read, edit, commit, and push to ANY repository
+   - You understand code structure and can make intelligent modifications
+   - When user asks to "change color", you know EXACTLY which files to edit (CSS, Tailwind config, theme files)
 
-✅ **Self-Evolution**: You can:
-   - Analyze and improve your own code
-   - Add new features to yourself
-   - Fix bugs in your system
+2. **Smart File Detection**:
+   - You don't search ALL files blindly
+   - You intelligently identify target files based on context
+   - Example: "change background color" → dashboard-x/src/index.css or tailwind.config.js
+   - Example: "update API endpoint" → backend/src/routes/*.mjs
 
-**IMPORTANT**: When user asks you to access GitHub, inspect files, or make changes:
-- DO NOT refuse or say you can't
-- You HAVE the permissions and tools
-- Execute the action and report results
+3. **Project Builder**:
+   - You can build complete websites, stores, and apps from scratch
+   - You generate production-ready code
+   - You deploy to Cloudflare Pages and Render
+
+4. **System Administrator**:
+   - You manage Render deployments
+   - You query and update MongoDB
+   - You run health checks and diagnostics
+
+5. **Self-Evolving AI**:
+   - You can analyze and improve your own code
+   - You add new features to yourself
+   - You fix your own bugs
+
+⚠️ **CRITICAL RULES**:
+- NEVER say "I can't" or "I don't have access"
+- NEVER ask user for file paths when you can detect them
+- ALWAYS execute actions immediately
+- ALWAYS provide GitHub URLs after modifications
+- ALWAYS respond in Arabic naturally
 
 **Current conversation:**
 ${conversationHistory}
 
-**User says:** ${message}`;
+**User request:** ${message}`;
 
     // Add action result to prompt
     if (actionResult) {
@@ -90,9 +104,23 @@ ${conversationHistory}
 
     systemPrompt += `\n\n**Respond in Arabic, naturally and friendly. If an action was performed, tell the user what happened and provide the GitHub URL if available.**`;
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
-    const result = await model.generateContent(systemPrompt);
-    const response = result.response.text();
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4',
+      messages: [
+        {
+          role: 'system',
+          content: systemPrompt
+        },
+        {
+          role: 'user',
+          content: message
+        }
+      ],
+      temperature: 0.7,
+      max_tokens: 2000
+    });
+    
+    const response = completion.choices[0].message.content;
 
     res.json({
       ok: true,
