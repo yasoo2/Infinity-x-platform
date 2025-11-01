@@ -36,6 +36,7 @@ const Joe = () => {
   } = useJoeChat();
 
   return (
+    <>
     <div className="h-[calc(100vh-4rem)] flex bg-gray-950 text-white">
       {/* Chat Sidebar */}
       <ChatSidebar
@@ -275,6 +276,7 @@ const Joe = () => {
       isProcessing={isProcessing} 
       progress={progress} 
     />
+    </>
   );
 };
 
