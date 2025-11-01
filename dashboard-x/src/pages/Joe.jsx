@@ -374,7 +374,7 @@ export default function Joe() {
           {messages.length === 0 && (
             <div className="text-center text-gray-500 py-12 bg-gray-800/30 rounded-xl p-8">
               <div className="text-6xl mb-4 animate-pulse">🤖</div>
-              <h2 className="text-2xl font-bold mb-2 text-cyan-400">مرحباً! أنا JOE</h2>},{find:
+              <h2 className="text-2xl font-bold mb-2 text-cyan-400">مرحباً! أنا JOE</h2>
               <p className="text-gray-400 mb-4">تحدث معي أو اكتب ما تريد!</p>
               <div className="text-sm space-y-2 text-gray-400">
                 <p>💬 مثال: "مرحباً جو"</p>
