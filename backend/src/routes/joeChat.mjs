@@ -1,6 +1,7 @@
 import express from 'express';
 import axios from 'axios';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { githubTools } from '../tools/githubTools.mjs';
 
 const router = express.Router();
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -193,18 +194,73 @@ async function handleGitHubAction(message, userId) {
   try {
     console.log('📂 JOE is accessing GitHub...');
     
+    const lower = message.toLowerCase();
+    const repoName = 'Infinity-x-platform';
+    
+    // Detect intent
+    if (lower.includes('عدل') || lower.includes('edit') || lower.includes('غير') || lower.includes('change')) {
+      // Edit action
+      console.log('✏️ Editing files...');
+      
+      // Extract what to change
+      // Example: "عدل اللون الكحلي إلى أزرق"
+      let pattern, replacement;
+      
+      if (lower.includes('لون') || lower.includes('color')) {
+        // Color change
+        if (lower.includes('كحلي') || lower.includes('navy')) {
+          pattern = '#001f3f|navy';
+          
+          if (lower.includes('أزرق فاتح') || lower.includes('light blue')) {
+            replacement = '#3498db';
+          } else if (lower.includes('أزرق') || lower.includes('blue')) {
+            replacement = '#2196F3';
+          }
+        }
+      }
+      
+      if (pattern && replacement) {
+        const result = await githubTools.searchReplaceAndPush(
+          repoName,
+          pattern,
+          replacement,
+          `JOE: ${message}`
+        );
+        
+        if (result.success) {
+          console.log(`✅ Modified ${result.modified.length} files`);
+          return {
+            type: 'github-edit',
+            success: true,
+            action: 'edit',
+            modified: result.modified,
+            count: result.modified.length,
+            message: result.message
+          };
+        } else {
+          return {
+            type: 'github-edit',
+            success: false,
+            error: result.error
+          };
+        }
+      }
+    }
+    
+    // Default: Scan repository
+    console.log('🔍 Scanning repository...');
     const baseURL = process.env.API_BASE_URL || 'https://admin.xelitesolutions.com';
     const response = await axios.post(`${baseURL}/api/github-manager/scan`, {
       owner: 'yasoo2',
-      repo: 'Infinity-x-platform'
-      // githubToken will be read from ENV in github-manager API
+      repo: repoName
     });
     
     console.log('✅ GitHub scan complete!');
     
     return {
-      type: 'github',
+      type: 'github-scan',
       success: true,
+      action: 'scan',
       data: response.data
     };
   } catch (error) {
