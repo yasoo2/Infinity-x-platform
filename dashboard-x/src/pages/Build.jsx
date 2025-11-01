@@ -5,7 +5,7 @@ import apiClient from '../api/client';
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://api.xelitesolutions.com';
 
 export default function Build() {
-  // useSessionToken(); // Removed as it was causing an unused variable error. If needed, the hook should be used to retrieve values.
+  const { isAuthenticated } = useSessionToken();
   const [projectType, setProjectType] = useState('page');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
