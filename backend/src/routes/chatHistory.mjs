@@ -15,7 +15,7 @@ router.post('/add-message', async (req, res) => {
     const now = new Date();
 
     const messageObj = {
-      id: Date.now() + Math.random(),
+      id: new ObjectId(), // استخدام ObjectId لضمان التفرد والتنظيم
       content: message.content,
       type: message.type || 'user',
       timestamp: new Date().toLocaleTimeString(),
@@ -110,7 +110,9 @@ router.post('/list', async (req, res) => {
       title: c.title,
       messageCount: c.messages?.length || 0,
       lastMessage: c.messages?.[c.messages.length - 1]?.content?.substring(0, 50) || '',
-      updatedAt: c.updatedAt
+      updatedAt: c.updatedAt,
+      // إضافة معرف الجلسة (Session ID) لضمان التنظيم
+      sessionId: c.sessionId || null 
     }));
 
     res.json({ ok: true, conversations: list });

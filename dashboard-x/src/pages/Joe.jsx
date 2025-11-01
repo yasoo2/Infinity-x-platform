@@ -346,7 +346,7 @@ export default function Joe() {
   };
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex">
+    <div className="h-[calc(100vh-4rem)] flex bg-gray-900 text-white">
       {/* Chat Sidebar */}
       <ChatSidebar
         userId={userId}
@@ -356,27 +356,27 @@ export default function Joe() {
       />
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col backdrop-blur-sm bg-gray-900/80">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-200 p-6">
+        <div className="border-b border-indigo-700/50 p-6 bg-gray-800/50 backdrop-blur-md">
           <h1 className="text-3xl font-bold mb-2">
-            <span className="text-blue-600">Infinity</span>
-            <span className="text-indigo-600">X</span>
-            <span className="text-gray-600 text-xl ml-3">JOE - Just One Engine</span>
+            <span className="text-cyan-400 drop-shadow-[0_0_5px_rgba(0,255,255,0.5)]">Infinity</span>
+            <span className="text-fuchsia-400 drop-shadow-[0_0_5px_rgba(255,0,255,0.5)]">X</span>
+            <span className="text-gray-400 text-xl ml-3">JOE - Just One Engine</span>
           </h1>
-          <p className="text-gray-600">
+          <p className="text-gray-400">
             🚀 مساعدك الذكي لبناء وتطوير المشاريع
           </p>
         </div>
 
         {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-white">
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-transparent">
           {messages.length === 0 && (
-            <div className="text-center text-gray-500 py-12">
-              <div className="text-6xl mb-4">🤖</div>
-              <h2 className="text-2xl font-bold mb-2">مرحباً! أنا JOE</h2>
-              <p className="mb-4">تحدث معي أو اكتب ما تريد!</p>
-              <div className="text-sm space-y-2">
+            <div className="text-center text-gray-500 py-12 bg-gray-800/30 rounded-xl p-8">
+              <div className="text-6xl mb-4 animate-pulse">🤖</div>
+              <h2 className="text-2xl font-bold mb-2 text-cyan-400">مرحباً! أنا JOE</h2>},{find:
+              <p className="text-gray-400 mb-4">تحدث معي أو اكتب ما تريد!</p>
+              <div className="text-sm space-y-2 text-gray-400">
                 <p>💬 مثال: "مرحباً جو"</p>
                 <p>🏪 مثال: "ابني متجر إلكتروني للإكسسوارات"</p>
                 <p>🧬 مثال: "طور نفسك"</p>
@@ -393,8 +393,8 @@ export default function Joe() {
               <div
                 className={`max-w-[80%] rounded-lg p-4 shadow-sm ${
                   msg.type === 'user'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-50 border border-gray-200 text-gray-800'
+                    ? 'bg-indigo-500/80 text-white shadow-lg shadow-indigo-500/30'
+                    : 'bg-gray-700/50 border border-gray-600 text-gray-200 shadow-md'
                 }`}
               >
                 <div className="flex items-start gap-3">
@@ -406,7 +406,7 @@ export default function Joe() {
                       {msg.content}
                       {msg.isTyping && <span className="animate-pulse">▊</span>}
                     </div>
-                    <div className="text-xs text-textDim mt-2">{msg.timestamp}</div>
+                    <div className="text-xs text-gray-400 mt-2">{msg.timestamp}</div>
                   </div>
                 </div>
               </div>
@@ -415,14 +415,14 @@ export default function Joe() {
 
           {/* Progress Bar */}
           {isProcessing && progress > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="bg-gray-800/50 border border-indigo-700/50 rounded-lg p-4 shadow-xl">
               <div className="flex justify-between text-sm mb-2">
-                <span className="text-textDim">{currentStep}</span>
-                <span className="text-primary font-bold">{progress}%</span>
+                <span className="text-gray-400">{currentStep}</span>
+                <span className="text-cyan-400 font-bold">{progress}%</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-3">
+              <div className="w-full bg-gray-700 rounded-full h-3">
                 <div
-                  className="bg-gradient-to-r from-primary to-secondary h-3 rounded-full transition-all duration-500 animate-pulse"
+                  className="bg-gradient-to-r from-cyan-400 to-fuchsia-400 h-3 rounded-full transition-all duration-500 shadow-lg shadow-cyan-500/50"
                   style={{ width: `${progress}%` }}
                 />
               </div>
@@ -431,28 +431,28 @@ export default function Joe() {
 
           {/* Build Result */}
           {buildResult && (
-            <div className="bg-gradient-to-br from-green-500/10 to-teal-500/10 border border-green-500/50 rounded-lg p-6">
-              <h3 className="text-xl font-bold text-green-400 mb-4">🎉 المشروع جاهز!</h3>
+            <div className="bg-gray-800/50 border border-green-500/50 rounded-lg p-6 shadow-2xl shadow-green-500/20">
+              <h3 className="text-xl font-bold text-green-400 mb-4 drop-shadow-[0_0_5px_rgba(0,255,0,0.5)]">🎉 المشروع جاهز!</h3>
               <div className="space-y-3">
                 <div>
-                  <p className="text-sm text-textDim mb-1">GitHub Repository:</p>
+                  <p className="text-sm text-gray-400 mb-1">GitHub Repository:</p>
                   <a
                     href={buildResult.githubUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-primary hover:underline break-all"
+                    className="text-cyan-400 hover:underline break-all"
                   >
                     {buildResult.githubUrl} ↗
                   </a>
                 </div>
                 {buildResult.liveUrl && (
                   <div>
-                    <p className="text-sm text-textDim mb-1">Live Website:</p>
+                    <p className="text-sm text-gray-400 mb-1">Live Website:</p>
                     <a
                       href={buildResult.liveUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-secondary hover:underline break-all"
+                      className="text-fuchsia-400 hover:underline break-all"
                     >
                       {buildResult.liveUrl} ↗
                     </a>
@@ -466,7 +466,7 @@ export default function Joe() {
         </div>
 
         {/* Input Area */}
-        <div className="border-t border-blue-200 bg-blue-50 p-4">
+        <div className="border-t border-indigo-700/50 bg-gray-800/50 p-4 backdrop-blur-md">
           {/* File Upload */}
           <div className="mb-4">
             <FileUpload onFileAnalyzed={(data) => {
@@ -485,7 +485,7 @@ export default function Joe() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="اكتب أو تحدث... (مثال: مرحباً جو، ابني متجر، طور نفسك)"
-              className="input-field flex-1 text-lg"
+              className="input-field flex-1 text-lg bg-gray-700/50 border border-indigo-700 text-white placeholder-gray-400 focus:ring-cyan-500 focus:border-cyan-500"
               disabled={isProcessing}
             />
             {canStop && (
@@ -511,14 +511,14 @@ export default function Joe() {
       {/* Token Modal */}
       {showTokenModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white border border-blue-200 rounded-lg p-6 max-w-md w-full relative shadow-xl">
-            <button
-              onClick={closeTokenModal}
-              className="absolute top-4 right-4 text-textDim hover:text-white text-2xl"
-            >
+          <div className="bg-gray-900 border border-indigo-700/50 rounded-lg p-6 max-w-md w-full relative shadow-2xl shadow-indigo-900/50">
+<button
+	              onClick={closeTokenModal}
+	              className="absolute top-4 right-4 text-gray-400 hover:text-cyan-400 text-2xl"
+	            >
               ×
             </button>
-            <h3 className="text-xl font-bold mb-4">
+            <h3 className="text-xl font-bold mb-4 text-cyan-400">
               {tokenType === 'github' && '🔑 GitHub Token Required'}
               {tokenType === 'cloudflare' && '🔑 Cloudflare Token Required'}
               {tokenType === 'render' && '🔑 Render Token Required'}
@@ -527,47 +527,48 @@ export default function Joe() {
             {tokenType === 'github' && (
               <>
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-textDim mb-2">
-                    GitHub Username
+               <label className="block text-sm font-medium text-gray-400 mb-2" all:true>               GitHub Username
                   </label>
-                  <input
-                    type="text"
-                    value={tokens.githubUsername}
-                    onChange={(e) => setTokens(prev => ({ ...prev, githubUsername: e.target.value }))}
-                    className="input-field w-full"
-                    placeholder="your-username"
-                  />
+<input
+	                    type="text"
+	                    value={tokens.githubUsername}
+	                    onChange={(e) => setTokens(prev => ({ ...prev, githubUsername: e.target.value }))}
+	                    className="input-field w-full bg-gray-700/50 border border-indigo-700 text-white placeholder-gray-400 focus:ring-cyan-500 focus:border-cyan-500"
+	                    placeholder="your-username"
+	                  />
                 </div>
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-textDim mb-2">
                     Personal Access Token
                   </label>
-                  <input
-                    type="password"
-                    value={tokenValue}
-                    onChange={(e) => setTokenValue(e.target.value)}
-                    className="input-field w-full"
-                    placeholder="ghp_xxxxxxxxxxxx"
-                  />
-                  <p className="text-xs text-textDim mt-2">
-                    Get it from: <a href="https://github.com/settings/tokens" target="_blank" className="text-primary hover:underline">GitHub Settings</a>
+<input
+	                    type="password"
+	                    value={tokenValue}
+	                    onChange={(e) => setTokenValue(e.target.value)}
+	                    className="input-field w-full bg-gray-700/50 border border-indigo-700 text-white placeholder-gray-400 focus:ring-cyan-500 focus:border-cyan-500"
+	                    placeholder="ghp_xxxxxxxxxxxx"
+	                  />
+                  <p className="text-xs text-gray-500 mt-2">
+                    Get it from: <a href="https://github.com/settings/tokens" target="_blank" className="text-cyan-400 hover:underline">GitHub Settings</a>
                   </p>
                 </div>
               </>
             )}
 
             <div className="flex gap-3">
-              <button
-                onClick={closeTokenModal}
-                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-all duration-200"
-              >
-                ❌ Cancel
-              </button>
-              <button
-                onClick={saveToken}
-                className="flex-1 btn-primary"
-                disabled={!tokenValue || (tokenType === 'github' && !tokens.githubUsername)}
-              >
+<button
+	                onClick={closeTokenModal}
+	                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-all duration-200"
+	              >
+	                ❌ Cancel
+	              </button>
+<button
+	                onClick={saveToken}
+	                className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded-lg transition-all duration-200 shadow-lg shadow-cyan-500/50"
+	                disabled={!tokenValue || (tokenType === 'github' && !tokens.githubUsername)}
+	              >
+	                💾 Save
+	              </button>
                 💾 Save
               </button>
             </div>
