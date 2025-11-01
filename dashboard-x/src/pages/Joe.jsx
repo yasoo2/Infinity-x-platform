@@ -358,21 +358,21 @@ export default function Joe() {
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <div className="bg-gradient-to-r from-primary/20 to-secondary/20 border-b border-borderDim p-6">
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-200 p-6">
           <h1 className="text-3xl font-bold mb-2">
-            <span className="text-neonGreen">Infinity</span>
-            <span className="text-neonBlue">X</span>
-            <span className="text-textDim text-xl ml-3">JOE - Just One Engine</span>
+            <span className="text-blue-600">Infinity</span>
+            <span className="text-indigo-600">X</span>
+            <span className="text-gray-600 text-xl ml-3">JOE - Just One Engine</span>
           </h1>
-          <p className="text-textDim">
-            اكتب أو تحدث معي، وسأقوم بكل شيء تلقائياً! 🚀
+          <p className="text-gray-600">
+            🚀 مساعدك الذكي لبناء وتطوير المشاريع
           </p>
         </div>
 
         {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-bgDark">
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-white">
           {messages.length === 0 && (
-            <div className="text-center text-textDim py-12">
+            <div className="text-center text-gray-500 py-12">
               <div className="text-6xl mb-4">🤖</div>
               <h2 className="text-2xl font-bold mb-2">مرحباً! أنا JOE</h2>
               <p className="mb-4">تحدث معي أو اكتب ما تريد!</p>
@@ -391,10 +391,10 @@ export default function Joe() {
               className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-[80%] rounded-lg p-4 ${
+                className={`max-w-[80%] rounded-lg p-4 shadow-sm ${
                   msg.type === 'user'
-                    ? 'bg-primary text-white'
-                    : 'bg-cardDark border border-borderDim'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-50 border border-gray-200 text-gray-800'
                 }`}
               >
                 <div className="flex items-start gap-3">
@@ -415,12 +415,12 @@ export default function Joe() {
 
           {/* Progress Bar */}
           {isProcessing && progress > 0 && (
-            <div className="bg-cardDark border border-borderDim rounded-lg p-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex justify-between text-sm mb-2">
                 <span className="text-textDim">{currentStep}</span>
                 <span className="text-primary font-bold">{progress}%</span>
               </div>
-              <div className="w-full bg-bgDark rounded-full h-3">
+              <div className="w-full bg-gray-200 rounded-full h-3">
                 <div
                   className="bg-gradient-to-r from-primary to-secondary h-3 rounded-full transition-all duration-500 animate-pulse"
                   style={{ width: `${progress}%` }}
@@ -466,7 +466,7 @@ export default function Joe() {
         </div>
 
         {/* Input Area */}
-        <div className="border-t border-borderDim bg-cardDark p-4">
+        <div className="border-t border-blue-200 bg-blue-50 p-4">
           {/* File Upload */}
           <div className="mb-4">
             <FileUpload onFileAnalyzed={(data) => {
@@ -510,8 +510,8 @@ export default function Joe() {
 
       {/* Token Modal */}
       {showTokenModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-cardDark border border-borderDim rounded-lg p-6 max-w-md w-full relative">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white border border-blue-200 rounded-lg p-6 max-w-md w-full relative shadow-xl">
             <button
               onClick={closeTokenModal}
               className="absolute top-4 right-4 text-textDim hover:text-white text-2xl"
