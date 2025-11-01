@@ -635,18 +635,23 @@ async function initializeWorkerManager() {
     }
   }
 
-  // Try BullMQ if REDIS_URL is available (ioredis)
-  if (process.env.REDIS_URL) {
-    try {
-      console.log('🔄 Attempting to start BullMQ Worker Manager...');
-      workerManager = new BullMQWorkerManager();
-      await workerManager.start();
-      console.log('✅ BullMQ Worker Manager started successfully');
-      return;
-    } catch (error) {
-      console.warn('⚠️ BullMQ failed, falling back to SimpleWorkerManager:', error.message);
-    }
-  }
+	  // Try BullMQ if REDIS_URL is available (ioredis)
+	  if (process.env.REDIS_URL) {
+	    // التحقق من اتصال Redis قبل محاولة بدء BullMQ
+	    if (BullMQWorkerManager.isConnected()) {
+	      try {
+	        console.log('🔄 Attempting to start BullMQ Worker Manager...');
+	        workerManager = new BullMQWorkerManager();
+	        await workerManager.start();
+	        console.log('✅ BullMQ Worker Manager started successfully');
+	        return;
+	      } catch (error) {
+	        console.warn('⚠️ BullMQ failed, falling back to SimpleWorkerManager:', error.message);
+	      }
+	    } else {
+	      console.warn('⚠️ Redis connection failed. Skipping BullMQ Worker Manager.');
+	    }
+	  }
 
   // Fallback to SimpleWorkerManager
   try {

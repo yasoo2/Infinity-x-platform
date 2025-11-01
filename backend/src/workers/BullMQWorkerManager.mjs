@@ -34,11 +34,14 @@ try {
   });
 } catch (error) {
   console.error('❌ Failed to create Redis connection:', error.message);
-  throw error;
+  // لا نرمي الخطأ هنا. بدلاً من ذلك، نترك `connection` كـ `null`
+  // ونسمح لـ `server.mjs` بالانتقال إلى Fallback
+  connection = null;
 }
 
 // Create BullMQ Queue
-export const factoryQueue = new Queue('factory-jobs', { connection });
+// نستخدم `connection` فقط إذا لم يكن `null`
+export const factoryQueue = connection ? new Queue('factory-jobs', { connection }) : null;
 
 export class BullMQWorkerManager {
   constructor() {
@@ -47,6 +50,9 @@ export class BullMQWorkerManager {
   }
 
   async start() {
+    if (!connection || !factoryQueue) {
+      throw new Error('Redis connection is not available. Cannot start BullMQ Worker Manager.');
+    }
     try {
       await initMongo();
       this.db = getDB();
@@ -193,6 +199,11 @@ export class BullMQWorkerManager {
       await this.worker.close();
       console.log('✅ BullMQ Worker stopped');
     }
+  }
+
+  // إضافة دالة للتحقق من حالة الاتصال
+  static isConnected() {
+    return !!connection;
   }
 }
 
