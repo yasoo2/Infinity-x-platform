@@ -1,4 +1,40 @@
-return (
+import React, { useState, useEffect, useCallback } from 'react';
+import ChatSidebar from '../components/ChatSidebar';
+import FileUpload from '../components/FileUpload';
+import { useJoeChat } from '../hooks/useJoeChat'; // This is an assumption, the actual hook might be different
+
+const Joe = () => {
+  // These state variables and handlers need to be defined within the component.
+  // I'm assuming they come from a custom hook like `useJoeChat`.
+  const {
+    userId,
+    conversations,
+    currentConversation,
+    messages,
+    isProcessing,
+    progress,
+    currentStep,
+    buildResult,
+    canStop,
+    input,
+    setInput,
+    isListening,
+    showTokenModal,
+    tokenType,
+    tokenValue,
+    setTokenValue,
+    tokens,
+    setTokens,
+    handleConversationSelect,
+    handleNewConversation,
+    handleSend,
+    stopProcessing,
+    handleVoiceInput,
+    saveToken,
+    closeTokenModal
+  } = useJoeChat();
+
+  return (
     <div className="h-[calc(100vh-4rem)] flex bg-gray-900 text-white">
       {/* Chat Sidebar */}
       <ChatSidebar
@@ -19,7 +55,7 @@ return (
             <span className="text-gray-400 text-xl ml-3">JOE - Just One Engine</span>
           </h1>
           <p className="text-gray-400">
-            🚀 مساعدك الذكي لبناء وتطوير المشاريع
+            🚀 Your intelligent assistant for building and developing projects
           </p>
         </div>
 
@@ -28,12 +64,12 @@ return (
           {messages.length === 0 && (
             <div className="text-center text-gray-500 py-12 bg-gray-800/30 rounded-xl p-8">
               <div className="text-6xl mb-4 animate-pulse">🤖</div>
-              <h2 className="text-2xl font-bold mb-2 text-cyan-400">مرحباً! أنا JOE</h2>
-              <p className="text-gray-400 mb-4">تحدث معي أو اكتب ما تريد!</p>
+              <h2 className="text-2xl font-bold mb-2 text-cyan-400">Welcome! I'm JOE</h2>
+              <p className="text-gray-400 mb-4">Talk to me or type what you want!</p>
               <div className="text-sm space-y-2 text-gray-400">
-                <p>💬 مثال: "مرحباً جو"</p>
-                <p>🏪 مثال: "ابني متجر إلكتروني للإكسسوارات"</p>
-                <p>🧬 مثال: "طور نفسك"</p>
+                <p>💬 Example: "Hello Joe"</p>
+                <p>🏪 Example: "Build an e-commerce store for accessories"</p>
+                <p>🧬 Example: "Evolve yourself"</p>
               </div>
             </div>
           )}
@@ -53,7 +89,7 @@ return (
                 <div className="flex items-start gap-3">
                   <div className="flex-1">
                     <div className="font-medium mb-1">
-                      {msg.type === 'user' ? 'أنت' : 'JOE'}
+                      {msg.type === 'user' ? 'You' : 'JOE'}
                     </div>
                     <div className="leading-relaxed">
                       {msg.content}
@@ -85,7 +121,7 @@ return (
           {/* Build Result */}
           {buildResult && (
             <div className="bg-gray-800/50 border border-green-500/50 rounded-lg p-6 shadow-2xl shadow-green-500/20">
-              <h3 className="text-xl font-bold text-green-400 mb-4 drop-shadow-[0_0_5px_rgba(0,255,0,0.5)]">🎉 المشروع جاهز!</h3>
+              <h3 className="text-xl font-bold text-green-400 mb-4 drop-shadow-[0_0_5px_rgba(0,255,0,0.5)]">🎉 Project Ready!</h3>
               <div className="space-y-3">
                 <div>
                   <p className="text-sm text-gray-400 mb-1">GitHub Repository:</p>
@@ -121,7 +157,7 @@ return (
           {/* File Upload */}
           <div className="mb-4">
             <FileUpload onFileAnalyzed={(data) => {
-              setInput(prev => prev + `\n\nملف مرفوع: ${data.fileName}\n${data.content}`);
+              setInput(prev => prev + `\n\nUploaded file: ${data.fileName}\n${data.content}`);
             }} />
           </div>
 
@@ -141,7 +177,7 @@ return (
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="اكتب أو تحدث... (مثال: مرحباً جو، ابني متجر، طور نفسك)"
+              placeholder="Type or speak... (e.g., Hello Joe, build a store, evolve yourself)"
               className="input-field flex-1 text-lg bg-gray-700/50 border border-indigo-700 text-white placeholder-gray-400 focus:ring-cyan-500 focus:border-cyan-500"
               disabled={isProcessing}
             />
@@ -151,7 +187,7 @@ return (
                 onClick={stopProcessing}
                 className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-lg transition-all duration-200 shadow-lg shadow-red-500/50"
               >
-                ⏹️ إيقاف
+                ⏹️ Stop
               </button>
             )}
             
@@ -160,7 +196,7 @@ return (
               disabled={isProcessing || !input.trim()}
               className="bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg transition-all duration-200 shadow-lg shadow-cyan-500/50"
             >
-              ➤ إرسال
+              ➤ Send
             </button>
           </div>
         </div>
@@ -233,4 +269,7 @@ return (
         </div>
       )}
     </div>
-);
+  );
+};
+
+export default Joe;
