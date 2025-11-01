@@ -24,6 +24,7 @@ import { factoryRouter } from './src/routes/factoryRouter.js';
 import { publicSiteRouter } from './src/routes/publicSiteRouter.js';
 import { dashboardDataRouter } from './src/routes/dashboardDataRouter.js';
 import { SimpleWorkerManager } from './src/workers/SimpleWorkerManager.mjs';
+import { BullMQWorkerManager } from './src/workers/BullMQWorkerManager.mjs';
 import selfDesignRouter from './src/routes/selfDesign.mjs';
 import storeIntegrationRouter from './src/routes/storeIntegration.mjs';
 import universalStoreRouter from './src/routes/universalStore.mjs';
@@ -627,24 +628,38 @@ app.get('/api/factory/jobs', requireRole(ROLES.ADMIN), async (req, res) => {
 // =========================
 let workerManager;
 
-try {
-  workerManager = new SimpleWorkerManager({
-    maxConcurrent: 3
-  });
+// Try BullMQ first, fallback to SimpleWorkerManager
+async function initializeWorkerManager() {
+  // Try BullMQ if REDIS_URL is available
+  if (process.env.REDIS_URL) {
+    try {
+      console.log('🔄 Attempting to start BullMQ Worker Manager...');
+      workerManager = new BullMQWorkerManager();
+      await workerManager.start();
+      console.log('✅ BullMQ Worker Manager started successfully');
+      return;
+    } catch (error) {
+      console.warn('⚠️ BullMQ failed, falling back to SimpleWorkerManager:', error.message);
+    }
+  }
 
-  // Start Worker Manager
-  workerManager.start().then(() => {
-    console.log('✅ Worker Manager started successfully');
-  }).catch((error) => {
-    console.error('❌ Worker Manager failed to start:', error);
-  });
-} catch (error) {
-  console.error('❌ Failed to initialize Worker Manager:', error);
-  workerManager = {
-    isRunning: false,
-    getStats: () => ({ error: 'Worker Manager not available' })
-  };
+  // Fallback to SimpleWorkerManager
+  try {
+    console.log('🔄 Starting SimpleWorkerManager...');
+    workerManager = new SimpleWorkerManager({ maxConcurrent: 3 });
+    await workerManager.start();
+    console.log('✅ SimpleWorkerManager started successfully');
+  } catch (error) {
+    console.error('❌ All Worker Managers failed to start:', error);
+    workerManager = {
+      isRunning: false,
+      getStats: () => ({ error: 'Worker Manager not available' })
+    };
+  }
 }
+
+// Start Worker Manager
+initializeWorkerManager();
 
 // Worker Manager stats endpoint
 app.get('/api/worker/stats', (req, res) => {
