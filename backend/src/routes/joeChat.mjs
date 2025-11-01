@@ -129,6 +129,7 @@ function detectAction(message) {
       lower.includes('تحقق') || lower.includes('check') ||
       lower.includes('اقرأ') || lower.includes('read') ||
       lower.includes('عدل') || lower.includes('modify') ||
+      lower.includes('غير') || lower.includes('change') ||
       lower.includes('حدث') || lower.includes('update') ||
       lower.includes('ملفات') || lower.includes('files') ||
       lower.includes('مستودع') || lower.includes('repository') ||
