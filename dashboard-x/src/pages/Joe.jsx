@@ -36,6 +36,7 @@ const Joe = () => {
   } = useJoeChat();
 
   return (
+    <>
     <div className="h-[calc(100vh-4rem)] flex bg-gray-950 text-white">
       {/* Chat Sidebar */}
       <ChatSidebar
@@ -250,7 +251,6 @@ const Joe = () => {
                 </div>
               </>
             )}
-
             <div className="flex gap-3">
               <button
                 onClick={closeTokenModal}
@@ -270,13 +270,13 @@ const Joe = () => {
         </div>
       )}
     </div>
-    
     {/* Joe's Computer Screen (Bottom Right) */}
     <JoeScreen 
       currentStep={currentStep} 
       isProcessing={isProcessing} 
       progress={progress} 
     />
+    </>
   );
 };
 
