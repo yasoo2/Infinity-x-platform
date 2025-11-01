@@ -13,6 +13,8 @@ import { ToolsSystem } from './tools/ToolsSystem.mjs';
 import { BrowserTool } from './tools/BrowserTool.mjs';
 import { CodeTool } from './tools/CodeTool.mjs';
 import { FileTool } from './tools/FileTool.mjs';
+import { SearchTool } from './tools/SearchTool.mjs';
+import { ShellTool } from './tools/ShellTool.mjs';
 
 // تحميل متغيرات البيئة
 dotenv.config();
@@ -69,9 +71,15 @@ class JOEngine {
     const fileTool = new FileTool();
     this.toolsSystem.registerTool('file', fileTool);
 
+    // Search Tool
+    const searchTool = new SearchTool();
+    this.toolsSystem.registerTool('search', searchTool);
+
+    // Shell Tool
+    const shellTool = new ShellTool();
+    this.toolsSystem.registerTool('shell', shellTool);
+
     // TODO: إضافة المزيد من الأدوات
-    // - SearchTool
-    // - ShellTool
     // - APITool
     // - DatabaseTool
     // - DeployTool

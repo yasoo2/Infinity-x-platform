@@ -48,9 +48,8 @@ Your tools:
 - browser: Browse web pages, analyze content, fill forms
 - code: Write, edit, execute, analyze, and search code (Python, JavaScript, etc.)
 - file: Read, write, delete, and list files and directories
-- file: Read, write, and modify files
-- shell: Execute system commands
-- search: Search the internet (Google, Bing)
+- search: Search the internet for up-to-date information
+- shell: Execute system shell commands (e.g., ls, mkdir, npm install)
 - api: Call any external API
 - database: Connect to any database (SQL, NoSQL)
 - deploy: Deploy projects to cloud platforms
