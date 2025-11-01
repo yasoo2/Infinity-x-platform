@@ -1,9 +1,9 @@
 import express from 'express';
 import axios from 'axios';
-import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const router = express.Router();
-const openai = new OpenAI(); // Uses OPENAI_API_KEY from env
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // JOE Chat - Smart responses WITH REAL ACTIONS
 router.post('/chat', async (req, res) => {
@@ -75,12 +75,9 @@ ${conversationHistory}
 
     systemPrompt += `\n\n**Respond in Arabic, naturally and friendly. If an action was performed, tell the user what happened and provide the GitHub URL if available.**`;
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4.1-mini',
-      messages: [{ role: 'user', content: systemPrompt }],
-      temperature: 0.7
-    });
-    const response = completion.choices[0].message.content;
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    const result = await model.generateContent(systemPrompt);
+    const response = result.response.text();
 
     res.json({
       ok: true,

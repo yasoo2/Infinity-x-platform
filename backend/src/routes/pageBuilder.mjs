@@ -1,12 +1,12 @@
 import express from 'express';
 import { Octokit } from '@octokit/rest';
 import axios from 'axios';
-import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const router = express.Router();
 
-// Initialize OpenAI (uses OPENAI_API_KEY from env)
-const openai = new OpenAI();
+// Initialize Gemini (uses GEMINI_API_KEY from env)
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // Initialize GitHub (will use user's token from request)
 const createGitHubClient = (token) => {
@@ -146,14 +146,10 @@ router.post('/preview', async (req, res) => {
 async function generateCode(projectType, description, style, features) {
   const prompt = buildPrompt(projectType, description, style, features);
   
-  // Use OpenAI-compatible API with gpt-4.1-mini
-  const completion = await openai.chat.completions.create({
-    model: 'gpt-4.1-mini',
-    messages: [{ role: 'user', content: prompt }],
-    temperature: 0.7
-  });
-  
-  let generatedText = completion.choices[0].message.content;
+  // Use Gemini API
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+  const result = await model.generateContent(prompt);
+  let generatedText = result.response.text();
 
   // Parse the generated code into files
   const code = parseGeneratedCode(generatedText, projectType);
