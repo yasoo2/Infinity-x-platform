@@ -250,7 +250,6 @@ const Joe = () => {
                 </div>
               </>
             )}
-
             <div className="flex gap-3">
               <button
                 onClick={closeTokenModal}
@@ -270,7 +269,6 @@ const Joe = () => {
         </div>
       )}
     </div>
-    
     {/* Joe's Computer Screen (Bottom Right) */}
     <JoeScreen 
       currentStep={currentStep} 
