@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import ChatSidebar from '../components/ChatSidebar';
 import FileUpload from '../components/FileUpload';
-import { useJoeChat } from '../hooks/useJoeChat'; // This is an assumption, the actual hook might be different
+import { useJoeChat } from '../hooks/useJoeChat.js'; // This is an assumption, the actual hook might be different
 
 const Joe = () => {
   // These state variables and handlers need to be defined within the component.
