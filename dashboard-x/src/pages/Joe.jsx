@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import ChatSidebar from '../components/ChatSidebar';
 import FileUpload from '../components/FileUpload';
 import { useJoeChat } from '../hooks/useJoeChat.js'; // This is an assumption, the actual hook might be different
@@ -32,8 +32,16 @@ const Joe = () => {
     stopProcessing,
     handleVoiceInput,
     saveToken,
-    closeTokenModal
+    closeTokenModal,
+    transcript // إضافة transcript
   } = useJoeChat();
+
+  // تأثير جانبي للتعامل مع نتيجة الإملاء الصوتي
+  React.useEffect(() => {
+    if (transcript) {
+      setInput(transcript);
+    }
+  }, [transcript, setInput]);
 
   return (
     <>
