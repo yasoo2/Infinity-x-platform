@@ -8,7 +8,7 @@
  * - التعلم من الأخطاء وتحسين الخطط
  */
 
-import { OpenAI } from 'openai';
+import OpenAI from 'openai';
 import { CodeModificationEngine } from './CodeModificationEngine.mjs';
 import { SmartPageBuilder } from './SmartPageBuilder.mjs';
 
