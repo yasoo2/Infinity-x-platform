@@ -144,7 +144,7 @@ export const useJoeChat = () => {
         },
       });
     }
-  }, [input, state.isProcessing, state.currentConversation, tokens, state.messages]);
+  }, [input, state.isProcessing, state.currentConversation, tokens, state.messages, setInput]);
 
   const stopProcessing = useCallback(() => {
     // هنا يجب أن يتم إرسال طلب إلى API لإيقاف العملية
