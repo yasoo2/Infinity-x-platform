@@ -9,8 +9,13 @@
  */
 
 import { OpenAI } from 'openai';
+import { CodeModificationEngine } from './CodeModificationEngine.mjs';
+import { SmartPageBuilder } from './SmartPageBuilder.mjs';
 
 export class ReasoningEngine {
+  // تهيئة المحركات الجديدة
+  codeModEngine;
+  pageBuilder;
   constructor(config) {
     this.config = config;
     this.openai = new OpenAI({
@@ -18,6 +23,10 @@ export class ReasoningEngine {
     });
     // تحديث النموذج الافتراضي بناءً على طلب المستخدم
     this.config.model = 'gpt-4o-mini';
+    
+    // تهيئة المحركات الجديدة
+    this.codeModEngine = new CodeModificationEngine(config);
+    this.pageBuilder = new SmartPageBuilder(config);
     
 	    this.memory = {
 	      shortTerm: [],  // الذاكرة قصيرة المدى (المحادثة الحالية)
@@ -44,6 +53,8 @@ Your capabilities:
 - Browse the web and gather information
 - Modify and improve existing systems
 - Develop yourself using modern software engineering practices
+- **CRITICAL RULE:** All code modifications MUST be planned and executed safely using the Code Modification Engine to prevent system corruption.
+- **CRITICAL RULE:** All page designs and updates MUST be handled by the Smart Page Builder Engine.
 
 Your tools:
 - browser: Browse web pages, analyze content, fill forms

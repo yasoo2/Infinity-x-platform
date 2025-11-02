@@ -2,11 +2,49 @@ import express from 'express';
 import { Octokit } from '@octokit/rest';
 import axios from 'axios';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { ReasoningEngine } from '../../../joengine-agi/engines/ReasoningEngine.mjs'; // استيراد محرك الاستدلال
 
 const router = express.Router();
 
+// تهيئة محرك الاستدلال ومحرك تصميم الصفحات
+const reasoningEngine = new ReasoningEngine({ openaiApiKey: process.env.OPENAI_API_KEY });
+const pageBuilderEngine = reasoningEngine.pageBuilder;
 // Initialize Gemini (uses GEMINI_API_KEY from env)
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+// إضافة نقطة نهاية جديدة لتصميم الصفحات الذكي
+router.post('/smart-design', async (req, res) => {
+  try {
+    const { pageDescription, targetFolder = 'public-site' } = req.body;
+
+    if (!pageDescription) {
+      return res.status(400).json({ ok: false, error: 'Missing required field: pageDescription' });
+    }
+
+    // استخدام محرك تصميم الصفحات الذكي
+    const result = await pageBuilderEngine.generatePageCode(pageDescription, targetFolder);
+
+    if (!result.success) {
+      return res.status(500).json({ ok: false, error: result.message });
+    }
+
+    // هنا يجب أن يتم حفظ الملف في النظام الفعلي
+    // بما أننا نعمل في بيئة افتراضية، سنفترض أن هذه الخطوة ستتم لاحقًا
+    // أو سيتم إرسال الكود إلى واجهة المستخدم ليتم حفظه عبر GitHub API
+
+    res.json({
+      ok: true,
+      message: result.message,
+      fileName: result.fileName,
+      fullPath: result.fullPath,
+      code: result.code
+    });
+
+  } catch (error) {
+    console.error('❌ Smart Design Error:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
 
 // Initialize GitHub (will use user's token from request)
 const createGitHubClient = (token) => {
@@ -49,8 +87,8 @@ router.post('/create', async (req, res) => {
 
     console.log(`🎨 Creating ${projectType}: ${description.substring(0, 50)}...`);
 
-    // Step 1: Generate code with AI
-    console.log('📝 Step 1: Generating code with AI...');
+    // Step 1: Generate code with AI (using the old method for compatibility)
+    console.log('📝 Step 1: Generating code with AI (Legacy Method)...');
     const code = await generateCode(projectType, description, style, features);
 
     // Step 2: Create/Update GitHub repository

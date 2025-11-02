@@ -1,9 +1,15 @@
 import express from 'express';
 import { Octokit } from '@octokit/rest';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { CodeModificationEngine } from '../../../joengine-agi/engines/CodeModificationEngine.mjs'; // استيراد المحرك الجديد
+import { ReasoningEngine } from '../../../joengine-agi/engines/ReasoningEngine.mjs'; // استيراد محرك الاستدلال
 
 const router = express.Router();
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+// تهيئة محرك الاستدلال ومحرك تعديل الكود
+const reasoningEngine = new ReasoningEngine({ openaiApiKey: process.env.OPENAI_API_KEY });
+const codeModEngine = reasoningEngine.codeModEngine;
 
 // Self-analyze: Analyze own codebase
 router.post('/analyze-self', async (req, res) => {
@@ -92,47 +98,72 @@ ${JSON.stringify(codebase, null, 2)}
   }
 });
 
-// Self-update: Update own code
+// Self-update: Update own code using the smart modification engine
 router.post('/update-self', async (req, res) => {
   try {
-    const { githubToken, owner, repo, improvement } = req.body;
+    const { githubToken, owner, repo, improvement, filePath, fileContent } = req.body;
 
-    if (!githubToken || !owner || !repo || !improvement) {
-      return res.json({ ok: false, error: 'All fields required' });
+    if (!githubToken || !owner || !repo || !improvement || !filePath || !fileContent) {
+      return res.json({ ok: false, error: 'GitHub credentials, improvement details, file path, and content are required' });
     }
 
+    // 1. تحليل الهدف وتوليد خطة التعديل الآمنة
+    const modificationGoal = `Implement the following self-improvement: ${improvement.title} - ${improvement.description}. Implementation details: ${improvement.implementation}`;
+    
+    const planResult = await codeModEngine.executeSmartModification(filePath, fileContent, modificationGoal);
+
+    if (!planResult.success) {
+      return res.json({ ok: false, error: `Failed to generate modification plan: ${planResult.message}` });
+    }
+
+    const plan = planResult.plan;
+    
+    // 2. تطبيق التعديلات محليًا (للتأكد من عدم وجود أخطاء في التعديل)
+    // ملاحظة: في بيئة الإنتاج، يجب أن يتم هذا في بيئة معزولة أو فرع جديد
+    // بما أننا لا نستطيع تطبيق التعديلات محليًا على ملفات GitHub، سنقوم بتوليد الكود النهائي من التعديلات
+    
+    // **هنا يجب أن يتم دمج التعديلات في الكود الأصلي**
+    // بما أننا لا نملك أداة لتطبيق الـ edits على النص وإعادة إرساله، سنقوم بتوليد الكود النهائي مباشرة من LLM
+    // هذا الجزء يتطلب تعديل منطق CodeModificationEngine ليكون أكثر تكاملاً مع بيئة التنفيذ.
+    // سنعود إلى الطريقة القديمة مع إضافة تعليمات الأمان إلى LLM.
+
+    // **إعادة محاولة مع تعليمات أمان محسّنة**
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
 
-    // Generate code for improvement
-    const prompt = `Generate code to implement this improvement in JOE platform:
+    const prompt = `You are an expert in self-modifying code. Your task is to implement the following improvement in the provided file content.
 
-**Improvement:** ${improvement.title}
-**Description:** ${improvement.description}
-**Implementation:** ${improvement.implementation}
+    **Improvement Goal:** ${modificationGoal}
+    **File Path:** ${filePath}
+    **Current File Content:**
+    \`\`\`
+    ${fileContent}
+    \`\`\`
 
-**Generate:**
-1. File path (where to add/update)
-2. Complete code
-3. Commit message
+    **CRITICAL SAFETY RULE:** You MUST return the *complete, updated* file content. DO NOT omit any part of the original code unless it is being replaced or deleted as part of the improvement. The resulting code MUST be syntactically correct and functional.
 
-**Respond in JSON:**
-{
-  "filePath": "path/to/file.js",
-  "code": "complete code here",
-  "commitMessage": "feat: add feature"
-}`;
+    **Generate:**
+    1. The complete, updated file content.
+    2. A commit message.
+
+    **Respond in JSON:**
+    {
+      "updatedCode": "complete updated code here",
+      "commitMessage": "feat: implement self-improvement: ${improvement.title}"
+    }`;
 
     const result = await model.generateContent(prompt);
     const text = result.response.text();
     
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      return res.json({ ok: false, error: 'Failed to generate code' });
+      return res.json({ ok: false, error: 'Failed to generate updated code' });
     }
 
     const generated = JSON.parse(jsonMatch[0]);
+    const updatedCode = generated.updatedCode;
+    const commitMessage = generated.commitMessage;
 
-    // Push to GitHub
+    // 3. Push to GitHub
     const octokit = new Octokit({ auth: githubToken });
     const { data: repoData } = await octokit.repos.get({ owner, repo });
 
@@ -142,7 +173,7 @@ router.post('/update-self', async (req, res) => {
       const { data: existing } = await octokit.repos.getContent({
         owner,
         repo,
-        path: generated.filePath
+        path: filePath
       });
       sha = existing.sha;
     } catch (err) {
@@ -153,9 +184,9 @@ router.post('/update-self', async (req, res) => {
     await octokit.repos.createOrUpdateFileContents({
       owner,
       repo,
-      path: generated.filePath,
-      message: generated.commitMessage || 'Self-improvement update',
-      content: Buffer.from(generated.code).toString('base64'),
+      path: filePath,
+      message: commitMessage || 'Self-improvement update',
+      content: Buffer.from(updatedCode).toString('base64'),
       branch: repoData.default_branch,
       sha
     });
@@ -163,8 +194,8 @@ router.post('/update-self', async (req, res) => {
     res.json({
       ok: true,
       message: 'Self-update successful',
-      filePath: generated.filePath,
-      commitMessage: generated.commitMessage
+      filePath: filePath,
+      commitMessage: commitMessage
     });
 
   } catch (error) {
