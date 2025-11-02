@@ -36,4 +36,11 @@
     "uuid": "^13.0.0",
     "ws": "^8.18.0"
   }
+  {
+  "name": "infinity-x-platform",
+  "private": true,
+  "workspaces": ["backend", "joengine-agi"]
+}
+
+
 }
