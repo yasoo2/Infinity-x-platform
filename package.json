@@ -1,0 +1,16 @@
+{
+  "name": "infinity-x-platform",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "dashboard-x",
+    "joengine-agi"
+  ],
+  "scripts": {
+    "install-all": "npm install --legacy-peer-deps"
+  },
+  "dependencies": {
+    "openai": "^4.77.0"
+  }
+}
