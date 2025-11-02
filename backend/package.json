@@ -10,6 +10,8 @@
     "@google/generative-ai": "^0.21.0",
     "@octokit/rest": "^22.0.0",
     "openai": "^4.77.0",
+
+
     "axios": "^1.13.1",
     "bcryptjs": "^2.4.3",
     "bullmq": "^5.63.0",
