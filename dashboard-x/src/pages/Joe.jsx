@@ -33,7 +33,8 @@ const Joe = () => {
     handleVoiceInput,
     saveToken,
     closeTokenModal,
-    transcript // إضافة transcript
+    transcript, // إضافة transcript
+    wsLog, // إضافة سجل WebSocket
   } = useJoeChat();
 
   // تأثير جانبي للتعامل مع نتيجة الإملاء الصوتي
@@ -280,9 +281,9 @@ const Joe = () => {
     </div>
     {/* Joe's Computer Screen (Bottom Right) */}
     <JoeScreen 
-      currentStep={currentStep} 
       isProcessing={isProcessing} 
       progress={progress} 
+      wsLog={wsLog}
     />
     </>
   );

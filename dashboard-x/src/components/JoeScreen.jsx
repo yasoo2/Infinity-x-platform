@@ -1,46 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { Terminal, Code, Cpu } from 'lucide-react';
 
-const JoeScreen = ({ currentStep, isProcessing, progress }) => {
-  const [log, setLog] = useState([]);
+const JoeScreen = ({ isProcessing, progress, wsLog }) => {
+  // Use the real-time log passed from the hook
+  const log = wsLog;
 
-  useEffect(() => {
-    if (currentStep) {
-      setLog(prevLog => {
-        // Prevent adding the same step multiple times
-        if (prevLog.length > 0 && prevLog[prevLog.length - 1].text === currentStep) {
-          return prevLog;
-        }
-        return [...prevLog, { id: Date.now(), text: currentStep, type: 'info' }];
-      });
-    }
-  }, [currentStep]);
+  // Scroll to the bottom of the log whenever it updates
+  const logEndRef = React.useRef(null);
+  const scrollToBottom = () => {
+    logEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
-  // Simulate a dynamic log for demonstration
-  useEffect(() => {
-    if (isProcessing) {
-      const interval = setInterval(() => {
-        const messages = [
-          "Running pre-flight checks...",
-          "Establishing secure connection to Render...",
-          "Parsing instructions for next action...",
-          "Executing code analysis on target file...",
-          "Applying xEliteSolutions theme changes...",
-          "Compiling new component: JoeScreen.jsx...",
-          "Git: Staging changes for commit...",
-          "Git: Pushing to remote repository...",
-        ];
-        const randomMessage = messages[Math.floor(Math.random() * messages.length)];
-        setLog(prevLog => {
-          if (prevLog.length > 10) {
-            prevLog.shift(); // Keep log size manageable
-          }
-          return [...prevLog, { id: Date.now() + Math.random(), text: randomMessage, type: 'system' }];
-        });
-      }, 1500);
-      return () => clearInterval(interval);
-    }
-  }, [isProcessing]);
+  React.useEffect(() => {
+    scrollToBottom();
+  }, [log]);
+
+  // Removed all simulated log logic (useEffect with currentStep and setInterval)
 
   const getStatusIcon = () => {
     if (isProcessing) return <Cpu className="w-4 h-4 text-fuchsia-400 animate-pulse" />;
@@ -53,19 +28,20 @@ const JoeScreen = ({ currentStep, isProcessing, progress }) => {
       <div className="flex items-center justify-between p-2 bg-gray-800/70 border-b border-cyan-500/50">
         <div className="flex items-center gap-2">
           {getStatusIcon()}
-          <span className="text-sm font-bold text-white">JOE's Terminal</span>
+          <span className="text-sm font-bold text-white">طرفية جو (JOE's Terminal)</span>
         </div>
-        <span className="text-xs text-gray-400">{isProcessing ? `Progress: ${progress}%` : 'Idle'}</span>
+        <span className="text-xs text-gray-400">{isProcessing ? `التقدم: ${progress}%` : 'جاهز'}</span>
       </div>
 
       {/* Log Area */}
       <div className="h-full p-2 overflow-y-auto text-xs font-mono" style={{ height: 'calc(100% - 32px)' }}>
-        {log.map((entry) => (
-          <div key={entry.id} className={`flex gap-1 ${entry.type === 'system' ? 'text-gray-400' : 'text-cyan-400'}`}>
-            <span className="text-fuchsia-400">[{new Date(entry.id).toLocaleTimeString()}]</span>
+        {log.map((entry, index) => (
+          <div key={entry.id || index} className={`flex gap-1 ${entry.type === 'system' ? 'text-gray-400' : entry.type === 'error' ? 'text-red-400' : 'text-cyan-400'}`}>
+            <span className="text-fuchsia-400">[{new Date(entry.id || Date.now()).toLocaleTimeString()}]</span>
             <span>{entry.text}</span>
           </div>
         ))}
+        <div ref={logEndRef} />
       </div>
     </div>
   );

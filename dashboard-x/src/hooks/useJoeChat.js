@@ -1,7 +1,7 @@
 // src/hooks/useJoeChat.js
 // تم تحديث هذا الملف لدمج منطق إدارة الحالة (useReducer) وتحسين الاتصال بـ API.
 // كما تم إعداد الدوال للعمل مع useSpeechRecognition.
-import { useState, useCallback, useReducer } from 'react';
+import { useState, useCallback, useReducer, useEffect } from 'react';
 import axios from 'axios'; // لاستخدام API
 import { useSpeechRecognition } from './useSpeechRecognition'; // سيتم إنشاؤه لاحقًا لتبسيط منطق الميكروفون
 
@@ -48,6 +48,7 @@ export const useJoeChat = () => {
   const [tokenType, setTokenType] = useState('github');
   const [tokenValue, setTokenValue] = useState('');
   const [tokens, setTokens] = useState({ githubUsername: '' });
+  const [wsLog, setWsLog] = useState([]);
 
   // دمج منطق الميكروفون من useSpeechRecognition
   const { isListening, startListening, stopListening, transcript } = useSpeechRecognition();
@@ -59,6 +60,47 @@ export const useJoeChat = () => {
   // if (transcript && transcript !== input) {
   //   setInput(transcript);
   // }
+
+  // WebSocket Logic for Real-Time Logs
+  useEffect(() => {
+    const ws = new WebSocket('ws://localhost:8080/ws/joe-log'); // Assuming worker runs on localhost:8080
+
+    ws.onopen = () => {
+      console.log('WebSocket connection established for Joe logs.');
+      setWsLog(prev => [...prev, { id: Date.now(), text: 'WebSocket connection established for Joe logs.', type: 'system' }]);
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const logEntry = JSON.parse(event.data);
+        setWsLog(prev => {
+          // Keep log size manageable (e.g., last 50 entries)
+          const newLog = prev.length >= 50 ? prev.slice(1) : prev;
+          return [...newLog, logEntry];
+        });
+      } catch (e) {
+        console.error('Error parsing WebSocket message:', e);
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error('WebSocket Error:', error);
+      setWsLog(prev => [...prev, { id: Date.now(), text: `WebSocket Error: Could not connect to Joe's worker.`, type: 'error' }]);
+    };
+
+    ws.onclose = () => {
+      console.log('WebSocket connection closed.');
+      setWsLog(prev => [...prev, { id: Date.now(), text: 'WebSocket connection closed.', type: 'system' }]);
+    };
+
+    // Cleanup function to close the WebSocket connection when the component unmounts
+    return () => {
+      // Check if the WebSocket is open before closing
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+    };
+  }, []);
 
   // دالة لإرسال الرسالة
   const handleSend = useCallback(async () => {
@@ -204,5 +246,6 @@ export const useJoeChat = () => {
     saveToken,
     closeTokenModal,
     transcript, // إضافة transcript للوصول إليه في Joe.jsx
+    wsLog, // إضافة سجل WebSocket
   };
 };
