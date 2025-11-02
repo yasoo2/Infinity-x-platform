@@ -50,14 +50,14 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-bgDark px-4">
+    <div className="min-h-screen flex items-center justify-center bg-[#0a0b10] px-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-2">
             <span className="text-neonGreen">Infinity</span>
             <span className="text-neonBlue">X</span>
           </h1>
-          <p className="text-textDim">Dashboard X - Mission Control</p>
+          <p className="text-white">Dashboard X - Mission Control</p>
         </div>
 
         <div className="card">
@@ -73,7 +73,7 @@ export default function Login() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-textDim mb-2">
+              <label className="block text-sm font-medium text-white mb-2">
                 Email or Phone
               </label>
               <input
@@ -88,7 +88,7 @@ export default function Login() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-textDim mb-2">
+              <label className="block text-sm font-medium text-white mb-2">
                 Password
               </label>
               <input
@@ -112,7 +112,7 @@ export default function Login() {
           </form>
         </div>
 
-        <div className="mt-6 text-center text-xs text-textDim">
+        <div className="mt-6 text-center text-xs text-white">
           <p>InfinityX Platform © 2025</p>
           <p className="mt-1">Powered by JOEngine</p>
         </div>
