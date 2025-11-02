@@ -10,14 +10,20 @@ export const useSpeechRecognition = () => {
   const [transcript, setTranscript] = useState('');
   const [error, setError] = useState(null);
 
-  const recognition = SpeechRecognition ? new SpeechRecognition() : null;
+  // تهيئة recognition داخل useEffect لضمان أنها تحدث مرة واحدة فقط بعد تحميل المكون
+  const [recognition, setRecognition] = useState(null);
 
-  // إعدادات التعرف على الكلام
-  if (recognition) {
-    recognition.continuous = false; // يتوقف بعد جملة واحدة
-    recognition.interimResults = false; // لا يعرض النتائج المؤقتة
-    recognition.lang = 'ar-EG'; // دعم اللغة العربية (يمكن تغييره)
-  }
+  useEffect(() => {
+    if (SpeechRecognition) {
+      const newRecognition = new SpeechRecognition();
+      newRecognition.continuous = false; // يتوقف بعد جملة واحدة
+      newRecognition.interimResults = false; // لا يعرض النتائج المؤقتة
+      newRecognition.lang = 'ar-EG'; // دعم اللغة العربية (يمكن تغييره)
+      setRecognition(newRecognition);
+    } else {
+      setError('Speech Recognition not supported by this browser.');
+    }
+  }, []);
 
   const startListening = useCallback(() => {
     if (!recognition) {
