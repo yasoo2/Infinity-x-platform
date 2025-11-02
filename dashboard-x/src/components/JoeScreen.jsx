@@ -23,7 +23,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog }) => {
   };
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 w-80 h-64 bg-gray-900 border border-cyan-500/50 rounded-lg shadow-2xl shadow-cyan-900/50 overflow-hidden backdrop-blur-sm">
+    <div className="w-full h-full bg-gray-900 border border-cyan-500/50 rounded-lg shadow-2xl shadow-cyan-900/50 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between p-2 bg-gray-800/70 border-b border-cyan-500/50">
         <div className="flex items-center gap-2">
