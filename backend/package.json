@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "start": "node server.mjs",
+    "start": "npm install && node server.mjs",
     "dev": "node server.mjs"
   },
   "dependencies": {
