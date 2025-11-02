@@ -290,54 +290,8 @@ Response format (JSON):
 	      return analysis;
 	    }
 	
-	    return null;
-	  }
-
-    // تحليل التجربة
-    const messages = [
-      { role: 'system', content: this.systemPrompt },
-      {
-        role: 'user',
-        content: `Task: ${JSON.stringify(task)}
-Result: ${JSON.stringify(result)}
-Success: ${success}
-
-Please analyze this experience and extract key lessons.
-
-Response format (JSON):
-{
-  "analysis": "What happened",
-  "lessons": ["lesson 1", "lesson 2"],
-  "improvements": ["improvement 1", "improvement 2"],
-  "shouldRetry": true|false,
-  "alternativeApproach": "description if shouldRetry is true"
-}`
-      }
-    ];
-
-    try {
-	      const response = await this.openai.chat.completions.create({
-	        model: this.config.model,
-        messages,
-        temperature: 0.5,
-        response_format: { type: 'json_object' }
-      });
-
-      const learning = JSON.parse(response.choices[0].message.content);
-      experience.lessons = learning.lessons;
-      experience.improvements = learning.improvements;
-
-      // حفظ في الذاكرة طويلة المدى
-      this.memory.longTerm.push(experience);
-
-      console.log(`✅ Learned ${learning.lessons.length} lessons`);
-      
-      return learning;
-    } catch (error) {
-      console.error('❌ Learning error:', error.message);
-      return null;
-    }
-  }
+		    return null;
+		  }
 
   /**
    * تحسين خطة بناءً على ملاحظات
