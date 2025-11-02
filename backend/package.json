@@ -9,7 +9,7 @@
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
     "@octokit/rest": "^22.0.0",
-    "openai": "^4.77.0",
+
 
 
     "axios": "^1.13.1",
