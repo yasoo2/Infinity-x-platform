@@ -1,7 +1,7 @@
 // src/hooks/useJoeChat.js
 // تم تحديث هذا الملف لدمج منطق إدارة الحالة (useReducer) وتحسين الاتصال بـ API.
 // كما تم إعداد الدوال للعمل مع useSpeechRecognition.
-import { useState, useCallback, useReducer, useEffect } from 'react';
+import { useState, useCallback, useReducer, useEffect, useRef } from 'react';
 import axios from 'axios'; // لاستخدام API
 import { useSpeechRecognition } from './useSpeechRecognition'; // سيتم إنشاؤه لاحقًا لتبسيط منطق الميكروفون
 
@@ -42,6 +42,7 @@ const chatReducer = (state, action) => {
 };
 
 export const useJoeChat = () => {
+  const isMounted = useRef(true);
   const [state, dispatch] = useReducer(chatReducer, initialState);
   const [input, setInput] = useState('');
   const [showTokenModal, setShowTokenModal] = useState(false);
@@ -66,11 +67,13 @@ export const useJoeChat = () => {
     const ws = new WebSocket('ws://localhost:8080/ws/joe-log'); // Assuming worker runs on localhost:8080
 
     ws.onopen = () => {
+      if (!isMounted.current) return;
       console.log('WebSocket connection established for Joe logs.');
       setWsLog(prev => [...prev, { id: Date.now(), text: 'WebSocket connection established for Joe logs.', type: 'system' }]);
     };
 
     ws.onmessage = (event) => {
+      if (!isMounted.current) return;
       try {
         const logEntry = JSON.parse(event.data);
         setWsLog(prev => {
@@ -84,17 +87,20 @@ export const useJoeChat = () => {
     };
 
     ws.onerror = (error) => {
+      if (!isMounted.current) return;
       console.error('WebSocket Error:', error);
       setWsLog(prev => [...prev, { id: Date.now(), text: `WebSocket Error: Could not connect to Joe's worker.`, type: 'error' }]);
     };
 
     ws.onclose = () => {
+      if (!isMounted.current) return;
       console.log('WebSocket connection closed.');
       setWsLog(prev => [...prev, { id: Date.now(), text: 'WebSocket connection closed.', type: 'system' }]);
     };
 
     // Cleanup function to close the WebSocket connection when the component unmounts
     return () => {
+      isMounted.current = false; // Mark as unmounted
       // Check if the WebSocket is open before closing
       if (ws.readyState === WebSocket.OPEN) {
         ws.close();
