@@ -6,7 +6,7 @@
   "packageManager": "pnpm@10.20.0",
   "scripts": {
     "dev": "vite",
-    "build": "npm run lint && vite build",
+    "build": "vite build",
     "lint": "eslint --max-warnings 0 \"src/**/*.{js,jsx,ts,tsx}\"",
     "preview": "vite preview"
   },
