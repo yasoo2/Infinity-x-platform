@@ -71,7 +71,8 @@ const Joe = () => {
         </div>
 
         {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-transparent">
+        <div className="flex-1 overflow-y-auto p-6 bg-transparent flex">
+          <div className="flex-1 space-y-4">
           {messages.length === 0 && (
             <div className="text-center text-gray-500 py-12 bg-gray-800/20 border border-cyan-500/10 rounded-xl p-8 shadow-inner shadow-cyan-900/30">
               <div className="text-6xl mb-4 animate-pulse">🤖</div>
@@ -163,6 +164,17 @@ const Joe = () => {
           )}
         </div>
 
+        {/* Input Area */}
+        <div className="border-t border-cyan-500/50 bg-gray-900/50 p-4 backdrop-blur-md shadow-2xl shadow-cyan-900/20">
+          </div>
+          <div className="w-1/3 p-4">
+            <JoeScreen 
+              isProcessing={isProcessing} 
+              progress={progress} 
+              wsLog={wsLog}
+            />
+          </div>
+        </div>
         {/* Input Area */}
         <div className="border-t border-cyan-500/50 bg-gray-900/50 p-4 backdrop-blur-md shadow-2xl shadow-cyan-900/20">
           {/* File Upload */}
@@ -279,12 +291,7 @@ const Joe = () => {
         </div>
       )}
     </div>
-    {/* Joe's Computer Screen (Bottom Right) */}
-    <JoeScreen 
-      isProcessing={isProcessing} 
-      progress={progress} 
-      wsLog={wsLog}
-    />
+
     </>
   );
 };
