@@ -1,10 +1,13 @@
 import React, { useEffect } from 'react';
 import ChatSidebar from '../components/ChatSidebar';
 import FileUpload from '../components/FileUpload';
-import { useJoeChat } from '../hooks/useJoeChat.js'; // This is an assumption, the actual hook might be different
-import JoeScreen from '../components/JoeScreen.jsx';
+import { useJoeChat } from '../hooks/useJoeChat.js';
+import JoeDesktopView from '../components/JoeDesktopView.jsx';
 
 const Joe = () => {
+  // AI Engine State
+  const [aiEngine, setAiEngine] = React.useState('openai');
+
   // These state variables and handlers need to be defined within the component.
   // I'm assuming they come from a custom hook like `useJoeChat`.
   const {
@@ -37,6 +40,11 @@ const Joe = () => {
     wsLog, // إضافة سجل WebSocket
   } = useJoeChat();
 
+  // Wrap handleSend to include aiEngine
+  const handleSendWithEngine = async () => {
+    await handleSend(aiEngine);
+  };
+
   // تأثير جانبي للتعامل مع نتيجة الإملاء الصوتي
   React.useEffect(() => {
     if (transcript) {
@@ -60,14 +68,52 @@ const Joe = () => {
       <div className="flex-1 flex flex-col backdrop-blur-sm bg-gray-900/80">
         {/* Header */}
         <div className="border-b border-fuchsia-500/50 p-6 bg-gray-900/50 backdrop-blur-md shadow-xl shadow-fuchsia-900/20">
-          <h1 className="text-3xl font-bold mb-2">
-            <span className="text-cyan-400 drop-shadow-[0_0_5px_rgba(0,255,255,0.8)]">xElite</span>
-            <span className="text-fuchsia-400 drop-shadow-[0_0_5px_rgba(255,0,255,0.8)]">Solutions</span>
-            <span className="text-gray-500 text-xl ml-3">| AGI Platform</span>
-          </h1>
-          <p className="text-gray-400 font-light">
-            🚀 Your intelligent assistant for building and developing projects
-          </p>
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">
+                <span className="text-cyan-400 drop-shadow-[0_0_5px_rgba(0,255,255,0.8)]">xElite</span>
+                <span className="text-fuchsia-400 drop-shadow-[0_0_5px_rgba(255,0,255,0.8)]">Solutions</span>
+                <span className="text-gray-500 text-xl ml-3">| AGI Platform</span>
+              </h1>
+              <p className="text-gray-400 font-light">
+                🚀 Your intelligent assistant for building and developing projects
+              </p>
+            </div>
+            {/* AI Engine Switcher */}
+            <div className="flex gap-2 items-center">
+              <span className="text-sm text-gray-400 font-medium">AI Engine:</span>
+              <button
+                onClick={() => setAiEngine('openai')}
+                className={`px-4 py-2 rounded-lg transition-all duration-200 font-medium ${
+                  aiEngine === 'openai'
+                    ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/50'
+                    : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                }`}
+              >
+                🤖 OpenAI
+              </button>
+              <button
+                onClick={() => setAiEngine('gemini')}
+                className={`px-4 py-2 rounded-lg transition-all duration-200 font-medium ${
+                  aiEngine === 'gemini'
+                    ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/50'
+                    : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                }`}
+              >
+                ✨ Gemini
+              </button>
+              <button
+                onClick={() => setAiEngine('grok')}
+                className={`px-4 py-2 rounded-lg transition-all duration-200 font-medium ${
+                  aiEngine === 'grok'
+                    ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/50'
+                    : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                }`}
+              >
+                ⚡ Grok
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Messages Area */}
@@ -164,10 +210,11 @@ const Joe = () => {
           )}
           </div>
           <div className="w-1/3 p-4">
-            <JoeScreen 
+            <JoeDesktopView 
               isProcessing={isProcessing} 
               progress={progress} 
               wsLog={wsLog}
+              onVoiceInput={handleVoiceInput}
             />
           </div>
         </div>
@@ -212,7 +259,7 @@ const Joe = () => {
             )}
             
             <button
-              onClick={handleSend}
+              onClick={handleSendWithEngine}
               disabled={isProcessing || !input.trim()}
               className="bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg transition-all duration-200 shadow-lg shadow-cyan-500/50"
             >

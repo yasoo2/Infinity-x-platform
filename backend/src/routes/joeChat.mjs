@@ -1,6 +1,8 @@
 import express from 'express';
 import axios from 'axios';
 import OpenAI from 'openai';
+import { getGeminiEngine } from '../lib/geminiEngine.mjs';
+import { getGrokEngine } from '../lib/grokEngine.mjs';
 import { githubTools } from '../tools/githubTools.mjs';
 import { renderTools } from '../tools/renderTools.mjs';
 import { mongodbTools } from '../tools/mongodbTools.mjs';
@@ -11,11 +13,13 @@ import { detectTargetFiles } from '../tools/smartFileDetector.mjs';
 
 const router = express.Router();
 const openai = new OpenAI();
+const geminiEngine = getGeminiEngine();
+const grokEngine = getGrokEngine();
 
 // JOE Chat - Smart responses WITH REAL ACTIONS
 router.post('/chat', async (req, res) => {
   try {
-    const { message, context = [], userId = 'default' } = req.body;
+    const { message, context = [], userId = 'default', aiEngine = 'openai' } = req.body;
 
     if (!message) {
       return res.json({ ok: false, error: 'Message required' });
@@ -104,29 +108,38 @@ ${conversationHistory}
 
     systemPrompt += `\n\n**Respond in Arabic, naturally and friendly. If an action was performed, tell the user what happened and provide the GitHub URL if available.**`;
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: systemPrompt
-        },
-        {
-          role: 'user',
-          content: message
-        }
-      ],
-      temperature: 0.7,
-      max_tokens: 2000
-    });
-    
-    const response = completion.choices[0].message.content;
+    let response;
+    const engineLower = (aiEngine || 'openai').toLowerCase();
+
+    if (engineLower === 'gemini') {
+      response = await geminiEngine.generateCode(systemPrompt);
+    } else if (engineLower === 'grok') {
+      response = await grokEngine.generateResponse(systemPrompt, context);
+    } else {
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt
+          },
+          {
+            role: 'user',
+            content: message
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 2000
+      });
+      response = completion.choices[0].message.content;
+    }
 
     res.json({
       ok: true,
       response,
       action,
-      actionResult
+      actionResult,
+      aiEngine: engineLower
     });
 
   } catch (error) {

@@ -109,7 +109,7 @@ export const useJoeChat = () => {
   }, []);
 
   // دالة لإرسال الرسالة
-  const handleSend = useCallback(async () => {
+  const handleSend = useCallback(async (aiEngine = 'openai') => {
     if (!input.trim() || state.isProcessing) return;
 
     const userMessage = {
@@ -140,6 +140,7 @@ export const useJoeChat = () => {
         message: currentInput,
         conversationId: state.currentConversation,
         tokens: tokens,
+        aiEngine: aiEngine,
       });
 
       dispatch({ type: 'STOP_PROCESSING' });
