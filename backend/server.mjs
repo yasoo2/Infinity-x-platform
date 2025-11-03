@@ -287,11 +287,15 @@ app.post('/api/auth/bootstrap-super', async (req, res) => {
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { emailOrPhone, password } = req.body;
+    console.log('[LOGIN] Attempt with:', emailOrPhone);
+    
     if (!emailOrPhone || !password) {
+      console.log('[LOGIN] Missing fields');
       return res.status(400).json({ error: 'MISSING_FIELDS' });
     }
 
     const db = await initMongo();
+    console.log('[LOGIN] DB connected');
 
     const userDoc = await db.collection('users').findOne({
       $or: [
@@ -301,11 +305,17 @@ app.post('/api/auth/login', async (req, res) => {
     });
 
     if (!userDoc) {
+      console.log('[LOGIN] User not found:', emailOrPhone);
       return res.status(401).json({ error: 'BAD_CREDENTIALS' });
     }
 
+    console.log('[LOGIN] User found:', userDoc.email, 'has passwordHash:', !!userDoc.passwordHash);
+    
     const match = await bcrypt.compare(password, userDoc.passwordHash || '');
+    console.log('[LOGIN] Password match:', match);
+    
     if (!match) {
+      console.log('[LOGIN] Password mismatch for:', emailOrPhone);
       return res.status(401).json({ error: 'BAD_CREDENTIALS' });
     }
 
