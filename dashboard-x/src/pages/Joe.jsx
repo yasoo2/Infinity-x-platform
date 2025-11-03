@@ -46,7 +46,7 @@ const Joe = () => {
 
   return (
     <>
-    <div className="h-[calc(100vh-4rem)] flex bg-gray-950 text-white">
+    <div className="min-h-[calc(100vh-4rem)] flex bg-gray-950 text-white">
       {/* Chat Sidebar */}
       <ChatSidebar
         userId={userId}
