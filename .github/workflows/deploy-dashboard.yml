@@ -1,0 +1,42 @@
+name: Deploy Dashboard to Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'dashboard-x/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          
+      - name: Install dependencies
+        working-directory: ./dashboard-x
+        run: pnpm install
+        
+      - name: Build dashboard
+        working-directory: ./dashboard-x
+        run: pnpm build
+        
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: xelitesolutions
+          directory: dashboard-x/dist
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
