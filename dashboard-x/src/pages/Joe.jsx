@@ -162,8 +162,7 @@ const Joe = () => {
               </div>
             </div>
           )}
-        </div>
-
+          </div>
           <div className="w-1/3 p-4">
             <JoeScreen 
               isProcessing={isProcessing} 
