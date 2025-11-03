@@ -164,9 +164,6 @@ const Joe = () => {
           )}
         </div>
 
-        {/* Input Area */}
-        <div className="border-t border-cyan-500/50 bg-gray-900/50 p-4 backdrop-blur-md shadow-2xl shadow-cyan-900/20">
-          </div>
           <div className="w-1/3 p-4">
             <JoeScreen 
               isProcessing={isProcessing} 
@@ -175,6 +172,7 @@ const Joe = () => {
             />
           </div>
         </div>
+
         {/* Input Area */}
         <div className="border-t border-cyan-500/50 bg-gray-900/50 p-4 backdrop-blur-md shadow-2xl shadow-cyan-900/20">
           {/* File Upload */}
