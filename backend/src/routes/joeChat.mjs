@@ -55,6 +55,17 @@ router.post('/chat', async (req, res) => {
 
     // Generate AI response using OpenAI-compatible API
 
+    // Save user message to history
+    await mongodbTools.saveChatHistory({
+      userId,
+      role: 'user',
+      content: message,
+      action,
+      actionResult
+    });
+
+
+
     const conversationHistory = context.map(msg => 
       `${msg.role}: ${msg.content}`
     ).join('\n');
@@ -118,8 +129,28 @@ ${conversationHistory}
 
     if (engineLower === 'gemini') {
       response = await geminiEngine.generateResponse(systemPrompt, context);
+
+      // Save AI response to history
+      await mongodbTools.saveChatHistory({
+        userId,
+        role: 'assistant',
+        content: response,
+        aiEngine: engineLower
+      });
+
+
     } else if (engineLower === 'grok') {
       response = await grokEngine.generateResponse(systemPrompt, context);
+
+      // Save AI response to history
+      await mongodbTools.saveChatHistory({
+        userId,
+        role: 'assistant',
+        content: response,
+        aiEngine: engineLower
+      });
+
+
     } else {
       const completion = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
@@ -137,6 +168,16 @@ ${conversationHistory}
         max_tokens: 2000
       });
       response = completion.choices[0].message.content;
+
+      // Save AI response to history
+      await mongodbTools.saveChatHistory({
+        userId,
+        role: 'assistant',
+        content: response,
+        aiEngine: engineLower
+      });
+
+
     }
 
     res.json({

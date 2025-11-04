@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, Clock, X, ChevronDown, ChevronUp, Cpu } from 'lucide-react';
+import { Check, Clock, X, ChevronDown, ChevronUp, Cpu, Activity } from 'lucide-react';
 
 const mockTasks = [
   { id: 1, title: 'تحليل المكونات المطلوبة في الواجهة الأمامية', status: 'completed' },
@@ -20,7 +20,7 @@ const getStatusIcon = (status) => {
     case 'completed':
       return <Check className="w-4 h-4 text-green-400" />;
     case 'in_progress':
-      return <Clock className="w-4 h-4 text-yellow-400 animate-spin" />;
+      return <Activity className="w-4 h-4 text-blue-400 animate-pulse" />;
     case 'failed':
       return <X className="w-4 h-4 text-red-400" />;
     default:
@@ -32,40 +32,64 @@ const TaskProgress = () => {
   const [isOpen, setIsOpen] = useState(true);
   const totalTasks = mockTasks.length;
   const completedTasks = mockTasks.filter(t => t.status === 'completed').length;
+  const progressPercentage = Math.round((completedTasks / totalTasks) * 100);
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 w-80">
-      <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-2xl">
+    <div className="fixed bottom-4 left-4 z-40 w-96">
+      <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border-2 border-purple-500/30 rounded-xl shadow-2xl shadow-purple-900/50 overflow-hidden">
         {/* Header */}
         <div
-          className="flex justify-between items-center p-3 cursor-pointer select-none bg-gray-700 rounded-t-lg"
+          className="flex justify-between items-center p-3 cursor-pointer select-none bg-gradient-to-r from-gray-800/90 to-gray-900/90 border-b-2 border-purple-500/30"
           onClick={() => setIsOpen(!isOpen)}
         >
-          <h3 className="text-sm font-bold text-white flex items-center">
-            <Cpu className="w-4 h-4 mr-2 text-neonGreen" />
-            Task Progress ({completedTasks}/{totalTasks})
-          </h3>
-          <button className="text-gray-400 hover:text-white">
+          <div className="flex items-center gap-2">
+            <Cpu className="w-4 h-4 text-purple-400 animate-pulse" />
+            <h3 className="text-sm font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+              Task Progress
+            </h3>
+            <span className="text-xs text-gray-400">
+              {completedTasks}/{totalTasks}
+            </span>
+          </div>
+          <button className="text-gray-400 hover:text-white transition-colors">
             {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
           </button>
         </div>
 
         {/* Content */}
         {isOpen && (
-          <div className="p-3 max-h-64 overflow-y-auto">
-            <div className="mb-3">
-              <div className="w-full bg-gray-600 rounded-full h-1.5">
+          <div className="p-4 max-h-96 overflow-y-auto">
+            {/* Progress Bar */}
+            <div className="mb-4">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-xs text-gray-400">Overall Progress</span>
+                <span className="text-xs font-bold text-purple-400">{progressPercentage}%</span>
+              </div>
+              <div className="w-full bg-gray-700 rounded-full h-2 overflow-hidden">
                 <div
-                  className="bg-neonGreen h-1.5 rounded-full"
-                  style={{ width: `${(completedTasks / totalTasks) * 100}%` }}
+                  className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full transition-all duration-500"
+                  style={{ width: `${progressPercentage}%` }}
                 ></div>
               </div>
             </div>
+
+            {/* Task List */}
             <ul className="space-y-2">
               {mockTasks.map((task) => (
-                <li key={task.id} className="flex items-start text-xs text-gray-300">
-                  <span className="flex-shrink-0 mt-0.5 mr-2">{getStatusIcon(task.status)}</span>
-                  <span className={task.status === 'completed' ? 'line-through text-gray-500' : ''}>
+                <li
+                  key={task.id}
+                  className="flex items-start gap-2 p-2 rounded-lg bg-gray-800/50 hover:bg-gray-800 transition-colors"
+                >
+                  <span className="flex-shrink-0 mt-0.5">{getStatusIcon(task.status)}</span>
+                  <span
+                    className={`text-xs ${
+                      task.status === 'completed'
+                        ? 'line-through text-gray-500'
+                        : task.status === 'in_progress'
+                        ? 'text-blue-300 font-medium'
+                        : 'text-gray-300'
+                    }`}
+                  >
                     {task.title}
                   </span>
                 </li>
