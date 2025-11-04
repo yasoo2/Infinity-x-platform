@@ -260,6 +260,12 @@ const Joe = () => {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendWithEngine();
+                }
+              }}
               placeholder="Type or speak... (e.g., Hello Joe, build a store, evolve yourself)"
               className="input-field flex-1 text-lg bg-gray-700/50 border border-indigo-700 text-white placeholder-gray-400 focus:ring-cyan-500 focus:border-cyan-500"
               disabled={isProcessing}
