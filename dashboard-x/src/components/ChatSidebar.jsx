@@ -17,7 +17,8 @@ export default function ChatSidebar({
     if (userId) {
       loadConversations();
     }
-  }, [userId, loadConversations]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   const loadConversations = useCallback(async () => {
     setIsLoading(true);
