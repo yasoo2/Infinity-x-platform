@@ -154,13 +154,11 @@ export const useJoeChat = () => {
 
     try {
       // **تحسين الاتصال:** استخدام مسار API موحد
-      const response = await axios.get("/api/v1/joe-chat/send", {
-        params: {
-          message: currentInput,
-          conversationId: state.currentConversation,
-          tokens: tokens,
-          aiEngine: aiEngine,
-        }
+      const response = await axios.post("/api/v1/joe-chat/chat", {
+        message: currentInput,
+        conversationId: state.currentConversation,
+        tokens: tokens,
+        aiEngine: aiEngine,
       });
 
       dispatch({ type: 'STOP_PROCESSING' });
