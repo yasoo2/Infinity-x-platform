@@ -12,6 +12,7 @@ import UniversalStoreIntegration from './pages/UniversalStoreIntegration';
 import PageBuilder from './pages/PageBuilder';
 import Joe from './pages/Joe';
 import JoeTest from './pages/Joe-test';
+import JoeSimple from './pages/Joe-simple';
 import SuperAdminPanel from './pages/SuperAdminPanel';
 
 function App() {
@@ -37,7 +38,7 @@ function App() {
           <Route path="self-design" element={<SelfDesign />} />
           <Route path="store-integration" element={<UniversalStoreIntegration />} />
           <Route path="page-builder" element={<PageBuilder />} />
-          <Route path="joe" element={<JoeTest />} />
+          <Route path="joe" element={<JoeSimple />} />
           <Route path="super-admin" element={<SuperAdminPanel />} />
         </Route>
 
