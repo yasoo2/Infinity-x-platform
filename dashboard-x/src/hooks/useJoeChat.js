@@ -64,6 +64,17 @@ export const useJoeChat = () => {
 
   // WebSocket Logic for Real-Time Logs
   useEffect(() => {
+    // Temporarily disable WebSocket to prevent connection errors
+    // TODO: Implement proper WebSocket connection with production URL
+    try {
+      // Skip WebSocket connection for now
+      return () => {};
+    } catch (error) {
+      console.error('WebSocket initialization error:', error);
+      return () => {};
+    }
+    
+    /* Original WebSocket code - commented out
     const ws = new WebSocket('ws://localhost:8080/ws/joe-log'); // Assuming worker runs on localhost:8080
 
     ws.onopen = () => {
@@ -106,6 +117,7 @@ export const useJoeChat = () => {
         ws.close();
       }
     };
+    */
   }, []);
 
   // دالة لإرسال الرسالة
