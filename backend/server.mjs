@@ -547,40 +547,7 @@ app.post('/api/v1/admin/users/setRole', requireRole(ROLES.SUPER_ADMIN), async (r
 // =========================
 // system metrics (للوحة X)
 // =========================
-app.get('/api/system/metrics', requireRole(ROLES.ADMIN), async (req, res) => {
-  try {
-    const db = await initMongo();
-
-    const totalUsers = await db.collection('users').countDocuments({});
-    const totalSessionsNow = await db.collection('sessions').countDocuments({
-      active: true
-    });
-
-    const recentActivity = await db.collection('joe_activity')
-      .find({})
-      .sort({ ts: -1 })
-      .limit(10)
-      .toArray();
-
-    res.json({
-      ok: true,
-      system: {
-        usersTotal: totalUsers,
-        activeSessions: totalSessionsNow,
-        redisOnline: !!redis,
-        mongoOnline: true
-      },
-      joeRecent: recentActivity.map(e => ({
-        ts: e.ts,
-        action: e.action,
-        detail: e.detail
-      }))
-    });
-  } catch (err) {
-    console.error('/api/system/metrics err', err);
-    res.status(500).json({ error: 'SERVER_ERR' });
-  }
-});
+app.use('/api/v1/system', requireRole(ROLES.ADMIN), dashboardDataRouter(initMongo, redis));
 
 // =========================
 // راوترات جو / المصنع / الداشبورد / الموقع العام
