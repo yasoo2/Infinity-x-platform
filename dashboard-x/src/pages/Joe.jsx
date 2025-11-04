@@ -237,13 +237,6 @@ const Joe = () => {
 
         {/* Input Area */}
         <div className="border-t border-cyan-500/50 bg-gray-900/50 p-4 backdrop-blur-md shadow-2xl shadow-cyan-900/20">
-          {/* File Upload */}
-          <div className="mb-4">
-            <FileUpload onFileAnalyzed={(data) => {
-              setInput(prev => prev + `\n\nUploaded file: ${data.fileName}\n${data.content}`);
-            }} />
-          </div>
-
           <div className="flex gap-3">
             <button
               onClick={handleVoiceInput}
@@ -255,6 +248,24 @@ const Joe = () => {
             >
               {isListening ? '🎤...' : '🎤'}
             </button>
+            
+            <label className="p-3 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 shadow-md cursor-pointer transition-all duration-200">
+              📎
+              <input
+                type="file"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                      setInput(prev => prev + `\n\nUploaded file: ${file.name}\n${event.target.result}`);
+                    };
+                    reader.readAsText(file);
+                  }
+                }}
+              />
+            </label>
             
             <input
               type="text"
