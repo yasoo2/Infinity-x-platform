@@ -12,6 +12,7 @@ const Joe = () => {
   };
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isScreenVisible, setIsScreenVisible] = useState(false);
+  const [isTakeoverActive, setIsTakeoverActive] = useState(false);
   
   const {
     userId,
@@ -378,26 +379,18 @@ const Joe = () => {
     </div>
     
     {/* Joe's Computer Screen - Responsive (Hidden on mobile) */}
-    {/* Joe's Computer Screen - Responsive */}
-    <div className={`
-      fixed inset-0 z-50 bg-gray-950/90 backdrop-blur-sm
-      ${isScreenVisible ? 'block' : 'hidden'}
-      lg:relative lg:block lg:z-auto lg:bg-transparent lg:backdrop-blur-none
-      lg:w-1/3 lg:flex-shrink-0 lg:p-4
-    `}>
-      <JoeScreen 
-        isProcessing={isProcessing} 
-        progress={progress} 
-        wsLog={wsLog}
-        onTakeover={() => alert('User Takeover logic will be implemented here.')}
-      />
-      <button
-        onClick={() => setIsScreenVisible(false)}
-        className="lg:hidden absolute top-4 right-4 text-white text-3xl z-50"
-      >
-        ×
-      </button>
-    </div>
+    {/* Joe's Computer Screen - Floating Overlay */}
+    {isScreenVisible && (
+      <div className="fixed inset-0 z-50 bg-gray-950/90 backdrop-blur-sm flex items-center justify-center">
+        <JoeScreen 
+          isProcessing={isProcessing} 
+          progress={progress} 
+          wsLog={wsLog}
+          onTakeover={() => setIsTakeoverActive(true)}
+          onClose={() => setIsScreenVisible(false)}
+        />
+      </div>
+    )}
     </>
   );
 };
