@@ -51,3 +51,5 @@ function App() {
 }
 
 export default App;
+
+import 'react-resizable/css/styles.css';
