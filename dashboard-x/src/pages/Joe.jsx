@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import ChatSidebar from '../components/ChatSidebar';
 import FileUpload from '../components/FileUpload';
 import { useJoeChat } from '../hooks/useJoeChat.js';
@@ -35,6 +35,8 @@ const Joe = () => {
     closeTokenModal,
     transcript,
     wsLog,
+    aiEngine, // Added aiEngine
+    setAiEngine, // Added setAiEngine
   } = useJoeChat();
 
   React.useEffect(() => {
@@ -100,6 +102,40 @@ const Joe = () => {
           <p className="text-gray-400 font-light text-xs sm:text-sm md:text-base">
             🚀 Your intelligent assistant for building and developing projects
           </p>
+          {/* AI Engine Switcher */}
+          <div className="flex gap-2 items-center mt-2">
+            <span className="text-sm text-gray-400 font-medium">AI Engine:</span>
+            <button
+              onClick={() => setAiEngine('openai')}
+              className={`px-3 py-1 rounded-lg transition-all duration-200 font-medium text-xs ${
+                aiEngine === 'openai'
+                  ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/50'
+                  : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+              }`}
+            >
+              🤖 OpenAI
+            </button>
+            <button
+              onClick={() => setAiEngine('gemini')}
+              className={`px-3 py-1 rounded-lg transition-all duration-200 font-medium text-xs ${
+                aiEngine === 'gemini'
+                  ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/50'
+                  : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+              }`}
+            >
+              ✨ Gemini
+            </button>
+            <button
+              onClick={() => setAiEngine('grok')}
+              className={`px-3 py-1 rounded-lg transition-all duration-200 font-medium text-xs ${
+                aiEngine === 'grok'
+                  ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/50'
+                  : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+              }`}
+            >
+              ⚡ Grok
+            </button>
+          </div>
         </div>
 
         {/* Messages Area - Responsive */}
@@ -272,7 +308,6 @@ const Joe = () => {
               {tokenType === 'cloudflare' && '🔑 Cloudflare Token Required'}
               {tokenType === 'render' && '🔑 Render Token Required'}
             </h3>
-
             {tokenType === 'github' && (
               <>
                 <div className="mb-3 sm:mb-4">

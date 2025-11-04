@@ -7,6 +7,7 @@ import { useSpeechRecognition } from './useSpeechRecognition'; // سيتم إن�
 
 // تعريف الحالة الأولية
 const initialState = {
+  aiEngine: 'openai',
   userId: 'mock-user-id',
   conversations: [],
   currentConversation: null,
@@ -34,6 +35,8 @@ const chatReducer = (state, action) => {
       return { ...state, buildResult: action.payload, isProcessing: false, progress: 100, currentStep: 'Completed' };
     case 'SET_CONVERSATIONS':
       return { ...state, conversations: action.payload };
+    case 'SET_AI_ENGINE':
+      return { ...state, aiEngine: action.payload };
     case 'SELECT_CONVERSATION':
       return { ...state, currentConversation: action.payload.id, messages: action.payload.messages };
     default:
@@ -127,7 +130,7 @@ export const useJoeChat = () => {
   }, []);
 
   // دالة لإرسال الرسالة
-  const handleSend = useCallback(async (aiEngine = 'openai') => {
+  const handleSend = useCallback(async () => {
     if (!input.trim() || state.isProcessing) return;
 
     const userMessage = {
@@ -160,7 +163,7 @@ export const useJoeChat = () => {
         message: currentInput,
         conversationId: state.currentConversation,
         tokens: tokens,
-        aiEngine: aiEngine,
+        aiEngine: state.aiEngine,
       });
 
       dispatch({ type: 'STOP_PROCESSING' });
@@ -221,7 +224,7 @@ export const useJoeChat = () => {
         },
       });
     }
-  }, [input, state.isProcessing, state.currentConversation, tokens, state.messages, setInput]);
+  }, [input, state.isProcessing, state.currentConversation, tokens, state.messages, setInput, state.aiEngine]);
 
   const stopProcessing = useCallback(() => {
     // هنا يجب أن يتم إرسال طلب إلى API لإيقاف العملية
@@ -260,8 +263,14 @@ export const useJoeChat = () => {
   }, []);
 
 
+  const setAiEngine = useCallback((engine) => {
+    dispatch({ type: 'SET_AI_ENGINE', payload: engine });
+  }, []);
+
   return {
     ...state,
+    aiEngine: state.aiEngine,
+    setAiEngine,
     canStop: state.isProcessing,
     input,
     setInput,
