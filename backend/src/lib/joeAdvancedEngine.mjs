@@ -6,6 +6,7 @@
 import OpenAI from 'openai';
 import { webSearchTools } from '../tools/webSearchTools.mjs';
 import { buildTools } from '../tools/buildTools.mjs';
+import { browserTools } from '../tools/browserTools.mjs';
 
 const openai = new OpenAI();
 
@@ -50,6 +51,44 @@ const TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'browse_website',
+      description: 'تصفح موقع ويب وجمع المعلومات منه',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: {
+            type: 'string',
+            description: 'رابط الموقع المراد تصفحه'
+          }
+        },
+        required: ['url']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'extract_info_from_url',
+      description: 'استخراج معلومات محددة من صفحة ويب',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: {
+            type: 'string',
+            description: 'رابط الموقع'
+          },
+          query: {
+            type: 'string',
+            description: 'المعلومات المطلوب البحث عنها'
+          }
+        },
+        required: ['url', 'query']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
       name: 'build_website',
       description: 'بناء موقع ويب كامل',
       parameters: {
@@ -85,6 +124,12 @@ async function executeFunction(functionName, args) {
       case 'get_weather':
         return await webSearchTools.getWeather(args.city);
 
+      case 'browse_website':
+        return await browserTools.browseWebsite(args.url);
+
+      case 'extract_info_from_url':
+        return await browserTools.extractInfo(args.url, args.query);
+
       case 'build_website':
         return await buildTools.buildProject({
           projectType: args.projectType,
@@ -116,7 +161,7 @@ export async function processMessageWithTools(message, context = []) {
     const messages = [
       {
         role: 'system',
-        content: `أنت JOE، ذكاء اصطناعي متقدم. استخدم الأدوات المتاحة تلقائياً عندما تحتاج إليها. رد بالعربية.`
+        content: `أنت JOE (Just One Engine)، ذكاء اصطناعي متقدم من XElite Solutions. لديك قدرات متقدمة: البحث على الإنترنت (search_web)، تصفح المواقع (browse_website)، استخراج المعلومات (extract_info_from_url)، معلومات الطقس (get_weather)، بناء المواقع (build_website). استخدم الأدوات تلقائياً عندما تحتاج إليها. رد دائماً بالعربية بشكل طبيعي وودود.`
       },
       ...context.map(msg => ({
         role: msg.role,
