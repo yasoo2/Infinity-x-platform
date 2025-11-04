@@ -35,6 +35,7 @@ import githubManagerRouter from './src/routes/githubManager.mjs';
 import integrationManagerRouter from './src/routes/integrationManager.mjs';
 import selfEvolutionRouter from './src/routes/selfEvolution.mjs';
 import joeChatRouter from './src/routes/joeChat.mjs';
+import joeChatAdvancedRouter from './src/routes/joeChatAdvanced.mjs';
 import browserControlRouter from './src/routes/browserControl.mjs';
 import chatHistoryRouter from './src/routes/chatHistory.mjs';
 import fileUploadRouter from './src/routes/fileUpload.mjs';
@@ -186,7 +187,7 @@ function requireRole(minRole) {
 // =========================
 // Health Checks
 // =========================
-app.get('/health', async (req, res) => {
+app.get('/api/v1/health', async (req, res) => {
   const checks = {
     database: false,
     redis: false,
@@ -225,7 +226,7 @@ app.get('/health', async (req, res) => {
 // =========================
 
 // bootstrap-super
-app.post('/api/auth/bootstrap-super', async (req, res) => {
+app.post('/api/v1/auth/bootstrap-super', async (req, res) => {
   try {
     const { email, phone, password } = req.body;
     if (!email || !password) {
@@ -284,14 +285,18 @@ app.post('/api/auth/bootstrap-super', async (req, res) => {
 });
 
 // login (emailOrPhone + password)
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/v1/auth/login', async (req, res) => {
   try {
     const { emailOrPhone, password } = req.body;
+    console.log('[LOGIN] Attempt with:', emailOrPhone);
+    
     if (!emailOrPhone || !password) {
+      console.log('[LOGIN] Missing fields');
       return res.status(400).json({ error: 'MISSING_FIELDS' });
     }
 
     const db = await initMongo();
+    console.log('[LOGIN] DB connected');
 
     const userDoc = await db.collection('users').findOne({
       $or: [
@@ -301,11 +306,17 @@ app.post('/api/auth/login', async (req, res) => {
     });
 
     if (!userDoc) {
+      console.log('[LOGIN] User not found:', emailOrPhone);
       return res.status(401).json({ error: 'BAD_CREDENTIALS' });
     }
 
+    console.log('[LOGIN] User found:', userDoc.email, 'has passwordHash:', !!userDoc.passwordHash);
+    
     const match = await bcrypt.compare(password, userDoc.passwordHash || '');
+    console.log('[LOGIN] Password match:', match);
+    
     if (!match) {
+      console.log('[LOGIN] Password mismatch for:', emailOrPhone);
       return res.status(401).json({ error: 'BAD_CREDENTIALS' });
     }
 
@@ -346,7 +357,7 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // Register new user
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/v1/auth/register', async (req, res) => {
   try {
     const { email, phone, password } = req.body;
 
@@ -399,7 +410,7 @@ app.post('/api/auth/register', async (req, res) => {
 });
 
 // login with Google
-app.post('/api/auth/google', async (req, res) => {
+app.post('/api/v1/auth/google', async (req, res) => {
   try {
     if (!googleOAuthClient) {
       return res.status(400).json({ error: 'GOOGLE_DISABLED' });
@@ -474,7 +485,7 @@ app.post('/api/auth/google', async (req, res) => {
 // =========================
 
 // احصائيات المستخدمين + أونلاين + آخر دخول
-app.get('/api/admin/users', requireRole(ROLES.ADMIN), async (req, res) => {
+app.get('/api/v1/admin/users', requireRole(ROLES.ADMIN), async (req, res) => {
   try {
     const db = await initMongo();
 
@@ -509,7 +520,7 @@ app.get('/api/admin/users', requireRole(ROLES.ADMIN), async (req, res) => {
 });
 
 // تعديل رول المستخدم (بس السوبر أدمن)
-app.post('/api/admin/users/setRole', requireRole(ROLES.SUPER_ADMIN), async (req, res) => {
+app.post('/api/v1/admin/users/setRole', requireRole(ROLES.SUPER_ADMIN), async (req, res) => {
   try {
     const { userId, newRole } = req.body;
     if (!userId || !newRole) {
@@ -574,24 +585,25 @@ app.get('/api/system/metrics', requireRole(ROLES.ADMIN), async (req, res) => {
 // =========================
 // راوترات جو / المصنع / الداشبورد / الموقع العام
 // =========================
-app.use('/api/joe', joeRouter(initMongo, redis));
-app.use('/api/factory', factoryRouter(initMongo, redis));
-app.use('/api/dashboard', dashboardDataRouter(initMongo, redis));
-app.use('/api/public-site', publicSiteRouter(initMongo));
-app.use('/api/self-design', selfDesignRouter);
-app.use('/api/store', storeIntegrationRouter);
-app.use('/api/universal-store', universalStoreRouter);
-app.use('/api/page-builder', pageBuilderRouter);
-app.use('/api/github-manager', githubManagerRouter);
-app.use('/api/integrations', integrationManagerRouter);
-app.use('/api/self-evolution', selfEvolutionRouter);
-app.use('/api/joe', joeChatRouter);
-app.use('/api/browser', browserControlRouter);
-app.use('/api/chat-history', chatHistoryRouter);
-app.use('/api/file', fileUploadRouter);
+app.use('/api/v1/joe', joeRouter(initMongo, redis));
+app.use('/api/v1/factory', factoryRouter(initMongo, redis));
+app.use('/api/v1/dashboard', dashboardDataRouter(initMongo, redis));
+app.use('/api/v1/public-site', publicSiteRouter(initMongo));
+app.use('/api/v1/self-design', selfDesignRouter);
+app.use('/api/v1/store', storeIntegrationRouter);
+app.use('/api/v1/universal-store', universalStoreRouter);
+app.use('/api/v1/page-builder', pageBuilderRouter);
+app.use('/api/v1/github-manager', githubManagerRouter);
+app.use('/api/v1/integrations', integrationManagerRouter);
+app.use('/api/v1/self-evolution', selfEvolutionRouter);
+app.use('/api/v1/joe', joeChatRouter);
+app.use('/api/v1/joe', joeChatAdvancedRouter);
+app.use('/api/v1/browser', browserControlRouter);
+app.use('/api/v1/chat-history', chatHistoryRouter);
+app.use('/api/v1/file', fileUploadRouter);
 
 // هذه للوحة المصنع: عرض آخر jobs
-app.get('/api/factory/jobs', requireRole(ROLES.ADMIN), async (req, res) => {
+app.get('/api/v1/factory/jobs', requireRole(ROLES.ADMIN), async (req, res) => {
   try {
     const db = await initMongo();
     const jobs = await db.collection('factory_jobs')
@@ -611,7 +623,7 @@ app.get('/api/factory/jobs', requireRole(ROLES.ADMIN), async (req, res) => {
       }))
     });
   } catch (err) {
-    console.error('/api/factory/jobs err', err);
+    console.error('/api/v1/factory/jobs err', err);
     res.status(500).json({ error: 'SERVER_ERR' });
   }
 });
@@ -672,7 +684,7 @@ async function initializeWorkerManager() {
 initializeWorkerManager();
 
 // Worker Manager stats endpoint
-app.get('/api/worker/stats', (req, res) => {
+app.get('/api/v1/worker/stats', (req, res) => {
   res.json({
     ok: true,
     stats: workerManager?.getStats?.() || { error: 'Worker Manager not available' }

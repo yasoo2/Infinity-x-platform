@@ -52,7 +52,13 @@ export const useJoeChat = () => {
   const [wsLog, setWsLog] = useState([]);
 
   // دمج منطق الميكروفون من useSpeechRecognition
-  const { isListening, startListening, stopListening, transcript } = useSpeechRecognition();
+  let speechRecognition = { isListening: false, startListening: () => {}, stopListening: () => {}, transcript: '' };
+  try {
+    speechRecognition = useSpeechRecognition();
+  } catch (error) {
+    console.warn('Speech recognition not available:', error);
+  }
+  const { isListening, startListening, stopListening, transcript } = speechRecognition;
 
   // تأثير جانبي للتعامل مع نتيجة الإملاء الصوتي
   // هذا يضمن أن النص المكتوب صوتيًا يضاف إلى حقل الإدخال
@@ -64,6 +70,17 @@ export const useJoeChat = () => {
 
   // WebSocket Logic for Real-Time Logs
   useEffect(() => {
+    // Temporarily disable WebSocket to prevent connection errors
+    // TODO: Implement proper WebSocket connection with production URL
+    try {
+      // Skip WebSocket connection for now
+      return () => {};
+    } catch (error) {
+      console.error('WebSocket initialization error:', error);
+      return () => {};
+    }
+    
+    /* Original WebSocket code - commented out
     const ws = new WebSocket('ws://localhost:8080/ws/joe-log'); // Assuming worker runs on localhost:8080
 
     ws.onopen = () => {
@@ -106,10 +123,11 @@ export const useJoeChat = () => {
         ws.close();
       }
     };
+    */
   }, []);
 
   // دالة لإرسال الرسالة
-  const handleSend = useCallback(async () => {
+  const handleSend = useCallback(async (aiEngine = 'openai') => {
     if (!input.trim() || state.isProcessing) return;
 
     const userMessage = {
@@ -136,23 +154,34 @@ export const useJoeChat = () => {
 
     try {
       // **تحسين الاتصال:** استخدام مسار API موحد
-      const response = await axios.post('/api/joe-chat/send', {
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://api.xelitesolutions.com';
+      // استخدام endpoint الجديد مع Function Calling
+      const response = await axios.post(`${API_BASE}/api/v1/joe/chat-advanced`, {
         message: currentInput,
         conversationId: state.currentConversation,
         tokens: tokens,
+        aiEngine: aiEngine,
       });
 
       dispatch({ type: 'STOP_PROCESSING' });
 
       if (response.data.ok) {
         // تحديث رسالة JOE الأخيرة بالرد الفعلي
+        let joeResponse = response.data.response || response.data.reply || 'No response';
+        
+        // إضافة معلومات عن الأدوات المستخدمة
+        if (response.data.toolsUsed && response.data.toolsUsed.length > 0) {
+          joeResponse += `\n\n🔧 **الأدوات المستخدمة:** ${response.data.toolsUsed.join(', ')}`;
+        }
+        
         dispatch({
           type: 'ADD_MESSAGE',
           payload: {
             type: 'joe',
-            content: response.data.reply,
+            content: joeResponse,
             timestamp: new Date().toLocaleTimeString(),
             isTyping: false,
+            toolsUsed: response.data.toolsUsed || [],
           },
         });
 

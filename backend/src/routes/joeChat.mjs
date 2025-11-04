@@ -1,21 +1,26 @@
 import express from 'express';
 import axios from 'axios';
 import OpenAI from 'openai';
+import { getGeminiEngine } from '../lib/geminiEngine.mjs';
+import { getGrokEngine } from '../lib/grokEngine.mjs';
 import { githubTools } from '../tools/githubTools.mjs';
 import { renderTools } from '../tools/renderTools.mjs';
 import { mongodbTools } from '../tools/mongodbTools.mjs';
 import { cloudflareTools } from '../tools/cloudflareTools.mjs';
 import { testingTools } from '../tools/testingTools.mjs';
 import { evolutionTools } from '../tools/evolutionTools.mjs';
+import { webSearchTools } from '../tools/webSearchTools.mjs';
 import { detectTargetFiles } from '../tools/smartFileDetector.mjs';
 
 const router = express.Router();
 const openai = new OpenAI();
+const geminiEngine = getGeminiEngine();
+const grokEngine = getGrokEngine();
 
 // JOE Chat - Smart responses WITH REAL ACTIONS
 router.post('/chat', async (req, res) => {
   try {
-    const { message, context = [], userId = 'default' } = req.body;
+    const { message, context = [], userId = 'default', aiEngine = 'openai' } = req.body;
 
     if (!message) {
       return res.json({ ok: false, error: 'Message required' });
@@ -42,6 +47,10 @@ router.post('/chat', async (req, res) => {
       actionResult = await handleRender(message, userId);
     } else if (action === 'cloudflare') {
       actionResult = await handleCloudflare(message, userId);
+    } else if (action === 'weather') {
+      actionResult = await handleWeather(message);
+    } else if (action === 'web-search') {
+      actionResult = await handleWebSearch(message);
     }
 
     // Generate AI response using OpenAI-compatible API
@@ -104,29 +113,38 @@ ${conversationHistory}
 
     systemPrompt += `\n\n**Respond in Arabic, naturally and friendly. If an action was performed, tell the user what happened and provide the GitHub URL if available.**`;
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: systemPrompt
-        },
-        {
-          role: 'user',
-          content: message
-        }
-      ],
-      temperature: 0.7,
-      max_tokens: 2000
-    });
-    
-    const response = completion.choices[0].message.content;
+    let response;
+    const engineLower = (aiEngine || 'openai').toLowerCase();
+
+    if (engineLower === 'gemini') {
+      response = await geminiEngine.generateResponse(systemPrompt, context);
+    } else if (engineLower === 'grok') {
+      response = await grokEngine.generateResponse(systemPrompt, context);
+    } else {
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt
+          },
+          {
+            role: 'user',
+            content: message
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 2000
+      });
+      response = completion.choices[0].message.content;
+    }
 
     res.json({
       ok: true,
       response,
       action,
-      actionResult
+      actionResult,
+      aiEngine: engineLower
     });
 
   } catch (error) {
@@ -187,6 +205,14 @@ function detectAction(message) {
   
   if (lower.includes('cloudflare') || lower.includes('dns')) {
     return 'cloudflare';
+  }
+  
+  if (lower.includes('طقس') || lower.includes('weather') || lower.includes('الطقس')) {
+    return 'weather';
+  }
+  
+  if (lower.includes('ابحث') || lower.includes('search') || lower.includes('البحث') || lower.includes('معلومات عن')) {
+    return 'web-search';
   }
   
   return 'chat';
@@ -626,4 +652,57 @@ function extractColors(message) {
   }
   
   return { from, to };
+}
+
+// REAL ACTION: Weather
+async function handleWeather(message) {
+  try {
+    console.log('🌤️ JOE is getting weather info...');
+    
+    // Extract city name from message
+    const cityMatch = message.match(/(?:طقس|weather|الطقس)\s+(?:في\s+)?([^\s?،.]+)/i);
+    const city = cityMatch ? cityMatch[1] : 'Istanbul'; // Default to Istanbul if not found
+    
+    const result = await webSearchTools.getWeather(city);
+    
+    return {
+      type: 'weather',
+      success: result.success,
+      data: result
+    };
+  } catch (error) {
+    console.error('❌ Weather lookup failed:', error.message);
+    return {
+      type: 'weather',
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+// REAL ACTION: Web Search
+async function handleWebSearch(message) {
+  try {
+    console.log('🔍 JOE is searching the web...');
+    
+    // Extract search query from message
+    const query = message
+      .replace(/(?:ابحث|search|البحث|معلومات عن)\s+(?:عن\s+)?/gi, '')
+      .trim();
+    
+    const result = await webSearchTools.searchWeb(query);
+    
+    return {
+      type: 'web-search',
+      success: result.success,
+      data: result
+    };
+  } catch (error) {
+    console.error('❌ Web search failed:', error.message);
+    return {
+      type: 'web-search',
+      success: false,
+      error: error.message
+    };
+  }
 }

@@ -7,7 +7,8 @@ export default function ChatSidebar({
   userId, 
   currentConversationId, 
   onSelectConversation,
-  onNewConversation 
+  onNewConversation,
+  onCollapse
 }) {
   const [conversations, setConversations] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -17,7 +18,8 @@ export default function ChatSidebar({
     if (userId) {
       loadConversations();
     }
-  }, [userId, loadConversations]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   const loadConversations = useCallback(async () => {
     setIsLoading(true);
@@ -71,17 +73,7 @@ export default function ChatSidebar({
   };
 
   if (isCollapsed) {
-    return (
-      <div className="w-12 bg-cardDark border-l border-borderDim flex flex-col items-center py-4">
-        <button
-          onClick={() => setIsCollapsed(false)}
-          className="text-textDim hover:text-white transition-colors"
-          title="فتح الشريط الجانبي"
-        >
-          ☰
-        </button>
-      </div>
-    );
+    return null; // لا تعرض شيئاً عند الإغلاق
   }
 
   return (
@@ -97,13 +89,7 @@ export default function ChatSidebar({
           >
             + جديد
           </button>
-          <button
-            onClick={() => setIsCollapsed(true)}
-            className="text-textDim hover:text-white transition-colors"
-            title="إخفاء الشريط الجانبي"
-          >
-            ✕
-          </button>
+
         </div>
       </div>
 

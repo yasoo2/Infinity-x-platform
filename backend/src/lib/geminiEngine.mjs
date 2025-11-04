@@ -17,6 +17,18 @@ export class GeminiEngine {
     });
   }
 
+  // === توليد رد محادثة ===
+  async generateResponse(prompt) {
+    try {
+      const result = await this.model.generateContent(prompt);
+      const response = await result.response;
+      return response.text();
+    } catch (error) {
+      console.error('Gemini API Error:', error);
+      throw error;
+    }
+  }
+
   // === توليد كود من prompt ===
   async generateCode(prompt) {
     try {

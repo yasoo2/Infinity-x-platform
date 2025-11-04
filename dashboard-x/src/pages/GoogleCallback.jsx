@@ -28,7 +28,7 @@ export default function GoogleCallback() {
 
       try {
         // Send code to backend
-        const response = await apiClient.post('/api/auth/google/callback', {
+        const response = await apiClient.post('/api/v1/auth/google/callback', {
           code,
           redirectUri: `${window.location.origin}/auth/google/callback`
         });

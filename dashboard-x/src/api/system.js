@@ -4,7 +4,7 @@ import apiClient from './client';
  * Get system status and health metrics
  */
 export const getSystemStatus = async () => {
-  const response = await apiClient.get('/api/system/metrics');
+  const response = await apiClient.get('/api/v1/system/metrics');
   return response.data;
 };
 
@@ -12,7 +12,7 @@ export const getSystemStatus = async () => {
  * Get activity/events stream
  */
 export const getActivityStream = async () => {
-  const response = await apiClient.get('/api/joe/activity-stream');
+  const response = await apiClient.get('/api/v1/joe/activity-stream');
   return response.data;
 };
 
@@ -21,7 +21,7 @@ export const getActivityStream = async () => {
  * @param {Object} payload - { sessionToken, lang, voice, commandText }
  */
 export const sendCommand = async (payload) => {
-  const response = await apiClient.post('/api/joe/command', payload);
+  const response = await apiClient.post('/api/v1/joe/command', payload);
   return response.data;
 };
 
@@ -29,7 +29,7 @@ export const sendCommand = async (payload) => {
  * Get admin users list
  */
 export const getAdminUsers = async () => {
-  const response = await apiClient.get('/api/admin/users');
+  const response = await apiClient.get('/api/v1/admin/users');
   return response.data;
 };
 
@@ -37,7 +37,7 @@ export const getAdminUsers = async () => {
  * Get Joe suggestions
  */
 export const getJoeSuggestions = async () => {
-  const response = await apiClient.get('/api/joe/suggestions');
+  const response = await apiClient.get('/api/v1/joe/suggestions');
   return response.data;
 };
 
@@ -46,6 +46,6 @@ export const getJoeSuggestions = async () => {
  * @param {Object} payload - { suggestionId, decision }
  */
 export const submitSuggestionDecision = async (payload) => {
-  const response = await apiClient.post('/api/joe/suggestions/decision', payload);
+  const response = await apiClient.post('/api/v1/joe/suggestions/decision', payload);
   return response.data;
 };

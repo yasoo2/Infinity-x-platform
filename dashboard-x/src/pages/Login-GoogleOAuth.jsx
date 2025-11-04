@@ -23,7 +23,7 @@ export default function Login() {
     setLoading(true);
     
     try {
-      const response = await apiClient.post('/api/auth/login', {
+      const response = await apiClient.post('/api/v1/auth/login', {
         emailOrPhone: email,
         password: password
       });

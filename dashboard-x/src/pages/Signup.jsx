@@ -64,7 +64,7 @@ export default function Signup() {
     
     try {
       // استدعاء API للتسجيل
-      const response = await apiClient.post('/api/auth/register', {
+      const response = await apiClient.post('/api/v1/auth/register', {
         email: email,
         phone: phone ? `${countryCode}${phone}` : null,
         password: password
