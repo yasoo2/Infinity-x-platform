@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Draggable from 'react-draggable';
 import { ResizableBox } from 'react-resizable';
-import 'react-resizable/css/styles.css'; // Import the styles for ResizableBox
+// import 'react-resizable/css/styles.css'; // Removed to fix Cloudflare build error
 import { Terminal, Code, Cpu } from 'lucide-react';
 
 const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
