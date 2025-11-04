@@ -155,7 +155,7 @@ export const useJoeChat = () => {
     try {
       // **تحسين الاتصال:** استخدام مسار API موحد
       const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://api.xelitesolutions.com';
-      const response = await axios.post(`${API_BASE}/api/v1/joe-chat/chat`, {
+      const response = await axios.post(`${API_BASE}/api/v1/joe/chat`, {
         message: currentInput,
         conversationId: state.currentConversation,
         tokens: tokens,
