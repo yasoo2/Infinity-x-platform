@@ -154,7 +154,7 @@ const Joe = () => {
               className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-[80%] rounded-lg p-4 shadow-sm ${
+                className={`max-w-[80%] rounded-lg p-4 shadow-sm break-words overflow-wrap-anywhere ${
                   msg.type === 'user'
                     ? 'bg-indigo-500/80 text-white shadow-lg shadow-indigo-500/30'
                     : 'bg-gray-700/50 border border-gray-600 text-gray-200 shadow-md'
