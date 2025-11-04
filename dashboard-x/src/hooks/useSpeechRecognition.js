@@ -2,8 +2,9 @@
 import { useState, useEffect, useCallback } from 'react';
 
 // تعريف واجهة SpeechRecognition (للتوافق مع المتصفحات)
-const SpeechRecognition =
-  window.SpeechRecognition || window.webkitSpeechRecognition;
+const SpeechRecognition = typeof window !== 'undefined' 
+  ? (window.SpeechRecognition || window.webkitSpeechRecognition)
+  : null;
 
 export const useSpeechRecognition = () => {
   const [isListening, setIsListening] = useState(false);
