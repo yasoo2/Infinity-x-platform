@@ -1,12 +1,12 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import ChatSidebar from '../components/ChatSidebar';
 import FileUpload from '../components/FileUpload';
-import { useJoeChat } from '../hooks/useJoeChat.js'; // This is an assumption, the actual hook might be different
+import { useJoeChat } from '../hooks/useJoeChat.js';
 import JoeScreen from '../components/JoeScreen.jsx';
 
 const Joe = () => {
-  // These state variables and handlers need to be defined within the component.
-  // I'm assuming they come from a custom hook like `useJoeChat`.
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  
   const {
     userId,
     conversations,
@@ -33,11 +33,10 @@ const Joe = () => {
     handleVoiceInput,
     saveToken,
     closeTokenModal,
-    transcript, // إضافة transcript
-    wsLog, // إضافة سجل WebSocket
+    transcript,
+    wsLog,
   } = useJoeChat();
 
-  // تأثير جانبي للتعامل مع نتيجة الإملاء الصوتي
   React.useEffect(() => {
     if (transcript) {
       setInput(transcript);
@@ -46,40 +45,73 @@ const Joe = () => {
 
   return (
     <>
-    <div className="min-h-[calc(100vh-4rem)] flex bg-gray-950 text-white">
-      {/* Chat Sidebar */}
-      <ChatSidebar
-        userId={userId}
-        conversations={conversations}
-        currentConversation={currentConversation}
-        onConversationSelect={handleConversationSelect}
-        onNewConversation={handleNewConversation}
-      />
+    <div className="min-h-[calc(100vh-4rem)] flex flex-col md:flex-row bg-gray-950 text-white relative">
+      {/* Mobile Sidebar Toggle Button */}
+      <button
+        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+        className="md:hidden fixed top-20 left-4 z-50 bg-cyan-500 hover:bg-cyan-600 text-white p-3 rounded-lg shadow-lg shadow-cyan-500/50 transition-all duration-200"
+      >
+        {isSidebarOpen ? '✕' : '☰'}
+      </button>
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col backdrop-blur-sm bg-gray-900/80">
-        {/* Header */}
-        <div className="border-b border-fuchsia-500/50 p-6 bg-gray-900/50 backdrop-blur-md shadow-xl shadow-fuchsia-900/20">
-          <h1 className="text-3xl font-bold mb-2">
+      {/* Chat Sidebar - Responsive */}
+      <div className={`
+        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        md:translate-x-0
+        fixed md:relative
+        inset-y-0 left-0
+        z-40
+        w-72 md:w-80
+        transition-transform duration-300 ease-in-out
+        md:block
+      `}>
+        <ChatSidebar
+          userId={userId}
+          conversations={conversations}
+          currentConversation={currentConversation}
+          onConversationSelect={(conv) => {
+            handleConversationSelect(conv);
+            setIsSidebarOpen(false);
+          }}
+          onNewConversation={() => {
+            handleNewConversation();
+            setIsSidebarOpen(false);
+          }}
+        />
+      </div>
+
+      {/* Overlay for mobile sidebar */}
+      {isSidebarOpen && (
+        <div
+          className="md:hidden fixed inset-0 bg-black/50 z-30"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* Main Chat Area - Responsive */}
+      <div className="flex-1 flex flex-col backdrop-blur-sm bg-gray-900/80 min-h-screen md:min-h-0">
+        {/* Header - Responsive */}
+        <div className="border-b border-fuchsia-500/50 p-3 sm:p-4 md:p-6 bg-gray-900/50 backdrop-blur-md shadow-xl shadow-fuchsia-900/20">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 md:mb-2">
             <span className="text-cyan-400 drop-shadow-[0_0_5px_rgba(0,255,255,0.8)]">xElite</span>
             <span className="text-fuchsia-400 drop-shadow-[0_0_5px_rgba(255,0,255,0.8)]">Solutions</span>
-            <span className="text-gray-500 text-xl ml-3">| AGI Platform</span>
+            <span className="text-gray-500 text-sm sm:text-base md:text-xl ml-2 md:ml-3">| AGI Platform</span>
           </h1>
-          <p className="text-gray-400 font-light">
+          <p className="text-gray-400 font-light text-xs sm:text-sm md:text-base">
             🚀 Your intelligent assistant for building and developing projects
           </p>
         </div>
 
-        {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-transparent">
+        {/* Messages Area - Responsive */}
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 space-y-3 md:space-y-4 bg-transparent">
           {messages.length === 0 && (
-            <div className="text-center text-gray-500 py-12 bg-gray-800/20 border border-cyan-500/10 rounded-xl p-8 shadow-inner shadow-cyan-900/30">
-              <div className="text-6xl mb-4 animate-pulse">🤖</div>
-              <h2 className="text-2xl font-bold mb-2 text-cyan-400 drop-shadow-[0_0_5px_rgba(0,255,255,0.5)]">Welcome to xEliteSolutions AGI</h2>
-              <p className="text-gray-400 mb-4">Talk to me or type what you want!</p>
-              <div className="text-sm space-y-2 text-gray-400">
+            <div className="text-center text-gray-500 py-8 sm:py-10 md:py-12 bg-gray-800/20 border border-cyan-500/10 rounded-xl p-4 sm:p-6 md:p-8 shadow-inner shadow-cyan-900/30">
+              <div className="text-4xl sm:text-5xl md:text-6xl mb-3 md:mb-4 animate-pulse">🤖</div>
+              <h2 className="text-lg sm:text-xl md:text-2xl font-bold mb-2 text-cyan-400 drop-shadow-[0_0_5px_rgba(0,255,255,0.5)]">Welcome to xEliteSolutions AGI</h2>
+              <p className="text-gray-400 mb-3 md:mb-4 text-sm sm:text-base">Talk to me or type what you want!</p>
+              <div className="text-xs sm:text-sm space-y-1 sm:space-y-2 text-gray-400">
                 <p>💬 Example: "Hello Joe"</p>
-                <p>🏪 Example: "Build an e-commerce store for accessories"</p>
+                <p>🏪 Example: "Build an e-commerce store"</p>
                 <p>🧬 Example: "Evolve yourself"</p>
               </div>
             </div>
@@ -91,68 +123,68 @@ const Joe = () => {
               className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-[80%] rounded-lg p-4 shadow-sm ${
+                className={`max-w-[90%] sm:max-w-[85%] md:max-w-[80%] rounded-lg p-3 sm:p-4 shadow-sm ${
                   msg.type === 'user'
                     ? 'bg-indigo-500/80 text-white shadow-lg shadow-indigo-500/30'
                     : 'bg-gray-700/50 border border-gray-600 text-gray-200 shadow-md'
                 }`}
               >
-                <div className="flex items-start gap-3">
+                <div className="flex items-start gap-2 sm:gap-3">
                   <div className="flex-1">
-                    <div className="font-medium mb-1">
+                    <div className="font-medium mb-1 text-sm sm:text-base">
                       {msg.type === 'user' ? 'You' : 'JOE'}
                     </div>
-                    <div className="leading-relaxed">
+                    <div className="leading-relaxed text-sm sm:text-base break-words">
                       {msg.content}
                       {msg.isTyping && <span className="animate-pulse">▊</span>}
                     </div>
-                    <div className="text-xs text-gray-400 mt-2">{msg.timestamp}</div>
+                    <div className="text-xs text-gray-400 mt-1 sm:mt-2">{msg.timestamp}</div>
                   </div>
                 </div>
               </div>
             </div>
           ))}
 
-          {/* Progress Bar */}
+          {/* Progress Bar - Responsive */}
           {isProcessing && progress > 0 && (
-            <div className="bg-gray-800/50 border border-fuchsia-500/50 rounded-lg p-4 shadow-xl shadow-fuchsia-900/30">
-              <div className="flex justify-between text-sm mb-2">
-                <span className="text-gray-400">{currentStep}</span>
-                <span className="text-cyan-400 font-bold">{progress}%</span>
+            <div className="bg-gray-800/50 border border-fuchsia-500/50 rounded-lg p-3 sm:p-4 shadow-xl shadow-fuchsia-900/30">
+              <div className="flex justify-between text-xs sm:text-sm mb-2">
+                <span className="text-gray-400 truncate pr-2">{currentStep}</span>
+                <span className="text-cyan-400 font-bold whitespace-nowrap">{progress}%</span>
               </div>
-              <div className="w-full bg-gray-700 rounded-full h-3">
+              <div className="w-full bg-gray-700 rounded-full h-2 sm:h-3">
                 <div
-                  className="bg-gradient-to-r from-cyan-400 to-fuchsia-400 h-3 rounded-full transition-all duration-500 shadow-lg shadow-cyan-500/50"
+                  className="bg-gradient-to-r from-cyan-400 to-fuchsia-400 h-2 sm:h-3 rounded-full transition-all duration-500 shadow-lg shadow-cyan-500/50"
                   style={{ width: `${progress}%` }}
                 />
               </div>
             </div>
           )}
 
-          {/* Build Result */}
+          {/* Build Result - Responsive */}
           {buildResult && (
-            <div className="bg-gray-800/50 border border-green-500/50 rounded-lg p-6 shadow-2xl shadow-green-500/20">
-              <h3 className="text-xl font-bold text-green-400 mb-4 drop-shadow-[0_0_5px_rgba(0,255,0,0.5)]">🎉 Project Ready!</h3>
-              <div className="space-y-3">
+            <div className="bg-gray-800/50 border border-green-500/50 rounded-lg p-4 sm:p-5 md:p-6 shadow-2xl shadow-green-500/20">
+              <h3 className="text-lg sm:text-xl font-bold text-green-400 mb-3 sm:mb-4 drop-shadow-[0_0_5px_rgba(0,255,0,0.5)]">🎉 Project Ready!</h3>
+              <div className="space-y-2 sm:space-y-3">
                 <div>
-                  <p className="text-sm text-gray-400 mb-1">GitHub Repository:</p>
+                  <p className="text-xs sm:text-sm text-gray-400 mb-1">GitHub Repository:</p>
                   <a
                     href={buildResult.githubUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-cyan-400 hover:underline break-all"
+                    className="text-cyan-400 hover:underline break-all text-xs sm:text-sm"
                   >
                     {buildResult.githubUrl} ↗
                   </a>
                 </div>
                 {buildResult.liveUrl && (
                   <div>
-                    <p className="text-sm text-gray-400 mb-1">Live Website:</p>
+                    <p className="text-xs sm:text-sm text-gray-400 mb-1">Live Website:</p>
                     <a
                       href={buildResult.liveUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-fuchsia-400 hover:underline break-all"
+                      className="text-fuchsia-400 hover:underline break-all text-xs sm:text-sm"
                     >
                       {buildResult.liveUrl} ↗
                     </a>
@@ -163,67 +195,79 @@ const Joe = () => {
           )}
         </div>
 
-        {/* Input Area */}
-        <div className="border-t border-cyan-500/50 bg-gray-900/50 p-4 backdrop-blur-md shadow-2xl shadow-cyan-900/20">
-          {/* File Upload */}
-          <div className="mb-4">
+        {/* Input Area - Responsive */}
+        <div className="border-t border-cyan-500/50 bg-gray-900/50 p-3 sm:p-4 backdrop-blur-md shadow-2xl shadow-cyan-900/20">
+          {/* File Upload - Responsive */}
+          <div className="mb-3 sm:mb-4">
             <FileUpload onFileAnalyzed={(data) => {
               setInput(prev => prev + `\n\nUploaded file: ${data.fileName}\n${data.content}`);
             }} />
           </div>
 
-          <div className="flex gap-3">
-            <button
-              onClick={handleVoiceInput}
-              className={`p-3 rounded-lg transition-all duration-200 ${
-                isListening 
-                  ? 'bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/50' 
-                  : 'bg-gray-700 hover:bg-gray-600 text-gray-300 shadow-md'
-              }`}
-            >
-              {isListening ? '🎤...' : '🎤'}
-            </button>
-            
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Type or speak... (e.g., Hello Joe, build a store, evolve yourself)"
-              className="input-field flex-1 text-lg bg-gray-700/50 border border-indigo-700 text-white placeholder-gray-400 focus:ring-cyan-500 focus:border-cyan-500"
-              disabled={isProcessing}
-            />
-            
-            {canStop && (
+          {/* Input Controls - Responsive */}
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+            {/* Voice and Input Row */}
+            <div className="flex gap-2 sm:gap-3 flex-1">
               <button
-                onClick={stopProcessing}
-                className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-lg transition-all duration-200 shadow-lg shadow-red-500/50"
+                onClick={handleVoiceInput}
+                className={`p-2 sm:p-3 rounded-lg transition-all duration-200 ${
+                  isListening 
+                    ? 'bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/50' 
+                    : 'bg-gray-700 hover:bg-gray-600 text-gray-300 shadow-md'
+                }`}
               >
-                ⏹️ Stop
+                {isListening ? '🎤...' : '🎤'}
               </button>
-            )}
-            
-            <button
-              onClick={handleSend}
-              disabled={isProcessing || !input.trim()}
-              className="bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg transition-all duration-200 shadow-lg shadow-cyan-500/50"
-            >
-              ➤ Send
-            </button>
+              
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && !isProcessing && input.trim()) {
+                    handleSend();
+                  }
+                }}
+                placeholder="Type or speak..."
+                className="input-field flex-1 text-sm sm:text-base md:text-lg bg-gray-700/50 border border-indigo-700 text-white placeholder-gray-400 focus:ring-cyan-500 focus:border-cyan-500 rounded-lg px-3 sm:px-4 py-2 sm:py-3"
+                disabled={isProcessing}
+              />
+            </div>
+
+            {/* Action Buttons Row */}
+            <div className="flex gap-2 sm:gap-3">
+              {canStop && (
+                <button
+                  onClick={stopProcessing}
+                  className="flex-1 sm:flex-none bg-red-500 hover:bg-red-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg transition-all duration-200 shadow-lg shadow-red-500/50 text-sm sm:text-base"
+                >
+                  ⏹️ Stop
+                </button>
+              )}
+              
+              <button
+                onClick={handleSend}
+                disabled={isProcessing || !input.trim()}
+                className="flex-1 sm:flex-none bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg transition-all duration-200 shadow-lg shadow-cyan-500/50 text-sm sm:text-base"
+              >
+                ➤ Send
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Token Modal */}
+      {/* Token Modal - Responsive */}
       {showTokenModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 border border-fuchsia-500/50 rounded-lg p-6 max-w-md w-full relative shadow-2xl shadow-fuchsia-900/50">
+          <div className="bg-gray-900 border border-fuchsia-500/50 rounded-lg p-4 sm:p-6 max-w-md w-full relative shadow-2xl shadow-fuchsia-900/50 max-h-[90vh] overflow-y-auto">
             <button
               onClick={closeTokenModal}
-              className="absolute top-4 right-4 text-gray-400 hover:text-cyan-400 text-2xl"
+              className="absolute top-2 sm:top-4 right-2 sm:right-4 text-gray-400 hover:text-cyan-400 text-2xl"
             >
               ×
             </button>
-            <h3 className="text-xl font-bold mb-4 text-cyan-400">
+            <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 text-cyan-400">
               {tokenType === 'github' && '🔑 GitHub Token Required'}
               {tokenType === 'cloudflare' && '🔑 Cloudflare Token Required'}
               {tokenType === 'render' && '🔑 Render Token Required'}
@@ -231,27 +275,27 @@ const Joe = () => {
 
             {tokenType === 'github' && (
               <>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                <div className="mb-3 sm:mb-4">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-400 mb-2">
                     GitHub Username
                   </label>
                   <input
                     type="text"
                     value={tokens.githubUsername}
                     onChange={(e) => setTokens(prev => ({ ...prev, githubUsername: e.target.value }))}
-                    className="input-field w-full bg-gray-700/50 border border-indigo-700 text-white placeholder-gray-400 focus:ring-cyan-500 focus:border-cyan-500"
+                    className="input-field w-full bg-gray-700/50 border border-indigo-700 text-white placeholder-gray-400 focus:ring-cyan-500 focus:border-cyan-500 text-sm sm:text-base rounded-lg px-3 py-2"
                     placeholder="your-username"
                   />
                 </div>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                <div className="mb-3 sm:mb-4">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-400 mb-2">
                     Personal Access Token
                   </label>
                   <input
                     type="password"
                     value={tokenValue}
                     onChange={(e) => setTokenValue(e.target.value)}
-                    className="input-field w-full bg-gray-700/50 border border-indigo-700 text-white placeholder-gray-400 focus:ring-cyan-500 focus:border-cyan-500"
+                    className="input-field w-full bg-gray-700/50 border border-indigo-700 text-white placeholder-gray-400 focus:ring-cyan-500 focus:border-cyan-500 text-sm sm:text-base rounded-lg px-3 py-2"
                     placeholder="ghp_xxxxxxxxxxxx"
                   />
                   <p className="text-xs text-gray-500 mt-2">
@@ -260,16 +304,16 @@ const Joe = () => {
                 </div>
               </>
             )}
-            <div className="flex gap-3">
+            <div className="flex gap-2 sm:gap-3">
               <button
                 onClick={closeTokenModal}
-                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-all duration-200"
+                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-3 sm:px-4 py-2 rounded-lg transition-all duration-200 text-sm sm:text-base"
               >
                 ❌ Cancel
               </button>
               <button
                 onClick={saveToken}
-                className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded-lg transition-all duration-200 shadow-lg shadow-cyan-500/50"
+                className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white px-3 sm:px-4 py-2 rounded-lg transition-all duration-200 shadow-lg shadow-cyan-500/50 text-sm sm:text-base"
                 disabled={!tokenValue || (tokenType === 'github' && !tokens.githubUsername)}
               >
                 💾 Save
@@ -279,12 +323,15 @@ const Joe = () => {
         </div>
       )}
     </div>
-    {/* Joe's Computer Screen (Bottom Right) */}
-    <JoeScreen 
-      isProcessing={isProcessing} 
-      progress={progress} 
-      wsLog={wsLog}
-    />
+    
+    {/* Joe's Computer Screen - Responsive (Hidden on mobile) */}
+    <div className="hidden lg:block">
+      <JoeScreen 
+        isProcessing={isProcessing} 
+        progress={progress} 
+        wsLog={wsLog}
+      />
+    </div>
     </>
   );
 };
