@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import ChatSidebar from '../components/ChatSidebar';
 import FileUpload from '../components/FileUpload';
 import { useJoeChat } from '../hooks/useJoeChat.js';
