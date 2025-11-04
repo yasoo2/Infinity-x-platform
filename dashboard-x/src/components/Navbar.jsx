@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useSessionToken } from '../hooks/useSessionToken';
 
-export default function Navbar() {
+export default function Navbar({ onToggleJoeScreen }) {
   const { clearToken } = useSessionToken();
   const navigate = useNavigate();
 
@@ -46,7 +46,14 @@ export default function Navbar() {
               ))}
             </div>
           </div>
-          <div className="flex items-center">
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={onToggleJoeScreen}
+              className="p-2 text-xl text-neonGreen hover:text-white hover:bg-neonGreen/20 rounded-full transition-all duration-200"
+              title="Toggle Joe Screen"
+            >
+              💻
+            </button>
             <button
               onClick={handleLogout}
               className="px-4 py-2 text-sm font-medium text-neonPink hover:text-white hover:bg-neonPink/20 rounded-lg transition-all duration-200"

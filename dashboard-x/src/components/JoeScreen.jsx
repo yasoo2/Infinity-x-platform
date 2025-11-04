@@ -42,7 +42,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
         height={300}
         minConstraints={[300, 200]}
         maxConstraints={[800, 600]}
-        className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50"
+        className="absolute bottom-4 right-4 z-50"
       >
         <div className="w-full h-full flex flex-col bg-gray-900 border border-cyan-500/50 rounded-lg shadow-2xl shadow-cyan-900/50 overflow-hidden">
       {/* Header */}
