@@ -39,7 +39,7 @@ function App() {
           <Route path="self-design" element={<SelfDesign />} />
           <Route path="store-integration" element={<UniversalStoreIntegration />} />
           <Route path="page-builder" element={<PageBuilder />} />
-          <Route path="joe" element={<JoeV2 />} />
+          <Route path="joe" element={<Joe />} />
           <Route path="super-admin" element={<SuperAdminPanel />} />
         </Route>
 
