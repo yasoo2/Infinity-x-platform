@@ -56,7 +56,7 @@ const Joe = () => {
 
   return (
     <>
-    <div className="min-h-[calc(100vh-4rem)] flex bg-gray-950 text-white">
+    <div className="h-[calc(100vh-4rem)] flex bg-gray-950 text-white overflow-hidden">
 
 
       {/* Chat Sidebar */}
@@ -72,7 +72,7 @@ const Joe = () => {
       )}
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col backdrop-blur-sm bg-gray-900/80">
+      <div className="flex-1 flex flex-col backdrop-blur-sm bg-gray-900/80 h-full">
         {/* Header */}
         <div className="border-b border-fuchsia-500/50 p-6 bg-gray-900/50 backdrop-blur-md shadow-xl shadow-fuchsia-900/20">
           <div className="flex justify-between items-start mb-4">
