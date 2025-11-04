@@ -170,7 +170,7 @@ export const useJoeChat = () => {
           type: 'ADD_MESSAGE',
           payload: {
             type: 'joe',
-            content: response.data.reply,
+            content: response.data.response || response.data.reply || 'No response',
             timestamp: new Date().toLocaleTimeString(),
             isTyping: false,
           },
