@@ -51,16 +51,17 @@ export const useSpeechRecognition = () => {
     if (!recognition) return;
 
     recognition.onresult = (event) => {
-      // جمع جميع النتائج (النهائية والمؤقتة)
+      let interimTranscript = '';
       let finalTranscript = '';
-      for (let i = 0; i < event.results.length; i++) {
+
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript + ' ';
+          finalTranscript += event.results[i][0].transcript;
+        } else {
+          interimTranscript += event.results[i][0].transcript;
         }
       }
-      if (finalTranscript) {
-        setTranscript(prev => prev + finalTranscript);
-      }
+      setTranscript(finalTranscript);
     };
 
     recognition.onerror = (event) => {

@@ -57,16 +57,7 @@ const Joe = () => {
   return (
     <>
     <div className="min-h-[calc(100vh-4rem)] flex bg-gray-950 text-white">
-      {/* Sidebar Toggle Button (when collapsed) */}
-      {isSidebarCollapsed && (
-        <button
-          onClick={() => setIsSidebarCollapsed(false)}
-          className="fixed top-20 left-4 z-50 bg-cyan-500 hover:bg-cyan-600 text-white p-3 rounded-lg shadow-lg shadow-cyan-500/50 transition-all duration-200"
-          title="فتح الشريط الجانبي"
-        >
-          ☰
-        </button>
-      )}
+
 
       {/* Chat Sidebar */}
       {!isSidebarCollapsed && (
@@ -86,11 +77,20 @@ const Joe = () => {
         <div className="border-b border-fuchsia-500/50 p-6 bg-gray-900/50 backdrop-blur-md shadow-xl shadow-fuchsia-900/20">
           <div className="flex justify-between items-start mb-4">
             <div>
-              <h1 className="text-3xl font-bold mb-2">
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                  className="bg-gray-800 hover:bg-gray-700 text-white p-3 rounded-lg shadow-md transition-all duration-200"
+                  title={isSidebarCollapsed ? 'Show Sidebar' : 'Hide Sidebar'}
+                >
+                  {isSidebarCollapsed ? '☰' : '✕'}
+                </button>
+                <h1 className="text-3xl font-bold">
                 <span className="text-cyan-400 drop-shadow-[0_0_5px_rgba(0,255,255,0.8)]">xElite</span>
                 <span className="text-fuchsia-400 drop-shadow-[0_0_5px_rgba(255,0,255,0.8)]">Solutions</span>
                 <span className="text-gray-500 text-xl ml-3">| AGI Platform</span>
               </h1>
+              </div>
               <p className="text-gray-400 font-light">
                 🚀 Your intelligent assistant for building and developing projects
               </p>

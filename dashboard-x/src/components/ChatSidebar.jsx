@@ -89,15 +89,7 @@ export default function ChatSidebar({
           >
             + جديد
           </button>
-          {onCollapse && (
-            <button
-              onClick={onCollapse}
-              className="text-textDim hover:text-white transition-colors"
-              title="إخفاء الشريط الجانبي"
-            >
-              ✕
-            </button>
-          )}
+
         </div>
       </div>
 
