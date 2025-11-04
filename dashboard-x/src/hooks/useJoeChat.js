@@ -155,7 +155,8 @@ export const useJoeChat = () => {
     try {
       // **تحسين الاتصال:** استخدام مسار API موحد
       const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://api.xelitesolutions.com';
-      const response = await axios.post(`${API_BASE}/api/v1/joe/chat`, {
+      // استخدام endpoint الجديد مع Function Calling
+      const response = await axios.post(`${API_BASE}/api/v1/joe/chat-advanced`, {
         message: currentInput,
         conversationId: state.currentConversation,
         tokens: tokens,
@@ -166,13 +167,21 @@ export const useJoeChat = () => {
 
       if (response.data.ok) {
         // تحديث رسالة JOE الأخيرة بالرد الفعلي
+        let joeResponse = response.data.response || response.data.reply || 'No response';
+        
+        // إضافة معلومات عن الأدوات المستخدمة
+        if (response.data.toolsUsed && response.data.toolsUsed.length > 0) {
+          joeResponse += `\n\n🔧 **الأدوات المستخدمة:** ${response.data.toolsUsed.join(', ')}`;
+        }
+        
         dispatch({
           type: 'ADD_MESSAGE',
           payload: {
             type: 'joe',
-            content: response.data.response || response.data.reply || 'No response',
+            content: joeResponse,
             timestamp: new Date().toLocaleTimeString(),
             isTyping: false,
+            toolsUsed: response.data.toolsUsed || [],
           },
         });
 
