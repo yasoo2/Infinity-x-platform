@@ -7,6 +7,8 @@ import JoeDesktopView from '../components/JoeDesktopView.jsx';
 const Joe = () => {
   // AI Engine State
   const [aiEngine, setAiEngine] = React.useState('openai');
+  // Sidebar State
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
 
   // These state variables and handlers need to be defined within the component.
   // I'm assuming they come from a custom hook like `useJoeChat`.
@@ -55,14 +57,28 @@ const Joe = () => {
   return (
     <>
     <div className="min-h-[calc(100vh-4rem)] flex bg-gray-950 text-white">
+      {/* Sidebar Toggle Button (when collapsed) */}
+      {isSidebarCollapsed && (
+        <button
+          onClick={() => setIsSidebarCollapsed(false)}
+          className="fixed top-20 left-4 z-50 bg-cyan-500 hover:bg-cyan-600 text-white p-3 rounded-lg shadow-lg shadow-cyan-500/50 transition-all duration-200"
+          title="فتح الشريط الجانبي"
+        >
+          ☰
+        </button>
+      )}
+
       {/* Chat Sidebar */}
-      <ChatSidebar
-        userId={userId}
-        conversations={conversations}
-        currentConversation={currentConversation}
-        onConversationSelect={handleConversationSelect}
-        onNewConversation={handleNewConversation}
-      />
+      {!isSidebarCollapsed && (
+        <ChatSidebar
+          userId={userId}
+          conversations={conversations}
+          currentConversation={currentConversation}
+          onConversationSelect={handleConversationSelect}
+          onNewConversation={handleNewConversation}
+          onCollapse={() => setIsSidebarCollapsed(true)}
+        />
+      )}
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col backdrop-blur-sm bg-gray-900/80">

@@ -17,8 +17,8 @@ export const useSpeechRecognition = () => {
   useEffect(() => {
     if (SpeechRecognition) {
       const newRecognition = new SpeechRecognition();
-      newRecognition.continuous = false; // يتوقف بعد جملة واحدة
-      newRecognition.interimResults = false; // لا يعرض النتائج المؤقتة
+      newRecognition.continuous = true; // الاستمرار في التسجيل حتى يتم إيقافه يدوياً
+      newRecognition.interimResults = true; // عرض النتائج المؤقتة أثناء التحدث
       newRecognition.lang = 'ar-EG'; // دعم اللغة العربية (يمكن تغييره)
       setRecognition(newRecognition);
     } else {
@@ -51,9 +51,16 @@ export const useSpeechRecognition = () => {
     if (!recognition) return;
 
     recognition.onresult = (event) => {
-      const speechToText = event.results[0][0].transcript;
-      setTranscript(speechToText);
-      setIsListening(false);
+      // جمع جميع النتائج (النهائية والمؤقتة)
+      let finalTranscript = '';
+      for (let i = 0; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript + ' ';
+        }
+      }
+      if (finalTranscript) {
+        setTranscript(prev => prev + finalTranscript);
+      }
     };
 
     recognition.onerror = (event) => {
