@@ -101,9 +101,9 @@ const Joe = () => {
       )}
 
       {/* Main Chat Area - Responsive */}
-      <div className="flex-1 flex flex-col backdrop-blur-sm bg-gray-900/80 min-h-screen md:min-h-0 h-full">
+      <div className="flex-1 flex flex-col backdrop-blur-sm bg-gray-900/80 h-screen md:min-h-0">
         {/* Header - Responsive */}
-        <div className="border-b border-fuchsia-500/50 p-3 sm:p-4 md:p-6 bg-gray-900/50 backdrop-blur-md shadow-xl shadow-fuchsia-900/20">
+        <div className="border-b border-fuchsia-500/50 p-3 sm:p-4 md:p-6 bg-gray-900/50 backdrop-blur-md shadow-xl shadow-fuchsia-900/20 flex-shrink-0">
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 md:mb-2">
             <span className="text-cyan-400 drop-shadow-[0_0_5px_rgba(0,255,255,0.8)]">xElite</span>
             <span className="text-fuchsia-400 drop-shadow-[0_0_5px_rgba(255,0,255,0.8)]">Solutions</span>
@@ -276,11 +276,13 @@ const Joe = () => {
 
             {/* Action Buttons Row */}
             <div className="flex gap-2 sm:gap-3">
-              <div className="relative">
-                <FileUpload onFileAnalyzed={(data) => {
-                  setInput(prev => prev + `\n\nUploaded file: ${data.fileName}\n${data.content}`);
-                }} />
-              </div>
+              <button
+                onClick={() => alert('Attachment functionality will be implemented here.')}
+                className="p-2 sm:p-3 rounded-lg transition-all duration-200 bg-gray-700 hover:bg-gray-600 text-gray-300 shadow-md"
+                title="Attach File"
+              >
+                📎
+              </button>
               {canStop && (
                 <button
                   onClick={stopProcessing}
