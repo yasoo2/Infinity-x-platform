@@ -112,7 +112,7 @@ ${conversationHistory}
     const engineLower = (aiEngine || 'openai').toLowerCase();
 
     if (engineLower === 'gemini') {
-      response = await geminiEngine.generateCode(systemPrompt);
+      response = await geminiEngine.generateResponse(systemPrompt, context);
     } else if (engineLower === 'grok') {
       response = await grokEngine.generateResponse(systemPrompt, context);
     } else {
