@@ -52,7 +52,13 @@ export const useJoeChat = () => {
   const [wsLog, setWsLog] = useState([]);
 
   // دمج منطق الميكروفون من useSpeechRecognition
-  const { isListening, startListening, stopListening, transcript } = useSpeechRecognition();
+  let speechRecognition = { isListening: false, startListening: () => {}, stopListening: () => {}, transcript: '' };
+  try {
+    speechRecognition = useSpeechRecognition();
+  } catch (error) {
+    console.warn('Speech recognition not available:', error);
+  }
+  const { isListening, startListening, stopListening, transcript } = speechRecognition;
 
   // تأثير جانبي للتعامل مع نتيجة الإملاء الصوتي
   // هذا يضمن أن النص المكتوب صوتيًا يضاف إلى حقل الإدخال
