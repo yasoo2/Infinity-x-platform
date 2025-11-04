@@ -24,7 +24,7 @@ export default function Login() {
     
     try {
       // استدعاء API للمصادقة
-      const response = await apiClient.post('/api/auth/login', {
+      const response = await apiClient.post('/api/v1/auth/login', {
         emailOrPhone: email,
         password: password
       });

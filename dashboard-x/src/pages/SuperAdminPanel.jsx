@@ -41,7 +41,7 @@ const SuperAdminPanel = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/admin/users', {
+      const response = await axios.get('/api/v1/admin/users', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('sessionToken')}`
         }
@@ -60,7 +60,7 @@ const SuperAdminPanel = () => {
   const handleAddUser = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post('/api/admin/users', formData, {
+      const response = await axios.post('/api/v1/admin/users', formData, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('sessionToken')}`
         }

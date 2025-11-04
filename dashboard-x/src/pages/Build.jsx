@@ -41,7 +41,7 @@ export default function Build() {
 
   const fetchJobs = async () => {
     try {
-      const res = await apiClient.get('/api/factory/jobs');
+      const res = await apiClient.get('/api/v1/factory/jobs');
       if (res.data.ok) {
         setJobs(res.data.jobs);
       }
