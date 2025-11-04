@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, Clock, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Check, Clock, X, ChevronDown, ChevronUp, Cpu } from 'lucide-react';
 
 const mockTasks = [
   { id: 1, title: 'تحليل المكونات المطلوبة في الواجهة الأمامية', status: 'completed' },
