@@ -54,6 +54,14 @@ const Joe = () => {
     }
   }, [transcript, setInput]);
 
+  // Auto-scroll to bottom when messages change
+  React.useEffect(() => {
+    const messagesContainer = document.getElementById('messages-container');
+    if (messagesContainer) {
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+  }, [messages]);
+
   return (
     <>
     <div className="h-[calc(100vh-4rem)] flex bg-gray-950 text-white overflow-hidden">
@@ -72,7 +80,7 @@ const Joe = () => {
       )}
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col backdrop-blur-sm bg-gray-900/80 h-full">
+      <div className="flex-1 flex flex-col backdrop-blur-sm bg-gray-900/80 h-screen overflow-hidden">
         {/* Header */}
         <div className="border-b border-fuchsia-500/50 p-6 bg-gray-900/50 backdrop-blur-md shadow-xl shadow-fuchsia-900/20">
           <div className="flex justify-between items-start mb-4">
@@ -133,7 +141,7 @@ const Joe = () => {
         </div>
 
         {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-6 bg-transparent flex">
+        <div className="flex-1 overflow-y-auto p-6 bg-transparent flex" id="messages-container">
           <div className="flex-1 space-y-4">
           {messages.length === 0 && (
             <div className="text-center text-gray-500 py-12 bg-gray-800/20 border border-cyan-500/10 rounded-xl p-8 shadow-inner shadow-cyan-900/30">
