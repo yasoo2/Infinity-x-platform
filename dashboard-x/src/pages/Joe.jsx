@@ -5,6 +5,11 @@ import { useJoeChat } from '../hooks/useJoeChat.js';
 import JoeScreen from '../components/JoeScreen.jsx';
 
 const Joe = () => {
+  const messagesEndRef = useRef(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   const {
@@ -44,6 +49,11 @@ const Joe = () => {
       setInput(transcript);
     }
   }, [transcript, setInput]);
+
+  // Auto-scroll to bottom on new message
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   return (
     <>
@@ -91,7 +101,7 @@ const Joe = () => {
       )}
 
       {/* Main Chat Area - Responsive */}
-      <div className="flex-1 flex flex-col backdrop-blur-sm bg-gray-900/80 min-h-screen md:min-h-0">
+      <div className="flex-1 flex flex-col backdrop-blur-sm bg-gray-900/80 min-h-screen md:min-h-0 h-full">
         {/* Header - Responsive */}
         <div className="border-b border-fuchsia-500/50 p-3 sm:p-4 md:p-6 bg-gray-900/50 backdrop-blur-md shadow-xl shadow-fuchsia-900/20">
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 md:mb-2">
@@ -139,7 +149,7 @@ const Joe = () => {
         </div>
 
         {/* Messages Area - Responsive */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 space-y-3 md:space-y-4 bg-transparent">
+        <div id="messages-container" className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 space-y-3 md:space-y-4 bg-transparent">
           {messages.length === 0 && (
             <div className="text-center text-gray-500 py-8 sm:py-10 md:py-12 bg-gray-800/20 border border-cyan-500/10 rounded-xl p-4 sm:p-6 md:p-8 shadow-inner shadow-cyan-900/30">
               <div className="text-4xl sm:text-5xl md:text-6xl mb-3 md:mb-4 animate-pulse">🤖</div>
@@ -180,6 +190,7 @@ const Joe = () => {
               </div>
             </div>
           ))}
+          <div ref={messagesEndRef} /> {/* Scroll target */}
 
           {/* Progress Bar - Responsive */}
           {isProcessing && progress > 0 && (
@@ -232,14 +243,7 @@ const Joe = () => {
         </div>
 
         {/* Input Area - Responsive */}
-        <div className="border-t border-cyan-500/50 bg-gray-900/50 p-3 sm:p-4 backdrop-blur-md shadow-2xl shadow-cyan-900/20">
-          {/* File Upload - Responsive */}
-          <div className="mb-3 sm:mb-4">
-            <FileUpload onFileAnalyzed={(data) => {
-              setInput(prev => prev + `\n\nUploaded file: ${data.fileName}\n${data.content}`);
-            }} />
-          </div>
-
+        <div className="border-t border-cyan-500/50 bg-gray-900/50 p-3 sm:p-4 backdrop-blur-md shadow-2xl shadow-cyan-900/20 flex-shrink-0">
           {/* Input Controls - Responsive */}
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
             {/* Voice and Input Row */}
@@ -272,6 +276,11 @@ const Joe = () => {
 
             {/* Action Buttons Row */}
             <div className="flex gap-2 sm:gap-3">
+              <div className="relative">
+                <FileUpload onFileAnalyzed={(data) => {
+                  setInput(prev => prev + `\n\nUploaded file: ${data.fileName}\n${data.content}`);
+                }} />
+              </div>
               {canStop && (
                 <button
                   onClick={stopProcessing}
