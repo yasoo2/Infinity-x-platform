@@ -41,6 +41,7 @@ function App() {
           <Route path="page-builder" element={<PageBuilder />} />
           <Route path="joe" element={<Joe />} />
           <Route path="super-admin" element={<SuperAdminPanel />} />
+          <Route path="joe-v2" element={<JoeV2 />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/overview" replace />} />
