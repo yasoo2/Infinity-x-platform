@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Draggable from 'react-draggable';
 import { ResizableBox } from 'react-resizable';
-import { Terminal, Code, Cpu, Globe, Monitor, ChevronDown, ChevronUp, RefreshCw, MousePointer } from 'lucide-react';
+import { Terminal, Code, Cpu, Globe, Monitor, ChevronDown, ChevronUp, RefreshCw, MousePointer, Maximize2 } from 'lucide-react';
 import useBrowserWebSocket from '../hooks/useBrowserWebSocket';
+import FullScreenBrowser from './FullScreenBrowser';
 
 const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
   const [isTakeoverActive, setIsTakeoverActive] = useState(false);
@@ -10,6 +11,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
   const [browserUrl, setBrowserUrl] = useState('https://xelitesolutions.com');
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [inputText, setInputText] = useState('');
+  const [isFullScreen, setIsFullScreen] = useState(false);
   const imageRef = useRef(null);
 
   const {
@@ -112,8 +114,12 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
   };
 
   return (
-    <Draggable handle=".handle">
-      <ResizableBox
+    <>
+      {isFullScreen && (
+        <FullScreenBrowser onClose={() => setIsFullScreen(false)} />
+      )}
+      <Draggable handle=".handle">
+        <ResizableBox
         width={700}
         height={isCollapsed ? 50 : 500}
         minConstraints={[500, 50]}
@@ -212,6 +218,14 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
                         title="Refresh Screenshot"
                       >
                         <RefreshCw className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={() => setIsFullScreen(true)}
+                        disabled={!isConnected}
+                        className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white text-xs p-1.5 rounded transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                        title="Open Full Screen Browser"
+                      >
+                        <Maximize2 className="w-3 h-3" />
                       </button>
                     </div>
 
@@ -337,8 +351,9 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
             </>
           )}
         </div>
-      </ResizableBox>
-    </Draggable>
+        </ResizableBox>
+      </Draggable>
+    </>
   );
 };
 
