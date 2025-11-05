@@ -148,13 +148,34 @@ class JOEngine {
    * بدء JOEngine
    */
   async start() {
-    console.log(chalk.cyan.bold('🚀 Starting JOEngine AGI...\n'));    // بدء Agent Loop\n    await this.agentLoop.start();\n\n    // تشغيل خادم API\n    const apiServer = createApiServer(this);\n    this.server = apiServer.listen(this.config.port, () => {\n      console.log(chalk.green.bold(`✅ JOEngine AGI is running on port ${this.config.port}!`));\n      console.log(chalk.gray('Waiting for tasks...\\n'));\n    });
+    console.log(chalk.cyan.bold('🚀 Starting JOEngine AGI...\n'));
+    
+    // بدء Agent Loop
+    await this.agentLoop.start();
+
+    // تشغيل خادم API
+    const apiServer = createApiServer(this);
+    this.server = apiServer.listen(this.config.port, () => {
+      console.log(chalk.green.bold(`✅ JOEngine AGI is running on port ${this.config.port}!`));
+      console.log(chalk.gray('Waiting for tasks...\n'));
+    });
+  }
 
   /**
    * إيقاف JOEngine
    */
   async stop() {
-    console.log(chalk.yellow.bold('\n🛑 Stopping JOEngine AGI...\n'))    // إيقاف Agent Loop\n    await this.agentLoop.stop();\n\n    // إغلاق خادم API\n    if (this.server) {\n      this.server.close();\n    }\n\n    // إغلاق الأدوات
+    console.log(chalk.yellow.bold('\n🛑 Stopping JOEngine AGI...\n'));
+    
+    // إيقاف Agent Loop
+    await this.agentLoop.stop();
+
+    // إغلاق خادم API
+    if (this.server) {
+      this.server.close();
+    }
+
+    // إغلاق الأدوات
     const browserTool = this.toolsSystem.getTool('browser');
     if (browserTool) {
       await browserTool.close();
