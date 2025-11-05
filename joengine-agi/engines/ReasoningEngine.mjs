@@ -94,7 +94,7 @@ You are autonomous, intelligent, and capable of solving ANY problem.`;
 	    // تحديث ذاكرة العمل (Working Memory)
 	    this.memory.workingMemory = { goal, context, timestamp: new Date() };
 	
-	    // **التحسين: تجاوز التخطيط المعقد للمهام البسيطة (مثل البحث عن الكود)**
+	    // **التحسين: تجاوز التخطيط المعقد للمهام البسيطة (مثل البحث عن الكود)**\n    // تمكين البحث السريع في الكود (Manus-like quick code search)
 	    if (goal.toLowerCase().includes('search') || goal.toLowerCase().includes('find') || goal.toLowerCase().includes('glob') || goal.toLowerCase().includes('grep')) {
 	      const isCodeSearch = goal.toLowerCase().includes('code') || goal.toLowerCase().includes('file') || goal.toLowerCase().includes('glob') || goal.toLowerCase().includes('grep');
 	      
@@ -102,12 +102,12 @@ You are autonomous, intelligent, and capable of solving ANY problem.`;
 	        console.log('⚡️ Bypassing complex planning for quick code search...');
 	        
 	        // محاولة استخراج regex من الهدف
-	        const regexMatch = goal.match(/"(.*?)"/);
-	        const regex = regexMatch ? regexMatch[1] : goal.split(' ').slice(-1)[0];
+	        const regexMatch = goal.match(/"(.*?)"/); // البحث عن regex بين علامتي اقتباس
+	        const regex = regexMatch ? regexMatch[1] : goal.split(' ').slice(-1)[0]; // استخدام الكلمة الأخيرة كـ regex افتراضي
 	        
 	        // محاولة استخراج النطاق
-	        const scopeMatch = goal.match(/scope: (.*?)(?:\s|$)/);
-	        const scope = scopeMatch ? scopeMatch[1] : '**/*';
+	        const scopeMatch = goal.match(/scope: (.*?)(?:\s|$)/); // البحث عن النطاق
+	        const scope = scopeMatch ? scopeMatch[1] : '**/*'; // استخدام **/* كنطاق افتراضي
 	        
 	        return {
 	          analysis: `The goal is a simple code search. Bypassing complex planning to execute a direct search using the enhanced CodeTool.`,
@@ -122,7 +122,7 @@ You are autonomous, intelligent, and capable of solving ANY problem.`;
 	              action: 'search',
 	              scope: scope,
 	              regex: regex,
-	              searchType: 'grep'
+	              searchType: 'grep' // استخدام grep للبحث عن المحتوى
 	            }
 	          }],
 	          risks: [],
