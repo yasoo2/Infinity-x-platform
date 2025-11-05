@@ -70,6 +70,13 @@ export default function EnhancedBrowserControl() {
     setOutput([]);
   };
 
+  const quickCommands = [
+    { label: 'الرئيسية', action: () => handleNavigate('https://www.google.com') },
+    { label: 'تحديث', action: () => addOutput('تم تحديث الصفحة', 'success') },
+    { label: 'للخلف', action: () => addOutput('تم الرجوع للخلف', 'success') },
+    { label: 'للأمام', action: () => addOutput('تم الانتقال للأمام', 'success') }
+  ];
+
   return (
     <div className={`bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-lg overflow-hidden shadow-2xl ${
       isFullscreen ? 'fixed inset-0 z-50' : ''
@@ -106,6 +113,19 @@ export default function EnhancedBrowserControl() {
               {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
             </button>
           </div>
+        </div>
+
+        <div className="flex gap-2 mt-3 flex-wrap">
+          {quickCommands.map((cmd, idx) => (
+            <button
+              key={idx}
+              onClick={cmd.action}
+              disabled={isLoading}
+              className="px-3 py-1 text-sm bg-slate-600 hover:bg-slate-500 text-cyan-400 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {cmd.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -163,6 +183,12 @@ export default function EnhancedBrowserControl() {
               className="px-3 py-1 text-sm bg-slate-700 hover:bg-slate-600 text-gray-400 rounded-lg transition-colors"
             >
               مسح السجل
+            </button>
+            <button
+              onClick={() => setCommand('help')}
+              className="px-3 py-1 text-sm bg-slate-700 hover:bg-slate-600 text-gray-400 rounded-lg transition-colors"
+            >
+              مساعدة
             </button>
           </div>
         </div>

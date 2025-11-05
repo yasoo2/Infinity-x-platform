@@ -3,10 +3,6 @@ import AdvancedMonitoringPanel from '../components/AdvancedMonitoringPanel';
 import EnhancedBrowserControl from '../components/EnhancedBrowserControl';
 import { BarChart3, Monitor } from 'lucide-react';
 
-/**
- * صفحة المراقبة والتحكم
- * تجمع بين لوحة المراقبة المتقدمة والتحكم بالمتصفح
- */
 export default function MonitoringPage() {
   const [activeTab, setActiveTab] = useState('monitoring');
 
@@ -18,7 +14,6 @@ export default function MonitoringPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
       <div className="max-w-7xl mx-auto">
-        {/* رأس الصفحة */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-cyan-400 mb-2">
             لوحة المراقبة والتحكم
@@ -28,7 +23,6 @@ export default function MonitoringPage() {
           </p>
         </div>
 
-        {/* الأتاب */}
         <div className="flex gap-4 mb-8 border-b border-cyan-500/30 overflow-x-auto">
           {tabs.map(tab => {
             const Icon = tab.icon;
@@ -49,7 +43,6 @@ export default function MonitoringPage() {
           })}
         </div>
 
-        {/* محتوى الأتاب */}
         <div className="animate-fadeIn">
           {activeTab === 'monitoring' && (
             <AdvancedMonitoringPanel />
@@ -66,7 +59,6 @@ export default function MonitoringPage() {
           )}
         </div>
 
-        {/* معلومات إضافية */}
         <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
             <h3 className="text-cyan-400 font-bold mb-2">🎯 الميزات</h3>
