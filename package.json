@@ -4,15 +4,22 @@
   "private": true,
   "description": "Advanced AI Platform with Sandbox, Planning, Scheduling, and Security Systems",
   "scripts": {
-    "install-backend": "cd backend && npm install --legacy-peer-deps",
-    "install-all": "npm run install-backend && cd joengine-agi && npm install --legacy-peer-deps && cd ../dashboard-x && npm install --legacy-peer-deps",
-    "start-backend": "cd backend && node server.mjs"
-  },
-  "dependencies": {
-    "openai": "^4.77.0"
+    "start": "cd backend && node server.mjs",
+    "dev": "cd backend && npm run dev",
+    "build": "cd backend && npm run build"
   },
   "engines": {
     "node": ">=22.0.0",
     "npm": ">=10.0.0"
-  }
+  },
+  "keywords": [
+    "ai",
+    "platform",
+    "sandbox",
+    "planning",
+    "scheduling",
+    "security"
+  ],
+  "author": "xEliteSolutions",
+  "license": "MIT"
 }
