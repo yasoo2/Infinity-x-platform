@@ -1,4 +1,4 @@
-import WebSocket from 'ws';
+import { WebSocketServer } from 'ws';
 import { liveStreamingService } from './liveStreamingService.mjs';
 
 /**
@@ -7,7 +7,7 @@ import { liveStreamingService } from './liveStreamingService.mjs';
  */
 export class LiveStreamWebSocketServer {
   constructor(server) {
-    this.wss = new WebSocket.Server({ server, path: '/ws/live-stream' });
+    this.wss = new WebSocketServer({ server, path: '/ws/live-stream' });
     this.clients = new Set();
     this.setupWebSocketServer();
   }
