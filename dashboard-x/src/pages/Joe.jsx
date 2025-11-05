@@ -3,6 +3,7 @@ import ChatSidebar from '../components/ChatSidebar';
 import FileUpload from '../components/FileUpload';
 import { useJoeChat } from '../hooks/useJoeChat.js';
 import JoeScreen from '../components/JoeScreen.jsx';
+import JoeComputer from '../components/JoeComputer.jsx';
 
 const Joe = () => {
   const messagesEndRef = useRef(null);
@@ -13,6 +14,7 @@ const Joe = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isScreenVisible, setIsScreenVisible] = useState(false);
   const [isTakeoverActive, setIsTakeoverActive] = useState(false);
+  const [isJoeComputerVisible, setIsJoeComputerVisible] = useState(true);
   
   const {
     userId,
@@ -57,8 +59,21 @@ const Joe = () => {
     scrollToBottom();
   }, [messages]);
 
+  const handleCloseJoeComputer = () => {
+    setIsJoeComputerVisible(false);
+  };
+
+  const handleComputerTakeover = () => {
+    console.log('User has taken over the Joe computer.');
+  };
+
   return (
     <>
+      <JoeComputer
+        isVisible={isJoeComputerVisible}
+        onClose={handleCloseJoeComputer}
+        onTakeover={handleComputerTakeover}
+      />
     <div className="min-h-[calc(100vh-4rem)] flex flex-col md:flex-row bg-gray-950 text-white relative">
       {/* Mobile Sidebar Toggle Button */}
       <button

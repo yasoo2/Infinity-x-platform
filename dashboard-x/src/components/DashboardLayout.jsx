@@ -2,7 +2,7 @@ import { Outlet } from 'react-router-dom';
 import { useState } from 'react';
 import Navbar from './Navbar';
 import JoeScreen from './JoeScreen';
-import TaskProgress from './TaskProgress';
+
 
 export default function DashboardLayout() {
   const [isJoeScreenOpen, setIsJoeScreenOpen] = useState(false);
@@ -34,7 +34,7 @@ export default function DashboardLayout() {
           onClose={handleCloseJoeScreen}
         />
       )}
-      <TaskProgress />
+
     </div>
   );
 }
