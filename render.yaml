@@ -38,7 +38,8 @@ services:
     repo: https://github.com/yasoo2/Infinity-x-platform
     rootDir: dashboard-x
     buildCommand: |
-      pnpm install
+      npm install -g pnpm
+      pnpm install --frozen-lockfile
       pnpm run build
     staticPublishPath: dashboard-x/dist
     headers:
