@@ -431,3 +431,10 @@ export const joeUltimateEngine = {
   processMessageUltimate,
   ULTIMATE_TOOLS
 };
+
+// Export for backward compatibility
+export const joeAdvancedEngine = {
+  processMessageUltimate,
+  processMessageWithTools: processMessageUltimate,
+  ULTIMATE_TOOLS
+};
