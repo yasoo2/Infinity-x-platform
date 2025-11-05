@@ -37,11 +37,7 @@ services:
     branch: main
     repo: https://github.com/yasoo2/Infinity-x-platform
     rootDir: dashboard-x
-    buildCommand: |
-      cd dashboard-x
-      npm install -g pnpm
-      pnpm install
-      pnpm run build
+    buildCommand: pnpm install && pnpm run build
     staticPublishPath: dashboard-x/dist
     headers:
       - path: /*
