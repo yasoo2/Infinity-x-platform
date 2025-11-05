@@ -205,6 +205,38 @@ const MANUS_TOOLS = [
       }
     }
   },
+  // Multimodal Tools - Image Generation
+  {
+    type: 'function',
+    function: {
+      name: 'generateImage',
+      description: 'إنشاء صورة باستخدام DALL-E 3',
+      parameters: {
+        type: 'object',
+        properties: {
+          prompt: { type: 'string', description: 'وصف الصورة المطلوبة' },
+          size: { type: 'string', description: 'حجم الصورة (1024x1024, 1792x1024, 1024x1792)', enum: ['1024x1024', '1792x1024', '1024x1792'] },
+          quality: { type: 'string', description: 'جودة الصورة (standard, hd)', enum: ['standard', 'hd'] }
+        },
+        required: ['prompt']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'analyzeImage',
+      description: 'تحليل صورة باستخدام Vision AI',
+      parameters: {
+        type: 'object',
+        properties: {
+          imageUrl: { type: 'string', description: 'رابط الصورة' },
+          prompt: { type: 'string', description: 'ما تريد معرفته عن الصورة' }
+        },
+        required: ['imageUrl']
+      }
+    }
+  },
   // Build Tools
   {
     type: 'function',
@@ -260,6 +292,12 @@ async function executeManusFunction(functionName, args) {
         return await webSearchTools.searchWeb(args.query);
       case 'browse_website':
         return await webSearchTools.browseWebsite(args.url);
+      
+      // Multimodal - Images
+      case 'generateImage':
+        return await multimodalTools.generateImage(args.prompt, args.size, args.quality);
+      case 'analyzeImage':
+        return await multimodalTools.analyzeImage(args.imageUrl, args.prompt);
       
       // Build
       case 'build_website':
