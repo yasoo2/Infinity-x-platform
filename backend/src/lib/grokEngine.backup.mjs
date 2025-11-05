@@ -1,5 +1,6 @@
 /**
- * GrokEngine Fixed - محرك Grok المحسّن مع معالجة أخطاء شاملة
+ * GrokEngine - محرك Grok للتكامل مع Grok API
+ * يوفر قدرات توليد الكود والردود الذكية
  */
 
 import axios from 'axios';
@@ -8,20 +9,14 @@ export class GrokEngine {
   constructor(apiKey) {
     this.apiKey = apiKey;
     this.baseURL = 'https://api.x.ai/v1';
-    this.model = 'grok-beta';
-    this.timeout = 30000; // 30 seconds
+    this.model = 'grok-2';
   }
 
   /**
-   * توليد رد من Grok مع معالجة أخطاء محسّنة
+   * توليد رد من Grok
    */
   async generateResponse(prompt, context = []) {
     try {
-      // التحقق من وجود API Key
-      if (!this.apiKey || this.apiKey === 'your-grok-api-key-here') {
-        throw new Error('GROK_API_KEY غير موجود أو غير صالح. يرجى تحديث المفتاح في ملف .env');
-      }
-
       const messages = [
         ...context.map(msg => ({
           role: msg.role,
@@ -32,12 +27,6 @@ export class GrokEngine {
           content: prompt
         }
       ];
-
-      console.log('🤖 Grok API Request:', {
-        url: `${this.baseURL}/chat/completions`,
-        model: this.model,
-        messagesCount: messages.length
-      });
 
       const response = await axios.post(
         `${this.baseURL}/chat/completions`,
@@ -52,45 +41,14 @@ export class GrokEngine {
           headers: {
             'Authorization': `Bearer ${this.apiKey}`,
             'Content-Type': 'application/json'
-          },
-          timeout: this.timeout
+          }
         }
       );
 
-      console.log('✅ Grok API Response received');
       return response.data.choices[0].message.content;
-
     } catch (error) {
-      console.error('❌ Grok API Error:', {
-        message: error.message,
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data
-      });
-
-      // معالجة أنواع الأخطاء المختلفة
-      if (error.response) {
-        const status = error.response.status;
-        const errorData = error.response.data;
-
-        if (status === 401) {
-          throw new Error('مفتاح Grok API غير صالح أو منتهي الصلاحية. يرجى تحديث GROK_API_KEY في ملف .env من https://console.x.ai');
-        } else if (status === 403) {
-          throw new Error('ليس لديك صلاحية للوصول إلى Grok API. تحقق من حسابك على https://console.x.ai');
-        } else if (status === 429) {
-          throw new Error('تم تجاوز حد الاستخدام لـ Grok API. يرجى الانتظار قليلاً والمحاولة مرة أخرى.');
-        } else if (status === 500 || status === 502 || status === 503) {
-          throw new Error('خطأ في خادم Grok API. يرجى المحاولة مرة أخرى لاحقاً.');
-        } else {
-          throw new Error(`خطأ من Grok API (${status}): ${errorData?.error?.message || error.message}`);
-        }
-      } else if (error.code === 'ECONNABORTED') {
-        throw new Error('انتهت مهلة الاتصال بـ Grok API. يرجى التحقق من اتصالك بالإنترنت.');
-      } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
-        throw new Error('لا يمكن الاتصال بخادم Grok API. يرجى التحقق من اتصالك بالإنترنت.');
-      } else {
-        throw new Error(`فشل الاتصال بـ Grok: ${error.message}`);
-      }
+      console.error('Grok API Error:', error.message);
+      throw new Error(`فشل توليد الرد من Grok: ${error.message}`);
     }
   }
 
@@ -116,7 +74,7 @@ export class GrokEngine {
       const code = await this.generateResponse(prompt);
       return this.cleanCode(code);
     } catch (error) {
-      throw error;
+      throw new Error(`فشل توليد الكود من Grok: ${error.message}`);
     }
   }
 
@@ -158,7 +116,7 @@ ${originalCode}
       data.content = this.cleanCode(data.content);
       return data;
     } catch (error) {
-      throw error;
+      throw new Error(`فشل التحسين من Grok: ${error.message}`);
     }
   }
 
@@ -188,28 +146,6 @@ ${originalCode}
 
     // إضافة عامة
     return original + '\n\n<!-- جو: إضافة جديدة -->\n' + partial;
-  }
-
-  /**
-   * اختبار الاتصال بـ Grok API
-   */
-  async testConnection() {
-    try {
-      console.log('🧪 Testing Grok API connection...');
-      const response = await this.generateResponse('مرحباً، هل تعمل؟');
-      console.log('✅ Grok API connection successful!');
-      return {
-        success: true,
-        message: 'الاتصال بـ Grok API ناجح',
-        response
-      };
-    } catch (error) {
-      console.error('❌ Grok API connection failed:', error.message);
-      return {
-        success: false,
-        error: error.message
-      };
-    }
   }
 }
 

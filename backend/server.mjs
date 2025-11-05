@@ -40,6 +40,7 @@ import browserControlRouter from './src/routes/browserControl.mjs';
 import chatHistoryRouter from './src/routes/chatHistory.mjs';
 import fileUploadRouter from './src/routes/fileUpload.mjs';
 import BrowserWebSocketServer from './src/services/browserWebSocket.mjs';
+import testGrokRouter from './src/routes/testGrok.mjs';
 
 // إعدادات قاعدة البيانات
 import { initMongo, getDB, closeMongoConnection } from './src/db.mjs';
@@ -569,6 +570,7 @@ app.use('/api/v1/joe', joeChatAdvancedRouter);
 app.use('/api/v1/browser', browserControlRouter);
 app.use('/api/v1/chat-history', chatHistoryRouter);
 app.use('/api/v1/file', fileUploadRouter);
+app.use('/api/v1', testGrokRouter);
 
 // هذه للوحة المصنع: عرض آخر jobs
 app.get('/api/v1/factory/jobs', requireRole(ROLES.ADMIN), async (req, res) => {
