@@ -7,7 +7,7 @@ services:
     branch: main
     repo: https://github.com/yasoo2/Infinity-x-platform
     rootDir: backend
-    buildCommand: npm install --legacy-peer-deps
+    buildCommand: npm install --legacy-peer-deps && npx playwright install --with-deps chromium
     startCommand: cd /opt/render/project/src/backend && npm start
     envVars:
       - key: PORT

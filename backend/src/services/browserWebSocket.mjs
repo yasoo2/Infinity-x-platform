@@ -123,7 +123,7 @@ class BrowserWebSocketServer {
             } catch (error) {
               console.error('Screenshot streaming error:', error);
             }
-          }, 1000); // Update every second
+          }, 500); // Update every 0.5 seconds for better responsiveness
         }
         break;
 
