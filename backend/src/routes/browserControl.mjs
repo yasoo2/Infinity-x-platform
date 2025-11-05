@@ -1,5 +1,5 @@
 import express from 'express';
-import puppeteer from 'puppeteer';
+import { chromium } from 'playwright';
 
 const router = express.Router();
 const sessions = new Map();
@@ -22,13 +22,15 @@ router.post('/start', async (req, res) => {
   try {
     const { sessionId = Date.now().toString(), url = 'https://google.com' } = req.body;
 
-    const browser = await puppeteer.launch({
+    const browser = await chromium.launch({
       headless: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu']
     });
 
-    const page = await browser.newPage();
-    await page.setViewport({ width: 1280, height: 720 });
+    const context = await browser.newContext({
+      viewport: { width: 1280, height: 720 }
+    });
+    const page = await context.newPage();
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
 
     sessions.set(sessionId, {
