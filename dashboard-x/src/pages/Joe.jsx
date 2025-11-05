@@ -3,6 +3,7 @@ import ChatSidebar from '../components/ChatSidebar';
 import FileUpload from '../components/FileUpload';
 import { useJoeChat } from '../hooks/useJoeChat.js';
 import JoeScreen from '../components/JoeScreen.jsx';
+import JoeComputer from '../components/JoeComputer.jsx';
 
 const Joe = () => {
   const messagesEndRef = useRef(null);
@@ -391,6 +392,9 @@ const Joe = () => {
         />
       </div>
     )}
+    
+    {/* Joe Computer - Embedded Browser */}
+    <JoeComputer />
     </>
   );
 };
