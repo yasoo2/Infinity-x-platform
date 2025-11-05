@@ -39,6 +39,7 @@ import joeChatAdvancedRouter from './src/routes/joeChatAdvanced.mjs';
 import browserControlRouter from './src/routes/browserControl.mjs';
 import chatHistoryRouter from './src/routes/chatHistory.mjs';
 import fileUploadRouter from './src/routes/fileUpload.mjs';
+import BrowserWebSocketServer from './src/services/browserWebSocket.mjs';
 
 // إعدادات قاعدة البيانات
 import { initMongo, getDB, closeMongoConnection } from './src/db.mjs';
@@ -717,10 +718,18 @@ process.on('unhandledRejection', (err) => {
 // =========================
 // Start server
 // =========================
-app.listen(PORT, () => {
+import http from 'http';
+const server = http.createServer(app);
+
+// Initialize Browser WebSocket
+const browserWS = new BrowserWebSocketServer(server);
+console.log('🌐 Browser WebSocket initialized at /ws/browser');
+
+server.listen(PORT, () => {
   console.log(`🚀 InfinityX Backend running on port ${PORT}`);
   console.log(`📊 Worker Manager: ${workerManager?.isRunning ? 'ONLINE' : 'OFFLINE'}`);
   console.log(`🌐 Health check available at: http://localhost:${PORT}/health`);
+  console.log(`🖥️  Browser WebSocket available at: ws://localhost:${PORT}/ws/browser`);
 });
 
 export default app;
