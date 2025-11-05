@@ -44,6 +44,16 @@ import testGrokRouter from './src/routes/testGrok.mjs';
 import liveStreamRouter from './src/routes/liveStreamRouter.mjs';
 import LiveStreamWebSocketServer from './src/services/liveStreamWebSocket.mjs';
 
+// Advanced Systems - New Features
+import SandboxManager from './src/sandbox/SandboxManager.mjs';
+import AdvancedToolsManager from './src/tools/AdvancedToolsManager.mjs';
+import PlanningSystem from './src/planning/PlanningSystem.mjs';
+import SchedulingSystem from './src/scheduling/SchedulingSystem.mjs';
+import AdvancedBrowserManager from './src/browser/AdvancedBrowserManager.mjs';
+import SecurityManager from './src/security/SecurityManager.mjs';
+import sandboxRoutes from './src/routes/sandboxRoutes.mjs';
+import planningRoutes from './src/routes/planningRoutes.mjs';
+
 // إعدادات قاعدة البيانات
 import { initMongo, getDB, closeMongoConnection } from './src/db.mjs';
 
@@ -574,6 +584,10 @@ app.use('/api/v1/chat-history', chatHistoryRouter);
 app.use('/api/v1/file', fileUploadRouter);
 app.use('/api/v1', testGrokRouter);
 app.use('/api/live-stream', liveStreamRouter);
+
+// Advanced Systems Routes (New Features)
+app.use('/api/v1/sandbox', sandboxRoutes);
+app.use('/api/v1/planning', planningRoutes);
 
 // هذه للوحة المصنع: عرض آخر jobs
 app.get('/api/v1/factory/jobs', requireRole(ROLES.ADMIN), async (req, res) => {
