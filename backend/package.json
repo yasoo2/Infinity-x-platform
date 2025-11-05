@@ -7,7 +7,11 @@
   "scripts": {
     "start": "node server.mjs",
     "dev": "nodemon server.mjs",
-    "test": "node test-joe-ultimate.mjs"
+    "test": "node test-joe-ultimate.mjs",
+    "postinstall": "echo 'Skipping Puppeteer Chrome download'"
+  },
+  "config": {
+    "puppeteer_skip_chromium_download": "true"
   },
   "dependencies": {
     "express": "^4.18.2",

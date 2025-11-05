@@ -13,7 +13,14 @@ class AdvancedBrowserManager {
     this.pages = new Map();
     this.browserOptions = options.browserOptions || {
       headless: 'new',
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--disable-gpu'
+      ]
     };
     this.timeout = options.timeout || 30000;
   }
