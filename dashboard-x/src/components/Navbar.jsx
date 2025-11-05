@@ -12,8 +12,10 @@ export default function Navbar({ onToggleJoeScreen }) {
 
   const navLinks = [
     { to: '/joe', label: '🤖 JOE' },
+    { to: '/live-stream', label: '🎬 Live Stream' },
+    { to: '/monitoring', label: '📊 Monitoring' },
     { to: '/overview', label: 'Overview' },
-    { to: '/build', label: '🎨 Build' },
+    { to: '/build', label: '🎎 Build' },
     { to: '/page-builder', label: '🚀 Page Builder' },
     { to: '/self-design', label: '🤖 Self-Design' },
     { to: '/store-integration', label: '🛍️ Stores' },
