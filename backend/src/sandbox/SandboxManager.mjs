@@ -9,7 +9,6 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
 import { v4 as uuidv4 } from 'uuid';
-import Docker from 'dockerode';
 
 class SandboxManager {
   constructor(options = {}) {
@@ -18,9 +17,7 @@ class SandboxManager {
     this.timeout = options.timeout || 30000; // 30 seconds
     this.activeProcesses = new Map();
     this.processCount = 0;
-    this.docker = new Docker();
-    this.useDocker = options.useDocker !== false;
-    this.dockerImage = options.dockerImage || 'node:22-alpine';
+    this.useDocker = false; // Docker not supported on Render
   }
 
   /**
@@ -30,17 +27,7 @@ class SandboxManager {
     try {
       await fs.mkdir(this.sandboxDir, { recursive: true });
       console.log(`✅ Sandbox Manager initialized at ${this.sandboxDir}`);
-      
-      // Check Docker availability if enabled
-      if (this.useDocker) {
-        try {
-          await this.docker.ping();
-          console.log('✅ Docker is available for sandboxing');
-        } catch (err) {
-          console.warn('⚠️ Docker not available, falling back to process-based sandboxing');
-          this.useDocker = false;
-        }
-      }
+      console.log('ℹ️ Using process-based sandboxing (Docker not available on Render)');
     } catch (err) {
       console.error('❌ Failed to initialize Sandbox Manager:', err);
       throw err;

@@ -5,7 +5,7 @@
 
 import puppeteer from 'puppeteer';
 import { v4 as uuidv4 } from 'uuid';
-import cheerio from 'cheerio';
+import * as cheerio from 'cheerio';
 
 class AdvancedBrowserManager {
   constructor(options = {}) {
