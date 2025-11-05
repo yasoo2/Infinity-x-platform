@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import JoeComputer from '../components/JoeComputer.jsx';
 
 import ChatSidebar from '../components/ChatSidebar';
 import FileUpload from '../components/FileUpload';
@@ -16,6 +17,7 @@ const Joe = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isScreenVisible, setIsScreenVisible] = useState(false);
   const [isTakeoverActive, setIsTakeoverActive] = useState(false);
+  const [isJoeComputerVisible, setIsJoeComputerVisible] = useState(true);
 
 
 
@@ -63,6 +65,14 @@ const Joe = () => {
     scrollToBottom();
   }, [messages]);
 
+  const handleCloseJoeComputer = () => {
+    setIsJoeComputerVisible(false);
+  };
+
+  const handleComputerTakeover = () => {
+    console.log('User has taken over the Joe computer.');
+  };
+
 
 
 
@@ -71,6 +81,13 @@ const Joe = () => {
 
   return (
     <>
+      {isJoeComputerVisible && (
+        <JoeComputer
+          isVisible={isJoeComputerVisible}
+          onClose={handleCloseJoeComputer}
+          onTakeover={handleComputerTakeover}
+        />
+      )}
 
 
     <div className="min-h-[calc(100vh-4rem)] flex flex-col md:flex-row bg-gray-950 text-white relative">
