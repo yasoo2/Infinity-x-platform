@@ -18,7 +18,7 @@ router.post('/chat-advanced', async (req, res) => {
     console.log('🤖 JOE Advanced processing:', message);
 
     // استخدام المحرك النهائي مع جميع القدرات
-    const result = await joeAdvancedEngine.processMessageUltimate(message, context);
+    const result = await joeAdvancedEngine.processMessageManus(message, context);
 
     if (result.success) {
       res.json({
