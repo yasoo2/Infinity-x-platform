@@ -43,6 +43,24 @@ export function createApiServer(joengine) {
     res.json({ ok: true, status });
   });
 
+  // نقطة نهاية لسجل المحادثات
+  app.post('/api/chat-history/list', async (req, res) => {
+    // هذه مجرد نقطة نهاية وهمية لإرضاء الواجهة الأمامية
+    // يجب استبدالها بمنطق حقيقي للاتصال بقاعدة البيانات
+    res.json({
+      ok: true,
+      conversations: [] // إرجاع قائمة فارغة لتجنب تعطل الواجهة الأمامية
+    });
+  });
+
+  app.post('/api/chat-history/delete', async (req, res) => {
+    // هذه مجرد نقطة نهاية وهمية لإرضاء الواجهة الأمامية
+    res.json({
+      ok: true,
+      message: 'Conversation deleted (mock)'
+    });
+  });
+
   return app;
 }
 
