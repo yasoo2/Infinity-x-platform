@@ -695,12 +695,43 @@ app.get('/', async (req, res) => {
 });
 
 // =========================
-// Error Handling
+// Serve Frontend Static Files
 // =========================
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const distPath = path.join(__dirname, '../dashboard-x/dist');
+
+// Check if dist directory exists
+if (fs.existsSync(distPath)) {
+  console.log('📦 Serving frontend static files from:', distPath);
+  
+  // Serve static files
+  app.use(express.static(distPath));
+  
+  // SPA fallback - serve index.html for all non-API routes
+  app.get('*', (req, res, next) => {
+    // Skip API routes
+    if (req.path.startsWith('/api/') || req.path.startsWith('/ws/')) {
+      return next();
+    }
+    
+    // Serve index.html for all other routes
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+} else {
+  console.warn('⚠️  Frontend dist directory not found at:', distPath);
+}
+
+// 404 handler for API routes only
 app.use((req, res) => {
-  res.status(404).json({ error: 'ROUTE_NOT_FOUND' });
+  if (req.path.startsWith('/api/') || req.path.startsWith('/ws/')) {
+    res.status(404).json({ error: 'ROUTE_NOT_FOUND' });
+  } else {
+    res.status(404).send('Page not found');
+  }
 });
 
+// Error handler
 app.use((err, req, res, next) => {
   console.error('Unhandled Error:', err);
   res.status(500).json({ 
