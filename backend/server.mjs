@@ -91,12 +91,7 @@ const allowedOrigins = [
 ];
 
 app.use(cors({
-  origin: function (origin, cb) {
-    if (!origin) return cb(null, true);
-    // if (allowedOrigins.includes(origin)) return cb(null, true); // Temporarily allow all origins to fix CORS error
-    console.warn('[CORS] Origin not in whitelist:', origin);
-    cb(null, true);
-  },
+  origin: '*', // Definitive fix for CORS issue: allow all origins
   credentials: true,
 }));
 
