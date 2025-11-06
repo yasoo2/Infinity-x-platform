@@ -93,9 +93,9 @@ router.post('/create', async (req, res) => {
 });
 
 // List all conversations for a user
-router.post('/list', async (req, res) => {
+router.get('/list', async (req, res) => {
   try {
-    const { userId } = req.body;
+    const { userId } = req.query;
     if (!userId) return res.json({ ok: false, error: 'userId required' });
 
     const db = await getDb();

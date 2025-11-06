@@ -1,31 +1,145 @@
 /**
- * JOE Advanced Engine - محرك JOE المتقدم
- * يوفر قدرات متقدمة مثل Manus AI مع Function Calling
+ * JOE Manus Engine - المحرك الكامل بقوة Manus AI
+ * يجمع جميع القدرات مع System Prompt ذكي
  */
 
 import OpenAI from 'openai';
+import MANUS_STYLE_PROMPT from '../prompts/manusStylePrompt.mjs';
+import { fileSystemTools } from '../tools/fileSystemTools.mjs';
+import { gitTools } from '../tools/gitTools.mjs';
+import { searchTools } from '../tools/searchTools.mjs';
 import { webSearchTools } from '../tools/webSearchTools.mjs';
 import { buildTools } from '../tools/buildTools.mjs';
-import { browserTools } from '../tools/browserTools.mjs';
+import { memoryTools } from '../tools/memoryTools.mjs';
+import { multimodalTools } from '../tools/multimodalTools.mjs';
+import { automationTools } from '../tools/automationTools.mjs';
 
 const openai = new OpenAI();
 
 /**
- * تعريف جميع الأدوات المتاحة لـ JOE
+ * تعريف جميع الأدوات (Manus-Style)
  */
-const TOOLS = [
+const MANUS_TOOLS = [
+  // File System Tools
   {
     type: 'function',
     function: {
-      name: 'search_web',
-      description: 'البحث في الإنترنت عن معلومات محدثة',
+      name: 'readFile',
+      description: 'قراءة محتوى ملف',
       parameters: {
         type: 'object',
         properties: {
-          query: {
-            type: 'string',
-            description: 'استعلام البحث'
-          }
+          filePath: { type: 'string', description: 'مسار الملف' }
+        },
+        required: ['filePath']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'writeFile',
+      description: 'كتابة أو إنشاء ملف',
+      parameters: {
+        type: 'object',
+        properties: {
+          filePath: { type: 'string', description: 'مسار الملف' },
+          content: { type: 'string', description: 'المحتوى' }
+        },
+        required: ['filePath', 'content']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'editFile',
+      description: 'تعديل ملف (البحث والاستبدال)',
+      parameters: {
+        type: 'object',
+        properties: {
+          filePath: { type: 'string', description: 'مسار الملف' },
+          findText: { type: 'string', description: 'النص المراد البحث عنه' },
+          replaceText: { type: 'string', description: 'النص البديل' },
+          replaceAll: { type: 'boolean', description: 'استبدال جميع التطابقات' }
+        },
+        required: ['filePath', 'findText', 'replaceText']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'listDirectory',
+      description: 'عرض محتويات مجلد',
+      parameters: {
+        type: 'object',
+        properties: {
+          dirPath: { type: 'string', description: 'مسار المجلد' },
+          recursive: { type: 'boolean', description: 'بحث متداخل' }
+        },
+        required: ['dirPath']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'findFiles',
+      description: 'البحث عن ملفات',
+      parameters: {
+        type: 'object',
+        properties: {
+          pattern: { type: 'string', description: 'نمط البحث' },
+          directory: { type: 'string', description: 'المجلد' }
+        },
+        required: ['pattern']
+      }
+    }
+  },
+  // Git Tools
+  {
+    type: 'function',
+    function: {
+      name: 'gitQuickCommit',
+      description: 'عملية Git سريعة: add + commit + push',
+      parameters: {
+        type: 'object',
+        properties: {
+          message: { type: 'string', description: 'رسالة الـ commit' },
+          files: { type: 'array', items: { type: 'string' }, description: 'الملفات' },
+          branch: { type: 'string', description: 'الفرع' },
+          directory: { type: 'string', description: 'المجلد' }
+        },
+        required: ['message']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'gitStatus',
+      description: 'عرض حالة Git',
+      parameters: {
+        type: 'object',
+        properties: {
+          directory: { type: 'string', description: 'المجلد' }
+        }
+      }
+    }
+  },
+  // Search Tools
+  {
+    type: 'function',
+    function: {
+      name: 'searchInFiles',
+      description: 'البحث في محتوى الملفات',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'نص البحث' },
+          directory: { type: 'string', description: 'المجلد' },
+          filePattern: { type: 'string', description: 'نمط الملفات' }
         },
         required: ['query']
       }
@@ -34,17 +148,46 @@ const TOOLS = [
   {
     type: 'function',
     function: {
-      name: 'get_weather',
-      description: 'الحصول على معلومات الطقس',
+      name: 'searchInCode',
+      description: 'البحث في الكود مع السياق',
       parameters: {
         type: 'object',
         properties: {
-          city: {
-            type: 'string',
-            description: 'اسم المدينة'
-          }
+          query: { type: 'string', description: 'نص البحث' },
+          directory: { type: 'string', description: 'المجلد' },
+          contextLines: { type: 'number', description: 'عدد سطور السياق' }
         },
-        required: ['city']
+        required: ['query']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'findFunction',
+      description: 'البحث عن دالة في الكود',
+      parameters: {
+        type: 'object',
+        properties: {
+          functionName: { type: 'string', description: 'اسم الدالة' },
+          directory: { type: 'string', description: 'المجلد' }
+        },
+        required: ['functionName']
+      }
+    }
+  },
+  // Web Search Tools
+  {
+    type: 'function',
+    function: {
+      name: 'search_web',
+      description: 'البحث في الإنترنت',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'استعلام البحث' }
+        },
+        required: ['query']
       }
     }
   },
@@ -52,40 +195,49 @@ const TOOLS = [
     type: 'function',
     function: {
       name: 'browse_website',
-      description: 'تصفح موقع ويب وجمع المعلومات منه',
+      description: 'تصفح موقع ويب',
       parameters: {
         type: 'object',
         properties: {
-          url: {
-            type: 'string',
-            description: 'رابط الموقع المراد تصفحه'
-          }
+          url: { type: 'string', description: 'رابط الموقع' }
         },
         required: ['url']
+      }
+    }
+  },
+  // Multimodal Tools - Image Generation
+  {
+    type: 'function',
+    function: {
+      name: 'generateImage',
+      description: 'إنشاء صورة باستخدام DALL-E 3',
+      parameters: {
+        type: 'object',
+        properties: {
+          prompt: { type: 'string', description: 'وصف الصورة المطلوبة' },
+          size: { type: 'string', description: 'حجم الصورة (1024x1024, 1792x1024, 1024x1792)', enum: ['1024x1024', '1792x1024', '1024x1792'] },
+          quality: { type: 'string', description: 'جودة الصورة (standard, hd)', enum: ['standard', 'hd'] }
+        },
+        required: ['prompt']
       }
     }
   },
   {
     type: 'function',
     function: {
-      name: 'extract_info_from_url',
-      description: 'استخراج معلومات محددة من صفحة ويب',
+      name: 'analyzeImage',
+      description: 'تحليل صورة باستخدام Vision AI',
       parameters: {
         type: 'object',
         properties: {
-          url: {
-            type: 'string',
-            description: 'رابط الموقع'
-          },
-          query: {
-            type: 'string',
-            description: 'المعلومات المطلوب البحث عنها'
-          }
+          imageUrl: { type: 'string', description: 'رابط الصورة' },
+          prompt: { type: 'string', description: 'ما تريد معرفته عن الصورة' }
         },
-        required: ['url', 'query']
+        required: ['imageUrl']
       }
     }
   },
+  // Build Tools
   {
     type: 'function',
     function: {
@@ -94,89 +246,94 @@ const TOOLS = [
       parameters: {
         type: 'object',
         properties: {
-          description: {
-            type: 'string',
-            description: 'وصف الموقع المطلوب'
-          },
-          projectType: {
-            type: 'string',
-            enum: ['website', 'landing-page', 'portfolio', 'blog', 'e-commerce'],
-            description: 'نوع المشروع'
-          }
+          description: { type: 'string', description: 'وصف الموقع' },
+          features: { type: 'array', items: { type: 'string' }, description: 'الميزات المطلوبة' }
         },
-        required: ['description', 'projectType']
+        required: ['description']
       }
     }
   }
 ];
 
 /**
- * تنفيذ الأداة المطلوبة
+ * تنفيذ الأدوات
  */
-async function executeFunction(functionName, args) {
-  console.log(`🔧 JOE executing: ${functionName}`, args);
-
+async function executeManusFunction(functionName, args) {
   try {
     switch (functionName) {
+      // File System
+      case 'readFile':
+        return await fileSystemTools.readFile(args.filePath);
+      case 'writeFile':
+        return await fileSystemTools.writeFile(args.filePath, args.content);
+      case 'editFile':
+        return await fileSystemTools.editFile(args.filePath, args.findText, args.replaceText, args.replaceAll);
+      case 'listDirectory':
+        return await fileSystemTools.listDirectory(args.dirPath, args.recursive);
+      case 'findFiles':
+        return await fileSystemTools.findFiles(args.pattern, args.directory);
+      
+      // Git
+      case 'gitQuickCommit':
+        return await gitTools.gitQuickCommit(args.message, args.files, args.branch, args.directory);
+      case 'gitStatus':
+        return await gitTools.gitStatus(args.directory);
+      
+      // Search
+      case 'searchInFiles':
+        return await searchTools.searchInFiles(args.query, args.directory, args.filePattern);
+      case 'searchInCode':
+        return await searchTools.searchInCode(args.query, args.directory, args.contextLines);
+      case 'findFunction':
+        return await searchTools.findFunction(args.functionName, args.directory);
+      
+      // Web
       case 'search_web':
         return await webSearchTools.searchWeb(args.query);
-
-      case 'get_weather':
-        return await webSearchTools.getWeather(args.city);
-
       case 'browse_website':
-        return await browserTools.browseWebsite(args.url);
-
-      case 'extract_info_from_url':
-        return await browserTools.extractInfo(args.url, args.query);
-
+        return await webSearchTools.browseWebsite(args.url);
+      
+      // Multimodal - Images
+      case 'generateImage':
+        return await multimodalTools.generateImage(args.prompt, args.size, args.quality);
+      case 'analyzeImage':
+        return await multimodalTools.analyzeImage(args.imageUrl, args.prompt);
+      
+      // Build
       case 'build_website':
-        return await buildTools.buildProject({
-          projectType: args.projectType,
-          description: args.description,
-          style: 'modern',
-          features: ['Responsive', 'Animations']
-        });
-
+        return await buildTools.buildWebsite(args.description, args.features);
+      
       default:
-        return {
-          success: false,
-          error: `Unknown function: ${functionName}`
-        };
+        return { success: false, error: `Unknown function: ${functionName}` };
     }
   } catch (error) {
-    console.error(`❌ Function failed:`, error);
-    return {
-      success: false,
-      error: error.message
-    };
+    return { success: false, error: error.message };
   }
 }
 
 /**
- * معالجة الرسالة مع Function Calling
+ * معالجة الرسائل مع Manus-Style
  */
-export async function processMessageWithTools(message, context = []) {
+export async function processMessageManus(userMessage, userId = 'default') {
   try {
+    // استرجاع السياق من الذاكرة
+    const context = await memoryTools.getConversationContext(userId, 5);
+    
     const messages = [
       {
         role: 'system',
-        content: `أنت JOE (Just One Engine)، ذكاء اصطناعي متقدم من XElite Solutions. لديك قدرات متقدمة: البحث على الإنترنت (search_web)، تصفح المواقع (browse_website)، استخراج المعلومات (extract_info_from_url)، معلومات الطقس (get_weather)، بناء المواقع (build_website). استخدم الأدوات تلقائياً عندما تحتاج إليها. رد دائماً بالعربية بشكل طبيعي وودود.`
+        content: MANUS_STYLE_PROMPT
       },
-      ...context.map(msg => ({
-        role: msg.role,
-        content: msg.content
-      })),
       {
         role: 'user',
-        content: message
+        content: userMessage
       }
     ];
 
     let response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages,
-      tools: TOOLS,
+      tools: MANUS_TOOLS,
       tool_choice: 'auto',
       temperature: 0.7
     });
@@ -190,7 +347,7 @@ export async function processMessageWithTools(message, context = []) {
       for (const toolCall of toolCalls) {
         const functionName = toolCall.function.name;
         const functionArgs = JSON.parse(toolCall.function.arguments);
-        const functionResult = await executeFunction(functionName, functionArgs);
+        const functionResult = await executeManusFunction(functionName, functionArgs);
 
         messages.push({
           role: 'tool',
@@ -207,6 +364,9 @@ export async function processMessageWithTools(message, context = []) {
       assistantMessage = response.choices[0].message;
     }
 
+    // حفظ المحادثة في الذاكرة
+    await memoryTools.saveConversation(userId, userMessage, assistantMessage.content);
+
     return {
       success: true,
       response: assistantMessage.content,
@@ -214,7 +374,7 @@ export async function processMessageWithTools(message, context = []) {
     };
 
   } catch (error) {
-    console.error('❌ JOE error:', error);
+    console.error('❌ JOE Manus error:', error);
     return {
       success: false,
       error: error.message,
@@ -223,7 +383,14 @@ export async function processMessageWithTools(message, context = []) {
   }
 }
 
-export const joeAdvancedEngine = {
-  processMessageWithTools,
-  TOOLS
+export const joeManusEngine = {
+  processMessageManus,
+  processMessageUltimate: processMessageManus,
+  processMessageWithTools: processMessageManus,
+  MANUS_TOOLS
 };
+
+// Export for compatibility
+export const joeAdvancedEngine = joeManusEngine;
+export const joeUltimateEngine = joeManusEngine;
+export { processMessageManus as processMessageUltimate };

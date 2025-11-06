@@ -7,8 +7,8 @@ services:
     branch: main
     repo: https://github.com/yasoo2/Infinity-x-platform
     rootDir: backend
-    buildCommand: npm install --legacy-peer-deps
-    startCommand: cd /opt/render/project/src/backend && npm start
+    buildCommand: npm install
+    startCommand: node server.mjs
     envVars:
       - key: PORT
         value: 10000
@@ -30,17 +30,15 @@ services:
         source: /
         destination: /        # الباك إند بيرد JSON "Running"
 
-  - type: static_site
+  - type: web
     name: infinityx-dashboard
     region: frankfurt
     plan: starter
     branch: main
     repo: https://github.com/yasoo2/Infinity-x-platform
     rootDir: dashboard-x
-    buildCommand: |
-      pnpm install
-      pnpm run build
-    staticPublishPath: dashboard-x/dist
+    buildCommand: pnpm install && pnpm run build
+    staticPublishPath: dist
     headers:
       - path: /*
         name: Cache-Control

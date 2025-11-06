@@ -39,6 +39,20 @@ import joeChatAdvancedRouter from './src/routes/joeChatAdvanced.mjs';
 import browserControlRouter from './src/routes/browserControl.mjs';
 import chatHistoryRouter from './src/routes/chatHistory.mjs';
 import fileUploadRouter from './src/routes/fileUpload.mjs';
+import BrowserWebSocketServer from './src/services/browserWebSocket.mjs';
+import testGrokRouter from './src/routes/testGrok.mjs';
+import liveStreamRouter from './src/routes/liveStreamRouter.mjs';
+import LiveStreamWebSocketServer from './src/services/liveStreamWebSocket.mjs';
+
+// Advanced Systems - New Features
+import SandboxManager from './src/sandbox/SandboxManager.mjs';
+import AdvancedToolsManager from './src/tools/AdvancedToolsManager.mjs';
+import PlanningSystem from './src/planning/PlanningSystem.mjs';
+import SchedulingSystem from './src/scheduling/SchedulingSystem.mjs';
+import AdvancedBrowserManager from './src/browser/AdvancedBrowserManager.mjs';
+import SecurityManager from './src/security/SecurityManager.mjs';
+import sandboxRoutes from './src/routes/sandboxRoutes.mjs';
+import planningRoutes from './src/routes/planningRoutes.mjs';
 
 // إعدادات قاعدة البيانات
 import { initMongo, getDB, closeMongoConnection } from './src/db.mjs';
@@ -547,40 +561,7 @@ app.post('/api/v1/admin/users/setRole', requireRole(ROLES.SUPER_ADMIN), async (r
 // =========================
 // system metrics (للوحة X)
 // =========================
-app.get('/api/system/metrics', requireRole(ROLES.ADMIN), async (req, res) => {
-  try {
-    const db = await initMongo();
-
-    const totalUsers = await db.collection('users').countDocuments({});
-    const totalSessionsNow = await db.collection('sessions').countDocuments({
-      active: true
-    });
-
-    const recentActivity = await db.collection('joe_activity')
-      .find({})
-      .sort({ ts: -1 })
-      .limit(10)
-      .toArray();
-
-    res.json({
-      ok: true,
-      system: {
-        usersTotal: totalUsers,
-        activeSessions: totalSessionsNow,
-        redisOnline: !!redis,
-        mongoOnline: true
-      },
-      joeRecent: recentActivity.map(e => ({
-        ts: e.ts,
-        action: e.action,
-        detail: e.detail
-      }))
-    });
-  } catch (err) {
-    console.error('/api/system/metrics err', err);
-    res.status(500).json({ error: 'SERVER_ERR' });
-  }
-});
+app.use('/api/v1/system', requireRole(ROLES.ADMIN), dashboardDataRouter(initMongo, redis));
 
 // =========================
 // راوترات جو / المصنع / الداشبورد / الموقع العام
@@ -601,6 +582,12 @@ app.use('/api/v1/joe', joeChatAdvancedRouter);
 app.use('/api/v1/browser', browserControlRouter);
 app.use('/api/v1/chat-history', chatHistoryRouter);
 app.use('/api/v1/file', fileUploadRouter);
+app.use('/api/v1', testGrokRouter);
+app.use('/api/live-stream', liveStreamRouter);
+
+// Advanced Systems Routes (New Features)
+app.use('/api/v1/sandbox', sandboxRoutes);
+app.use('/api/v1/planning', planningRoutes);
 
 // هذه للوحة المصنع: عرض آخر jobs
 app.get('/api/v1/factory/jobs', requireRole(ROLES.ADMIN), async (req, res) => {
@@ -750,10 +737,22 @@ process.on('unhandledRejection', (err) => {
 // =========================
 // Start server
 // =========================
-app.listen(PORT, () => {
+import http from 'http';
+const server = http.createServer(app);
+
+// Initialize Browser WebSocket
+const browserWS = new BrowserWebSocketServer(server);
+console.log('🌐 Browser WebSocket initialized at /ws/browser');
+
+// Initialize Live Stream WebSocket
+const liveStreamWS = new LiveStreamWebSocketServer(server);
+console.log('🎬 Live Stream WebSocket initialized at /ws/live-stream');
+
+server.listen(PORT, () => {
   console.log(`🚀 InfinityX Backend running on port ${PORT}`);
   console.log(`📊 Worker Manager: ${workerManager?.isRunning ? 'ONLINE' : 'OFFLINE'}`);
   console.log(`🌐 Health check available at: http://localhost:${PORT}/health`);
+  console.log(`🖥️  Browser WebSocket available at: ws://localhost:${PORT}/ws/browser`);
 });
 
 export default app;

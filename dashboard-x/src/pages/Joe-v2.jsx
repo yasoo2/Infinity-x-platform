@@ -51,7 +51,7 @@ const JoeV2 = () => {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex bg-gray-950 text-white">
+    <div className="min-h-screen flex bg-gray-950 text-white">
       {/* Chat Sidebar */}
       <ChatSidebar
         userId={userId}
@@ -61,10 +61,11 @@ const JoeV2 = () => {
         onNewConversation={handleNewConversation}
       />
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      {/* Main Content - Making it resizable and movable is complex and requires external libraries (like react-draggable, react-resizable). For a quick fix, I will make it a central, contained, and scrollable area. */}
+      <div className="flex-1 flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-4xl h-[calc(100vh-4rem)] flex flex-col bg-gray-900 rounded-xl shadow-2xl shadow-fuchsia-900/50 overflow-hidden">
         {/* Header */}
-        <div className="border-b border-fuchsia-500/50 p-6 bg-gray-900/50 backdrop-blur-md shadow-xl shadow-fuchsia-900/20">
+        <div className="flex-shrink-0 border-b border-fuchsia-500/50 p-6 bg-gray-900/50 backdrop-blur-md shadow-xl shadow-fuchsia-900/20">
           <div className="flex justify-between items-start mb-4">
             <div>
               <h1 className="text-3xl font-bold mb-2">
@@ -114,8 +115,7 @@ const JoeV2 = () => {
         </div>
 
         {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-6 bg-transparent">
-          <div className="max-w-4xl mx-auto space-y-4">
+        <div className="flex-1 overflow-y-auto p-6 bg-transparent space-y-4">
             {messages.length === 0 && (
               <div className="text-center text-gray-500 py-12 bg-gray-800/20 border border-cyan-500/10 rounded-xl p-8">
                 <div className="text-6xl mb-4 animate-pulse">🤖</div>
@@ -160,8 +160,8 @@ const JoeV2 = () => {
         </div>
 
         {/* Input Area */}
-        <div className="border-t border-cyan-500/50 bg-gray-900/50 p-4 backdrop-blur-md shadow-2xl shadow-cyan-900/20">
-          <div className="max-w-4xl mx-auto flex gap-3">
+        <div className="flex-shrink-0 border-t border-cyan-500/50 bg-gray-900/50 p-4 backdrop-blur-md shadow-2xl shadow-cyan-900/20">
+          <div className="w-full flex gap-3">
             <input
               type="text"
               value={input}
@@ -187,3 +187,5 @@ const JoeV2 = () => {
 };
 
 export default JoeV2;
+
+

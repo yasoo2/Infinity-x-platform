@@ -18,7 +18,7 @@ import { SearchTool } from './tools/SearchTool.mjs';
 import { ShellTool } from './tools/ShellTool.mjs';
 import { APITool } from './tools/APITool.mjs';
 import { GitHubTool } from './tools/GitHubTool.mjs';
-import { PlannerTool } from './tools/PlannerTool.mjs';
+import { PlannerTool } from './tools/PlannerTool.mjs';\nimport { createApiServer } from './server.mjs';
 
 // تحميل متغيرات البيئة
 dotenv.config();
@@ -149,12 +149,16 @@ class JOEngine {
    */
   async start() {
     console.log(chalk.cyan.bold('🚀 Starting JOEngine AGI...\n'));
-
+    
     // بدء Agent Loop
     await this.agentLoop.start();
 
-    console.log(chalk.green.bold('✅ JOEngine AGI is running!\n'));
-    console.log(chalk.gray('Waiting for tasks...\n'));
+    // تشغيل خادم API
+    const apiServer = createApiServer(this);
+    this.server = apiServer.listen(this.config.port, () => {
+      console.log(chalk.green.bold(`✅ JOEngine AGI is running on port ${this.config.port}!`));
+      console.log(chalk.gray('Waiting for tasks...\n'));
+    });
   }
 
   /**
@@ -162,9 +166,14 @@ class JOEngine {
    */
   async stop() {
     console.log(chalk.yellow.bold('\n🛑 Stopping JOEngine AGI...\n'));
-
+    
     // إيقاف Agent Loop
     await this.agentLoop.stop();
+
+    // إغلاق خادم API
+    if (this.server) {
+      this.server.close();
+    }
 
     // إغلاق الأدوات
     const browserTool = this.toolsSystem.getTool('browser');
