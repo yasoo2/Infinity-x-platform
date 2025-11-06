@@ -6,6 +6,7 @@ import JoeScreen from '../components/JoeScreen.jsx';
 
 const Joe = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [aiEngine, setAiEngine] = useState('openai');
   
   const {
     userId,
@@ -97,9 +98,41 @@ const Joe = () => {
             <span className="text-fuchsia-400 drop-shadow-[0_0_5px_rgba(255,0,255,0.8)]">Solutions</span>
             <span className="text-gray-500 text-sm sm:text-base md:text-xl ml-2 md:ml-3">| AGI Platform</span>
           </h1>
-          <p className="text-gray-400 font-light text-xs sm:text-sm md:text-base">
-            🚀 Your intelligent assistant for building and developing projects
-          </p>
+          <p className="text-gray-400 font-light text-xs sm:text-sm md:text-base">🚀 Your intelligent assistant for building and developing projects</p>
+          
+          {/* AI Engine Selection Buttons - Responsive */}
+          <div className="mt-3 sm:mt-4 flex flex-wrap gap-2">
+            <button
+              onClick={() => setAiEngine('grok')}
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${
+                aiEngine === 'grok'
+                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/50'
+                  : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50'
+              }`}
+            >
+              🤖 Grok
+            </button>
+            <button
+              onClick={() => setAiEngine('gemini')}
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${
+                aiEngine === 'gemini'
+                  ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/50'
+                  : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50'
+              }`}
+            >
+              ✨ Gemini
+            </button>
+            <button
+              onClick={() => setAiEngine('openai')}
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${
+                aiEngine === 'openai'
+                  ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/50'
+                  : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50'
+              }`}
+            >
+              🧠 OpenAI
+            </button>
+          </div>
         </div>
 
         {/* Messages Area - Responsive */}
