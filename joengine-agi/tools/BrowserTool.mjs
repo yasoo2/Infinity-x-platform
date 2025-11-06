@@ -28,7 +28,7 @@ export class BrowserTool extends BaseTool {
         url: {
           type: 'string',
           required: false,
-          description: 'URL to navigate to (required for navigate action)'
+          description: 'URL to navigate to (required for navigate action). For search, use the search tool instead.'
         },
         selector: {
           type: 'string',
