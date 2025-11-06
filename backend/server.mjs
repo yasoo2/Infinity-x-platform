@@ -79,7 +79,7 @@ app.use(rateLimit({
 }));
 
 // -------------------------
-// CORS CONFIG
+// CORS CONFIG - Fixed for preflight requests
 // -------------------------
 const allowedOrigins = [
   'http://localhost:5173',
@@ -87,12 +87,19 @@ const allowedOrigins = [
   'https://admin.xelitesolutions.com',
   'https://dashboard.xelitesolutions.com',
   'https://xelitesolutions.com',
-  'https://www.xelitesolutions.com'
+  'https://www.xelitesolutions.com',
+  'https://api.xelitesolutions.com'
 ];
 
 app.use(cors({
-  origin: '*', // Definitive fix for CORS issue: allow all origins
+  origin: '*', // Allow all origins - for production, use allowedOrigins whitelist
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Session-Token', 'X-Requested-With'],
+  exposedHeaders: ['X-Session-Token'],
+  maxAge: 86400, // 24 hours
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
 
 // middleware للـ logging
