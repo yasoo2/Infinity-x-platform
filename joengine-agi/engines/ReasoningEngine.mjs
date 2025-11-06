@@ -290,8 +290,55 @@ Response format (JSON):
 	      return analysis;
 	    }
 	
-		    return null;
-		  }
+			    return null;
+			  }
+
+  /**
+   * تحليل الفشل واقتراح نهج بديل
+   */
+  async analyzeFailure(task, result) {
+    const situation = `The task "${task.goal}" failed during execution of subtask ${task.currentSubtask.id}: "${task.currentSubtask.title}".
+Tool used: ${task.currentSubtask.tool}.
+Tool output/error: ${JSON.stringify(result)}`;
+
+    const messages = [
+      { role: 'system', content: this.systemPrompt },
+      {
+        role: 'user',
+        content: `Analyze the following failure and suggest an alternative approach or a fix.
+
+Situation: ${situation}
+
+Response format (JSON):
+{
+  "analysis": "Your analysis of the failure",
+  "alternativeApproach": "A suggested new plan or a fix to the current plan",
+  "confidence": 0.95
+}`
+      }
+    ];
+
+    try {
+      const response = await this.openai.chat.completions.create({
+        model: this.config.model,
+        messages,
+        temperature: 0.5,
+        response_format: { type: 'json_object' }
+      });
+
+      const analysis = JSON.parse(response.choices[0].message.content);
+      console.log(`✅ Failure analyzed. Confidence: ${(analysis.confidence * 100).toFixed(1)}%`);
+
+      return analysis;
+    } catch (error) {
+      console.error('❌ Failure analysis error:', error.message);
+      return {
+        analysis: `Failed to analyze failure: ${error.message}`,
+        alternativeApproach: 'Retry the task with a modified first subtask.',
+        confidence: 0.1
+      };
+    }
+  }
 
   /**
    * تحسين خطة بناءً على ملاحظات
