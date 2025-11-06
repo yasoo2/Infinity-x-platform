@@ -297,8 +297,9 @@ Response format (JSON):
    * تحليل الفشل واقتراح نهج بديل
    */
   async analyzeFailure(task, result) {
-    const situation = `The task "${task.goal}" failed during execution of subtask ${task.currentSubtask.id}: "${task.currentSubtask.title}".
-Tool used: ${task.currentSubtask.tool}.
+    const subtaskInfo = task.currentSubtask ? `subtask ${task.currentSubtask.id}: "${task.currentSubtask.title}".
+Tool used: ${task.currentSubtask.tool}.` : 'the initial planning phase.';
+    const situation = `The task "${task.goal}" failed during execution of ${subtaskInfo}
 Tool output/error: ${JSON.stringify(result)}`;
 
     const messages = [
