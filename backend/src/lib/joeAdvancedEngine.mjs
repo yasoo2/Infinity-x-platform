@@ -385,9 +385,12 @@ export async function processMessageManus(userMessage, userId = 'default') {
 
 export const joeManusEngine = {
   processMessageManus,
+  processMessageUltimate: processMessageManus,
+  processMessageWithTools: processMessageManus,
   MANUS_TOOLS
 };
 
 // Export for compatibility
 export const joeAdvancedEngine = joeManusEngine;
 export const joeUltimateEngine = joeManusEngine;
+export { processMessageManus as processMessageUltimate };
