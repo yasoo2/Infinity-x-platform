@@ -45,7 +45,8 @@
     "express-validator": "^7.3.0",
     "pino": "^8.19.0",
     "@octokit/rest": "^22.0.1",
-    "dockerode": "^4.0.1"
+    "dockerode": "^4.0.1",
+    "glob": "^10.3.10"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

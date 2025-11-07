@@ -90,8 +90,8 @@ app.use(cors({
   origin: '*',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Session-Token', 'X-Requested-With'],
-  exposedHeaders: ['X-Session-Token'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Session-Token', 'X-Requested-With', 'Accept'],
+  exposedHeaders: ['X-Session-Token', 'Content-Range', 'X-Content-Range'],
   maxAge: 86400,
   preflightContinue: false,
   optionsSuccessStatus: 204
