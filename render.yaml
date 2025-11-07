@@ -1,4 +1,4 @@
-# render.yaml - Unified Render Configuration for Infinity-X Platform
+# render.yaml - Render Configuration for Infinity-X Platform Backend
 
 services:
   # Backend Service
@@ -20,17 +20,4 @@ services:
       - key: REDIS_URL
         sync: false
       - key: FRONTEND_URL
-        value: https://admin.xelitesolutions.com # Replace with your actual frontend URL
-
-  # Frontend Service
-  - type: web
-    name: infinity-x-frontend
-    env: node
-    rootDir: dashboard-x
-    buildCommand: pnpm install && pnpm run build
-    staticPublishPath: dist
-    plan: starter
-    autoDeploy: true
-    envVars:
-      - key: VITE_API_BASE_URL
-        value: https://infinity-x-backend.onrender.com # Replace with your actual backend URL
+        value: https://admin.xelitesolutions.com
