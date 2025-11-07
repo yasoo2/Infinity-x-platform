@@ -56,9 +56,9 @@ import { initMongo, getDB, closeMongoConnection } from './src/db.mjs';
 
 dotenv.config();
 
-// =========================
-// إعداد السيرفر الأساسي
-// =========================
+/// =========================
+// بدء تشغيل السيرفر
+// ============================
 const app = express();
 const PORT = process.env.PORT || 10000;
 app.set('trust proxy', 1);
@@ -505,7 +505,7 @@ app.use('/api/v1/system', requireRole(ROLES.ADMIN), dashboardDataRouter(initMong
 // =========================
 // راوترات جو / المصنع / الداشبورد / الموقع العام
 // =========================
-app.use('/api/v1/joe', joeRouter(initMongo, redis));
+app.use("/api/v1/joe/control", joeRouter(initMongo, redis));
 app.use('/api/v1/factory', factoryRouter(initMongo, redis));
 app.use('/api/v1/dashboard', dashboardDataRouter(initMongo, redis));
 app.use('/api/v1/public-site', publicSiteRouter(initMongo));
@@ -516,8 +516,8 @@ app.use('/api/v1/page-builder', pageBuilderRouter);
 app.use('/api/v1/github-manager', githubManagerRouter);
 app.use('/api/v1/integrations', integrationManagerRouter);
 app.use('/api/v1/self-evolution', selfEvolutionRouter);
-app.use('/api/v1/joe', requireRole(ROLES.USER), joeChatRouter);
-app.use('/api/v1/joe', requireRole(ROLES.ADMIN), joeChatAdvancedRouter);
+app.use("/api/v1/joe/chat", requireRole(ROLES.USER), joeChatRouter);
+app.use("/api/v1/joe/chat-advanced", requireRole(ROLES.ADMIN), joeChatAdvancedRouter);
 app.use('/api/v1/browser', requireRole(ROLES.ADMIN), browserControlRouter);
 app.use('/api/v1/chat-history', chatHistoryRouter);
 app.use('/api/v1/file', fileUploadRouter);
