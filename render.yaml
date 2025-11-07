@@ -1,0 +1,83 @@
+services:
+  # Backend API Service
+  - type: web
+    name: infinityx-backend
+    env: node
+    region: frankfurt
+    plan: starter
+    branch: main
+    repo: https://github.com/yasoo2/Infinity-x-platform
+    rootDir: backend
+    buildCommand: npm install --legacy-peer-deps
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: DB_NAME
+        value: future_system
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_BASE_URL
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: RENDER_API_KEY
+        sync: false
+      - key: CLOUDFLARE_API_TOKEN
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+
+  # Frontend Static Site
+  - type: static_site
+    name: infinityx-dashboard
+    region: frankfurt
+    plan: starter
+    branch: main
+    repo: https://github.com/yasoo2/Infinity-x-platform
+    rootDir: dashboard-x
+    buildCommand: |
+      pnpm install
+      pnpm run build
+    staticPublishPath: dashboard-x/dist
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-store
+
+  # Worker Service
+  - type: worker
+    name: infinityx-worker
+    env: node
+    region: frankfurt
+    plan: starter
+    branch: main
+    repo: https://github.com/yasoo2/Infinity-x-platform
+    rootDir: worker
+    buildCommand: npm install --omit=dev
+    startCommand: node worker.mjs
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 20.15.1
+      - key: MONGO_URI
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: DB_NAME
+        value: future_system
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
