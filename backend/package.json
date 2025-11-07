@@ -37,7 +37,8 @@
     "ioredis": "^5.3.2",
     "google-auth-library": "^9.4.1",
     "bullmq": "^5.0.0",
-    "@upstash/redis": "^1.28.0"
+    "@upstash/redis": "^1.28.0",
+    "@octokit/rest": "^22.0.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
