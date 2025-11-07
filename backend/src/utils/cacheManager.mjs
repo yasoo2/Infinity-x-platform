@@ -33,11 +33,22 @@ class CacheManager {
   /**
    * Set value in cache with TTL (seconds)
    */
-  async set(key, value, ttl = 3600) {
+    async set(key, value, ttl = 3600) {
     if (!this.enabled) return false;
+
+    // Simple rate limit check: if key was set recently, skip to prevent abuse
+    const lastSetKey = `last_set:${key}`;
+    const lastSetTime = await this.redis.get(lastSetKey);
+    if (lastSetTime) {
+      console.warn(`⚠️ Cache SET rate limit: Skipping set for ${key}`);
+      return false;
+    }
     
     try {
       await this.redis.set(key, JSON.stringify(value), { ex: ttl });
+      // Set a temporary key to rate limit subsequent SET operations
+      const lastSetKey = `last_set:${key}`;
+      await this.redis.set(lastSetKey, Date.now(), { ex: 5 }); // 5 seconds rate limit for SET
       console.log(`✅ Cache SET: ${key} (TTL: ${ttl}s)`);
       return true;
     } catch (error) {

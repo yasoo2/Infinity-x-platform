@@ -16,6 +16,8 @@ import JoeSimple from './pages/Joe-simple';
 import JoeV2 from './pages/Joe-v2';
 import SuperAdminPanel from './pages/SuperAdminPanel';
 
+import MonitoringPage from './pages/MonitoringPage';
+
 function App() {
   return (
     <BrowserRouter>
@@ -42,6 +44,8 @@ function App() {
           <Route path="joe" element={<Joe />} />
           <Route path="super-admin" element={<SuperAdminPanel />} />
           <Route path="joe-v2" element={<JoeV2 />} />
+          
+          <Route path="monitoring" element={<MonitoringPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/overview" replace />} />

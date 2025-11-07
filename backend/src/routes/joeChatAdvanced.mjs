@@ -9,7 +9,8 @@ const router = express.Router();
  */
 router.post('/chat-advanced', async (req, res) => {
   try {
-    const { message, context = [], userId = 'default', aiEngine = 'openai' } = req.body;
+    const { message, context = [], aiEngine = 'openai' } = req.body;
+    const userId = req.user._id.toString();
 
     if (!message) {
       return res.json({ ok: false, error: 'Message required' });
@@ -17,8 +18,8 @@ router.post('/chat-advanced', async (req, res) => {
 
     console.log('🤖 JOE Advanced processing:', message);
 
-    // استخدام المحرك المتقدم مع Function Calling
-    const result = await joeAdvancedEngine.processMessageWithTools(message, context);
+    // استخدام المحرك النهائي مع جميع القدرات
+    const result = await joeAdvancedEngine.processMessageManus(message, context);
 
     if (result.success) {
       res.json({

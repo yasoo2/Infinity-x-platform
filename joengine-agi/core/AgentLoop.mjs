@@ -264,7 +264,7 @@ export class AgentLoop extends EventEmitter {
     // استخراج المعاملات من وصف المهمة الفرعية
     const params = await this.extractParams(subtask, task);
 
-    // التحقق من الاستخدام الفوري لأداة البحث (match)
+    // التحقق من الاستخدام الفوري لأداة البحث (match)\n    // هذا يحاكي سلوك Manus AI في البحث السريع عن الكود
     // هذا يحاكي سلوك Manus AI في البحث السريع عن الكود
     if (subtask.tool === 'code' && params.action === 'search') {
       // تنفيذ البحث مباشرة دون الحاجة إلى تخطيط إضافي من LLM

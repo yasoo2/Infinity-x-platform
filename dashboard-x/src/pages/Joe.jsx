@@ -1,18 +1,12 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import ChatSidebar from '../components/ChatSidebar';
 import FileUpload from '../components/FileUpload';
 import { useJoeChat } from '../hooks/useJoeChat.js';
 import JoeScreen from '../components/JoeScreen.jsx';
 
 const Joe = () => {
-  const messagesEndRef = useRef(null);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isScreenVisible, setIsScreenVisible] = useState(false);
-  const [isTakeoverActive, setIsTakeoverActive] = useState(false);
+  const [aiEngine, setAiEngine] = useState('openai');
   
   const {
     userId,
@@ -42,8 +36,6 @@ const Joe = () => {
     closeTokenModal,
     transcript,
     wsLog,
-    aiEngine, // Added aiEngine
-    setAiEngine, // Added setAiEngine
   } = useJoeChat();
 
   React.useEffect(() => {
@@ -51,11 +43,6 @@ const Joe = () => {
       setInput(transcript);
     }
   }, [transcript, setInput]);
-
-  // Auto-scroll to bottom on new message
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
 
   return (
     <>
@@ -103,61 +90,53 @@ const Joe = () => {
       )}
 
       {/* Main Chat Area - Responsive */}
-      <div className="flex-1 flex flex-col backdrop-blur-sm bg-gray-900/80 h-screen md:min-h-0">
+      <div className="flex-1 flex flex-col backdrop-blur-sm bg-gray-900/80 min-h-screen md:min-h-0">
         {/* Header - Responsive */}
-        <div className="border-b border-fuchsia-500/50 p-3 sm:p-4 md:p-6 bg-gray-900/50 backdrop-blur-md shadow-xl shadow-fuchsia-900/20 flex-shrink-0">
+        <div className="border-b border-fuchsia-500/50 p-3 sm:p-4 md:p-6 bg-gray-900/50 backdrop-blur-md shadow-xl shadow-fuchsia-900/20">
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 md:mb-2">
             <span className="text-cyan-400 drop-shadow-[0_0_5px_rgba(0,255,255,0.8)]">xElite</span>
             <span className="text-fuchsia-400 drop-shadow-[0_0_5px_rgba(255,0,255,0.8)]">Solutions</span>
             <span className="text-gray-500 text-sm sm:text-base md:text-xl ml-2 md:ml-3">| AGI Platform</span>
           </h1>
-          <p className="text-gray-400 font-light text-xs sm:text-sm md:text-base">
-            🚀 Your intelligent assistant for building and developing projects
-          </p>
-          <button
-            onClick={() => setIsScreenVisible(true)}
-            className="lg:hidden bg-fuchsia-500 hover:bg-fuchsia-600 text-white text-xs px-2 py-1 rounded transition-all duration-200 mt-2"
-          >
-            🕹️ شاشة جو
-          </button>
-          {/* AI Engine Switcher */}
-          <div className="flex gap-2 items-center mt-2">
-            <span className="text-sm text-gray-400 font-medium">AI Engine:</span>
+          <p className="text-gray-400 font-light text-xs sm:text-sm md:text-base">🚀 Your intelligent assistant for building and developing projects</p>
+          
+          {/* AI Engine Selection Buttons - Responsive */}
+          <div className="mt-3 sm:mt-4 flex flex-wrap gap-2">
             <button
-              onClick={() => setAiEngine('openai')}
-              className={`px-3 py-1 rounded-lg transition-all duration-200 font-medium text-xs ${
-                aiEngine === 'openai'
-                  ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/50'
-                  : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+              onClick={() => setAiEngine('grok')}
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${
+                aiEngine === 'grok'
+                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/50'
+                  : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50'
               }`}
             >
-              🤖 OpenAI
+              🤖 Grok
             </button>
             <button
               onClick={() => setAiEngine('gemini')}
-              className={`px-3 py-1 rounded-lg transition-all duration-200 font-medium text-xs ${
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${
                 aiEngine === 'gemini'
-                  ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/50'
-                  : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                  ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/50'
+                  : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50'
               }`}
             >
               ✨ Gemini
             </button>
             <button
-              onClick={() => setAiEngine('grok')}
-              className={`px-3 py-1 rounded-lg transition-all duration-200 font-medium text-xs ${
-                aiEngine === 'grok'
-                  ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/50'
-                  : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+              onClick={() => setAiEngine('openai')}
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${
+                aiEngine === 'openai'
+                  ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/50'
+                  : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50'
               }`}
             >
-              ⚡ Grok
+              🧠 OpenAI
             </button>
           </div>
         </div>
 
         {/* Messages Area - Responsive */}
-        <div id="messages-container" className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 space-y-3 md:space-y-4 bg-transparent">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 space-y-3 md:space-y-4 bg-transparent">
           {messages.length === 0 && (
             <div className="text-center text-gray-500 py-8 sm:py-10 md:py-12 bg-gray-800/20 border border-cyan-500/10 rounded-xl p-4 sm:p-6 md:p-8 shadow-inner shadow-cyan-900/30">
               <div className="text-4xl sm:text-5xl md:text-6xl mb-3 md:mb-4 animate-pulse">🤖</div>
@@ -198,7 +177,6 @@ const Joe = () => {
               </div>
             </div>
           ))}
-          <div ref={messagesEndRef} /> {/* Scroll target */}
 
           {/* Progress Bar - Responsive */}
           {isProcessing && progress > 0 && (
@@ -251,7 +229,14 @@ const Joe = () => {
         </div>
 
         {/* Input Area - Responsive */}
-        <div className="border-t border-cyan-500/50 bg-gray-900/50 p-3 sm:p-4 backdrop-blur-md shadow-2xl shadow-cyan-900/20 flex-shrink-0">
+        <div className="border-t border-cyan-500/50 bg-gray-900/50 p-3 sm:p-4 backdrop-blur-md shadow-2xl shadow-cyan-900/20">
+          {/* File Upload - Responsive */}
+          <div className="mb-3 sm:mb-4">
+            <FileUpload onFileAnalyzed={(data) => {
+              setInput(prev => prev + `\n\nUploaded file: ${data.fileName}\n${data.content}`);
+            }} />
+          </div>
+
           {/* Input Controls - Responsive */}
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
             {/* Voice and Input Row */}
@@ -284,13 +269,6 @@ const Joe = () => {
 
             {/* Action Buttons Row */}
             <div className="flex gap-2 sm:gap-3">
-              <button
-                onClick={() => alert('Attachment functionality will be implemented here.')}
-                className="p-2 sm:p-3 rounded-lg transition-all duration-200 bg-gray-700 hover:bg-gray-600 text-gray-300 shadow-md"
-                title="Attach File"
-              >
-                📎
-              </button>
               {canStop && (
                 <button
                   onClick={stopProcessing}
@@ -327,6 +305,7 @@ const Joe = () => {
               {tokenType === 'cloudflare' && '🔑 Cloudflare Token Required'}
               {tokenType === 'render' && '🔑 Render Token Required'}
             </h3>
+
             {tokenType === 'github' && (
               <>
                 <div className="mb-3 sm:mb-4">
@@ -379,18 +358,13 @@ const Joe = () => {
     </div>
     
     {/* Joe's Computer Screen - Responsive (Hidden on mobile) */}
-    {/* Joe's Computer Screen - Floating Overlay */}
-    {isScreenVisible && (
-      <div className="fixed inset-0 z-50 bg-gray-950/90 backdrop-blur-sm flex items-center justify-center">
-        <JoeScreen 
-          isProcessing={isProcessing} 
-          progress={progress} 
-          wsLog={wsLog}
-          onTakeover={() => setIsTakeoverActive(true)}
-          onClose={() => setIsScreenVisible(false)}
-        />
-      </div>
-    )}
+    <div className="hidden lg:block">
+      <JoeScreen 
+        isProcessing={isProcessing} 
+        progress={progress} 
+        wsLog={wsLog}
+      />
+    </div>
     </>
   );
 };

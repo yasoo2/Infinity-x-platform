@@ -1,4 +1,4 @@
-// backend/server.mjs - النسخة الكاملة والمعدلة
+// backend/server.mjs - النسخة الكاملة والمعدلة - Fixed Syntax & Imports
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -14,10 +14,9 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
-
+import http from 'http';
 import { ROLES } from './shared/roles.js';
 import { sanitizeUserForClient } from './shared/userTypes.js';
-
 // راوترات
 import { joeRouter } from './src/routes/joeRouter.js';
 import { factoryRouter } from './src/routes/factoryRouter.js';
@@ -40,15 +39,26 @@ import browserControlRouter from './src/routes/browserControl.mjs';
 import chatHistoryRouter from './src/routes/chatHistory.mjs';
 import fileUploadRouter from './src/routes/fileUpload.mjs';
 import BrowserWebSocketServer from './src/services/browserWebSocket.mjs';
-
+import testGrokRouter from './src/routes/testGrok.mjs';
+import liveStreamRouter from './src/routes/liveStreamRouter.mjs';
+import LiveStreamWebSocketServer from './src/services/liveStreamWebSocket.mjs';
+// Advanced Systems - New Features
+import SandboxManager from './src/sandbox/SandboxManager.mjs';
+import AdvancedToolsManager from './src/tools/AdvancedToolsManager.mjs';
+import PlanningSystem from './src/planning/PlanningSystem.mjs';
+import SchedulingSystem from './src/scheduling/SchedulingSystem.mjs';
+import AdvancedBrowserManager from './src/browser/AdvancedBrowserManager.mjs';
+import SecurityManager from './src/security/SecurityManager.mjs';
+import sandboxRoutes from './src/routes/sandboxRoutes.mjs';
+import planningRoutes from './src/routes/planningRoutes.mjs';
 // إعدادات قاعدة البيانات
 import { initMongo, getDB, closeMongoConnection } from './src/db.mjs';
 
 dotenv.config();
 
-// =========================
-// إعداد السيرفر الأساسي
-// =========================
+/// =========================
+// بدء تشغيل السيرفر
+// ============================
 const app = express();
 const PORT = process.env.PORT || 10000;
 app.set('trust proxy', 1);
@@ -58,7 +68,6 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
   contentSecurityPolicy: false
 }));
-
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
@@ -66,7 +75,7 @@ app.use(rateLimit({
 }));
 
 // -------------------------
-// CORS CONFIG
+// CORS CONFIG - Fixed for preflight requests
 // -------------------------
 const allowedOrigins = [
   'http://localhost:5173',
@@ -74,17 +83,18 @@ const allowedOrigins = [
   'https://admin.xelitesolutions.com',
   'https://dashboard.xelitesolutions.com',
   'https://xelitesolutions.com',
-  'https://www.xelitesolutions.com'
+  'https://www.xelitesolutions.com',
+  'https://api.xelitesolutions.com'
 ];
-
 app.use(cors({
-  origin: function (origin, cb) {
-    if (!origin) return cb(null, true);
-    if (allowedOrigins.includes(origin)) return cb(null, true);
-    console.warn('[CORS] Origin not in whitelist:', origin);
-    cb(null, true);
-  },
+  origin: '*',
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Session-Token', 'X-Requested-With'],
+  exposedHeaders: ['X-Session-Token'],
+  maxAge: 86400,
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
 
 // middleware للـ logging
@@ -107,8 +117,6 @@ const upload = multer({ dest: 'uploads/' });
 // =========================
 // Redis (Disabled - Using Upstash REST API instead)
 // =========================
-// Old ioredis connection disabled to avoid connection errors
-// Now using Upstash REST API via @upstash/redis
 let redis = null;
 console.log('✅ Redis: Using Upstash REST API (see upstashRedis.mjs)');
 
@@ -124,47 +132,34 @@ const googleOAuthClient = (googleClientId && googleClientSecret)
 // =========================
 // Helpers
 // =========================
-
-// دالة تعمل random token للجلسة
 function cryptoRandom() {
   return crypto.randomBytes(32).toString('hex');
 }
 
-// ترتيب الأولوية بين الرولز
 const rolePriority = {
   [ROLES.SUPER_ADMIN]: 3,
   [ROLES.ADMIN]: 2,
   [ROLES.USER]: 1,
 };
 
-// ميدلوير يتحقق من التوكن ويجيب المستخدم ويشيك إذا صلاحياته كافية
 function requireRole(minRole) {
   return async (req, res, next) => {
     try {
       const db = await initMongo();
-
       const token = req.headers['x-session-token'];
       if (!token) return res.status(401).json({ error: 'NO_TOKEN' });
-
       const sessionDoc = await db.collection('sessions').findOne({
         token,
         active: true
       });
-
       if (!sessionDoc) return res.status(401).json({ error: 'INVALID_SESSION' });
-
       const userDoc = await db.collection('users').findOne({
         _id: new ObjectId(sessionDoc.userId)
       });
-
       if (!userDoc) return res.status(401).json({ error: 'NO_USER' });
-
-      // تحقّق رول
       if (rolePriority[userDoc.role] < rolePriority[minRole]) {
         return res.status(403).json({ error: 'FORBIDDEN' });
       }
-
-      // تحديث نشاط المستخدم
       const now = new Date();
       await db.collection('users').updateOne(
         { _id: userDoc._id },
@@ -175,7 +170,6 @@ function requireRole(minRole) {
           }
         }
       );
-
       req.user = userDoc;
       next();
     } catch (err) {
@@ -194,7 +188,7 @@ app.get('/api/v1/health', async (req, res) => {
     redis: false,
     workers: false
   };
-  
+ 
   try {
     const db = await initMongo();
     await db.command({ ping: 1 });
@@ -202,7 +196,7 @@ app.get('/api/v1/health', async (req, res) => {
   } catch (err) {
     console.error('Health check - DB failed:', err);
   }
-  
+ 
   if (redis) {
     try {
       await redis.ping();
@@ -211,9 +205,9 @@ app.get('/api/v1/health', async (req, res) => {
       console.error('Health check - Redis failed:', err);
     }
   }
-  
+ 
   checks.workers = workerManager?.isRunning || false;
-  
+ 
   const isHealthy = checks.database && (!redis || checks.redis);
   res.status(isHealthy ? 200 : 503).json({
     status: isHealthy ? 'healthy' : 'unhealthy',
@@ -225,7 +219,6 @@ app.get('/api/v1/health', async (req, res) => {
 // =========================
 // AUTH ROUTES
 // =========================
-
 // bootstrap-super
 app.post('/api/v1/auth/bootstrap-super', async (req, res) => {
   try {
@@ -233,13 +226,10 @@ app.post('/api/v1/auth/bootstrap-super', async (req, res) => {
     if (!email || !password) {
       return res.status(400).json({ error: 'MISSING_FIELDS' });
     }
-
     const db = await initMongo();
     const exist = await db.collection('users').findOne({ role: ROLES.SUPER_ADMIN });
-
     const now = new Date();
     const hash = await bcrypt.hash(password, 10);
-
     if (exist) {
       await db.collection('users').updateOne(
         { _id: exist._id },
@@ -253,7 +243,6 @@ app.post('/api/v1/auth/bootstrap-super', async (req, res) => {
           }
         }
       );
-
       return res.json({
         ok: true,
         mode: 'UPDATED_EXISTING_SUPER_ADMIN',
@@ -269,16 +258,13 @@ app.post('/api/v1/auth/bootstrap-super', async (req, res) => {
         lastLoginAt: now,
         activeSessionSince: now,
       };
-
       const ins = await db.collection('users').insertOne(newUser);
-
       return res.json({
         ok: true,
         mode: 'CREATED_NEW_SUPER_ADMIN',
         superAdminId: ins.insertedId.toString()
       });
     }
-
   } catch (err) {
     console.error('bootstrap-super err', err);
     res.status(500).json({ error: 'SERVER_ERR' });
@@ -290,47 +276,40 @@ app.post('/api/v1/auth/login', async (req, res) => {
   try {
     const { emailOrPhone, password } = req.body;
     console.log('[LOGIN] Attempt with:', emailOrPhone);
-    
+   
     if (!emailOrPhone || !password) {
       console.log('[LOGIN] Missing fields');
       return res.status(400).json({ error: 'MISSING_FIELDS' });
     }
-
     const db = await initMongo();
     console.log('[LOGIN] DB connected');
-
     const userDoc = await db.collection('users').findOne({
       $or: [
         { email: emailOrPhone },
         { phone: emailOrPhone }
       ]
     });
-
     if (!userDoc) {
       console.log('[LOGIN] User not found:', emailOrPhone);
       return res.status(401).json({ error: 'BAD_CREDENTIALS' });
     }
-
     console.log('[LOGIN] User found:', userDoc.email, 'has passwordHash:', !!userDoc.passwordHash);
-    
+   
     const match = await bcrypt.compare(password, userDoc.passwordHash || '');
     console.log('[LOGIN] Password match:', match);
-    
+   
     if (!match) {
       console.log('[LOGIN] Password mismatch for:', emailOrPhone);
       return res.status(401).json({ error: 'BAD_CREDENTIALS' });
     }
-
     const now = new Date();
     const token = cryptoRandom();
-
     await db.collection('sessions').insertOne({
       token,
       userId: userDoc._id,
       startedAt: now,
       active: true
     });
-
     await db.collection('users').updateOne(
       { _id: userDoc._id },
       {
@@ -340,7 +319,6 @@ app.post('/api/v1/auth/login', async (req, res) => {
         }
       }
     );
-
     return res.json({
       ok: true,
       sessionToken: token,
@@ -350,7 +328,6 @@ app.post('/api/v1/auth/login', async (req, res) => {
         activeSessionSince: now
       })
     });
-
   } catch (err) {
     console.error('login err', err);
     res.status(500).json({ error: 'SERVER_ERR' });
@@ -361,31 +338,24 @@ app.post('/api/v1/auth/login', async (req, res) => {
 app.post('/api/v1/auth/register', async (req, res) => {
   try {
     const { email, phone, password } = req.body;
-
     if (!email || !password) {
       return res.status(400).json({ error: 'MISSING_FIELDS' });
     }
-
     if (password.length < 8) {
       return res.status(400).json({ error: 'PASSWORD_TOO_SHORT' });
     }
-
     const db = await initMongo();
-
     const existingUser = await db.collection('users').findOne({
       $or: [
         { email: email },
         ...(phone ? [{ phone: phone }] : [])
       ]
     });
-
     if (existingUser) {
       return res.status(409).json({ error: 'EMAIL_EXISTS' });
     }
-
     const now = new Date();
     const hash = await bcrypt.hash(password, 10);
-
     const newUser = {
       email,
       phone: phone || null,
@@ -395,15 +365,12 @@ app.post('/api/v1/auth/register', async (req, res) => {
       lastLoginAt: null,
       activeSessionSince: null,
     };
-
     const result = await db.collection('users').insertOne(newUser);
-
     return res.json({
       ok: true,
       userId: result.insertedId.toString(),
       message: 'User created successfully'
     });
-
   } catch (err) {
     console.error('register err', err);
     res.status(500).json({ error: 'SERVER_ERR' });
@@ -416,23 +383,19 @@ app.post('/api/v1/auth/google', async (req, res) => {
     if (!googleOAuthClient) {
       return res.status(400).json({ error: 'GOOGLE_DISABLED' });
     }
-
     const { idToken } = req.body;
     if (!idToken) {
       return res.status(400).json({ error: 'MISSING_ID_TOKEN' });
     }
-
     const ticket = await googleOAuthClient.verifyIdToken({
       idToken,
       audience: googleClientId
     });
     const payload = ticket.getPayload();
     const email = payload.email;
-
     const db = await initMongo();
     let userDoc = await db.collection('users').findOne({ email });
     const now = new Date();
-
     if (!userDoc) {
       const newUser = {
         email,
@@ -456,7 +419,6 @@ app.post('/api/v1/auth/google', async (req, res) => {
         }
       );
     }
-
     const token = cryptoRandom();
     await db.collection('sessions').insertOne({
       token,
@@ -464,7 +426,6 @@ app.post('/api/v1/auth/google', async (req, res) => {
       startedAt: now,
       active: true
     });
-
     return res.json({
       ok: true,
       sessionToken: token,
@@ -474,7 +435,6 @@ app.post('/api/v1/auth/google', async (req, res) => {
         activeSessionSince: now
       })
     });
-
   } catch (err) {
     console.error('google login err', err);
     res.status(500).json({ error: 'SERVER_ERR' });
@@ -484,25 +444,20 @@ app.post('/api/v1/auth/google', async (req, res) => {
 // =========================
 // إدارة المستخدمين (لوحة X)
 // =========================
-
 // احصائيات المستخدمين + أونلاين + آخر دخول
 app.get('/api/v1/admin/users', requireRole(ROLES.ADMIN), async (req, res) => {
   try {
     const db = await initMongo();
-
     const arr = await db.collection('users')
       .find({})
       .sort({ lastLoginAt: -1 })
       .toArray();
-
     const totalActiveNow = await db.collection('sessions').countDocuments({
       active: true
     });
-
     const totalSupers = arr.filter(u => u.role === ROLES.SUPER_ADMIN).length;
     const totalAdmins = arr.filter(u => u.role === ROLES.ADMIN).length;
     const totalUsers = arr.filter(u => u.role === ROLES.USER).length;
-
     return res.json({
       ok: true,
       stats: {
@@ -513,7 +468,6 @@ app.get('/api/v1/admin/users', requireRole(ROLES.ADMIN), async (req, res) => {
       },
       users: arr.map(u => sanitizeUserForClient(u))
     });
-
   } catch (err) {
     console.error('GET /api/admin/users err', err);
     res.status(500).json({ error: 'SERVER_ERR' });
@@ -527,7 +481,6 @@ app.post('/api/v1/admin/users/setRole', requireRole(ROLES.SUPER_ADMIN), async (r
     if (!userId || !newRole) {
       return res.status(400).json({ error: 'MISSING_FIELDS' });
     }
-
     const db = await initMongo();
     await db.collection('users').updateOne(
       { _id: new ObjectId(userId) },
@@ -537,7 +490,6 @@ app.post('/api/v1/admin/users/setRole', requireRole(ROLES.SUPER_ADMIN), async (r
         }
       }
     );
-
     return res.json({ ok: true });
   } catch (err) {
     console.error('POST /api/admin/users/setRole err', err);
@@ -553,7 +505,7 @@ app.use('/api/v1/system', requireRole(ROLES.ADMIN), dashboardDataRouter(initMong
 // =========================
 // راوترات جو / المصنع / الداشبورد / الموقع العام
 // =========================
-app.use('/api/v1/joe', joeRouter(initMongo, redis));
+app.use("/api/v1/joe/control", joeRouter(initMongo, redis));
 app.use('/api/v1/factory', factoryRouter(initMongo, redis));
 app.use('/api/v1/dashboard', dashboardDataRouter(initMongo, redis));
 app.use('/api/v1/public-site', publicSiteRouter(initMongo));
@@ -564,11 +516,17 @@ app.use('/api/v1/page-builder', pageBuilderRouter);
 app.use('/api/v1/github-manager', githubManagerRouter);
 app.use('/api/v1/integrations', integrationManagerRouter);
 app.use('/api/v1/self-evolution', selfEvolutionRouter);
-app.use('/api/v1/joe', joeChatRouter);
-app.use('/api/v1/joe', joeChatAdvancedRouter);
-app.use('/api/v1/browser', browserControlRouter);
+app.use("/api/v1/joe/chat", requireRole(ROLES.USER), joeChatRouter);
+app.use("/api/v1/joe/chat-advanced", requireRole(ROLES.ADMIN), joeChatAdvancedRouter);
+app.use('/api/v1/browser', requireRole(ROLES.ADMIN), browserControlRouter);
 app.use('/api/v1/chat-history', chatHistoryRouter);
 app.use('/api/v1/file', fileUploadRouter);
+app.use('/api/v1', testGrokRouter);
+app.use('/api/live-stream', liveStreamRouter);
+
+// Advanced Systems Routes (New Features)
+app.use('/api/v1/sandbox', sandboxRoutes);
+app.use('/api/v1/planning', planningRoutes);
 
 // هذه للوحة المصنع: عرض آخر jobs
 app.get('/api/v1/factory/jobs', requireRole(ROLES.ADMIN), async (req, res) => {
@@ -579,7 +537,6 @@ app.get('/api/v1/factory/jobs', requireRole(ROLES.ADMIN), async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(20)
       .toArray();
-
     res.json({
       ok: true,
       jobs: jobs.map(j => ({
@@ -615,23 +572,23 @@ async function initializeWorkerManager() {
     }
   }
 
-	  // Try BullMQ if REDIS_URL is available (ioredis)
-	  if (process.env.REDIS_URL) {
-	    // التحقق من اتصال Redis قبل محاولة بدء BullMQ
-	    if (BullMQWorkerManager.isConnected()) {
-	      try {
-	        console.log('🔄 Attempting to start BullMQ Worker Manager...');
-	        workerManager = new BullMQWorkerManager();
-	        await workerManager.start();
-	        console.log('✅ BullMQ Worker Manager started successfully');
-	        return;
-	      } catch (error) {
-	        console.warn('⚠️ BullMQ failed, falling back to SimpleWorkerManager:', error.message);
-	      }
-	    } else {
-	      console.warn('⚠️ Redis connection failed. Skipping BullMQ Worker Manager.');
-	    }
-	  }
+  // Try BullMQ if REDIS_URL is available (ioredis)
+  if (process.env.REDIS_URL) {
+    // التحقق من اتصال Redis قبل محاولة بدء BullMQ
+    if (BullMQWorkerManager.isConnected()) {
+      try {
+        console.log('🔄 Attempting to start BullMQ Worker Manager...');
+        workerManager = new BullMQWorkerManager();
+        await workerManager.start();
+        console.log('✅ BullMQ Worker Manager started successfully');
+        return;
+      } catch (error) {
+        console.warn('⚠️ BullMQ failed, falling back to SimpleWorkerManager:', error.message);
+      }
+    } else {
+      console.warn('⚠️ Redis connection failed. Skipping BullMQ Worker Manager.');
+    }
+  }
 
   // Fallback to SimpleWorkerManager
   try {
@@ -674,15 +631,46 @@ app.get('/', async (req, res) => {
 });
 
 // =========================
-// Error Handling
+// Serve Frontend Static Files
 // =========================
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const distPath = path.join(__dirname, '../dashboard-x/dist');
+
+// Check if dist directory exists
+if (fs.existsSync(distPath)) {
+  console.log('📦 Serving frontend static files from:', distPath);
+ 
+  // Serve static files
+  app.use(express.static(distPath));
+ 
+  // SPA fallback - serve index.html for all non-API routes
+  app.get('*', (req, res, next) => {
+    // Skip API routes
+    if (req.path.startsWith('/api/') || req.path.startsWith('/ws/')) {
+      return next();
+    }
+   
+    // Serve index.html for all other routes
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+} else {
+  console.warn('⚠️ Frontend dist directory not found at:', distPath);
+}
+
+// 404 handler for API routes only
 app.use((req, res) => {
-  res.status(404).json({ error: 'ROUTE_NOT_FOUND' });
+  if (req.path.startsWith('/api/') || req.path.startsWith('/ws/')) {
+    res.status(404).json({ error: 'ROUTE_NOT_FOUND' });
+  } else {
+    res.status(404).send('Page not found');
+  }
 });
 
+// Error handler
 app.use((err, req, res, next) => {
   console.error('Unhandled Error:', err);
-  res.status(500).json({ 
+  res.status(500).json({
     error: 'INTERNAL_SERVER_ERROR',
     message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
   });
@@ -693,24 +681,23 @@ app.use((err, req, res, next) => {
 // =========================
 async function gracefulShutdown() {
   console.log('Shutting down gracefully...');
-  
+ 
   if (workerManager && workerManager.stop) {
     await workerManager.stop().catch(console.error);
   }
-  
+ 
   await closeMongoConnection();
-  
+ 
   if (redis) {
     await redis.quit().catch(console.error);
   }
-  
+ 
   console.log('Shutdown completed');
   process.exit(0);
 }
 
 process.on('SIGTERM', gracefulShutdown);
 process.on('SIGINT', gracefulShutdown);
-
 process.on('unhandledRejection', (err) => {
   console.error('Unhandled Rejection:', err);
 });
@@ -718,18 +705,21 @@ process.on('unhandledRejection', (err) => {
 // =========================
 // Start server
 // =========================
-import http from 'http';
 const server = http.createServer(app);
 
 // Initialize Browser WebSocket
 const browserWS = new BrowserWebSocketServer(server);
 console.log('🌐 Browser WebSocket initialized at /ws/browser');
 
+// Initialize Live Stream WebSocket
+const liveStreamWS = new LiveStreamWebSocketServer(server);
+console.log('🎬 Live Stream WebSocket initialized at /ws/live-stream');
+
 server.listen(PORT, () => {
   console.log(`🚀 InfinityX Backend running on port ${PORT}`);
   console.log(`📊 Worker Manager: ${workerManager?.isRunning ? 'ONLINE' : 'OFFLINE'}`);
   console.log(`🌐 Health check available at: http://localhost:${PORT}/health`);
-  console.log(`🖥️  Browser WebSocket available at: ws://localhost:${PORT}/ws/browser`);
+  console.log(`🖥️ Browser WebSocket available at: ws://localhost:${PORT}/ws/browser`);
 });
 
 export default app;

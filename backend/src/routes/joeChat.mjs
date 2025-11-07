@@ -20,7 +20,8 @@ const grokEngine = getGrokEngine();
 // JOE Chat - Smart responses WITH REAL ACTIONS
 router.post('/chat', async (req, res) => {
   try {
-    const { message, context = [], userId = 'default', aiEngine = 'openai' } = req.body;
+    const { message, context = [], aiEngine = 'openai' } = req.body;
+    const userId = req.user._id.toString();
 
     if (!message) {
       return res.json({ ok: false, error: 'Message required' });

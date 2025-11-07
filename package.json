@@ -1,16 +1,25 @@
 {
   "name": "infinity-x-platform",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "workspaces": [
-    "backend",
-    "dashboard-x",
-    "joengine-agi"
-  ],
+  "description": "Advanced AI Platform with Sandbox, Planning, Scheduling, and Security Systems",
   "scripts": {
-    "install-all": "npm install --legacy-peer-deps"
+    "start": "cd backend && node server.mjs",
+    "dev": "cd backend && npm run dev",
+    "build": "cd backend && npm run build"
   },
-  "dependencies": {
-    "openai": "^4.77.0"
-  }
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
+  },
+  "keywords": [
+    "ai",
+    "platform",
+    "sandbox",
+    "planning",
+    "scheduling",
+    "security"
+  ],
+  "author": "xEliteSolutions",
+  "license": "MIT"
 }
