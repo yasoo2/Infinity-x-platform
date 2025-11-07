@@ -1,14 +1,19 @@
+/**
+ * Enhanced Worker - معالج المهام المحسّن
+ * يستخدم AI Engine لتوليد المشاريع الفعلية
+ */
+
 import dotenv from 'dotenv';
 import { MongoClient, ObjectId } from 'mongodb';
 import Redis from 'ioredis';
-import JOEngine from '../joengine-agi/index.mjs'; // استيراد JOEngine
+import { buildWebsite, buildWebApp, buildEcommerce } from './lib/projectGenerator.mjs';
+import { deployToCloudflare } from './lib/cloudflareDeployer.mjs';
 
 dotenv.config();
 
 const DB_NAME = process.env.DB_NAME || 'future_system';
 const mongoClient = new MongoClient(process.env.MONGO_URI);
-const redis = process.env.REDIS_URL ? new Redis(process.env.REDIS_URL) : 
-null;
+const redis = process.env.REDIS_URL ? new Redis(process.env.REDIS_URL) : null;
 
 function sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
@@ -28,191 +33,256 @@ async function logActivity(db, action, detail) {
   });
 }
 
-async function proposePlan(db, type, text) {
-  await db.collection('joe_plans').insertOne({
-    createdAt: new Date(),
-    type,
-    text,
-    status: 'PENDING',
-    approved: false
-  });
+/**
+ * معالجة مهمة بناء مشروع جديد
+ */
+async function handleFactoryJob(db, job) {
+  try {
+    console.log(`[Worker] Processing factory job: ${job._id}`);
+    
+    // تحديث الحالة إلى WORKING
+    await db.collection('factory_jobs').updateOne(
+      { _id: job._id },
+      { 
+        $set: { 
+          status: 'WORKING', 
+          startedAt: new Date(),
+          progress: 10
+        } 
+      }
+    );
+    
+    await logActivity(db, 'FACTORY_JOB_STARTED', `Building ${job.projectType}: ${job.shortDescription}`);
+    
+    const projectId = job._id.toString();
+    let result;
+    
+    // بناء المشروع حسب النوع
+    switch (job.projectType.toLowerCase()) {
+      case 'website':
+      case 'landing-page':
+      case 'portfolio':
+        await db.collection('factory_jobs').updateOne(
+          { _id: job._id },
+          { $set: { progress: 30, currentStep: 'Generating website code...' } }
+        );
+        
+        result = await buildWebsite(projectId, job.shortDescription, {
+          title: job.title || 'My Website',
+          style: job.style || 'modern'
+        });
+        break;
+        
+      case 'webapp':
+      case 'app':
+      case 'application':
+        await db.collection('factory_jobs').updateOne(
+          { _id: job._id },
+          { $set: { progress: 30, currentStep: 'Generating web app code...' } }
+        );
+        
+        result = await buildWebApp(projectId, job.shortDescription, {
+          title: job.title || 'My Web App',
+          features: job.features || []
+        });
+        break;
+        
+      case 'ecommerce':
+      case 'store':
+      case 'shop':
+        await db.collection('factory_jobs').updateOne(
+          { _id: job._id },
+          { $set: { progress: 30, currentStep: 'Generating e-commerce store...' } }
+        );
+        
+        result = await buildEcommerce(projectId, job.shortDescription, {
+          title: job.title || 'My Store',
+          products: job.products || []
+        });
+        break;
+        
+      default:
+        throw new Error(`Unknown project type: ${job.projectType}`);
+    }
+    
+    // حفظ معلومات المشروع
+    await db.collection('factory_jobs').updateOne(
+      { _id: job._id },
+      { 
+        $set: { 
+          progress: 60,
+          currentStep: 'Project generated successfully',
+          projectPath: result.projectPath,
+          files: result.files
+        } 
+      }
+    );
+    
+    await logActivity(db, 'PROJECT_GENERATED', `Files: ${result.files.join(', ')}`);
+    
+    // النشر على Cloudflare
+    if (process.env.CLOUDFLARE_API_TOKEN) {
+      await db.collection('factory_jobs').updateOne(
+        { _id: job._id },
+        { $set: { progress: 70, currentStep: 'Deploying to Cloudflare...' } }
+      );
+      
+      const deployResult = await deployToCloudflare(
+        projectId,
+        result.projectPath,
+        job.title || job.projectType
+      );
+      
+      if (deployResult.success) {
+        await db.collection('factory_jobs').updateOne(
+          { _id: job._id },
+          { 
+            $set: { 
+              deploymentUrl: deployResult.url,
+              deploymentName: deployResult.deploymentName,
+              progress: 90
+            } 
+          }
+        );
+        
+        await logActivity(db, 'PROJECT_DEPLOYED', `URL: ${deployResult.url}`);
+      } else {
+        console.warn('[Worker] Deployment failed:', deployResult.error);
+        await logActivity(db, 'DEPLOYMENT_FAILED', deployResult.error);
+      }
+    }
+    
+    // تحديث الحالة إلى DONE
+    await db.collection('factory_jobs').updateOne(
+      { _id: job._id },
+      { 
+        $set: { 
+          status: 'DONE',
+          progress: 100,
+          currentStep: 'Completed',
+          finishedAt: new Date()
+        } 
+      }
+    );
+    
+    await logActivity(db, 'FACTORY_JOB_COMPLETED', `Project ${projectId} completed successfully`);
+    
+    console.log(`[Worker] Factory job completed: ${job._id}`);
+    
+  } catch (error) {
+    console.error(`[Worker] Factory job failed:`, error);
+    
+    await db.collection('factory_jobs').updateOne(
+      { _id: job._id },
+      { 
+        $set: { 
+          status: 'FAILED',
+          error: error.message,
+          finishedAt: new Date()
+        } 
+      }
+    );
+    
+    await logActivity(db, 'FACTORY_JOB_FAILED', `Error: ${error.message}`);
+  }
 }
 
-async function handleCommand(db, cmd, joengine) {
-  await db.collection('joe_commands').updateOne(
-    { _id: cmd._id },
-    { $set: { status: 'WORKING', startedAt: new Date() } }
-  );
-
-  await logActivity(db, 'COMMAND_WORKING', cmd.commandText);
-
+/**
+ * معالجة أمر من المستخدم
+ */
+async function handleCommand(db, cmd) {
   try {
-    // استخدام JOEngine لتحليل وتنفيذ الأمر
-    const taskId = await joengine.addTask(cmd.commandText, {
-      source: 'worker_command',
-      commandId: cmd._id.toString()
-    });
+    await db.collection('joe_commands').updateOne(
+      { _id: cmd._id },
+      { $set: { status: 'WORKING', startedAt: new Date() } }
+    );
 
-    // يمكننا هنا الانتظار حتى تكتمل المهمة أو تركها تعمل في الخلفية
-    // لغرض هذا التطوير، سنفترض أن JOEngine سيعالجها بشكل مستقل.
+    await logActivity(db, 'COMMAND_PROCESSING', cmd.commandText);
+
+    // هنا يمكن إضافة معالجة ذكية للأوامر
+    // مثل: "create a landing page for my coffee shop"
+    // يتم تحويله تلقائياً إلى factory job
+    
+    const lowerCmd = cmd.commandText.toLowerCase();
+    
+    if (lowerCmd.includes('create') || lowerCmd.includes('build') || lowerCmd.includes('make')) {
+      // إنشاء factory job تلقائياً
+      let projectType = 'website';
+      
+      if (lowerCmd.includes('app') || lowerCmd.includes('application')) {
+        projectType = 'webapp';
+      } else if (lowerCmd.includes('store') || lowerCmd.includes('shop') || lowerCmd.includes('ecommerce')) {
+        projectType = 'ecommerce';
+      }
+      
+      await db.collection('factory_jobs').insertOne({
+        createdAt: new Date(),
+        sessionToken: cmd.sessionToken,
+        projectType,
+        shortDescription: cmd.commandText,
+        status: 'QUEUED',
+        source: 'command'
+      });
+      
+      await logActivity(db, 'AUTO_CREATED_JOB', `From command: ${cmd.commandText}`);
+    }
+
+    await db.collection('joe_commands').updateOne(
+      { _id: cmd._id },
+      { $set: { status: 'DONE', finishedAt: new Date() } }
+    );
+
+    await logActivity(db, 'COMMAND_COMPLETED', cmd.commandText);
+    
+  } catch (error) {
+    console.error('[Worker] Command failed:', error);
     
     await db.collection('joe_commands').updateOne(
       { _id: cmd._id },
-      { $set: { status: 'DONE', finishedAt: new Date(), taskId } }
+      { $set: { status: 'FAILED', error: error.message, finishedAt: new Date() } }
     );
-
-    await logActivity(db, 'COMMAND_DONE', `Task ${taskId} created for: ${cmd.commandText}`);
-
-  } catch (error) {
-    await db.collection('joe_commands').updateOne(
-      { _id: cmd._id },
-      { $set: { status: 'FAILED', finishedAt: new Date(), error: error.message } }
-    );
-    await logActivity(db, 'COMMAND_FAILED', `Error: ${error.message}`);
   }
 }
 
-async function handleSeoTask(db, task) {
-  await db.collection('seo_tasks').updateOne(
-    { _id: task._id },
-    { $set: { status: 'WORKING', startedAt: new Date() } }
-  );
-  await logActivity(db, 'SEO_WORKING', `page=${task.page}`);
-
-  await proposePlan(
-    db,
-    'SEO_BOOST',
-    `Improve SEO for page ${task.page} with keywords 
-${task.keywords?.join(',') || ''}`
-  );
-
-  await db.collection('seo_tasks').updateOne(
-    { _id: task._id },
-    { $set: { status: 'DONE', finishedAt: new Date() } }
-  );
-  await logActivity(db, 'SEO_DONE', `page=${task.page}`);
-}
-
-async function handleFactoryJob(db, job) {
-  await db.collection('factory_jobs').updateOne(
-    { _id: job._id },
-    { $set: { status: 'WORKING', startedAt: new Date() } }
-  );
-  await logActivity(db, 'FACTORY_JOB_WORKING', `type=${job.projectType}`);
-
-  await proposePlan(
-    db,
-    'NEW_PROJECT_SCAFFOLD',
-    `Scaffold ${job.projectType} with description 
-"${job.shortDescription||''}"`
-  );
-
-  await db.collection('factory_jobs').updateOne(
-    { _id: job._id },
-    { $set: { status: 'DONE', finishedAt: new Date() } }
-  );
-  await logActivity(db, 'FACTORY_JOB_DONE', `type=${job.projectType}`);
-}
-
-async function handleExternalLink(db, link) {
-  await db.collection('factory_links').updateOne(
-    { _id: link._id },
-    { $set: { status: 'ANALYZING', startedAt: new Date() } }
-  );
-
-  await logActivity(db, 'EXTERNAL_ANALYSIS', link.externalUrl);
-
-  await proposePlan(
-    db,
-    'EXTERNAL_INTEGRATION',
-    `Analyze and prepare editable mirror for ${link.externalUrl}`
-  );
-
-  await db.collection('factory_links').updateOne(
-    { _id: link._id },
-    { $set: { status: 'READY_FOR_MOD', finishedAt: new Date() } }
-  );
-
-  await logActivity(db, 'EXTERNAL_READY_FOR_MOD', link.externalUrl);
-}
-
-async function maybeProposeSelfImprovements(db, joengine) {
-  const oneMinAgo = new Date(Date.now() - 60*1000);
-  const recent = await db.collection('joe_plans').find({
-    createdAt: { $gte: oneMinAgo },
-    type: { $in: 
-['SELF_UPGRADE','SECURITY_IMPROVEMENT','PERFORMANCE_IMPROVEMENT'] }
-  }).toArray();
-
-  if (recent.length === 0) {
-    // المهمة الجديدة: تحليل الكود باستخدام CodeTool واقتراح تحسينات
-    const goal = `Analyze the entire 'joengine-agi' directory using the 'code' and 'file' tools. Identify areas for performance, security, and structural improvements. Propose a plan to implement the top 3 most critical improvements.`;
-
-    const taskId = await joengine.addTask(goal, {
-      source: 'self_evolution_worker',
-      evolutionType: 'SELF_UPGRADE'
-    });
-
-    await proposePlan(
-      db,
-      'SELF_UPGRADE',
-      `Self-Evolution task started (Task ID: ${taskId}). Goal: ${goal}`
-    );
-    await logActivity(db, 'SELF_UPGRADE_PROPOSED', `Joe proposed self-upgrade with Task ID: ${taskId}`);
-  }
-}
-
+/**
+ * الحلقة الرئيسية
+ */
 async function mainLoop() {
-  // تهيئة JOEngine
-  const joengine = new JOEngine();
-  await joengine.start();
-
+  console.log('[Worker] Enhanced worker started');
+  
   while (true) {
     try {
       await withDb(async db => {
-        const pendingCmds = await db.collection('joe_commands')
-          .find({ status: 'QUEUED' })
-          .limit(5)
-          .toArray();
-        for (const cmd of pendingCmds) {
-          await handleCommand(db, cmd, joengine);
-        }
-
-        const seoTasks = await db.collection('seo_tasks')
-          .find({ status: 'QUEUED' })
-          .limit(3)
-          .toArray();
-        for (const task of seoTasks) {
-          await handleSeoTask(db, task);
-        }
-
+        // معالجة factory jobs
         const jobs = await db.collection('factory_jobs')
           .find({ status: 'QUEUED' })
-          .limit(2)
+          .limit(1) // معالجة واحدة في كل مرة لتجنب استهلاك الموارد
           .toArray();
+          
         for (const job of jobs) {
           await handleFactoryJob(db, job);
         }
 
-        const links = await db.collection('factory_links')
-          .find({ status: 'LINKED_PENDING_ANALYSIS' })
-          .limit(2)
+        // معالجة الأوامر
+        const commands = await db.collection('joe_commands')
+          .find({ status: 'QUEUED' })
+          .limit(3)
           .toArray();
-        for (const link of links) {
-          await handleExternalLink(db, link);
+          
+        for (const cmd of commands) {
+          await handleCommand(db, cmd);
         }
-
-        await maybeProposeSelfImprovements(db, joengine);
       });
     } catch (err) {
-      console.error('[worker loop error]', err);
+      console.error('[Worker] Loop error:', err);
     }
 
-    await sleep(5000);
+    await sleep(5000); // انتظار 5 ثوان بين كل دورة
   }
 }
 
-mainLoop().catch(async err => {
-  console.error('worker fatal err', err);
-  // يجب إضافة منطق لإيقاف JOEngine هنا إذا كان قد بدأ
+// بدء Worker
+mainLoop().catch(err => {
+  console.error('[Worker] Fatal error:', err);
+  process.exit(1);
 });

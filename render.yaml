@@ -1,0 +1,44 @@
+services:
+  # Backend Service (JOEngine AGI)
+  - type: web
+    name: infinityx-backend
+    env: node
+    region: frankfurt
+    plan: starter
+    branch: main
+    repo: https://github.com/yasoo2/Infinity-x-platform
+    rootDir: joengine-agi
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: 3001
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: FRONTEND_URL
+        value: https://xelitesolutions.com
+      - key: GITHUB_PAT
+        sync: false
+
+  # Frontend Service (Dashboard)
+  - type: static
+    name: infinityx-dashboard
+    env: static
+    region: frankfurt
+    plan: starter
+    branch: main
+    repo: https://github.com/yasoo2/Infinity-x-platform
+    rootDir: dashboard-x
+    buildCommand: pnpm install && pnpm run build
+    staticPublishPath: dist
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-store
+    envVars:
+      - key: VITE_API_BASE
+        value: https://infinityx-backend.onrender.com
