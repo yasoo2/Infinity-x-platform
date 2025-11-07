@@ -1,4 +1,4 @@
-// backend/server.mjs - النسخة الكاملة والمعدلة - Fixed Imports
+// backend/server.mjs - النسخة الكاملة والمعدلة - Fixed Syntax & Imports
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -14,7 +14,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
-import http from 'http';  // ← نقلناه هنا لأعلى
+import http from 'http';
 import { ROLES } from './shared/roles.js';
 import { sanitizeUserForClient } from './shared/userTypes.js';
 // راوترات
@@ -87,12 +87,12 @@ const allowedOrigins = [
   'https://api.xelitesolutions.com'
 ];
 app.use(cors({
-  origin: '*', // Allow all origins - for production, use allowedOrigins whitelist
+  origin: '*',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Session-Token', 'X-Requested-With'],
   exposedHeaders: ['X-Session-Token'],
-  maxAge: 86400, // 24 hours
+  maxAge: 86400,
   preflightContinue: false,
   optionsSuccessStatus: 204
 }));
@@ -117,8 +117,6 @@ const upload = multer({ dest: 'uploads/' });
 // =========================
 // Redis (Disabled - Using Upstash REST API instead)
 // =========================
-// Old ioredis connection disabled to avoid connection errors
-// Now using Upstash REST API via @upstash/redis
 let redis = null;
 console.log('✅ Redis: Using Upstash REST API (see upstashRedis.mjs)');
 
@@ -134,19 +132,16 @@ const googleOAuthClient = (googleClientId && googleClientSecret)
 // =========================
 // Helpers
 // =========================
-// دالة تعمل random token للجلسة
 function cryptoRandom() {
   return crypto.randomBytes(32).toString('hex');
 }
 
-// ترتيب الأولوية بين الرولز
 const rolePriority = {
   [ROLES.SUPER_ADMIN]: 3,
   [ROLES.ADMIN]: 2,
   [ROLES.USER]: 1,
 };
 
-// ميدلوير يتحقق من التوكن ويجيب المستخدم ويشيك إذا صلاحياته كافية
 function requireRole(minRole) {
   return async (req, res, next) => {
     try {
@@ -162,11 +157,9 @@ function requireRole(minRole) {
         _id: new ObjectId(sessionDoc.userId)
       });
       if (!userDoc) return res.status(401).json({ error: 'NO_USER' });
-      // تحقّق رول
       if (rolePriority[userDoc.role] < rolePriority[minRole]) {
         return res.status(403).json({ error: 'FORBIDDEN' });
       }
-      // تحديث نشاط المستخدم
       const now = new Date();
       await db.collection('users').updateOne(
         { _id: userDoc._id },
@@ -438,4 +431,295 @@ app.post('/api/v1/auth/google', async (req, res) => {
       sessionToken: token,
       user: sanitizeUserForClient({
         ...userDoc,
-        lastLoginAt: now
+        lastLoginAt: now,
+        activeSessionSince: now
+      })
+    });
+  } catch (err) {
+    console.error('google login err', err);
+    res.status(500).json({ error: 'SERVER_ERR' });
+  }
+});
+
+// =========================
+// إدارة المستخدمين (لوحة X)
+// =========================
+// احصائيات المستخدمين + أونلاين + آخر دخول
+app.get('/api/v1/admin/users', requireRole(ROLES.ADMIN), async (req, res) => {
+  try {
+    const db = await initMongo();
+    const arr = await db.collection('users')
+      .find({})
+      .sort({ lastLoginAt: -1 })
+      .toArray();
+    const totalActiveNow = await db.collection('sessions').countDocuments({
+      active: true
+    });
+    const totalSupers = arr.filter(u => u.role === ROLES.SUPER_ADMIN).length;
+    const totalAdmins = arr.filter(u => u.role === ROLES.ADMIN).length;
+    const totalUsers = arr.filter(u => u.role === ROLES.USER).length;
+    return res.json({
+      ok: true,
+      stats: {
+        totalActiveNow,
+        totalSupers,
+        totalAdmins,
+        totalUsers,
+      },
+      users: arr.map(u => sanitizeUserForClient(u))
+    });
+  } catch (err) {
+    console.error('GET /api/admin/users err', err);
+    res.status(500).json({ error: 'SERVER_ERR' });
+  }
+});
+
+// تعديل رول المستخدم (بس السوبر أدمن)
+app.post('/api/v1/admin/users/setRole', requireRole(ROLES.SUPER_ADMIN), async (req, res) => {
+  try {
+    const { userId, newRole } = req.body;
+    if (!userId || !newRole) {
+      return res.status(400).json({ error: 'MISSING_FIELDS' });
+    }
+    const db = await initMongo();
+    await db.collection('users').updateOne(
+      { _id: new ObjectId(userId) },
+      {
+        $set: {
+          role: newRole
+        }
+      }
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('POST /api/admin/users/setRole err', err);
+    res.status(500).json({ error: 'SERVER_ERR' });
+  }
+});
+
+// =========================
+// system metrics (للوحة X)
+// =========================
+app.use('/api/v1/system', requireRole(ROLES.ADMIN), dashboardDataRouter(initMongo, redis));
+
+// =========================
+// راوترات جو / المصنع / الداشبورد / الموقع العام
+// =========================
+app.use('/api/v1/joe', joeRouter(initMongo, redis));
+app.use('/api/v1/factory', factoryRouter(initMongo, redis));
+app.use('/api/v1/dashboard', dashboardDataRouter(initMongo, redis));
+app.use('/api/v1/public-site', publicSiteRouter(initMongo));
+app.use('/api/v1/self-design', selfDesignRouter);
+app.use('/api/v1/store', storeIntegrationRouter);
+app.use('/api/v1/universal-store', universalStoreRouter);
+app.use('/api/v1/page-builder', pageBuilderRouter);
+app.use('/api/v1/github-manager', githubManagerRouter);
+app.use('/api/v1/integrations', integrationManagerRouter);
+app.use('/api/v1/self-evolution', selfEvolutionRouter);
+app.use('/api/v1/joe', joeChatRouter);
+app.use('/api/v1/joe', joeChatAdvancedRouter);
+app.use('/api/v1/browser', browserControlRouter);
+app.use('/api/v1/chat-history', chatHistoryRouter);
+app.use('/api/v1/file', fileUploadRouter);
+app.use('/api/v1', testGrokRouter);
+app.use('/api/live-stream', liveStreamRouter);
+
+// Advanced Systems Routes (New Features)
+app.use('/api/v1/sandbox', sandboxRoutes);
+app.use('/api/v1/planning', planningRoutes);
+
+// هذه للوحة المصنع: عرض آخر jobs
+app.get('/api/v1/factory/jobs', requireRole(ROLES.ADMIN), async (req, res) => {
+  try {
+    const db = await initMongo();
+    const jobs = await db.collection('factory_jobs')
+      .find({})
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .toArray();
+    res.json({
+      ok: true,
+      jobs: jobs.map(j => ({
+        id: j._id.toString(),
+        projectType: j.projectType,
+        status: j.status,
+        createdAt: j.createdAt,
+        shortDescription: j.shortDescription || ''
+      }))
+    });
+  } catch (err) {
+    console.error('/api/v1/factory/jobs err', err);
+    res.status(500).json({ error: 'SERVER_ERR' });
+  }
+});
+
+// =========================
+// Initialize Worker Manager
+// =========================
+let workerManager;
+
+// Try BullMQ first, fallback to SimpleWorkerManager
+async function initializeWorkerManager() {
+  // Initialize Upstash Redis first
+  const redis = getUpstashRedis();
+  if (redis) {
+    const testResult = await testRedisConnection();
+    if (testResult.ok) {
+      console.log('✅ Upstash Redis is ready');
+      console.log('✅ Cache Manager:', cacheManager.isEnabled() ? 'ENABLED' : 'DISABLED');
+    } else {
+      console.warn('⚠️ Upstash Redis test failed:', testResult.error);
+    }
+  }
+
+  // Try BullMQ if REDIS_URL is available (ioredis)
+  if (process.env.REDIS_URL) {
+    // التحقق من اتصال Redis قبل محاولة بدء BullMQ
+    if (BullMQWorkerManager.isConnected()) {
+      try {
+        console.log('🔄 Attempting to start BullMQ Worker Manager...');
+        workerManager = new BullMQWorkerManager();
+        await workerManager.start();
+        console.log('✅ BullMQ Worker Manager started successfully');
+        return;
+      } catch (error) {
+        console.warn('⚠️ BullMQ failed, falling back to SimpleWorkerManager:', error.message);
+      }
+    } else {
+      console.warn('⚠️ Redis connection failed. Skipping BullMQ Worker Manager.');
+    }
+  }
+
+  // Fallback to SimpleWorkerManager
+  try {
+    console.log('🔄 Starting SimpleWorkerManager...');
+    workerManager = new SimpleWorkerManager({ maxConcurrent: 3 });
+    await workerManager.start();
+    console.log('✅ SimpleWorkerManager started successfully');
+  } catch (error) {
+    console.error('❌ All Worker Managers failed to start:', error);
+    workerManager = {
+      isRunning: false,
+      getStats: () => ({ error: 'Worker Manager not available' })
+    };
+  }
+}
+
+// Start Worker Manager
+initializeWorkerManager();
+
+// Worker Manager stats endpoint
+app.get('/api/v1/worker/stats', (req, res) => {
+  res.json({
+    ok: true,
+    stats: workerManager?.getStats?.() || { error: 'Worker Manager not available' }
+  });
+});
+
+// =========================
+// روت فحص سريع
+// =========================
+app.get('/', async (req, res) => {
+  res.json({
+    ok: true,
+    service: 'InfinityX Backend / Future Systems Core',
+    msg: 'Running',
+    joeOnline: true,
+    factoryOnline: true,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// =========================
+// Serve Frontend Static Files
+// =========================
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const distPath = path.join(__dirname, '../dashboard-x/dist');
+
+// Check if dist directory exists
+if (fs.existsSync(distPath)) {
+  console.log('📦 Serving frontend static files from:', distPath);
+ 
+  // Serve static files
+  app.use(express.static(distPath));
+ 
+  // SPA fallback - serve index.html for all non-API routes
+  app.get('*', (req, res, next) => {
+    // Skip API routes
+    if (req.path.startsWith('/api/') || req.path.startsWith('/ws/')) {
+      return next();
+    }
+   
+    // Serve index.html for all other routes
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+} else {
+  console.warn('⚠️ Frontend dist directory not found at:', distPath);
+}
+
+// 404 handler for API routes only
+app.use((req, res) => {
+  if (req.path.startsWith('/api/') || req.path.startsWith('/ws/')) {
+    res.status(404).json({ error: 'ROUTE_NOT_FOUND' });
+  } else {
+    res.status(404).send('Page not found');
+  }
+});
+
+// Error handler
+app.use((err, req, res, next) => {
+  console.error('Unhandled Error:', err);
+  res.status(500).json({
+    error: 'INTERNAL_SERVER_ERROR',
+    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+  });
+});
+
+// =========================
+// Graceful Shutdown
+// =========================
+async function gracefulShutdown() {
+  console.log('Shutting down gracefully...');
+ 
+  if (workerManager && workerManager.stop) {
+    await workerManager.stop().catch(console.error);
+  }
+ 
+  await closeMongoConnection();
+ 
+  if (redis) {
+    await redis.quit().catch(console.error);
+  }
+ 
+  console.log('Shutdown completed');
+  process.exit(0);
+}
+
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled Rejection:', err);
+});
+
+// =========================
+// Start server
+// =========================
+const server = http.createServer(app);
+
+// Initialize Browser WebSocket
+const browserWS = new BrowserWebSocketServer(server);
+console.log('🌐 Browser WebSocket initialized at /ws/browser');
+
+// Initialize Live Stream WebSocket
+const liveStreamWS = new LiveStreamWebSocketServer(server);
+console.log('🎬 Live Stream WebSocket initialized at /ws/live-stream');
+
+server.listen(PORT, () => {
+  console.log(`🚀 InfinityX Backend running on port ${PORT}`);
+  console.log(`📊 Worker Manager: ${workerManager?.isRunning ? 'ONLINE' : 'OFFLINE'}`);
+  console.log(`🌐 Health check available at: http://localhost:${PORT}/health`);
+  console.log(`🖥️ Browser WebSocket available at: ws://localhost:${PORT}/ws/browser`);
+});
+
+export default app;
