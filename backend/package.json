@@ -38,6 +38,7 @@
     "google-auth-library": "^9.4.1",
     "bullmq": "^5.0.0",
     "@upstash/redis": "^1.28.0",
+    "@google/generative-ai": "^0.24.1",
     "@octokit/rest": "^22.0.1"
   },
   "devDependencies": {
