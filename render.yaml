@@ -49,7 +49,7 @@ services:
     buildCommand: |
       pnpm install
       pnpm run build
-    staticPublishPath: dashboard-x/dist
+    staticPublishPath: dist
     headers:
       - path: /*
         name: Cache-Control
@@ -65,7 +65,7 @@ services:
     repo: https://github.com/yasoo2/Infinity-x-platform
     rootDir: worker
     buildCommand: npm install --omit=dev
-    startCommand: node worker.mjs
+    startCommand: node worker-enhanced.mjs
     envVars:
       - key: NODE_ENV
         value: production
