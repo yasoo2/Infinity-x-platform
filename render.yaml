@@ -23,9 +23,9 @@ services:
         value: https://admin.xelitesolutions.com # Replace with your actual frontend URL
 
   # Frontend Service
-  - type: static
+  - type: web
     name: infinity-x-frontend
-    env: static
+    env: node
     rootDir: dashboard-x
     buildCommand: pnpm install && pnpm run build
     staticPublishPath: dist
