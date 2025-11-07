@@ -1,44 +1,36 @@
+# render.yaml - Unified Render Configuration for Infinity-X Platform
+
 services:
-  # Backend Service (JOEngine AGI)
+  # Backend Service
   - type: web
-    name: infinityx-backend
+    name: infinity-x-backend
     env: node
-    region: frankfurt
+    rootDir: backend
+    buildCommand: pnpm install
+    startCommand: node server.mjs
     plan: starter
-    branch: main
-    repo: https://github.com/yasoo2/Infinity-x-platform
-    rootDir: joengine-agi
-    buildCommand: npm install
-    startCommand: npm start
+    autoDeploy: true
     envVars:
+      - key: NODE_VERSION
+        value: 20
       - key: PORT
-        value: 3001
-      - key: NODE_ENV
-        value: production
+        value: 10000
       - key: MONGO_URI
         sync: false
-      - key: OPENAI_API_KEY
+      - key: REDIS_URL
         sync: false
       - key: FRONTEND_URL
-        value: https://xelitesolutions.com
-      - key: GITHUB_PAT
-        sync: false
+        value: https://admin.xelitesolutions.com # Replace with your actual frontend URL
 
-  # Frontend Service (Dashboard)
+  # Frontend Service
   - type: static
-    name: infinityx-dashboard
+    name: infinity-x-frontend
     env: static
-    region: frankfurt
-    plan: starter
-    branch: main
-    repo: https://github.com/yasoo2/Infinity-x-platform
     rootDir: dashboard-x
     buildCommand: pnpm install && pnpm run build
     staticPublishPath: dist
-    headers:
-      - path: /*
-        name: Cache-Control
-        value: no-store
+    plan: starter
+    autoDeploy: true
     envVars:
-      - key: VITE_API_BASE
-        value: https://infinityx-backend.onrender.com
+      - key: VITE_API_BASE_URL
+        value: https://infinity-x-backend.onrender.com # Replace with your actual backend URL
