@@ -39,6 +39,7 @@
     "bullmq": "^5.0.0",
     "@upstash/redis": "^1.28.0",
     "@google/generative-ai": "^0.24.1",
+    "express-validator": "^7.3.0",
     "@octokit/rest": "^22.0.1"
   },
   "devDependencies": {
