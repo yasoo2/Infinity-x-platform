@@ -9,7 +9,7 @@ const useBrowserWebSocket = () => {
 
   useEffect(() => {
     // Connect to WebSocket
-    const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:10000/ws/browser';
+    const wsUrl = import.meta.env.VITE_WS_URL || (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '/ws/browser';
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {

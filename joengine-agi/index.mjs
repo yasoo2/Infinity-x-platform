@@ -18,7 +18,8 @@ import { SearchTool } from './tools/SearchTool.mjs';
 import { ShellTool } from './tools/ShellTool.mjs';
 import { APITool } from './tools/APITool.mjs';
 import { GitHubTool } from './tools/GitHubTool.mjs';
-import { PlannerTool } from './tools/PlannerTool.mjs';\nimport { createApiServer } from './server.mjs';
+import { PlannerTool } from './tools/PlannerTool.mjs';
+import { createApiServer } from './server.mjs';
 
 // تحميل متغيرات البيئة
 dotenv.config();

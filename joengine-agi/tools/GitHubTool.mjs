@@ -332,22 +332,4 @@ export class GitHubTool extends BaseTool {
 }
 
 export default GitHubTool;
-  async createPullRequest(octokit, owner, repo, params) {
-    const { pr_title, pr_body, head_branch, base_branch } = params;
-    const { data } = await octokit.pulls.create({
-      owner,
-      repo,
-      title: pr_title,
-      body: pr_body,
-      head: head_branch,
-      base: base_branch || 'main'
-    });
-    return {
-      success: true,
-      pr_number: data.number,
-      html_url: data.html_url
-    };
-  }
-}
 
-export default GitHubTool;
