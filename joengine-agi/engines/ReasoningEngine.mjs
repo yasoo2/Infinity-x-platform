@@ -24,7 +24,7 @@ export class ReasoningEngine {
     this.config.repo = config.repo;
     this.config.owner = config.owner;
     this.openai = new OpenAI({
-      apiKey: config.openaiApiKey
+      apiKey: config.openaiApiKey || process.env.OPENAI_API_KEY
     });
     // تحديث النموذج الافتراضي بناءً على طلب المستخدم
     this.config.model = 'gpt-4o-mini';
