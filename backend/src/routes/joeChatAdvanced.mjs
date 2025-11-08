@@ -1,5 +1,6 @@
 import express from 'express';
-import { joeAdvancedEngine } from '../lib/joeAdvancedEngine.mjs';
+import axios from 'axios';
+import { joeAdvancedEngine } from '../lib/joeAdvancedEngine.mjs'; // Keep for fallback or other uses
 
 const router = express.Router();
 
@@ -16,24 +17,33 @@ router.post('/', async (req, res) => {
       return res.json({ ok: false, error: 'Message required' });
     }
 
-    console.log('🤖 JOE Advanced processing:', message);
+    console.log('🧠 Proxying JOE Advanced request to joengine-agi:', message);
 
-    // استخدام المحرك النهائي مع جميع القدرات
-    const result = await joeAdvancedEngine.processMessageManus(message, context);
+    // **التحسين الحاسم: توجيه الطلب إلى خدمة joengine-agi الجديدة**
+    // نستخدم اسم الخدمة 'joengine-agi' كما هو محدد في render.yaml
+    const JOE_AGI_URL = process.env.JOE_AGI_URL || 'http://joengine-agi:3000';
 
-    if (result.success) {
+    const agiResponse = await axios.post(`${JOE_AGI_URL}/api/v1/process-task`, {
+      goal: message,
+      context: context,
+      userId: userId
+    });
+
+    // يتم إرجاع استجابة AGI مباشرة
+    if (agiResponse.data.ok) {
       res.json({
         ok: true,
-        response: result.response,
-        toolsUsed: result.toolsUsed || [],
-        aiEngine: 'openai-advanced',
-        model: 'gpt-4o-mini'
+        response: agiResponse.data.result,
+        toolsUsed: agiResponse.data.toolsUsed || [],
+        aiEngine: 'joengine-agi',
+        model: agiResponse.data.model || 'gpt-4o'
       });
     } else {
+      // Fallback or error from AGI
       res.json({
         ok: false,
-        error: result.error,
-        response: result.response
+        error: agiResponse.data.error || 'AGI_PROCESSING_FAILED',
+        response: agiResponse.data.result || 'عذراً، فشلت معالجة الطلب في محرك جو المتقدم.'
       });
     }
 
