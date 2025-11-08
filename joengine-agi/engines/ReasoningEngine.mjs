@@ -11,10 +11,12 @@
 import OpenAI from 'openai';
 import { CodeModificationEngine } from './CodeModificationEngine.mjs';
 import { SmartPageBuilder } from './SmartPageBuilder.mjs';
+import GitHubTool from '../tools/GitHubTool.mjs';
 
 export class ReasoningEngine {
   // تهيئة المحركات الجديدة
   codeModEngine;
+  githubTool;
   pageBuilder;
   constructor(config) {
     this.config = config;
@@ -30,6 +32,7 @@ export class ReasoningEngine {
     // تهيئة المحركات الجديدة
     this.codeModEngine = new CodeModificationEngine(config);
     this.pageBuilder = new SmartPageBuilder(config);
+    this.githubTool = new GitHubTool(config);
     
 	    this.memory = {
 	      shortTerm: [],  // الذاكرة قصيرة المدى (المحادثة الحالية)
@@ -97,7 +100,9 @@ You are autonomous, intelligent, and capable of solving ANY problem.`;
 	    // تحديث ذاكرة العمل (Working Memory)
 	    this.memory.workingMemory = { goal, context, timestamp: new Date() };
 	
-	    // **التحسين: تجاوز التخطيط المعقد للمهام البسيطة (مثل البحث عن الكود)**\n    // تمكين البحث السريع في الكود (Manus-like quick code search)
+	    // **التحسين: تجاوز التخطيط المعقد للمهام البسيطة (مثل البحث عن الكود)**
+    // تمكين البحث السريع في الكود (Manus-like quick code search)
+    // هذا هو التحسين المطلوب لزيادة كفاءة تحديد الملفات
 	    if (goal.toLowerCase().includes('search') || goal.toLowerCase().includes('find') || goal.toLowerCase().includes('glob') || goal.toLowerCase().includes('grep')) {
 	      const isCodeSearch = goal.toLowerCase().includes('code') || goal.toLowerCase().includes('file') || goal.toLowerCase().includes('glob') || goal.toLowerCase().includes('grep');
 	      
@@ -126,6 +131,8 @@ You are autonomous, intelligent, and capable of solving ANY problem.`;
 	              scope: scope,
 	              regex: regex,
 	              searchType: 'grep' // استخدام grep للبحث عن المحتوى
+              // هنا يمكن إضافة منطق البحث المتقدم في الكود (Code Search Tool)
+              // هذا هو التحسين المطلوب لزيادة كفاءة تحديد الملفات
 	            }
 	          }],
 	          risks: [],
