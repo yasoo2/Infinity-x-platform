@@ -6,7 +6,7 @@ services:
     name: infinity-x-backend
     env: node
     rootDir: backend
-    buildCommand: pnpm install
+    buildCommand: pnpm install && pnpm exec playwright install --with-deps
     startCommand: node server.mjs
     plan: starter
     autoDeploy: true
@@ -21,3 +21,43 @@ services:
         sync: false
       - key: FRONTEND_URL
         value: https://admin.xelitesolutions.com
+
+  # JOEngine AGI Service (The Brain)
+  - type: web
+    name: joengine-agi
+    env: node
+    rootDir: joengine-agi
+    buildCommand: pnpm install && pnpm exec playwright install --with-deps
+    startCommand: node index.mjs
+    plan: starter
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: PORT
+        value: 3000 # Separate port for AGI
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: MONGO_URI
+        sync: false
+      - key: REDIS_URL
+        sync: false
+
+  # Worker Service (The Factory)
+  - type: worker
+    name: joe-worker
+    env: node
+    rootDir: worker
+    buildCommand: pnpm install && pnpm exec playwright install --with-deps
+    startCommand: node worker.mjs
+    plan: starter
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: MONGO_URI
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
