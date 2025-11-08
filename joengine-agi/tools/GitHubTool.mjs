@@ -9,7 +9,7 @@
  */
 
 import { BaseTool } from './ToolsSystem.mjs';
-import { Octokit } from '@octokit/rest';
+import * as Octokit from '@octokit/rest';
 
 export class GitHubTool extends BaseTool {
   constructor() {
@@ -118,7 +118,7 @@ export class GitHubTool extends BaseTool {
     this.validateParams(params);
     const { action, owner, repo, token } = params;
 
-    const octokit = new Octokit({ auth: token });
+    const octokit = new Octokit.Octokit({ auth: token });
 
     try {
       switch (action) {
