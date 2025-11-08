@@ -44,6 +44,9 @@ class JOEngine {
       throw new Error('OPENAI_API_KEY is required');
     }
 
+    const keyPrefix = this.config.openaiApiKey.substring(0, 5);
+    console.log(chalk.yellow(`🔑 OPENAI_API_KEY loaded. Prefix: ${keyPrefix}...`));
+
     console.log(chalk.cyan.bold('\n🚀 Initializing JOEngine AGI...\n'));
 
     // إنشاء المكونات الأساسية
