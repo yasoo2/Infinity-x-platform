@@ -6,17 +6,16 @@ export function createApiServer(joengine) {
   app.use(express.json());
   app.use(cors());
 
-  // نقطة نهاية للدردشة المتقدمة
-  app.post('/api/v1/joe/chat-advanced', async (req, res) => {
-    const { message, conversationId, tokens, aiEngine } = req.body;
+  // نقطة نهاية لمعالجة المهام المتقدمة (AGI)
+  app.post('/api/v1/process-task', async (req, res) => {
+    const { goal, context = {}, userId } = req.body;
 
     try {
       // إضافة مهمة جديدة إلى Agent Loop
-      const task = await joengine.addTask(message, {
-        conversationId,
-        tokens,
-        aiEngine,
-        source: 'chat'
+      const task = await joengine.addTask(goal, {
+        ...context,
+        userId,
+        source: 'api'
       });
 
       // انتظار اكتمال المهمة
@@ -24,15 +23,17 @@ export function createApiServer(joengine) {
 
       res.json({
         ok: true,
-        response: result.output || 'تم تنفيذ المهمة بنجاح',
+        result: result.output || 'تم تنفيذ المهمة بنجاح',
         taskId: task.id,
-        status: result.status
+        status: result.status,
+        model: joengine.reasoningEngine.config.model // إرجاع اسم النموذج للتأكيد
       });
     } catch (error) {
-      console.error('Error in chat-advanced:', error);
+      console.error('Error in process-task:', error);
       res.status(500).json({
         ok: false,
-        error: error.message
+        error: error.message,
+        result: 'فشل في معالجة المهمة بواسطة محرك جو المتقدم.'
       });
     }
   });
