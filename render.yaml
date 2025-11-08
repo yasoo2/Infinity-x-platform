@@ -12,7 +12,6 @@ services:
     autoDeploy: true
     envVars:
       - key: NODE_VERSION
-        value: 20
       - key: PORT
         value: 10000
       - key: MONGO_URI
@@ -33,11 +32,10 @@ services:
     autoDeploy: true
     envVars:
       - key: NODE_VERSION
-        value: 20
       - key: PORT
         value: 3000 # Separate port for AGI
       - key: OPENAI_API_KEY
-        sync: false
+        sync: true # يشير إلى أن هذا المتغير يجب أن تتم مزامنته من إعدادات Render السرية
       - key: MONGO_URI
         sync: false
       - key: REDIS_URL
@@ -54,7 +52,8 @@ services:
     autoDeploy: true
     envVars:
       - key: NODE_VERSION
-        value: 20
+      - key: OPENAI_API_KEY
+        sync: true # يشير إلى أن هذا المتغير يجب أن تتم مزامنته من إعدادات Render السرية
       - key: MONGO_URI
         sync: false
       - key: REDIS_URL
