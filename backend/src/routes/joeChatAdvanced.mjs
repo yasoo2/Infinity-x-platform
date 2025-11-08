@@ -7,7 +7,7 @@ const router = express.Router();
  * JOE Chat Advanced - مع Function Calling
  * نفس قدرات Manus AI
  */
-router.post('/chat-advanced', async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { message, context = [], aiEngine = 'openai' } = req.body;
     const userId = req.user ? req.user._id.toString() : 'anonymous';
