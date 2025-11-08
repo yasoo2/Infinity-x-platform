@@ -10,7 +10,7 @@ const router = express.Router();
 router.post('/chat-advanced', async (req, res) => {
   try {
     const { message, context = [], aiEngine = 'openai' } = req.body;
-    const userId = req.user._id.toString();
+    const userId = req.user ? req.user._id.toString() : 'anonymous';
 
     if (!message) {
       return res.json({ ok: false, error: 'Message required' });
