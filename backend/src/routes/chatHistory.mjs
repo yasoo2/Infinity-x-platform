@@ -92,7 +92,7 @@ router.post('/create', async (req, res) => {
   }
 });
 
-// List all conversations for a user
+// List all conversations for a user (GET)
 router.get('/list', async (req, res) => {
   try {
     const { userId } = req.query;
@@ -112,6 +112,34 @@ router.get('/list', async (req, res) => {
       lastMessage: c.messages?.[c.messages.length - 1]?.content?.substring(0, 50) || '',
       updatedAt: c.updatedAt,
       // إضافة معرف الجلسة (Session ID) لضمان التنظيم
+      sessionId: c.sessionId || null 
+    }));
+
+    res.json({ ok: true, conversations: list });
+  } catch (error) {
+    res.json({ ok: false, error: error.message });
+  }
+});
+
+// List all conversations for a user (POST) - for compatibility
+router.post('/list', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) return res.json({ ok: false, error: 'userId required' });
+
+    const db = await getDb();
+    const conversations = await db.collection('conversations')
+      .find({ userId })
+      .sort({ updatedAt: -1 })
+      .limit(50)
+      .toArray();
+
+    const list = conversations.map(c => ({
+      id: c._id.toString(),
+      title: c.title,
+      messageCount: c.messages?.length || 0,
+      lastMessage: c.messages?.[c.messages.length - 1]?.content?.substring(0, 50) || '',
+      updatedAt: c.updatedAt,
       sessionId: c.sessionId || null 
     }));
 
