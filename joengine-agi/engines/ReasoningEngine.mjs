@@ -27,7 +27,7 @@ export class ReasoningEngine {
       apiKey: config.openaiApiKey || process.env.OPENAI_API_KEY
     });
     // تحديث النموذج الافتراضي بناءً على طلب المستخدم
-    this.config.model = 'gpt-4o-mini';
+    this.config.model = 'gpt-4o'; // Upgraded to gpt-4o for more advanced reasoning and planning
     
     // تهيئة المحركات الجديدة
     this.codeModEngine = new CodeModificationEngine(config);

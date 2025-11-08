@@ -19,6 +19,8 @@ import { ShellTool } from './tools/ShellTool.mjs';
 import { APITool } from './tools/APITool.mjs';
 import { GitHubTool } from './tools/GitHubTool.mjs';
 import { PlannerTool } from './tools/PlannerTool.mjs';
+import { DatabaseTool } from './tools/DatabaseTool.mjs';
+import { DeployTool } from './tools/DeployTool.mjs';
 import { createApiServer } from './server.mjs';
 
 // تحميل متغيرات البيئة
@@ -97,9 +99,13 @@ class JOEngine {
     const plannerTool = new PlannerTool();
     this.toolsSystem.registerTool('planner', plannerTool);
 
-    // TODO: إضافة المزيد من الأدوات
-    // - DatabaseTool
-    // - DeployTool
+    // Database Tool
+    const databaseTool = new DatabaseTool();
+    this.toolsSystem.registerTool('database', databaseTool);
+
+    // Deploy Tool
+    const deployTool = new DeployTool();
+    this.toolsSystem.registerTool('deploy', deployTool);
 
     console.log(chalk.green(`✅ ${this.toolsSystem.getAllTools().length} tools registered\n`));
   }
