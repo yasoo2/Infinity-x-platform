@@ -520,6 +520,7 @@ app.use("/api/v1/joe/chat", requireRole(ROLES.USER), joeChatRouter);
 app.use("/api/v1/joe/chat-advanced", requireRole(ROLES.ADMIN), joeChatAdvancedRouter);
 app.use('/api/v1/browser', requireRole(ROLES.ADMIN), browserControlRouter);
 app.use('/api/v1/chat-history', chatHistoryRouter);
+app.use('/api/chat-history', chatHistoryRouter); // For compatibility
 app.use('/api/v1/file', fileUploadRouter);
 app.use('/api/v1', testGrokRouter);
 app.use('/api/live-stream', liveStreamRouter);
