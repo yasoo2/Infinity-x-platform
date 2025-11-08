@@ -18,6 +18,9 @@ export class ReasoningEngine {
   pageBuilder;
   constructor(config) {
     this.config = config;
+    this.config.githubToken = config.githubToken;
+    this.config.repo = config.repo;
+    this.config.owner = config.owner;
     this.openai = new OpenAI({
       apiKey: config.openaiApiKey
     });

@@ -9,6 +9,7 @@
  */
 
 import EventEmitter from 'events';
+import GitHubTool from '../tools/GitHubTool.mjs';
 import { v4 as uuidv4 } from 'uuid';
 
 export class AgentLoop extends EventEmitter {
@@ -16,6 +17,8 @@ export class AgentLoop extends EventEmitter {
     super();
     
     this.reasoningEngine = reasoningEngine;
+    this.githubTool = new GitHubTool(reasoningEngine.config);
+    this.config = reasoningEngine.config;
     this.toolsSystem = toolsSystem;
     
     this.state = {
@@ -153,6 +156,27 @@ export class AgentLoop extends EventEmitter {
         task.status = 'completed';
         task.completedAt = new Date();
         task.duration = task.completedAt - task.startedAt;
+
+        // **التحسين: الحفظ التلقائي على GitHub**
+        if (this.config.githubToken) {
+          console.log('\n🐙 Auto-committing changes to GitHub...');
+          try {
+            const commitMessage = `JOE AGI: Task ${task.id} completed successfully. Goal: ${task.goal}`;
+            const githubResult = await this.githubTool.execute({
+              action: 'commit_and_push',
+              repo: this.config.repo,
+              owner: this.config.owner,
+              token: this.config.githubToken,
+              commit_message: commitMessage,
+              author_name: 'JOE AGI',
+              author_email: 'joe@xelitesolutions.com',
+              branch_name: 'main' // Assuming main branch
+            });
+            console.log(`✅ GitHub Auto-Commit Result: ${JSON.stringify(githubResult)}`);
+          } catch (githubError) {
+            console.error('❌ GitHub Auto-Commit Failed:', githubError.message);
+          }
+        }
 
         this.state.completedTasks.push(task);
         this.emit('taskCompleted', task);
