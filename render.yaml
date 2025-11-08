@@ -28,7 +28,7 @@ services:
     env: node
     rootDir: joengine-agi
     buildCommand: pnpm install && pnpm exec playwright install --with-deps
-    startCommand: node index.mjs
+    startCommand: node joengine-agi/index.mjs
     plan: starter
     autoDeploy: true
     envVars:
