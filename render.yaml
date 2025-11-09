@@ -47,7 +47,7 @@ services:
     env: node
     rootDir: worker
     buildCommand: pnpm install && pnpm exec playwright install --with-deps
-    startCommand: node worker.mjs
+    startCommand: node worker-enhanced.mjs
     plan: starter
     autoDeploy: true
     envVars:
