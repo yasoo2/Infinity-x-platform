@@ -60,7 +60,7 @@ dotenv.config();
 // بدء تشغيل السيرفر
 // ============================
 const app = express();
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT || 4000; // Use Render's PORT env var, fallback to 4000 for local dev
 app.set('trust proxy', 1);
 
 // إعدادات الأمان

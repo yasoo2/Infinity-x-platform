@@ -35,7 +35,7 @@ class JOEngine {
       openaiApiKey: process.env.OPENAI_API_KEY || 'dummy-key',
       model: process.env.OPENAI_MODEL || 'gpt-4-turbo-preview',
       mongoUri: process.env.MONGO_URI || 'mongodb://localhost:27017',
-      port: process.env.PORT || 3000,
+      port: 3000, // Fixed port for internal AGI service
       ...config
     };
 
