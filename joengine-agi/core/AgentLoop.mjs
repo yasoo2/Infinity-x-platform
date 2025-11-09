@@ -306,11 +306,12 @@ export class AgentLoop extends EventEmitter {
     // هنا يمكننا استخدام LLM لاستخراج المعاملات بذكاء
     // لكن الآن سنستخدم طريقة بسيطة
     
-    return {
-      description: subtask.description,
-      context: task.context,
-      ...subtask.params
-    };
+    // يجب أن تكون المعاملات هي subtask.params فقط، حيث أن description و context
+    // هي بيانات وصفية وليست معاملات للأداة نفسها.
+    // الأداة تتوقع المعاملات المحددة في schema مثل 'action', 'url', إلخ.
+    
+    // إذا كانت subtask.params غير موجودة، نستخدم كائن فارغ
+    return subtask.params || {};
   }
 
   /**
