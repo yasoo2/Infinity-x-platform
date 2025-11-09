@@ -35,7 +35,11 @@ class JOEngine {
       openaiApiKey: process.env.OPENAI_API_KEY || 'dummy-key',
       model: process.env.OPENAI_MODEL || 'gpt-4-turbo-preview',
       mongoUri: process.env.MONGO_URI || 'mongodb://localhost:27017',
-      port: 3000, // Fixed port for internal AGI service
+      port: Number(process.env.JOE_PORT || 3000), // يمكن تغيير البورت عن طريق env
+      // تحكم في الـ demo task واللوج
+      enableDemoTask: process.env.JOE_ENABLE_DEMO_TASK === 'true',
+      enableStatusLogs: process.env.JOE_ENABLE_STATUS_LOGS !== 'false',
+      statusIntervalMs: Number(process.env.JOE_STATUS_INTERVAL_MS || 10000),
       ...config
     };
 
@@ -280,18 +284,23 @@ async function main() {
   // بدء JOEngine
   await joengine.start();
 
-  // مثال: إضافة مهمة تجريبية
-  console.log(chalk.cyan.bold('📝 Adding demo task...\n'));
-  
-  await joengine.addTask(
-    'Search Google for "latest AI news" and summarize the top 3 results',
-    { source: 'demo' }
-  );
+  // ✅ عدم إضافة demo task افتراضيًا
+  if (joengine.config.enableDemoTask) {
+    console.log(chalk.cyan.bold('📝 Adding demo task...\n'));
+    await joengine.addTask(
+      'Search Google for "latest AI news" and summarize the top 3 results',
+      { source: 'demo' }
+    );
+  } else {
+    console.log(chalk.gray('📝 Demo task is disabled (JOE_ENABLE_DEMO_TASK != "true")'));
+  }
 
-  // عرض الحالة كل 10 ثواني
-  setInterval(() => {
-    joengine.printStatus();
-  }, 10000);
+  // عرض الحالة بشكل دوري (يمكن تعطيله)
+  if (joengine.config.enableStatusLogs) {
+    setInterval(() => {
+      joengine.printStatus();
+    }, joengine.config.statusIntervalMs);
+  }
 }
 
 // تشغيل البرنامج
