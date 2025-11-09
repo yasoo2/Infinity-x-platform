@@ -32,9 +32,9 @@ dotenv.config();
 class JOEngine {
   constructor(config = {}) {
     this.config = {
-      openaiApiKey: process.env.OPENAI_API_KEY,
+      openaiApiKey: process.env.OPENAI_API_KEY || 'dummy-key',
       model: process.env.OPENAI_MODEL || 'gpt-4-turbo-preview',
-      mongoUri: process.env.MONGO_URI,
+      mongoUri: process.env.MONGO_URI || 'mongodb://localhost:27017',
       port: process.env.PORT || 3000,
       ...config
     };
