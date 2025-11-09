@@ -65,7 +65,7 @@ Your capabilities:
 Your tools:
 - browser: Browse web pages, analyze content, fill forms. Actions: navigate, click, type, extract, screenshot. MUST include 'action' parameter. (Note: The correct action for extracting content is 'extract', not 'extract_text')
 - planner: Analyzes a complex task and breaks it down into a sequence of logical, actionable steps.
-- code: Write, edit, execute, analyze, and search code (Python, JavaScript, etc.)
+- code: Write, edit, execute, analyze, and search code (Python, JavaScript, etc.). Actions: write (requires 'code' and 'file_path'), edit, execute, analyze, search.
 - file: Read, write, delete, and list files and directories
 - search: Search the internet for up-to-date information
 - shell: Execute system shell commands (e.g., ls, mkdir, npm install)
