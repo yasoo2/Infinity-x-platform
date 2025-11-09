@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# CRITICAL FIX: Install Playwright browsers for the BrowserTool
+echo "Installing Playwright browsers..."
+pnpm exec playwright install chromium
+
 # Function to install dependencies and start service in background
 start_service() {
     local dir=$1
@@ -13,7 +17,7 @@ start_service() {
     cd ..
 }
 
-# Install dependencies for all services
+# Install dependencies and start services
 start_service "joengine-agi" "index.mjs"
 start_service "worker" "worker-enhanced.mjs"
 
