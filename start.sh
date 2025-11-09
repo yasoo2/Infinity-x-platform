@@ -12,17 +12,16 @@ start_service() {
     cd "$dir"
     pnpm install --production
     
-    echo "Starting $dir..."
-    node "$script" &
+    echo "Starting $dir in background..."
+    nohup node "$script" > "$dir.log" 2>&1 &
     cd ..
 }
 
-# Install dependencies and start services
-start_service "joengine-agi" "index.mjs"
+# تشغيل Worker في الخلفية
 start_service "worker" "worker-enhanced.mjs"
 
-# Start Backend (main process)
-echo "Starting Backend..."
-cd backend
+# تشغيل JOEngine AGI في المقدمة (Foreground) لتمكين Render من اكتشاف المنفذ
+echo "Starting JOEngine AGI (Main Process)..."
+cd joengine-agi
 pnpm install --production
-node server.mjs
+node index.mjs
