@@ -74,8 +74,8 @@ async function waitForTaskCompletion(joengine, taskId, timeout = 60000) {
   return new Promise((resolve, reject) => {
     const checkInterval = setInterval(() => {
       const status = joengine.agentLoop.getStatus();
-      const completedTask = status.completedTasks.find(t => t.id === taskId);
-      const failedTask = status.failedTasks.find(t => t.id === taskId);
+      const completedTask = Array.isArray(status.completedTasks) ? status.completedTasks.find(t => t.id === taskId) : null;
+      const failedTask = Array.isArray(status.failedTasks) ? status.failedTasks.find(t => t.id === taskId) : null;
 
       if (completedTask) {
         clearInterval(checkInterval);
