@@ -8,7 +8,16 @@ export function createApiServer(joengine) {
 
   // نقطة نهاية لمعالجة المهام المتقدمة (AGI)
   app.post('/api/v1/process-task', async (req, res) => {
-    const { goal, context = {}, userId } = req.body;
+    const { goal, context = {}, userId } = req.body || {};
+
+    // تحقق أساسي من الـ goal
+    if (!goal || typeof goal !== 'string' || !goal.trim()) {
+      return res.status(400).json({
+        ok: false,
+        error: 'goal is required',
+        result: 'الهدف (goal) مطلوب لمعالجة المهمة.'
+      });
+    }
 
     try {
       // إضافة مهمة جديدة إلى Agent Loop
@@ -18,19 +27,26 @@ export function createApiServer(joengine) {
         source: 'api'
       });
 
-      // انتظار اكتمال المهمة
+      // انتظار اكتمال المهمة (لا يرمي reject الآن)
       const result = await waitForTaskCompletion(joengine, task.id);
 
       res.json({
-        ok: true,
-        result: result.output || 'تم تنفيذ المهمة بنجاح',
+        ok: result.status === 'completed',
+        result:
+          result.output ||
+          (result.status === 'completed'
+            ? 'تم تنفيذ المهمة بنجاح'
+            : null),
         taskId: task.id,
-        status: result.status,
-        model: joengine.reasoningEngine.config.model // إرجاع اسم النموذج للتأكيد
+        status: result.status,        // 'completed' | 'failed' | 'timeout'
+        error: result.status === 'completed' ? null : result.error,
+        model: joengine?.reasoningEngine?.config?.model // إرجاع اسم النموذج للتأكيد
       });
     } catch (error) {
       console.error('Error in process-task:', error);
-      res.status(500).json({
+
+      // مهم جداً: لا نرجّع 500 هنا عشان ما يكسر axios في الـ backend
+      res.json({
         ok: false,
         error: error.message,
         result: 'فشل في معالجة المهمة بواسطة محرك جو المتقدم.'
@@ -67,28 +83,54 @@ export function createApiServer(joengine) {
 
 /**
  * انتظار اكتمال المهمة
+ * لا يقوم الآن بـ reject، بل دائماً resolve مع status واضح
  */
 async function waitForTaskCompletion(joengine, taskId, timeout = 60000) {
   const startTime = Date.now();
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const checkInterval = setInterval(() => {
       const status = joengine.agentLoop.getStatus();
-      const completedTask = Array.isArray(status.completedTasks) ? status.completedTasks.find(t => t.id === taskId) : null;
-      const failedTask = Array.isArray(status.failedTasks) ? status.failedTasks.find(t => t.id === taskId) : null;
+
+      const completedTask = Array.isArray(status.completedTasks)
+        ? status.completedTasks.find((t) => t.id === taskId)
+        : null;
+
+      const failedTask = Array.isArray(status.failedTasks)
+        ? status.failedTasks.find((t) => t.id === taskId)
+        : null;
 
       if (completedTask) {
         clearInterval(checkInterval);
-        resolve({
+        return resolve({
           status: 'completed',
-          output: completedTask.output
+          output:
+            completedTask.output ??
+            completedTask.result ??
+            null,
+          error: null
         });
-      } else if (failedTask) {
+      }
+
+      if (failedTask) {
         clearInterval(checkInterval);
-        reject(new Error(failedTask.error || 'Task failed'));
-      } else if (Date.now() - startTime > timeout) {
+        return resolve({
+          status: 'failed',
+          output:
+            failedTask.output ??
+            failedTask.result ??
+            null,
+          error: failedTask.error || 'Task failed'
+        });
+      }
+
+      if (Date.now() - startTime > timeout) {
         clearInterval(checkInterval);
-        reject(new Error('Task timeout'));
+        return resolve({
+          status: 'timeout',
+          output: null,
+          error: 'Task timeout'
+        });
       }
     }, 500);
   });
