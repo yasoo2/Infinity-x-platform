@@ -85,7 +85,7 @@ export function createApiServer(joengine) {
  * انتظار اكتمال المهمة
  * لا يقوم الآن بـ reject، بل دائماً resolve مع status واضح
  */
-async function waitForTaskCompletion(joengine, taskId, timeout = 60000) {
+async function waitForTaskCompletion(joengine, taskId, timeout = 180000) {
   const startTime = Date.now();
 
   return new Promise((resolve) => {
