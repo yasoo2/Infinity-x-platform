@@ -21,7 +21,7 @@ router.post('/', async (req, res) => {
 
     // **التحسين الحاسم: توجيه الطلب إلى خدمة joengine-agi الجديدة**
     // نستخدم اسم الخدمة 'joengine-agi' كما هو محدد في render.yaml
-    const JOE_AGI_URL = process.env.JOE_AGI_URL || 'http://joengine-agi:3000';
+    const JOE_AGI_URL = process.env.JOE_AGI_URL || 'http://localhost:8080'; // Changed from internal service name to prevent ECONNREFUSED error on Render
 
     const agiResponse = await axios.post(`${JOE_AGI_URL}/api/v1/process-task`, {
       goal: message,
