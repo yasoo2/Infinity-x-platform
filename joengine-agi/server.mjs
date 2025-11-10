@@ -64,6 +64,9 @@ export function createApiServer(joengine) {
   return app;
 }
 
+
+
+
 /**
  * انتظار اكتمال المهمة
  */
@@ -72,7 +75,8 @@ async function waitForTaskCompletion(joengine, taskId, timeout = 60000) {
 
   return new Promise((resolve, reject) => {
     const checkInterval = setInterval(() => {
-      const status = joengine.agentLoop.getStatus();
+      // يجب أن يكون joengine.agentLoop متاحًا
+      const status = joengine.agentLoop.getStatus(); 
       const completedTask = status.completedTasks.find(t => t.id === taskId);
       const failedTask = status.failedTasks.find(t => t.id === taskId);
 
