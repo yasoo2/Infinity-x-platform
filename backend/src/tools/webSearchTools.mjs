@@ -4,60 +4,134 @@
  */
 
 import axios from 'axios';
+import * as cheerio from 'cheerio';
 
 /**
- * البحث على الإنترنت باستخدام DuckDuckGo API (مجاني)
+ * البحث على الإنترنت باستخدام DuckDuckGo HTML Search
  */
 export async function searchWeb(query) {
   try {
-    // استخدام DuckDuckGo Instant Answer API (مجاني وبدون API key)
-    const response = await axios.get('https://api.duckduckgo.com/', {
+    console.log('🔍 Searching web for:', query);
+    
+    // استخدام DuckDuckGo HTML Search
+    const response = await axios.get('https://html.duckduckgo.com/html/', {
       params: {
-        q: query,
-        format: 'json',
-        no_html: 1,
-        skip_disambig: 1
+        q: query
+      },
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      },
+      timeout: 15000
+    });
+
+    const $ = cheerio.load(response.data);
+    const results = [];
+
+    // استخراج نتائج البحث من DuckDuckGo
+    $('.result').each((i, element) => {
+      const titleElement = $(element).find('.result__a');
+      const snippetElement = $(element).find('.result__snippet');
+      const urlElement = $(element).find('.result__url');
+
+      const title = titleElement.text().trim();
+      const snippet = snippetElement.text().trim();
+      let url = urlElement.attr('href') || titleElement.attr('href');
+
+      // تنظيف الـ URL
+      if (url && url.startsWith('//duckduckgo.com/l/?uddg=')) {
+        try {
+          const urlParams = new URLSearchParams(url.split('?')[1]);
+          url = decodeURIComponent(urlParams.get('uddg') || '');
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      if (title && url && url.startsWith('http')) {
+        results.push({
+          title,
+          url,
+          snippet,
+          source: 'DuckDuckGo'
+        });
       }
     });
 
-    const data = response.data;
-    let results = [];
-
-    // جمع النتائج من مصادر مختلفة
-    if (data.AbstractText) {
-      results.push({
-        title: data.Heading || 'معلومات عامة',
-        snippet: data.AbstractText,
-        url: data.AbstractURL || '',
-        source: data.AbstractSource || 'DuckDuckGo'
-      });
-    }
-
-    // إضافة النتائج ذات الصلة
-    if (data.RelatedTopics && data.RelatedTopics.length > 0) {
-      data.RelatedTopics.slice(0, 5).forEach(topic => {
-        if (topic.Text && topic.FirstURL) {
-          results.push({
-            title: topic.Text.split(' - ')[0] || 'نتيجة ذات صلة',
-            snippet: topic.Text,
-            url: topic.FirstURL,
-            source: 'DuckDuckGo'
-          });
-        }
-      });
-    }
+    console.log(`✅ Found ${results.length} results`);
 
     return {
       success: true,
       query,
-      results,
+      results: results.slice(0, 10), // أول 10 نتائج
       count: results.length
     };
   } catch (error) {
-    console.error('Web search error:', error.message);
+    console.error('❌ Web search error:', error.message);
     return {
       success: false,
-      error: error.message
+      error: 'فشل البحث في الإنترنت: ' + error.message,
+      results: []
+    };
+  }
+}
+
+/**
+ * تصفح موقع ويب واستخراج المحتوى
+ */
+export async function browseWebsite(url) {
+  try {
+    console.log('🌐 Browsing website:', url);
+    
+    const response = await axios.get(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      },
+      timeout: 15000,
+      maxRedirects: 5
+    });
+
+    const $ = cheerio.load(response.data);
+    
+    // إزالة العناصر غير المرغوب فيها
+    $('script, style, nav, footer, header, iframe, ads, .ad, .advertisement').remove();
+    
+    // استخراج المحتوى
+    const title = $('title').text().trim();
+    const mainContent = $('article, main, .content, #content, .post, .entry-content, body').first().text().trim();
+    const description = $('meta[name="description"]').attr('content') || 
+                       $('meta[property="og:description"]').attr('content') || '';
+    
+    // استخراج الروابط
+    const links = [];
+    $('a[href]').each((i, element) => {
+      const href = $(element).attr('href');
+      const text = $(element).text().trim();
+      if (href && text && href.startsWith('http') && links.length < 10) {
+        links.push({ text, url: href });
+      }
+    });
+
+    // تنظيف المحتوى من الفراغات الزائدة
+    const cleanContent = mainContent
+      .replace(/\s+/g, ' ')
+      .replace(/\n+/g, '\n')
+      .trim();
+
+    console.log(`✅ Extracted content from ${url}`);
+
+    return {
+      success: true,
+      url,
+      title,
+      description,
+      content: cleanContent.substring(0, 5000), // أول 5000 حرف
+      links
+    };
+  } catch (error) {
+    console.error('❌ Browse website error:', error.message);
+    return {
+      success: false,
+      error: 'فشل تصفح الموقع: ' + error.message
     };
   }
 }
@@ -147,5 +221,6 @@ export async function getWeather(city) {
 
 export const webSearchTools = {
   searchWeb,
+  browseWebsite,
   getWeather
 };
