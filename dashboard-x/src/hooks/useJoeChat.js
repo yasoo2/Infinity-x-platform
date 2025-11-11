@@ -151,7 +151,7 @@ export const useJoeChat = () => {
       // **تحسين الاتصال:** استخدام مسار API موحد
       const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://admin.xelitesolutions.com';
       // استخدام endpoint الجديد مع Function Calling
-      const response = await apiClient.post(`/api/v1/joe/chat-advanced/`, {
+      const response = await apiClient.post(`/api/v1/joe/chat-advanced`, {
         message: currentInput,
         conversationId: state.currentConversation,
         tokens: tokens,
