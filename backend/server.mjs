@@ -529,6 +529,31 @@ app.use('/api/live-stream', liveStreamRouter);
 app.use('/api/v1/sandbox', sandboxRoutes);
 app.use('/api/v1/planning', planningRoutes);
 
+// =========================
+// Serve Frontend Static Files
+// =========================
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const frontendDistPath = path.join(__dirname, '../dashboard-x/dist');
+
+// Serve static files from dashboard-x/dist
+if (fs.existsSync(frontendDistPath)) {
+  app.use(express.static(frontendDistPath));
+  console.log('✅ Serving frontend from:', frontendDistPath);
+  
+  // Handle client-side routing - serve index.html for all non-API routes
+  app.get('*', (req, res) => {
+    // Skip if it's an API route
+    if (req.path.startsWith('/api/') || req.path.startsWith('/ws/')) {
+      return res.status(404).json({ error: 'Not Found' });
+    }
+    res.sendFile(path.join(frontendDistPath, 'index.html'));
+  });
+} else {
+  console.warn('⚠️ Frontend dist folder not found at:', frontendDistPath);
+  console.warn('⚠️ Run "cd dashboard-x && pnpm build" to build the frontend');
+}
+
 // هذه للوحة المصنع: عرض آخر jobs
 app.get('/api/v1/factory/jobs', requireRole(ROLES.ADMIN), async (req, res) => {
   try {
