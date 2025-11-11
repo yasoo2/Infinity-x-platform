@@ -75,16 +75,19 @@ export const useJoeChat = () => {
   // WebSocket Logic for Real-Time Logs
   useEffect(() => {
     // Temporarily disable WebSocket to prevent connection errors
+    // const wsUrl = (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '/ws/joe-log';
     // TODO: Implement proper WebSocket connection with production URL
-    try {
-      // Skip WebSocket connection for now
-      return () => {};
-    } catch (error) {
-      console.error('WebSocket initialization error:', error);
-      return () => {};
-    }
+    // const ws = new WebSocket(wsUrl);
+    // try {
+    //   // Skip WebSocket connection for now
+    //   return () => { ws.close(); };
+    // } catch (error) {
+    //   console.error('WebSocket initialization error:', error);
+    //   return () => { ws.close(); };
+    // }
     
     /* Original WebSocket code - commented out
+    // const ws = new WebSocket('ws://localhost:8080/ws/joe-log'); // Assuming worker runs on localhost:8080
     const ws = new WebSocket('ws://localhost:8080/ws/joe-log'); // Assuming worker runs on localhost:8080
 
     ws.onopen = () => {
@@ -158,9 +161,9 @@ export const useJoeChat = () => {
 
     try {
       // **تحسين الاتصال:** استخدام مسار API موحد
-      const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://admin.xelitesolutions.com';
+      // const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://admin.xelitesolutions.com';
       // استخدام endpoint الجديد مع Function Calling
-      const response = await apiClient.post(`/api/v1/joe/chat-advanced`, {
+      const response = await apiClient.post(`/api/v1/joe/chat-advanced/`, {
         message: currentInput,
         conversationId: state.currentConversation,
         tokens: tokens,
