@@ -9,13 +9,13 @@ echo "🚀 Starting build process for Infinity-X Platform..."
 # Step 1: Install Backend Dependencies
 echo "📦 Installing backend dependencies..."
 cd backend
-npm install
+npm install --verbose
 cd ..
 
 # Step 2: Build Frontend (dashboard-x)
 echo "📦 Installing frontend dependencies..."
 cd dashboard-x
-pnpm install --no-frozen-lockfile
+pnpm install
 echo "🏗️ Building frontend..."
 pnpm build
 cd ..
