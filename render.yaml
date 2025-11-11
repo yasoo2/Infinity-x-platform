@@ -6,7 +6,7 @@ services:
     name: infinity-x-backend
     env: node
     rootDir: backend
-    buildCommand: pnpm install && pnpm exec playwright install --with-deps
+    buildCommand: npm install
     startCommand: node server.mjs
     plan: starter
     autoDeploy: true
@@ -26,7 +26,7 @@ services:
     name: joengine-agi
     env: node
     rootDir: joengine-agi
-    buildCommand: pnpm install
+    buildCommand: npm install
     startCommand: node index.mjs
     plan: starter
     autoDeploy: true
@@ -46,7 +46,7 @@ services:
     name: joe-worker
     env: node
     rootDir: worker
-    buildCommand: pnpm install && pnpm exec playwright install --with-deps
+    buildCommand: npm install
     startCommand: node worker.mjs
     plan: starter
     autoDeploy: true
