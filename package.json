@@ -4,7 +4,7 @@
   "private": true,
   "description": "Advanced AI Platform with Sandbox, Planning, Scheduling, and Security Systems",
   "scripts": {
-    "start": "cd backend && node server.mjs",
+    "start": "./start.sh",
     "dev": "cd backend && npm run dev",
     "build": "cd backend && npm run build"
   },

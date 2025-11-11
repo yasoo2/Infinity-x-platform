@@ -23,7 +23,7 @@ export class AgentLoop extends EventEmitter {
     
     this.state = {
       running: false,
-      currentTask: null,
+      runningTasks: [],
       taskQueue: [],
       completedTasks: [],
       failedTasks: []
@@ -32,7 +32,7 @@ export class AgentLoop extends EventEmitter {
     this.config = {
       maxRetries: 3,
       retryDelay: 5000,
-      maxConcurrentTasks: 1  // سنزيدها لاحقاً
+      maxConcurrentTasks: 5  // سنزيدها لاحقاً
     };
   }
 
@@ -69,9 +69,12 @@ export class AgentLoop extends EventEmitter {
     while (this.state.running) {
       try {
         // إذا كان هناك مهام في الانتظار
-        if (this.state.taskQueue.length > 0 && !this.state.currentTask) {
+        if (this.state.taskQueue.length > 0 && this.state.runningTasks.length < this.config.maxConcurrentTasks) {
           const task = this.state.taskQueue.shift();
-          await this.executeTask(task);
+          // تنفيذ المهمة بشكل غير متزامن (لا ننتظرها)
+          this.executeTask(task).catch(error => {
+            console.error(`❌ Error during async task execution for ${task.id}:`, error);
+          });
         }
 
         // انتظار قصير قبل التكرار
@@ -115,7 +118,7 @@ export class AgentLoop extends EventEmitter {
     console.log(`\n▶️  Executing task: ${task.id}`);
     console.log(`Goal: ${task.goal}`);
 
-    this.state.currentTask = task;
+    this.state.runningTasks.push(task);
     task.status = 'running';
     task.startedAt = new Date();
     this.emit('taskStarted', task);
@@ -227,7 +230,7 @@ export class AgentLoop extends EventEmitter {
         console.log(`\n💔 Task failed after ${this.config.maxRetries} retries`);
       }
     } finally {
-      this.state.currentTask = null;
+      this.state.runningTasks = this.state.runningTasks.filter(t => t.id !== task.id);
     }
   }
 
@@ -306,11 +309,12 @@ export class AgentLoop extends EventEmitter {
     // هنا يمكننا استخدام LLM لاستخراج المعاملات بذكاء
     // لكن الآن سنستخدم طريقة بسيطة
     
-    return {
-      description: subtask.description,
-      context: task.context,
-      ...subtask.params
-    };
+    // يجب أن تكون المعاملات هي subtask.params فقط، حيث أن description و context
+    // هي بيانات وصفية وليست معاملات للأداة نفسها.
+    // الأداة تتوقع المعاملات المحددة في schema مثل 'action', 'url', إلخ.
+    
+    // إذا كانت subtask.params غير موجودة، نستخدم كائن فارغ
+    return subtask.params || {};
   }
 
   /**
@@ -336,7 +340,7 @@ export class AgentLoop extends EventEmitter {
   getStatus() {
     return {
       running: this.state.running,
-      currentTask: this.state.currentTask,
+      runningTasks: this.state.runningTasks,
       queuedTasks: this.state.taskQueue.length,
       completedTasks: this.state.completedTasks.length,
       failedTasks: this.state.failedTasks.length,

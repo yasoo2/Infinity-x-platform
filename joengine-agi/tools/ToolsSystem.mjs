@@ -66,25 +66,44 @@ export class ToolsSystem {
    * تنفيذ أداة مع تتبع الإحصائيات
    */
   async executeTool(name, params) {
+    const rawName = name ?? '';
+    const normalized = typeof rawName === 'string' ? rawName.trim().toLowerCase() : '';
+
+    // ✅ حالة tool = None أو اسم فاضي → لا نرمي Error ولا نكسر التاسك
+    if (!normalized || normalized === 'none') {
+      console.warn(`⚠️  executeTool called with empty/None tool name ('${rawName}'). Skipping tool execution.`);
+      // نرجّع نص بسيط يفهمه الـ LLM كملاحظة / observation
+      return `No tool executed (tool name was '${rawName}').`;
+    }
+
     const tool = this.tools.get(name);
     if (!tool) {
-      throw new Error(`Tool '${name}' not found`);
+      const available = this.getAllTools();
+      console.warn(`⚠️  Tool '${name}' not found. Available tools: ${available.join(', ') || 'none'}`);
+      // بدل ما نرمي Error، نرجّع ملاحظة نصيّة للـ LLM
+      return `Tool '${name}' is not available. Try one of: ${available.join(', ') || 'no tools registered'}.`;
     }
 
     const stats = this.toolsUsageStats.get(name);
-    stats.totalCalls++;
+    if (stats) {
+      stats.totalCalls++;
+    }
 
     const startTime = Date.now();
 
     try {
       const result = await tool.execute(params);
       
-      stats.successfulCalls++;
-      stats.totalDuration += Date.now() - startTime;
+      if (stats) {
+        stats.successfulCalls++;
+        stats.totalDuration += Date.now() - startTime;
+      }
 
       return result;
     } catch (error) {
-      stats.failedCalls++;
+      if (stats) {
+        stats.failedCalls++;
+      }
       throw error;
     }
   }
