@@ -74,21 +74,14 @@ export const useJoeChat = () => {
 
   // WebSocket Logic for Real-Time Logs
   useEffect(() => {
-    // Temporarily disable WebSocket to prevent connection errors
-    // const wsUrl = (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '/ws/joe-log';
-    // TODO: Implement proper WebSocket connection with production URL
-    // const ws = new WebSocket(wsUrl);
-    // try {
-    //   // Skip WebSocket connection for now
-    //   return () => { ws.close(); };
-    // } catch (error) {
-    //   console.error('WebSocket initialization error:', error);
-    //   return () => { ws.close(); };
-    // }
-    
-    /* Original WebSocket code - commented out
-    // const ws = new WebSocket('ws://localhost:8080/ws/joe-log'); // Assuming worker runs on localhost:8080
-    const ws = new WebSocket('ws://localhost:8080/ws/joe-log'); // Assuming worker runs on localhost:8080
+    const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://admin.xelitesolutions.com';
+    const wsProtocol = API_BASE.startsWith('https') ? 'wss://' : 'ws://';
+    const wsHost = API_BASE.replace(/https?:\/\//, '');
+    // The correct WebSocket path should be /ws/browser or /ws/live-stream based on server.mjs
+    // Assuming the user wants to connect to the browser control WebSocket for Joe's logs
+    const wsUrl = wsProtocol + wsHost + '/ws/browser'; 
+
+    const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
       if (!isMounted.current) return;
@@ -130,7 +123,6 @@ export const useJoeChat = () => {
         ws.close();
       }
     };
-    */
   }, []);
 
   // دالة لإرسال الرسالة
@@ -161,7 +153,7 @@ export const useJoeChat = () => {
 
     try {
       // **تحسين الاتصال:** استخدام مسار API موحد
-      // const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://admin.xelitesolutions.com';
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://admin.xelitesolutions.com';
       // استخدام endpoint الجديد مع Function Calling
       const response = await apiClient.post(`/api/v1/joe/chat-advanced/`, {
         message: currentInput,
