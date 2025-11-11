@@ -74,12 +74,8 @@ export const useJoeChat = () => {
 
   // WebSocket Logic for Real-Time Logs
   useEffect(() => {
-    const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://admin.xelitesolutions.com';
-    const wsProtocol = API_BASE.startsWith('https') ? 'wss://' : 'ws://';
-    const wsHost = API_BASE.replace(/https?:\/\//, '');
-    // The correct WebSocket path should be /ws/browser or /ws/live-stream based on server.mjs
-    // Assuming the user wants to connect to the browser control WebSocket for Joe's logs
-    const wsUrl = wsProtocol + wsHost + '/ws/browser'; 
+    // Use a relative path for WebSocket connection, assuming Render.com handles the proxying
+    const wsUrl = (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '/ws/browser';
 
     const ws = new WebSocket(wsUrl);
 
