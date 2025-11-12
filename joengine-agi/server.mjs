@@ -6,33 +6,51 @@ export function createApiServer(joengine) {
   app.use(express.json());
   app.use(cors());
 
-  // نقطة نهاية للدردشة المتقدمة
+  // نقطة نهاية للدردشة المتقدمة (AGI) - المسار المتوقع من Frontend
   app.post('/api/v1/joe/chat-advanced', async (req, res) => {
-    const { message, conversationId, tokens, aiEngine } = req.body;
+    const { message: goal, conversationId, tokens, aiEngine, userId } = req.body || {};
+    const context = { conversationId, tokens, aiEngine };
+
+    // تحقق أساسي من الـ goal
+    if (!goal || typeof goal !== 'string' || !goal.trim()) {
+      return res.status(400).json({
+        ok: false,
+        error: 'goal is required',
+        result: 'الهدف (goal) مطلوب لمعالجة المهمة.'
+      });
+    }
 
     try {
       // إضافة مهمة جديدة إلى Agent Loop
-      const task = await joengine.addTask(message, {
-        conversationId,
-        tokens,
-        aiEngine,
-        source: 'chat'
+      const task = await joengine.addTask(goal, {
+        ...context,
+        userId,
+        source: 'api'
       });
 
-      // انتظار اكتمال المهمة
+      // انتظار اكتمال المهمة (لا يرمي reject الآن)
       const result = await waitForTaskCompletion(joengine, task.id);
 
       res.json({
-        ok: true,
-        response: result.output || 'تم تنفيذ المهمة بنجاح',
+        ok: result.status === 'completed',
+        result:
+          result.output ||
+          (result.status === 'completed'
+            ? 'تم تنفيذ المهمة بنجاح'
+            : null),
         taskId: task.id,
-        status: result.status
+        status: result.status,        // 'completed' | 'failed' | 'timeout'
+        error: result.status === 'completed' ? null : result.error,
+        model: joengine?.reasoningEngine?.config?.model // إرجاع اسم النموذج للتأكيد
       });
     } catch (error) {
-      console.error('Error in chat-advanced:', error);
-      res.status(500).json({
+      console.error('Error in process-task:', error);
+
+      // مهم جداً: لا نرجّع 500 هنا عشان ما يكسر axios في الـ backend
+      res.json({
         ok: false,
-        error: error.message
+        error: error.message,
+        result: 'فشل في معالجة المهمة بواسطة محرك جو المتقدم.'
       });
     }
   });
@@ -64,34 +82,56 @@ export function createApiServer(joengine) {
   return app;
 }
 
-
-
-
 /**
  * انتظار اكتمال المهمة
+ * لا يقوم الآن بـ reject، بل دائماً resolve مع status واضح
  */
-async function waitForTaskCompletion(joengine, taskId, timeout = 60000) {
+async function waitForTaskCompletion(joengine, taskId, timeout = 180000) {
   const startTime = Date.now();
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const checkInterval = setInterval(() => {
-      // يجب أن يكون joengine.agentLoop متاحًا
-      const status = joengine.agentLoop.getStatus(); 
-      const completedTask = status.completedTasks.find(t => t.id === taskId);
-      const failedTask = status.failedTasks.find(t => t.id === taskId);
+      const status = joengine.agentLoop.getStatus();
+
+      const completedTask = Array.isArray(status.completedTasks)
+        ? status.completedTasks.find((t) => t.id === taskId)
+        : null;
+
+      const failedTask = Array.isArray(status.failedTasks)
+        ? status.failedTasks.find((t) => t.id === taskId)
+        : null;
 
       if (completedTask) {
         clearInterval(checkInterval);
-        resolve({
+        return resolve({
           status: 'completed',
-          output: completedTask.output
+          output:
+            completedTask.output ??
+            completedTask.result ??
+            null,
+          error: null
         });
-      } else if (failedTask) {
+      }
+
+      if (failedTask) {
         clearInterval(checkInterval);
-        reject(new Error(failedTask.error || 'Task failed'));
-      } else if (Date.now() - startTime > timeout) {
+        return resolve({
+          status: 'failed',
+          output:
+            failedTask.output ??
+            failedTask.result ??
+            null,
+          error: failedTask.error || 'Task failed'
+        });
+      }
+
+      if (Date.now() - startTime > timeout) {
         clearInterval(checkInterval);
-        reject(new Error('Task timeout'));
+        return resolve({
+          status: 'timeout',
+          output: null,
+          error: 'Task timeout'
+        });
       }
     }, 500);
   });

@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 import { MongoClient, ObjectId } from 'mongodb';
 import Redis from 'ioredis';
 import { buildWebsite, buildWebApp, buildEcommerce } from './lib/projectGenerator.mjs';
+import { classifyCommand } from './lib/aiEngine.mjs';
 import { deployToCloudflare } from './lib/cloudflareDeployer.mjs';
 
 dotenv.config();
@@ -203,23 +204,26 @@ async function handleCommand(db, cmd) {
     // مثل: "create a landing page for my coffee shop"
     // يتم تحويله تلقائياً إلى factory job
     
-    const lowerCmd = cmd.commandText.toLowerCase();
-    
-    if (lowerCmd.includes('create') || lowerCmd.includes('build') || lowerCmd.includes('make')) {
+    // استخدام AI Engine لتصنيف الأمر وتحديد نوع المشروع
+    const { intent, projectType, description } = await aiEngine.classifyCommand(cmd.commandText);
+
+    if (intent === 'CREATE_PROJECT') {
       // إنشاء factory job تلقائياً
-      let projectType = 'website';
+      let type = projectType || 'website';
       
-      if (lowerCmd.includes('app') || lowerCmd.includes('application')) {
-        projectType = 'webapp';
-      } else if (lowerCmd.includes('store') || lowerCmd.includes('shop') || lowerCmd.includes('ecommerce')) {
-        projectType = 'ecommerce';
+      // Fallback for unknown types
+      if (!['website', 'webapp', 'ecommerce'].includes(type)) {
+        type = 'website';
       }
+
+      // Use the description from the AI classification for better context
+      const shortDescription = description || cmd.commandText;
       
       await db.collection('factory_jobs').insertOne({
         createdAt: new Date(),
         sessionToken: cmd.sessionToken,
-        projectType,
-        shortDescription: cmd.commandText,
+        projectType: type,
+        shortDescription,
         status: 'QUEUED',
         source: 'command'
       });

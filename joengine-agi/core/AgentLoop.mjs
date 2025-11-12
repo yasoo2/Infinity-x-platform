@@ -9,6 +9,7 @@
  */
 
 import EventEmitter from 'events';
+import GitHubTool from '../tools/GitHubTool.mjs';
 import { v4 as uuidv4 } from 'uuid';
 
 export class AgentLoop extends EventEmitter {
@@ -16,11 +17,13 @@ export class AgentLoop extends EventEmitter {
     super();
     
     this.reasoningEngine = reasoningEngine;
+    this.githubTool = new GitHubTool(reasoningEngine.config);
+    this.config = reasoningEngine.config;
     this.toolsSystem = toolsSystem;
     
     this.state = {
       running: false,
-      currentTask: null,
+      runningTasks: [],
       taskQueue: [],
       completedTasks: [],
       failedTasks: []
@@ -29,7 +32,7 @@ export class AgentLoop extends EventEmitter {
     this.config = {
       maxRetries: 3,
       retryDelay: 5000,
-      maxConcurrentTasks: 1  // سنزيدها لاحقاً
+      maxConcurrentTasks: 5  // سنزيدها لاحقاً
     };
   }
 
@@ -66,9 +69,12 @@ export class AgentLoop extends EventEmitter {
     while (this.state.running) {
       try {
         // إذا كان هناك مهام في الانتظار
-        if (this.state.taskQueue.length > 0 && !this.state.currentTask) {
+        if (this.state.taskQueue.length > 0 && this.state.runningTasks.length < this.config.maxConcurrentTasks) {
           const task = this.state.taskQueue.shift();
-          await this.executeTask(task);
+          // تنفيذ المهمة بشكل غير متزامن (لا ننتظرها)
+          this.executeTask(task).catch(error => {
+            console.error(`❌ Error during async task execution for ${task.id}:`, error);
+          });
         }
 
         // انتظار قصير قبل التكرار
@@ -112,7 +118,7 @@ export class AgentLoop extends EventEmitter {
     console.log(`\n▶️  Executing task: ${task.id}`);
     console.log(`Goal: ${task.goal}`);
 
-    this.state.currentTask = task;
+    this.state.runningTasks.push(task);
     task.status = 'running';
     task.startedAt = new Date();
     this.emit('taskStarted', task);
@@ -153,6 +159,27 @@ export class AgentLoop extends EventEmitter {
         task.status = 'completed';
         task.completedAt = new Date();
         task.duration = task.completedAt - task.startedAt;
+
+        // **التحسين: الحفظ التلقائي على GitHub**
+        if (this.config.githubToken) {
+          console.log('\n🐙 Auto-committing changes to GitHub...');
+          try {
+            const commitMessage = `JOE AGI: Task ${task.id} completed successfully. Goal: ${task.goal}`;
+            const githubResult = await this.githubTool.execute({
+              action: 'commit_and_push',
+              repo: this.config.repo,
+              owner: this.config.owner,
+              token: this.config.githubToken,
+              commit_message: commitMessage,
+              author_name: 'JOE AGI',
+              author_email: 'joe@xelitesolutions.com',
+              branch_name: 'main' // Assuming main branch
+            });
+            console.log(`✅ GitHub Auto-Commit Result: ${JSON.stringify(githubResult)}`);
+          } catch (githubError) {
+            console.error('❌ GitHub Auto-Commit Failed:', githubError.message);
+          }
+        }
 
         this.state.completedTasks.push(task);
         this.emit('taskCompleted', task);
@@ -203,7 +230,7 @@ export class AgentLoop extends EventEmitter {
         console.log(`\n💔 Task failed after ${this.config.maxRetries} retries`);
       }
     } finally {
-      this.state.currentTask = null;
+      this.state.runningTasks = this.state.runningTasks.filter(t => t.id !== task.id);
     }
   }
 
@@ -282,11 +309,12 @@ export class AgentLoop extends EventEmitter {
     // هنا يمكننا استخدام LLM لاستخراج المعاملات بذكاء
     // لكن الآن سنستخدم طريقة بسيطة
     
-    return {
-      description: subtask.description,
-      context: task.context,
-      ...subtask.params
-    };
+    // يجب أن تكون المعاملات هي subtask.params فقط، حيث أن description و context
+    // هي بيانات وصفية وليست معاملات للأداة نفسها.
+    // الأداة تتوقع المعاملات المحددة في schema مثل 'action', 'url', إلخ.
+    
+    // إذا كانت subtask.params غير موجودة، نستخدم كائن فارغ
+    return subtask.params || {};
   }
 
   /**
@@ -312,7 +340,7 @@ export class AgentLoop extends EventEmitter {
   getStatus() {
     return {
       running: this.state.running,
-      currentTask: this.state.currentTask,
+      runningTasks: this.state.runningTasks,
       queuedTasks: this.state.taskQueue.length,
       completedTasks: this.state.completedTasks.length,
       failedTasks: this.state.failedTasks.length,

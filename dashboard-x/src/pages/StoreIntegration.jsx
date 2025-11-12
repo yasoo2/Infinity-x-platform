@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import axios from 'axios';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://api.xelitesolutions.com';
+const API_BASE = import.meta.env.VITE_API_BASE || 'https://admin.xelitesolutions.com';
 
 export default function StoreIntegration() {
   const [activeTab, setActiveTab] = useState('connect');
