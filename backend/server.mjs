@@ -672,7 +672,14 @@ app.get('/', async (req, res) => {
   });
 });
 
-
+// 404 handler for API routes only
+app.use((req, res) => {
+  if (req.path.startsWith('/api/') || req.path.startsWith('/ws/')) {
+    res.status(404).json({ error: 'ROUTE_NOT_FOUND' });
+  } else {
+    res.status(404).send('Page not found');
+  }
+});
 
 // Error handler
 app.use((err, req, res, next) => {
