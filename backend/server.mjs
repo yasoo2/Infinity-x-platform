@@ -524,6 +524,7 @@ app.use("/api/v1/joe/chat-advanced", joeChatAdvancedRouter); // No auth required
 app.use("/api/joe/chat-advanced", joeChatAdvancedRouter); // For compatibility
 app.use('/api/v1/browser', requireRole(ROLES.ADMIN), browserControlRouter);
 app.use('/api/v1/chat-history', chatHistoryRouter);
+app.get('/api/test-route', (req, res) => res.json({ ok: true, message: 'Test route works!' }));
 app.use('/api/chat-history', chatHistoryRouter); // For compatibility
 app.use('/api/v1/file', fileUploadRouter);
 app.use('/api/v1', testGrokRouter);
