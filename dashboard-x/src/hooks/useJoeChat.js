@@ -74,8 +74,11 @@ export const useJoeChat = () => {
 
   // WebSocket Logic for Real-Time Logs
   useEffect(() => {
-    // Use environment variable or fallback to backend URL
-    const wsUrl = import.meta.env.VITE_WS_URL || 'wss://infinity-x-backend.onrender.com/ws/browser';
+    // Use VITE_API_BASE_URL for WebSocket connection to backend
+    const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://infinity-x-backend.onrender.com';
+    const wsProtocol = API_BASE.startsWith('https') ? 'wss://' : 'ws://';
+    const wsHost = API_BASE.replace(/https?:\/\//, '');
+    const wsUrl = wsProtocol + wsHost + '/ws/browser';
 
     const ws = new WebSocket(wsUrl);
 
@@ -149,7 +152,7 @@ export const useJoeChat = () => {
 
     try {
       // **تحسين الاتصال:** استخدام مسار API موحد
-      const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://admin.xelitesolutions.com';
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://infinity-x-backend.onrender.com';
       // استخدام endpoint الجديد مع Function Calling
       const response = await apiClient.post(`/api/v1/joe/chat-advanced`, {
         message: currentInput,

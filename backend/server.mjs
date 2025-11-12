@@ -505,6 +505,9 @@ app.use('/api/v1/system', requireRole(ROLES.ADMIN), dashboardDataRouter(initMong
 // =========================
 // راوترات جو / المصنع / الداشبورد / الموقع العام
 // =========================
+app.get('/api/health', (req, res) => {
+  res.json({ ok: true, service: 'InfinityX Backend', status: 'Running' });
+});
 app.use("/api/v1/joe/control", joeRouter(initMongo, redis));
 app.use('/api/v1/factory', factoryRouter(initMongo, redis));
 app.use('/api/v1/dashboard', dashboardDataRouter(initMongo, redis));
@@ -517,9 +520,22 @@ app.use('/api/v1/github-manager', githubManagerRouter);
 app.use('/api/v1/integrations', integrationManagerRouter);
 app.use('/api/v1/self-evolution', selfEvolutionRouter);
 app.use("/api/v1/joe/chat", requireRole(ROLES.USER), joeChatRouter);
-app.use("/api/v1/joe/chat-advanced", joeChatAdvancedRouter); // No auth required, Express handles trailing slash automatically
+app.post('/api/v1/joe/chat-advanced', async (req, res) => {
+  const { joeAdvancedEngine } = await import('./src/lib/joeAdvancedEngine.mjs');
+  const { message, context = [] } = req.body;
+  try {
+    const result = await joeAdvancedEngine.processMessageManus(message, context);
+    res.json({ ok: true, response: result.response, toolsUsed: result.toolsUsed || [] });
+  } catch (error) {
+    console.error('❌ Direct JOE Advanced error:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+// app.use("/api/v1/joe/chat-advanced", joeChatAdvancedRouter); // Disabled for direct testing
+// app.use("/api/joe/chat-advanced", joeChatAdvancedRouter); // Disabled for direct testing
 app.use('/api/v1/browser', requireRole(ROLES.ADMIN), browserControlRouter);
 app.use('/api/v1/chat-history', chatHistoryRouter);
+// app.get('/api/test-route', (req, res) => res.json({ ok: true, message: 'Test route works!' })); // Removed test route
 app.use('/api/chat-history', chatHistoryRouter); // For compatibility
 app.use('/api/v1/file', fileUploadRouter);
 app.use('/api/v1', testGrokRouter);
@@ -656,7 +672,14 @@ app.get('/', async (req, res) => {
   });
 });
 
-
+// 404 handler for API routes only
+app.use((req, res) => {
+  if (req.path.startsWith('/api/') || req.path.startsWith('/ws/')) {
+    res.status(404).json({ error: 'ROUTE_NOT_FOUND' });
+  } else {
+    res.status(404).send('Page not found');
+  }
+});
 
 // Error handler
 app.use((err, req, res, next) => {
@@ -706,11 +729,11 @@ console.log('🌐 Browser WebSocket initialized at /ws/browser');
 const liveStreamWS = new LiveStreamWebSocketServer(server);
 console.log('🎬 Live Stream WebSocket initialized at /ws/live-stream');
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 InfinityX Backend running on port ${PORT}`);
   console.log(`📊 Worker Manager: ${workerManager?.isRunning ? 'ONLINE' : 'OFFLINE'}`);
-  console.log(`🌐 Health check available at: http://localhost:${PORT}/health`);
-  console.log(`🖥️ Browser WebSocket available at: ws://localhost:${PORT}/ws/browser`);
+  console.log(`🌐 Health check available at: http://0.0.0.0:${PORT}/health`);
+  console.log(`🖥️ Browser WebSocket available at: ws://0.0.0.0:${PORT}/ws/browser`);
 });
 
 export default app;
