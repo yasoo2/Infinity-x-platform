@@ -521,6 +521,7 @@ app.use('/api/v1/integrations', integrationManagerRouter);
 app.use('/api/v1/self-evolution', selfEvolutionRouter);
 app.use("/api/v1/joe/chat", requireRole(ROLES.USER), joeChatRouter);
 app.use("/api/v1/joe/chat-advanced", joeChatAdvancedRouter); // No auth required, Express handles trailing slash automatically
+app.use("/api/joe/chat-advanced", joeChatAdvancedRouter); // For compatibility
 app.use('/api/v1/browser', requireRole(ROLES.ADMIN), browserControlRouter);
 app.use('/api/v1/chat-history', chatHistoryRouter);
 app.use('/api/chat-history', chatHistoryRouter); // For compatibility
