@@ -505,6 +505,9 @@ app.use('/api/v1/system', requireRole(ROLES.ADMIN), dashboardDataRouter(initMong
 // =========================
 // راوترات جو / المصنع / الداشبورد / الموقع العام
 // =========================
+app.get('/api/health', (req, res) => {
+  res.json({ ok: true, service: 'InfinityX Backend', status: 'Running' });
+});
 app.use("/api/v1/joe/control", joeRouter(initMongo, redis));
 app.use('/api/v1/factory', factoryRouter(initMongo, redis));
 app.use('/api/v1/dashboard', dashboardDataRouter(initMongo, redis));
