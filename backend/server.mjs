@@ -716,11 +716,11 @@ console.log('🌐 Browser WebSocket initialized at /ws/browser');
 const liveStreamWS = new LiveStreamWebSocketServer(server);
 console.log('🎬 Live Stream WebSocket initialized at /ws/live-stream');
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 InfinityX Backend running on port ${PORT}`);
   console.log(`📊 Worker Manager: ${workerManager?.isRunning ? 'ONLINE' : 'OFFLINE'}`);
-  console.log(`🌐 Health check available at: http://localhost:${PORT}/health`);
-  console.log(`🖥️ Browser WebSocket available at: ws://localhost:${PORT}/ws/browser`);
+  console.log(`🌐 Health check available at: http://0.0.0.0:${PORT}/health`);
+  console.log(`🖥️ Browser WebSocket available at: ws://0.0.0.0:${PORT}/ws/browser`);
 });
 
 export default app;
