@@ -11,7 +11,7 @@ export default function EnhancedBrowserControl() {
   const [history, setHistory] = useState([]);
   const inputRef = useRef(null);
 
-  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:10000';
+  const API_BASE = import.meta.env.VITE_API_URL;
 
   const handleNavigate = async (targetUrl = url) => {
     try {

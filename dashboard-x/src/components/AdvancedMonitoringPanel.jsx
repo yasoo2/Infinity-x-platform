@@ -16,7 +16,7 @@ export default function AdvancedMonitoringPanel() {
   const [alerts, setAlerts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:10000';
+  const API_BASE = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
     const fetchStats = async () => {
