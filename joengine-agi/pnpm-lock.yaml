@@ -41,6 +41,9 @@ importers:
       mongodb:
         specifier: ^6.3.0
         version: 6.20.0
+      openai:
+        specifier: ^4.20.1
+        version: 4.104.0(ws@8.18.3)(zod@3.25.76)
       playwright:
         specifier: ^1.40.0
         version: 1.56.1

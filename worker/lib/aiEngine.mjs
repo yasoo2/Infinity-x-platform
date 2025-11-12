@@ -5,6 +5,55 @@
 
 import OpenAI from 'openai';
 
+/**
+ * تصنيف أمر المستخدم لتحديد النية ونوع المشروع
+ */
+export async function classifyCommand(commandText) {
+  const prompt = `Analyze the following user command and classify its intent and required project type.
+
+Command: "${commandText}"
+
+Intent options:
+- CREATE_PROJECT: The user wants to generate a new project (website, app, store).
+- OTHER_TASK: The user wants to perform a non-project generation task (e.g., search, analyze, fix, ask a question).
+
+Project Type options (only if intent is CREATE_PROJECT):
+- website
+- webapp
+- ecommerce
+
+Return as JSON with format:
+{
+  "intent": "Intent from the options above",
+  "projectType": "Project Type from the options above (if applicable, otherwise null)",
+  "description": "A concise, refined description of the project or task."
+}`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are an expert command classifier. Your response MUST be a valid JSON object.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      temperature: 0.1,
+      max_tokens: 500,
+      response_format: { type: 'json_object' }
+    });
+
+    return JSON.parse(response.choices[0].message.content);
+  } catch (error) {
+    console.error('AI Engine Error (classifyCommand):', error);
+    return { intent: 'OTHER_TASK', projectType: null, description: commandText };
+  }
+}
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || 'sk-proj-dummy'
 });

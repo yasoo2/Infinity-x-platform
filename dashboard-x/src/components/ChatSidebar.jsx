@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import apiClient from '../api/client';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://api.xelitesolutions.com';
+const API_BASE = import.meta.env.VITE_API_BASE || 'https://admin.xelitesolutions.com';
 
 export default function ChatSidebar({ 
   userId, 

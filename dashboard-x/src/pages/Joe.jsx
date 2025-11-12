@@ -262,7 +262,7 @@ const Joe = () => {
                   }
                 }}
                 placeholder="Type or speak..."
-                className="input-field flex-1 text-sm sm:text-base md:text-lg bg-gray-700/50 border border-indigo-700 text-white placeholder-gray-400 focus:ring-cyan-500 focus:border-cyan-500 rounded-lg px-3 sm:px-4 py-2 sm:py-3"
+                className="input-field flex-1 text-sm sm:text-base md:text-lg bg-white border border-gray-300 text-gray-900 placeholder-gray-500 focus:ring-cyan-500 focus:border-cyan-500 rounded-lg px-3 sm:px-4 py-2 sm:py-3"
                 disabled={isProcessing}
               />
             </div>
@@ -293,10 +293,10 @@ const Joe = () => {
       {/* Token Modal - Responsive */}
       {showTokenModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 border border-fuchsia-500/50 rounded-lg p-4 sm:p-6 max-w-md w-full relative shadow-2xl shadow-fuchsia-900/50 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white border border-fuchsia-300 rounded-lg p-4 sm:p-6 max-w-md w-full relative shadow-2xl shadow-fuchsia-200/50 max-h-[90vh] overflow-y-auto">
             <button
               onClick={closeTokenModal}
-              className="absolute top-2 sm:top-4 right-2 sm:right-4 text-gray-400 hover:text-cyan-400 text-2xl"
+              className="absolute top-2 sm:top-4 right-2 sm:right-4 text-gray-600 hover:text-cyan-600 text-2xl"
             >
               ×
             </button>
@@ -309,26 +309,26 @@ const Joe = () => {
             {tokenType === 'github' && (
               <>
                 <div className="mb-3 sm:mb-4">
-                  <label className="block text-xs sm:text-sm font-medium text-gray-400 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                     GitHub Username
                   </label>
                   <input
                     type="text"
                     value={tokens.githubUsername}
                     onChange={(e) => setTokens(prev => ({ ...prev, githubUsername: e.target.value }))}
-                    className="input-field w-full bg-gray-700/50 border border-indigo-700 text-white placeholder-gray-400 focus:ring-cyan-500 focus:border-cyan-500 text-sm sm:text-base rounded-lg px-3 py-2"
+                    className="input-field w-full bg-white border border-gray-300 text-gray-900 placeholder-gray-500 focus:ring-cyan-500 focus:border-cyan-500 text-sm sm:text-base rounded-lg px-3 py-2"
                     placeholder="your-username"
                   />
                 </div>
                 <div className="mb-3 sm:mb-4">
-                  <label className="block text-xs sm:text-sm font-medium text-gray-400 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                     Personal Access Token
                   </label>
                   <input
                     type="password"
                     value={tokenValue}
                     onChange={(e) => setTokenValue(e.target.value)}
-                    className="input-field w-full bg-gray-700/50 border border-indigo-700 text-white placeholder-gray-400 focus:ring-cyan-500 focus:border-cyan-500 text-sm sm:text-base rounded-lg px-3 py-2"
+                    className="input-field w-full bg-white border border-gray-300 text-gray-900 placeholder-gray-500 focus:ring-cyan-500 focus:border-cyan-500 text-sm sm:text-base rounded-lg px-3 py-2"
                     placeholder="ghp_xxxxxxxxxxxx"
                   />
                   <p className="text-xs text-gray-500 mt-2">
