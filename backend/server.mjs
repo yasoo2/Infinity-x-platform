@@ -520,11 +520,22 @@ app.use('/api/v1/github-manager', githubManagerRouter);
 app.use('/api/v1/integrations', integrationManagerRouter);
 app.use('/api/v1/self-evolution', selfEvolutionRouter);
 app.use("/api/v1/joe/chat", requireRole(ROLES.USER), joeChatRouter);
-app.use("/api/v1/joe/chat-advanced", joeChatAdvancedRouter); // No auth required, Express handles trailing slash automatically
-app.use("/api/joe/chat-advanced", joeChatAdvancedRouter); // For compatibility
+app.post('/api/v1/joe/chat-advanced', async (req, res) => {
+  const { joeAdvancedEngine } = await import('./src/lib/joeAdvancedEngine.mjs');
+  const { message, context = [] } = req.body;
+  try {
+    const result = await joeAdvancedEngine.processMessageManus(message, context);
+    res.json({ ok: true, response: result.response, toolsUsed: result.toolsUsed || [] });
+  } catch (error) {
+    console.error('❌ Direct JOE Advanced error:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+// app.use("/api/v1/joe/chat-advanced", joeChatAdvancedRouter); // Disabled for direct testing
+// app.use("/api/joe/chat-advanced", joeChatAdvancedRouter); // Disabled for direct testing
 app.use('/api/v1/browser', requireRole(ROLES.ADMIN), browserControlRouter);
 app.use('/api/v1/chat-history', chatHistoryRouter);
-app.get('/api/test-route', (req, res) => res.json({ ok: true, message: 'Test route works!' }));
+// app.get('/api/test-route', (req, res) => res.json({ ok: true, message: 'Test route works!' })); // Removed test route
 app.use('/api/chat-history', chatHistoryRouter); // For compatibility
 app.use('/api/v1/file', fileUploadRouter);
 app.use('/api/v1', testGrokRouter);
