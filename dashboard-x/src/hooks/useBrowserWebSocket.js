@@ -9,7 +9,7 @@ const useBrowserWebSocket = () => {
 
   useEffect(() => {
     // Connect to WebSocket
-    const wsUrl = import.meta.env.VITE_WS_URL || 'wss://admin.xelitesolutions.com/ws/browser'; // Fallback to the correct Backend URL
+    const wsUrl = import.meta.env.VITE_WS_URL || 'wss://infinity-x-backend.onrender.com/ws/browser'; // Fallback to the correct Backend URL
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {

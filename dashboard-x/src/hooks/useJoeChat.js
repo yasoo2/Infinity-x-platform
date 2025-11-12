@@ -74,8 +74,8 @@ export const useJoeChat = () => {
 
   // WebSocket Logic for Real-Time Logs
   useEffect(() => {
-    // Use a relative path for WebSocket connection, assuming Render.com handles the proxying
-    const wsUrl = (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '/ws/browser';
+    // Use environment variable or fallback to backend URL
+    const wsUrl = import.meta.env.VITE_WS_URL || 'wss://infinity-x-backend.onrender.com/ws/browser';
 
     const ws = new WebSocket(wsUrl);
 
