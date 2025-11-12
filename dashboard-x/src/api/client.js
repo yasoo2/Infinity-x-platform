@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Base URL - can be overridden with environment variable
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://admin.xelitesolutions.com';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || '''';
 
 // Create axios instance
 const apiClient = axios.create({
