@@ -3,7 +3,7 @@
  * Advanced browser automation and web interaction
  */
 
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-core';
 import { v4 as uuidv4 } from 'uuid';
 import * as cheerio from 'cheerio';
 
