@@ -316,8 +316,9 @@ async function executeManusFunction(functionName, args) {
  */
 export async function processMessageManus(userMessage, userId = 'default') {
   try {
-    // استرجاع السياق من الذاكرة
-    const context = await memoryTools.getConversationContext(userId, 5);
+    // استرجاع السياق من الذاكرة (تم تعطيله مؤقتاً لتحديد الخطأ)
+    // const context = await memoryTools.getConversationContext(userId, 5);
+    const context = [];
     
     const messages = [
       {
