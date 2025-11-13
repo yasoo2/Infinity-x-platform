@@ -331,47 +331,22 @@ export async function processMessageManus(userMessage, userId = 'default') {
       }
     ];
 
-    let response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages,
-      tools: MANUS_TOOLS,
-      tool_choice: 'auto',
-      temperature: 0.7
-    });
+    // تم تعطيل استدعاء OpenAI مؤقتاً للاختبار
+    // let response = await openai.chat.completions.create({
+    //   model: 'gpt-4o-mini',
+    //   messages,
+    //   tools: MANUS_TOOLS,
+    //   tool_choice: 'auto',
+    //   temperature: 0.7
+    // });
 
-    let assistantMessage = response.choices[0].message;
-    const toolCalls = assistantMessage.tool_calls;
-
-    if (toolCalls && toolCalls.length > 0) {
-      messages.push(assistantMessage);
-
-      for (const toolCall of toolCalls) {
-        const functionName = toolCall.function.name;
-        const functionArgs = JSON.parse(toolCall.function.arguments);
-        const functionResult = await executeManusFunction(functionName, functionArgs);
-
-        messages.push({
-          role: 'tool',
-          tool_call_id: toolCall.id,
-          content: JSON.stringify(functionResult)
-        });
-      }
-
-      response = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages
-      });
-
-      assistantMessage = response.choices[0].message;
-    }
-
-    // حفظ المحادثة في الذاكرة
-    await memoryTools.saveConversation(userId, userMessage, assistantMessage.content);
+    // // حفظ المحادثة في الذاكرة
+    // await memoryTools.saveConversation(userId, userMessage, 'تم تجاوز استدعاء OpenAI بنجاح.');
 
     return {
       success: true,
-      response: assistantMessage.content,
-      toolsUsed: toolCalls ? toolCalls.map(tc => tc.function.name) : []
+      response: '✅ تم تجاوز استدعاء OpenAI بنجاح.',
+      toolsUsed: []
     };
 
   } catch (error) {
