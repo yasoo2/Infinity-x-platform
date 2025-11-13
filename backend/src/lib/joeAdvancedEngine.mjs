@@ -14,7 +14,7 @@ import { memoryTools } from '../tools/memoryTools.mjs';
 import { multimodalTools } from '../tools/multimodalTools.mjs';
 import { automationTools } from '../tools/automationTools.mjs';
 
-// تم تأخير التهيئة إلى داخل processMessageManus
+const openai = new OpenAI();
 
 /**
  * تعريف جميع الأدوات (Manus-Style)
@@ -331,24 +331,61 @@ export async function processMessageManus(userMessage, userId = 'default') {
       }
     ];
 
-    const openai = new OpenAI(); // تهيئة داخلية
+    // استرجاع السياق من الذاكرة
+    const context = await memoryTools.getConversationContext(userId, 5);
+    
+    const messages = [
+      {
+        role: 'system',
+        content: MANUS_STYLE_PROMPT
+      },
+      {
+        role: 'user',
+        content: userMessage
+      }
+    ];
 
-    // تم تعطيل استدعاء OpenAI مؤقتاً للاختبار
-    // let response = await openai.chat.completions.create({
-    //   model: 'gpt-4o-mini',
-    //   messages,
-    //   tools: MANUS_TOOLS,
-    //   tool_choice: 'auto',
-    //   temperature: 0.7
-    // });
+    let response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages,
+      tools: MANUS_TOOLS,
+      tool_choice: 'auto',
+      temperature: 0.7
+    });
 
-    // // حفظ المحادثة في الذاكرة
-    // await memoryTools.saveConversation(userId, userMessage, 'تم تجاوز استدعاء OpenAI بنجاح.');
+    let assistantMessage = response.choices[0].message;
+    const toolCalls = assistantMessage.tool_calls;
+
+    if (toolCalls && toolCalls.length > 0) {
+      messages.push(assistantMessage);
+
+      for (const toolCall of toolCalls) {
+        const functionName = toolCall.function.name;
+        const functionArgs = JSON.parse(toolCall.function.arguments);
+        const functionResult = await executeManusFunction(functionName, functionArgs);
+
+        messages.push({
+          role: 'tool',
+          tool_call_id: toolCall.id,
+          content: JSON.stringify(functionResult)
+        });
+      }
+
+      response = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages
+      });
+
+      assistantMessage = response.choices[0].message;
+    }
+
+    // حفظ المحادثة في الذاكرة
+    await memoryTools.saveConversation(userId, userMessage, assistantMessage.content);
 
     return {
       success: true,
-      response: '✅ تم تجاوز استدعاء OpenAI بنجاح.',
-      toolsUsed: []
+      response: assistantMessage.content,
+      toolsUsed: toolCalls ? toolCalls.map(tc => tc.function.name) : []
     };
 
   } catch (error) {
