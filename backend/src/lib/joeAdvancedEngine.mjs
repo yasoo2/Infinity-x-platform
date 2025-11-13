@@ -14,7 +14,7 @@ import { memoryTools } from '../tools/memoryTools.mjs';
 import { multimodalTools } from '../tools/multimodalTools.mjs';
 import { automationTools } from '../tools/automationTools.mjs';
 
-const openai = new OpenAI();
+// تم تأخير التهيئة إلى داخل processMessageManus
 
 /**
  * تعريف جميع الأدوات (Manus-Style)
@@ -330,6 +330,8 @@ export async function processMessageManus(userMessage, userId = 'default') {
         content: userMessage
       }
     ];
+
+    const openai = new OpenAI(); // تهيئة داخلية
 
     // تم تعطيل استدعاء OpenAI مؤقتاً للاختبار
     // let response = await openai.chat.completions.create({
