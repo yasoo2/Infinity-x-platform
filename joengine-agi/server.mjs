@@ -6,9 +6,10 @@ export function createApiServer(joengine) {
   app.use(express.json());
   app.use(cors());
 
-  // نقطة نهاية لمعالجة المهام المتقدمة (AGI)
-  app.post('/api/v1/process-task', async (req, res) => {
-    const { goal, context = {}, userId } = req.body || {};
+  // نقطة نهاية للدردشة المتقدمة (AGI) - المسار المتوقع من Frontend
+  app.post('/api/v1/joe/chat-advanced', async (req, res) => {
+    const { message: goal, conversationId, tokens, aiEngine, userId } = req.body || {};
+    const context = { conversationId, tokens, aiEngine };
 
     // تحقق أساسي من الـ goal
     if (!goal || typeof goal !== 'string' || !goal.trim()) {
@@ -32,7 +33,7 @@ export function createApiServer(joengine) {
 
       res.json({
         ok: result.status === 'completed',
-        result:
+        response:
           result.output ||
           (result.status === 'completed'
             ? 'تم تنفيذ المهمة بنجاح'
@@ -49,7 +50,7 @@ export function createApiServer(joengine) {
       res.json({
         ok: false,
         error: error.message,
-        result: 'فشل في معالجة المهمة بواسطة محرك جو المتقدم.'
+        response: 'فشل في معالجة المهمة بواسطة محرك جو المتقدم.'
       });
     }
   });

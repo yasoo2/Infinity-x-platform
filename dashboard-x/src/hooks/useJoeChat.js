@@ -72,53 +72,11 @@ export const useJoeChat = () => {
   //   setInput(transcript);
   // }
 
-  // WebSocket Logic for Real-Time Logs
+  // WebSocket Logic for Real-Time Logs (Temporarily Disabled)
   useEffect(() => {
-    // Use a relative path for WebSocket connection, assuming Render.com handles the proxying
-    const wsUrl = (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '/ws/browser';
-
-    const ws = new WebSocket(wsUrl);
-
-    ws.onopen = () => {
-      if (!isMounted.current) return;
-      console.log('WebSocket connection established for Joe logs.');
-      setWsLog(prev => [...prev, { id: Date.now(), text: 'WebSocket connection established for Joe logs.', type: 'system' }]);
-    };
-
-    ws.onmessage = (event) => {
-      if (!isMounted.current) return;
-      try {
-        const logEntry = JSON.parse(event.data);
-        setWsLog(prev => {
-          // Keep log size manageable (e.g., last 50 entries)
-          const newLog = prev.length >= 50 ? prev.slice(1) : prev;
-          return [...newLog, logEntry];
-        });
-      } catch (e) {
-        console.error('Error parsing WebSocket message:', e);
-      }
-    };
-
-    ws.onerror = (error) => {
-      if (!isMounted.current) return;
-      console.error('WebSocket Error:', error);
-      setWsLog(prev => [...prev, { id: Date.now(), text: `WebSocket Error: Could not connect to Joe's worker.`, type: 'error' }]);
-    };
-
-    ws.onclose = () => {
-      if (!isMounted.current) return;
-      console.log('WebSocket connection closed.');
-      setWsLog(prev => [...prev, { id: Date.now(), text: 'WebSocket connection closed.', type: 'system' }]);
-    };
-
-    // Cleanup function to close the WebSocket connection when the component unmounts
-    return () => {
-      isMounted.current = false; // Mark as unmounted
-      // Check if the WebSocket is open before closing
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.close();
-      }
-    };
+    // Temporarily disable WebSocket connection until the backend supports it
+    console.log('WebSocket connection temporarily disabled.');
+    return () => {};
   }, []);
 
   // دالة لإرسال الرسالة
