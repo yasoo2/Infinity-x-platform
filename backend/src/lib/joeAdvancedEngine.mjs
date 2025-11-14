@@ -331,61 +331,14 @@ export async function processMessageManus(userMessage, userId = 'default') {
       }
     ];
 
-    // استرجاع السياق من الذاكرة
-    const context = await memoryTools.getConversationContext(userId, 5);
+    // تم تعطيل المحرك مؤقتاً لتحديد الخطأ
+    // const context = await memoryTools.getConversationContext(userId, 5);
+    // ...
     
-    const messages = [
-      {
-        role: 'system',
-        content: MANUS_STYLE_PROMPT
-      },
-      {
-        role: 'user',
-        content: userMessage
-      }
-    ];
-
-    let response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages,
-      tools: MANUS_TOOLS,
-      tool_choice: 'auto',
-      temperature: 0.7
-    });
-
-    let assistantMessage = response.choices[0].message;
-    const toolCalls = assistantMessage.tool_calls;
-
-    if (toolCalls && toolCalls.length > 0) {
-      messages.push(assistantMessage);
-
-      for (const toolCall of toolCalls) {
-        const functionName = toolCall.function.name;
-        const functionArgs = JSON.parse(toolCall.function.arguments);
-        const functionResult = await executeManusFunction(functionName, functionArgs);
-
-        messages.push({
-          role: 'tool',
-          tool_call_id: toolCall.id,
-          content: JSON.stringify(functionResult)
-        });
-      }
-
-      response = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages
-      });
-
-      assistantMessage = response.choices[0].message;
-    }
-
-    // حفظ المحادثة في الذاكرة
-    await memoryTools.saveConversation(userId, userMessage, assistantMessage.content);
-
     return {
-      success: true,
-      response: assistantMessage.content,
-      toolsUsed: toolCalls ? toolCalls.map(tc => tc.function.name) : []
+      success: false,
+      error: 'Engine Disabled for Debugging',
+      response: 'عذراً، المحرك معطل مؤقتاً لتحديد الخطأ الداخلي.'
     };
 
   } catch (error) {
