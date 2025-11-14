@@ -384,18 +384,11 @@ export async function processMessageManus(userMessage, userId = 'default') {
 }
 
 /**
- * دعم التفاعل المتعدد الخطوات
- */
-export async function processMessageUltimate(userMessage, userId = 'default') {
-  return processMessageManus(userMessage, userId);
-}
-
-/**
  * تصديرات متوافقة مع الأنظمة السابقة
  */
 export const joeManusEngine = {
   processMessageManus,
-  processMessageUltimate,
+  processMessageUltimate: processMessageManus,
   processMessageWithTools: processMessageManus,
   MANUS_TOOLS
 };
