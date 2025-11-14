@@ -316,21 +316,6 @@ async function executeManusFunction(functionName, args) {
  */
 export async function processMessageManus(userMessage, userId = 'default') {
   try {
-    // استرجاع السياق من الذاكرة (تم تعطيله مؤقتاً لتحديد الخطأ)
-    // const context = await memoryTools.getConversationContext(userId, 5);
-    const context = [];
-    
-    const messages = [
-      {
-        role: 'system',
-        content: MANUS_STYLE_PROMPT
-      },
-      {
-        role: 'user',
-        content: userMessage
-      }
-    ];
-
     // استرجاع السياق من الذاكرة
     const context = await memoryTools.getConversationContext(userId, 5);
     
@@ -390,11 +375,27 @@ export async function processMessageManus(userMessage, userId = 'default') {
 
   } catch (error) {
     console.error('❌ JOE Manus error:', error);
-    return       success: false,
+    return {
+      success: false,
       error: error.message,
-      response: 'عذراً، حدث خطأ.' const joeManusEngine = {
+      response: 'عذراً، حدث خطأ.'
+    };
+  }
+}
+
+/**
+ * دعم التفاعل المتعدد الخطوات
+ */
+export async function processMessageUltimate(userMessage, userId = 'default') {
+  return processMessageManus(userMessage, userId);
+}
+
+/**
+ * تصديرات متوافقة مع الأنظمة السابقة
+ */
+export const joeManusEngine = {
   processMessageManus,
-  processMessageUltimate: processMessageManus,
+  processMessageUltimate,
   processMessageWithTools: processMessageManus,
   MANUS_TOOLS
 };
