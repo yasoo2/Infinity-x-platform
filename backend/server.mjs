@@ -1,4 +1,4 @@
-// backend/server.mjs - نسخة إنتاجية مُحَدَّثة
+// backend/server.mjs - النسخة الكاملة والمصححة (بدون حذف)
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -16,7 +16,7 @@ import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import http from 'http';
 
-// ✅ Shared & Routes
+// ✅ Routes & Services
 import { ROLES } from './shared/roles.js';
 import { sanitizeUserForClient } from './shared/userTypes.js';
 import { joeRouter } from './src/routes/joeRouter.js';
@@ -282,16 +282,6 @@ if (fs.existsSync(frontendDistPath)) {
 let workerManager;
 
 async function initializeWorkerManager() {
-  const redis = getUpstashRedis();
-  if (redis) {
-    const testResult = await testRedisConnection();
-    if (testResult.ok) {
-      console.log('✅ Upstash Redis is ready');
-    } else {
-      console.warn('⚠️ Upstash Redis test failed:', testResult.error);
-    }
-  }
-
   try {
     workerManager = new SimpleWorkerManager({ maxConcurrent: 3 });
     await workerManager.start();
