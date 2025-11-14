@@ -33,7 +33,7 @@ export function createApiServer(joengine) {
 
       res.json({
         ok: result.status === 'completed',
-        result:
+        response:
           result.output ||
           (result.status === 'completed'
             ? 'تم تنفيذ المهمة بنجاح'
@@ -50,7 +50,7 @@ export function createApiServer(joengine) {
       res.json({
         ok: false,
         error: error.message,
-        result: 'فشل في معالجة المهمة بواسطة محرك جو المتقدم.'
+        response: 'فشل في معالجة المهمة بواسطة محرك جو المتقدم.'
       });
     }
   });
