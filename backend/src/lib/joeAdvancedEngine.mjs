@@ -390,15 +390,9 @@ export async function processMessageManus(userMessage, userId = 'default') {
 
   } catch (error) {
     console.error('❌ JOE Manus error:', error);
-    return {
-      success: false,
+    return       success: false,
       error: error.message,
-      response: 'عذراً، حدث خطأ.'
-    };
-  }
-}
-
-export const joeManusEngine = {
+      response: 'عذراً، حدث خطأ.' const joeManusEngine = {
   processMessageManus,
   processMessageUltimate: processMessageManus,
   processMessageWithTools: processMessageManus,
