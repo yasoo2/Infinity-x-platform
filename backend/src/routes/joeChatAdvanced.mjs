@@ -39,10 +39,10 @@ router.post('/', async (req, res) => {
 
   } catch (error) {
     console.error('❌ JOE Advanced error:', error);
-      res.status(500).json({ 
+      res.json({ 
         ok: false, 
         error: error.message,
-        response: 'عذراً، حدث خطأ أثناء معالجة رسالتك. (رسالة الخطأ الفعلية: ' + error.message + ')'
+        response: 'عذراً، حدث خطأ أثناء معالجة رسالتك.'
       });
   }
 });

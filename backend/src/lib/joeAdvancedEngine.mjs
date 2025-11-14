@@ -393,7 +393,7 @@ export async function processMessageManus(userMessage, userId = 'default') {
     return {
       success: false,
       error: error.message,
-      response: `عذراً، حدث خطأ داخلي: ${error.message}`
+      response: 'عذراً، حدث خطأ.'
     };
   }
 }
