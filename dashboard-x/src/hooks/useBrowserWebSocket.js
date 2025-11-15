@@ -7,68 +7,11 @@ const useBrowserWebSocket = () => {
   const [isLoading, setIsLoading] = useState(false);
   const wsRef = useRef(null);
 
+  // Temporarily disable WebSocket connection until the backend supports it
   useEffect(() => {
-    // Connect to WebSocket
-    const wsUrl = import.meta.env.VITE_WS_URL || (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '/ws/browser';
-    const ws = new WebSocket(wsUrl);
-
-    ws.onopen = () => {
-      console.log('Browser WebSocket connected');
-      setIsConnected(true);
-      // Request initial screenshot
-      ws.send(JSON.stringify({ type: 'get_screenshot' }));
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        
-        switch (data.type) {
-          case 'screenshot':
-            setScreenshot(data.payload.screenshot);
-            if (data.payload.pageInfo) {
-              setPageInfo(data.payload.pageInfo);
-            }
-            setIsLoading(false);
-            break;
-          
-          case 'navigate_result':
-          case 'click_result':
-          case 'scroll_result':
-          case 'type_result':
-          case 'press_key_result':
-            if (!data.payload.success) {
-              console.error('Action failed:', data.payload.error);
-            }
-            break;
-          
-          case 'error':
-            console.error('WebSocket error:', data.message);
-            setIsLoading(false);
-            break;
-        }
-      } catch (error) {
-        console.error('Failed to parse WebSocket message:', error);
-      }
-    };
-
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      setIsConnected(false);
-    };
-
-    ws.onclose = () => {
-      console.log('Browser WebSocket disconnected');
-      setIsConnected(false);
-    };
-
-    wsRef.current = ws;
-
-    return () => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.close();
-      }
-    };
+    console.log('Browser WebSocket connection temporarily disabled.');
+    setIsConnected(false);
+    return () => {};
   }, []);
 
   const navigate = useCallback((url) => {

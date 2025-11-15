@@ -12,7 +12,7 @@ import { deployToCloudflare } from './lib/cloudflareDeployer.mjs';
 dotenv.config();
 
 const DB_NAME = process.env.DB_NAME || 'future_system';
-const mongoClient = new MongoClient(process.env.MONGO_URI);
+const mongoClient = new MongoClient(process.env.MONGO_URI || 'mongodb://localhost:27017');
 const redis = process.env.REDIS_URL ? new Redis(process.env.REDIS_URL) : null;
 
 function sleep(ms) {

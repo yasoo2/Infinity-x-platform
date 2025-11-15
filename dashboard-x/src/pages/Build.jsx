@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSessionToken } from '../hooks/useSessionToken';
 import apiClient from '../api/client';
 
-const API_BASE = import.meta.env.VITE_API_BASE || '''';
+const API_BASE = import.meta.env.VITE_API_BASE || 'https://admin.xelitesolutions.com';
 
 export default function Build() {
   const _TOKEN = useSessionToken();

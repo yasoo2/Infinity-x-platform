@@ -2,7 +2,7 @@
  * JOEngine Backend Server
  * 
  * خادم API لنظام JOEngine AGI
- * يوفر endpoints للتواصل مع Frontend
+ * يوفر endpoints للتواصل مع Frontend أو أنظمة خارجية (مثل Infinity-X Backend)
  */
 
 import express from 'express';
@@ -47,7 +47,10 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Chat Endpoint
+/**
+ * ✅ Chat Endpoint بسيط
+ * يستخدمه أي Frontend يتعامل مع جو مباشرة برسالة واحدة
+ */
 app.post('/api/chat', async (req, res) => {
   try {
     const { message, context = [], aiEngine = 'openai' } = req.body;
@@ -59,7 +62,7 @@ app.post('/api/chat', async (req, res) => {
       });
     }
 
-    console.log(`💬 Processing message: "${message}" with engine: ${aiEngine}`);
+    console.log(`💬 [/api/chat] message="${message}" engine=${aiEngine}`);
 
     // استخدام joeAdvancedEngine
     const result = await joeAdvancedEngine.processMessageWithTools(message, context);
@@ -72,6 +75,54 @@ app.post('/api/chat', async (req, res) => {
       success: false,
       error: error.message,
       response: 'عذراً، حدث خطأ في معالجة رسالتك.'
+    });
+  }
+});
+
+/**
+ * ✅ process-task Endpoint
+ * هذا هو الـ endpoint المتوافق مع:
+ *   POST http://localhost:3000/api/v1/process-task
+ * الذي يستدعيه backend (route joeChatAdvanced.mjs)
+ *
+ * شكل الطلب المتوقَّع:
+ * { goal: string, context?: any[], userId?: string }
+ *
+ * شكل الرد المتوقَّع:
+ * { ok: boolean, error: string | null, result: any }
+ */
+app.post('/api/v1/process-task', async (req, res) => {
+  try {
+    const { goal, context = [], userId = 'anonymous' } = req.body || {};
+
+    if (!goal) {
+      return res.status(400).json({
+        ok: false,
+        error: 'goal is required',
+        result: 'الهدف (goal) مطلوب لمعالجة المهمة.'
+      });
+    }
+
+    console.log(`🧠 [/api/v1/process-task] user=${userId} goal="${goal}"`);
+
+    // هنا نستخدم نفس محرك جو المتقدم ولكن على شكل "رسالة"
+    // ممكن لاحقاً توسّعها لتخطيط/تاسكات متعددة
+    const engineResult = await joeAdvancedEngine.processMessageWithTools(goal, context);
+
+    // نحافظ على نفس شكل الـ response الذي يتوقعه الـ backend
+    res.json({
+      ok: true,
+      error: null,
+      result: engineResult
+    });
+
+  } catch (error) {
+    console.error('❌ [/api/v1/process-task] error:', error);
+
+    res.status(500).json({
+      ok: false,
+      error: error.message || 'Task error',
+      result: 'فشل في معالجة المهمة بواسطة محرك جو المتقدم.'
     });
   }
 });
@@ -174,7 +225,8 @@ const startServer = async () => {
     app.listen(PORT, () => {
       console.log(`🚀 JOEngine Backend Server is running on port ${PORT}`);
       console.log(`📡 Health check: http://localhost:${PORT}/health`);
-      console.log(`💬 Chat endpoint: http://localhost:${PORT}/api/chat`);
+      console.log(`💬 Chat endpoint:  http://localhost:${PORT}/api/chat`);
+      console.log(`🧠 Process-task:   http://localhost:${PORT}/api/v1/process-task`);
     });
 
   } catch (error) {

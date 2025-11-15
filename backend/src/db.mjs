@@ -8,7 +8,7 @@ let mongoDb = null;
 export async function initMongo() {
   if (mongoDb) return mongoDb;
   
-  const uri = process.env.MONGO_URI;
+  const uri = process.env.MONGO_URI || 'mongodb://localhost:27017'; // Fallback for local testing or if Render config is incomplete
   if (!uri) throw new Error('MONGO_URI missing');
   
   mongoClient = new MongoClient(uri);

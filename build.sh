@@ -5,17 +5,21 @@
 
 echo "🚀 Starting build process for Infinity-X Platform..."
 
-# Step 1: Build Frontend (dashboard-x)
-echo "📦 Building frontend (dashboard-x)..."
-cd dashboard-x
-pnpm install
-pnpm build
-cd ..
+# Set environment variables to skip Puppeteer download
+export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+export PUPPETEER_SKIP_DOWNLOAD=true
 
-# Step 2: Install Backend Dependencies
+# Step 1: Install Backend Dependencies
 echo "📦 Installing backend dependencies..."
 cd backend
-pnpm install
+npm install --loglevel verbose
+cd ..
+
+# Step 2: Build Frontend (dashboard-x)
+echo "📦 Building frontend (dashboard-x)..."
+cd dashboard-x
+pnpm install --frozen-lockfile
+pnpm build
 cd ..
 
 echo "✅ Build process completed successfully!"

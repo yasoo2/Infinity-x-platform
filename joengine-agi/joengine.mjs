@@ -1,61 +1,50 @@
 /**
- * JOEngine AGI - Main Entry Point
+ * JOEngine AGI Class
  * 
- * نظام ذكاء اصطناعي عام (AGI) متقدم
- * قادر على حل أي مشكلة، تطوير نفسه، وبناء الأنظمة بشكل مستقل
+ * يحتوي على منطق JOEngine الأساسي، بما في ذلك التهيئة، تسجيل الأدوات،
+ * معالجة الأحداث، وبدء/إيقاف حلقة الوكيل (Agent Loop).
  */
 
 import dotenv from 'dotenv';
 import chalk from 'chalk';
-import { ReasoningEngine } from './engines/ReasoningEngine.mjs';
-import { MemorySystem } from './core/MemorySystem.mjs';
-import { AgentLoop } from './core/AgentLoop.mjs';
-import { ToolsSystem } from './tools/ToolsSystem.mjs';
-import { BrowserTool } from './tools/BrowserTool.mjs';
-import { CodeTool } from './tools/CodeTool.mjs';
-import { FileTool } from './tools/FileTool.mjs';
-import { SearchTool } from './tools/SearchTool.mjs';
-import { ShellTool } from './tools/ShellTool.mjs';
-import { APITool } from './tools/APITool.mjs';
-import { GitHubTool } from './tools/GitHubTool.mjs';
-import { PlannerTool } from './tools/PlannerTool.mjs';
-import { DatabaseTool } from './tools/DatabaseTool.mjs';
-import { DeployTool } from './tools/DeployTool.mjs';
+import { ReasoningEngine } from './engines/ReasoningEngine.mjs'; // افتراض وجود هذا الملف
+import { MemorySystem } from './core/MemorySystem.mjs'; // افتراض وجود هذا الملف
+import { AgentLoop } from './core/AgentLoop.mjs'; // افتراض وجود هذا الملف
+import { ToolsSystem } from './tools/ToolsSystem.mjs'; // افتراض وجود هذا الملف
+import { BrowserTool } from './tools/BrowserTool.mjs'; // افتراض وجود هذا الملف
+import { CodeTool } from './tools/CodeTool.mjs'; // افتراض وجود هذا الملف
+import { FileTool } from './tools/FileTool.mjs'; // افتراض وجود هذا الملف
+import { SearchTool } from './tools/SearchTool.mjs'; // افتراض وجود هذا الملف
+import { ShellTool } from './tools/ShellTool.mjs'; // افتراض وجود هذا الملف
+import { APITool } from './tools/APITool.mjs'; // افتراض وجود هذا الملف
+import { GitHubTool } from './tools/GitHubTool.mjs'; // افتراض وجود هذا الملف
+import { PlannerTool } from './tools/PlannerTool.mjs'; // افتراض وجود هذا الملف
 import { createApiServer } from './server.mjs';
 
 // تحميل متغيرات البيئة
 dotenv.config();
 
-/**
- * JOEngine AGI Class
- */
-class JOEngine {
+export class JOEngine {
   constructor(config = {}) {
     this.config = {
-      openaiApiKey: process.env.OPENAI_API_KEY || 'dummy-key',
+      openaiApiKey: process.env.OPENAI_API_KEY,
       model: process.env.OPENAI_MODEL || 'gpt-4-turbo-preview',
-      mongoUri: process.env.MONGO_URI || 'mongodb://localhost:27017',
-      port: Number(process.env.JOE_PORT || 3000), // يمكن تغيير البورت عن طريق env
-      // تحكم في الـ demo task واللوج
-      enableDemoTask: process.env.JOE_ENABLE_DEMO_TASK === 'true',
-      enableStatusLogs: process.env.JOE_ENABLE_STATUS_LOGS !== 'false',
-      statusIntervalMs: Number(process.env.JOE_STATUS_INTERVAL_MS || 10000),
+      mongoUri: process.env.MONGO_URI,
+      port: process.env.PORT || 3000,
       ...config
     };
 
     // التحقق من المتطلبات
     if (!this.config.openaiApiKey) {
-      throw new Error('OPENAI_API_KEY is required');
+      // لا يجب أن يرمي خطأ هنا، بل يجب أن يتم التعامل معه في نقطة الدخول
+      console.warn('OPENAI_API_KEY is not set. Some features may be disabled.');
     }
-
-    const keyPrefix = this.config.openaiApiKey.substring(0, 5);
-    console.log(chalk.yellow(`🔑 OPENAI_API_KEY loaded. Prefix: ${keyPrefix}...`));
 
     console.log(chalk.cyan.bold('\n🚀 Initializing JOEngine AGI...\n'));
 
     // إنشاء المكونات الأساسية
-    this.memorySystem = new MemorySystem(); // إضافة نظام الذاكرة
-    this.reasoningEngine = new ReasoningEngine(this.config, this.memorySystem); // تمرير الذاكرة إلى المحرك
+    this.memorySystem = new MemorySystem(); 
+    this.reasoningEngine = new ReasoningEngine(this.config, this.memorySystem); 
     this.toolsSystem = new ToolsSystem();
     this.agentLoop = new AgentLoop(this.reasoningEngine, this.toolsSystem);
 
@@ -105,14 +94,6 @@ class JOEngine {
     // Planner Tool (الأداة الجديدة)
     const plannerTool = new PlannerTool();
     this.toolsSystem.registerTool('planner', plannerTool);
-
-    // Database Tool
-    const databaseTool = new DatabaseTool();
-    this.toolsSystem.registerTool('database', databaseTool);
-
-    // Deploy Tool
-    const deployTool = new DeployTool();
-    this.toolsSystem.registerTool('deploy', deployTool);
 
     console.log(chalk.green(`✅ ${this.toolsSystem.getAllTools().length} tools registered\n`));
   }
@@ -215,7 +196,6 @@ class JOEngine {
       memory: {
         shortTerm: this.memorySystem.shortTermMemory.length,
         longTerm: this.memorySystem.longTermMemory.length,
-        // يمكن إضافة المزيد من الإحصائيات هنا
       }
     };
   }
@@ -251,64 +231,5 @@ class JOEngine {
   }
 }
 
-/**
- * Main Function
- */
-async function main() {
-  console.log(chalk.cyan.bold(`
-╔═══════════════════════════════════════════════════════════╗
-║                                                           ║
-║              🤖 JOEngine AGI v2.0                        ║
-║                                                           ║
-║     Advanced Artificial General Intelligence System      ║
-║                                                           ║
-╚═══════════════════════════════════════════════════════════╝
-  `));
-
-  // إنشاء JOEngine
-  const joengine = new JOEngine();
-
-  // معالجة إشارات الإيقاف
-  process.on('SIGINT', async () => {
-    console.log(chalk.yellow('\n\n⚠️  Received SIGINT, shutting down gracefully...'));
-    await joengine.stop();
-    process.exit(0);
-  });
-
-  process.on('SIGTERM', async () => {
-    console.log(chalk.yellow('\n\n⚠️  Received SIGTERM, shutting down gracefully...'));
-    await joengine.stop();
-    process.exit(0);
-  });
-
-  // بدء JOEngine
-  await joengine.start();
-
-  // ✅ عدم إضافة demo task افتراضيًا
-  if (joengine.config.enableDemoTask) {
-    console.log(chalk.cyan.bold('📝 Adding demo task...\n'));
-    await joengine.addTask(
-      'Search Google for "latest AI news" and summarize the top 3 results',
-      { source: 'demo' }
-    );
-  } else {
-    console.log(chalk.gray('📝 Demo task is disabled (JOE_ENABLE_DEMO_TASK != "true")'));
-  }
-
-  // عرض الحالة بشكل دوري (يمكن تعطيله)
-  if (joengine.config.enableStatusLogs) {
-    setInterval(() => {
-      joengine.printStatus();
-    }, joengine.config.statusIntervalMs);
-  }
-}
-
-// تشغيل البرنامج
-if (import.meta.url === `file://${process.argv[1]}`) {
-  main().catch(error => {
-    console.error(chalk.red.bold('\n❌ Fatal error:'), error);
-    process.exit(1);
-  });
-}
-
+// تصدير JOEngine كافتراضي
 export default JOEngine;

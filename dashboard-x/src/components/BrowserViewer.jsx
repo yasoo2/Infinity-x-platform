@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import apiClient from '../api/client';
 
-const API_BASE = import.meta.env.VITE_API_BASE || '''';
+const API_BASE = import.meta.env.VITE_API_BASE || 'https://admin.xelitesolutions.com';
 
 export default function BrowserViewer({ sessionId, onClose }) {
   const [screenshot, setScreenshot] = useState(null);

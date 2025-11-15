@@ -6,13 +6,12 @@ services:
     name: infinity-x-backend
     env: node
     rootDir: backend
-    buildCommand: pnpm install
+    buildCommand: npm install
     startCommand: node server.mjs
     plan: starter
     autoDeploy: true
     envVars:
       - key: NODE_VERSION
-        value: 20
       - key: PORT
         value: 10000
       - key: MONGO_URI
@@ -21,3 +20,43 @@ services:
         sync: false
       - key: FRONTEND_URL
         value: https://admin.xelitesolutions.com
+
+  # JOEngine AGI Service (The Brain)
+  - type: web
+    name: joengine-agi
+    env: node
+    rootDir: joengine-agi
+    buildCommand: npm install
+    startCommand: node index.mjs
+    plan: starter
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+      - key: PORT
+        value: 3000 # Separate port for AGI
+      - key: OPENAI_API_KEY
+        sync: true # يشير إلى أن هذا المتغير يجب أن تتم مزامنته من إعدادات Render السرية
+      - key: MONGO_URI
+        sync: false
+      - key: REDIS_URL
+        sync: false
+
+  # Worker Service (The Factory)
+  - type: worker
+    name: joe-worker
+    env: node
+    rootDir: worker
+    buildCommand: npm install
+    startCommand: node worker-enhanced.mjs
+    plan: starter
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+      - key: OPENAI_API_KEY
+        sync: true # يشير إلى أن هذا المتغير يجب أن تتم مزامنته من إعدادات Render السرية
+      - key: MONGO_URI
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false

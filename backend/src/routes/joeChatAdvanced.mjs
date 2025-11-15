@@ -7,10 +7,10 @@ const router = express.Router();
  * JOE Chat Advanced - مع Function Calling
  * نفس قدرات Manus AI
  */
-router.post('/chat-advanced', async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { message, context = [], aiEngine = 'openai' } = req.body;
-    const userId = req.user._id.toString();
+    const userId = req.user ? req.user._id.toString() : 'anonymous';
 
     if (!message) {
       return res.json({ ok: false, error: 'Message required' });
@@ -39,11 +39,11 @@ router.post('/chat-advanced', async (req, res) => {
 
   } catch (error) {
     console.error('❌ JOE Advanced error:', error);
-    res.json({ 
-      ok: false, 
-      error: error.message,
-      response: 'عذراً، حدث خطأ أثناء معالجة رسالتك.'
-    });
+      res.json({ 
+        ok: false, 
+        error: error.message,
+        response: 'عذراً، حدث خطأ أثناء معالجة رسالتك.'
+      });
   }
 });
 
