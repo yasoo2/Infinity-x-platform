@@ -47,13 +47,13 @@ import SandboxManager from './src/sandbox/SandboxManager.mjs';
 import AdvancedToolsManager from './src/tools/AdvancedToolsManager.mjs';
 import PlanningSystem from './src/planning/PlanningSystem.mjs';
 import SchedulingSystem from './src/scheduling/SchedulingSystem.mjs';
-import AdvancedBrowserManager from './src/browser/AdvancedBrowserManager.mjs';
+// import AdvancedBrowserManager from './src/browser/AdvancedBrowserManager.mjs'; // Removed for Render deployment
 import SecurityManager from './src/security/SecurityManager.mjs';
 import sandboxRoutes from './src/routes/sandboxRoutes.mjs';
 import planningRoutes from './src/routes/planningRoutes.mjs';
 
 // ✅ WebSocket Services
-import BrowserWebSocketServer from './src/services/browserWebSocket.mjs';
+// import BrowserWebSocketServer from './src/services/browserWebSocket.mjs'; // Removed for Render deployment
 import LiveStreamWebSocketServer from './src/services/liveStreamWebSocket.mjs';
 
 // ✅ DB
@@ -314,7 +314,7 @@ process.on('unhandledRejection', err => console.error('Unhandled Rejection:', er
 const server = http.createServer(app);
 
 // ✅ WebSocket Servers
-new BrowserWebSocketServer(server);
+// new BrowserWebSocketServer(server); // Removed for Render deployment
 new LiveStreamWebSocketServer(server);
 
 server.listen(PORT, '0.0.0.0', () => {
