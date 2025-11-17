@@ -1,5 +1,5 @@
 import express from 'express';
-import { joeAdvancedEngine } from '../lib/joeAdvancedEngine.mjs';
+import JoeAdvancedEngine from '../lib/joeAdvancedEngine.mjs';
 
 const router = express.Router();
 
@@ -19,6 +19,7 @@ router.post('/', async (req, res) => {
     console.log('🤖 JOE Advanced processing:', message);
 
     // استخدام المحرك النهائي مع جميع القدرات
+    const joeAdvancedEngine = new JoeAdvancedEngine();
     const result = await joeAdvancedEngine.processMessageManus(message, context);
 
     if (result.success) {
