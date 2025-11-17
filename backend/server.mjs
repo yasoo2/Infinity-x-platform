@@ -1,4 +1,4 @@
-  // backend/server.mjs - النسخة المُصلحة بالكامل
+  // backend/server.mjs - النسخة الكاملة والمُصلحة
   import express from 'express';
   import cors from 'cors';
   import helmet from 'helmet';
@@ -43,7 +43,7 @@
   }));
 
   // =========================
-  // CORS
+  // CORS Configuration
   // =========================
   const allowedOrigins = [
     'http://localhost:5173',
@@ -71,7 +71,7 @@
   }));
 
   // =========================
-  // Logging Middleware
+  // Request Logging Middleware
   // =========================
   app.use((req, res, next) => {
     const start = Date.now();
@@ -95,7 +95,7 @@
   const cryptoRandom = () => crypto.randomBytes(32).toString('hex');
 
   // =========================
-  // Role Middleware
+  // Role-Based Access Control
   // =========================
   const rolePriority = {
     [ROLES.SUPER_ADMIN]: 3,
@@ -110,17 +110,33 @@
         const token = req.headers['x-session-token'];
         
         if (!token) {
-          return res.status(401).json({ error: 'NO_TOKEN', message: 'Authentication token required' });
+          return res.status(401).json({ 
+            error: 'NO_TOKEN', 
+            message: 'Authentication token required' 
+          });
         }
 
-        const session = await db.collection('sessions').findOne({ token, active: true });
+        const session = await db.collection('sessions').findOne({ 
+          token, 
+          active: true 
+        });
+        
         if (!session) {
-          return res.status(401).json({ error: 'INVALID_SESSION', message: 'Session expired or invalid' });
+          return res.status(401).json({ 
+            error: 'INVALID_SESSION', 
+            message: 'Session expired or invalid' 
+          });
         }
 
-        const user = await db.collection('users').findOne({ _id: new ObjectId(session.userId) });
+        const user = await db.collection('users').findOne({ 
+          _id: new ObjectId(session.userId) 
+        });
+        
         if (!user) {
-          return res.status(401).json({ error: 'NO_USER', message: 'User not found' });
+          return res.status(401).json({ 
+            error: 'NO_USER', 
+            message: 'User not found' 
+          });
         }
 
         if (rolePriority[user.role] < rolePriority[minRole]) {
@@ -135,13 +151,16 @@
         next();
       } catch (err) {
         console.error('❌ requireRole error:', err);
-        res.status(500).json({ error: 'SERVER_ERR', message: 'Authentication failed' });
+        res.status(500).json({ 
+          error: 'SERVER_ERR', 
+          message: 'Authentication failed' 
+        });
       }
     };
   }
 
   // =========================
-  // Health Check
+  // Health Check Endpoint
   // =========================
   app.get('/api/v1/health', async (req, res) => {
     const checks = { 
@@ -167,7 +186,7 @@
       status: isHealthy ? 'healthy' : 'unhealthy',
       checks,
       timestamp: new Date().toISOString(),
-      version: '1.0.0'
+      version: '2.0.0'
     });
   });
 
@@ -177,20 +196,26 @@
   app.get('/', (req, res) => {
     res.json({
       name: 'InfinityX Backend API',
-      version: '1.0.0',
+      version: '2.0.0',
       status: 'running',
+      timestamp: new Date().toISOString(),
       endpoints: {
         health: '/api/v1/health',
         auth: '/api/v1/auth/*',
         joe: '/api/v1/joe/*',
-        dashboard: '/api/v1/dashboard/*'
+        dashboard: '/api/v1/dashboard/*',
+        factory: '/api/v1/factory/*',
+        store: '/api/v1/store/*',
+        integrations: '/api/v1/integrations/*'
       }
     });
   });
 
   // =========================
-  // Auth Routes
+  // Authentication Routes
   // =========================
+  
+  // Bootstrap Super Admin
   app.post('/api/v1/auth/bootstrap-super', async (req, res) => {
     try {
       const { email, phone, password } = req.body;
@@ -203,7 +228,10 @@
       }
 
       const db = await initMongo();
-      const exist = await db.collection('users').findOne({ role: ROLES.SUPER_ADMIN });
+      const exist = await db.collection('users').findOne({ 
+        role: ROLES.SUPER_ADMIN 
+      });
+      
       const hash = await bcrypt.hash(password, 10);
 
       if (exist) {
@@ -250,6 +278,7 @@
     }
   });
 
+  // Login
   app.post('/api/v1/auth/login', async (req, res) => {
     try {
       const { email, password } = req.body;
@@ -305,6 +334,7 @@
     }
   });
 
+  // Logout
   app.post('/api/v1/auth/logout', requireRole(ROLES.USER), async (req, res) => {
     try {
       const db = await initMongo();
@@ -313,7 +343,10 @@
         { $set: { active: false, loggedOutAt: new Date() } }
       );
 
-      res.json({ success: true, message: 'Logged out successfully' });
+      res.json({ 
+        success: true, 
+        message: 'Logged out successfully' 
+      });
     } catch (err) {
       console.error('❌ Logout error:', err);
       res.status(500).json({ 
@@ -323,6 +356,7 @@
     }
   });
 
+  // Get Current User
   app.get('/api/v1/auth/me', requireRole(ROLES.USER), async (req, res) => {
     res.json({
       success: true,
@@ -333,6 +367,8 @@
   // =========================
   // Dynamic Route Loading
   // =========================
+  
+  // Safe module import with error handling
   async function safeImport(modulePath, moduleName) {
     try {
       const module = await import(modulePath);
@@ -344,7 +380,40 @@
     }
   }
 
-  // ✅ FIXED: Better router detection
+  // ✅ Smart router extraction function
+  function extractRouter(routerModule, routerName) {
+    if (!routerModule) return null;
+
+    // Priority 1: Named export matching the router name
+    if (routerModule[routerName]) {
+      return routerModule[routerName];
+    }
+
+    // Priority 2: Default export
+    if (routerModule.default) {
+      return routerModule.default;
+    }
+
+    // Priority 3: 'router' named export
+    if (routerModule.router) {
+      return routerModule.router;
+    }
+
+    // Priority 4: Direct router object (has stack property)
+    if (routerModule.stack) {
+      return routerModule;
+    }
+
+    // Priority 5: First exported value (excluding __esModule)
+    const keys = Object.keys(routerModule).filter(k => k !== '__esModule');
+    if (keys.length > 0) {
+      return routerModule[keys[0]];
+    }
+
+    return null;
+  }
+
+  // ✅ Safe route registration with smart router detection
   const safeUseRoute = (path, routerModule, routerName) => {
     if (!routerModule) {
       console.warn(`⚠️  Route not available: ${path} (${routerName})`);
@@ -352,50 +421,45 @@
     }
 
     try {
-      let router = null;
+      const router = extractRouter(routerModule, routerName);
 
-      // Case 1: Module with default export
-      if (routerModule.default) {
-        router = routerModule.default;
-      }
-      // Case 2: Module with named export 'router'
-      else if (routerModule.router) {
-        router = routerModule.router;
-      }
-      // Case 3: Direct router object
-      else if (routerModule.stack) {
-        router = routerModule;
-      }
-      // Case 4: Module itself is the router
-      else {
-        router = routerModule;
+      if (!router) {
+        console.error(`❌ No valid router found for ${path}`);
+        console.error(`   Module keys:`, Object.keys(routerModule));
+        return;
       }
 
-      // Check if router is a factory function
+      // Handle factory functions
       if (typeof router === 'function') {
-        // Check if it's a factory that needs initMongo
-        const routerInstance = router.length > 0 ? router(initMongo) : router();
-        app.use(path, routerInstance);
-        console.log(`✅ Route registered: ${path} (factory)`);
+        try {
+          // Check if function expects parameters (like initMongo)
+          const routerInstance = router.length > 0 ? router(initMongo) : router();
+          app.use(path, routerInstance);
+          console.log(`✅ Route registered: ${path} (factory)`);
+        } catch (err) {
+          console.error(`❌ Factory function failed for ${path}:`, err.message);
+        }
       } 
-      // Check if it's an Express Router
+      // Handle Express Router objects
       else if (router && typeof router === 'object' && router.stack) {
         app.use(path, router);
         console.log(`✅ Route registered: ${path} (router)`);
       }
       else {
         console.error(`❌ Invalid router type for ${path}:`, typeof router);
-        console.error(`   Module keys:`, Object.keys(routerModule));
+        console.error(`   Router value:`, router);
       }
     } catch (error) {
       console.error(`❌ Failed to register route ${path}:`, error.message);
+      console.error(`   Stack:`, error.stack);
     }
   };
 
+  // Load and apply all routes
   async function applyRoutes() {
     console.log('🔄 Loading routes...');
 
-    // Load all routes
+    // Load all route modules
     const routes = {
       joeRouter: await safeImport('./src/routes/joeRouter.js', 'joeRouter'),
       factoryRouter: await safeImport('./src/routes/factoryRouter.js', 'factoryRouter'),
@@ -418,7 +482,7 @@
       planningRoutes: await safeImport('./src/routes/planningRoutes.mjs', 'planningRoutes')
     };
 
-    // Apply all routes
+    // Apply all routes with smart extraction
     safeUseRoute('/api/v1/joe/control', routes.joeRouter, 'joeRouter');
     safeUseRoute('/api/v1/factory', routes.factoryRouter, 'factoryRouter');
     safeUseRoute('/api/v1/dashboard', routes.dashboardDataRouter, 'dashboardDataRouter');
@@ -439,7 +503,7 @@
     safeUseRoute('/api/v1/sandbox', routes.sandboxRoutes, 'sandboxRoutes');
     safeUseRoute('/api/v1/planning', routes.planningRoutes, 'planningRoutes');
 
-    // Load WebSocket
+    // Load WebSocket server
     try {
       const wsModule = await import('./src/services/liveStreamWebSocket.mjs');
       const LiveStreamWebSocketServer = wsModule.default;
@@ -459,7 +523,7 @@
     res.status(404).json({
       error: 'NOT_FOUND',
       message: `Route ${req.method} ${req.path} not found`,
-      availableEndpoints: '/api/v1/health'
+      suggestion: 'Check /api/v1/health for available endpoints'
     });
   });
 
@@ -469,11 +533,19 @@
   app.use((err, req, res, next) => {
     console.error('❌ Global Error:', err);
     
-    res.status(err.status || 500).json({
+    const statusCode = err.status || err.statusCode || 500;
+    const errorResponse = {
       error: err.name || 'SERVER_ERROR',
       message: err.message || 'Internal Server Error',
-      ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-    });
+      timestamp: new Date().toISOString()
+    };
+
+    // Include stack trace in development
+    if (process.env.NODE_ENV === 'development') {
+      errorResponse.stack = err.stack;
+    }
+
+    res.status(statusCode).json(errorResponse);
   });
 
   // =========================
@@ -483,8 +555,10 @@
 
   async function initializeWorkerManager() {
     try {
+      console.log('🔄 Starting workers...');
       workerManager = new SimpleWorkerManager({ maxConcurrent: 3 });
       await workerManager.start();
+      console.log('✅ Worker Manager started');
       console.log('✅ SimpleWorkerManager started');
     } catch (error) {
       console.error('❌ Worker Manager failed:', error);
@@ -495,42 +569,52 @@
   // =========================
   // Graceful Shutdown
   // =========================
-  async function gracefulShutdown() {
-    console.log('\n🛑 Shutting down gracefully...');
+  async function gracefulShutdown(signal) {
+    console.log(`\n🛑 Received ${signal}. Shutting down gracefully...`);
     
     try {
+      // Stop accepting new requests
+      server.close(() => {
+        console.log('✅ HTTP server closed');
+      });
+
+      // Stop workers
       if (workerManager?.stop) {
         await workerManager.stop();
         console.log('✅ Workers stopped');
       }
       
+      // Close database connection
       await closeMongoConnection();
       console.log('✅ Database connection closed');
       
-      server.close(() => {
-        console.log('✅ HTTP server closed');
-        process.exit(0);
-      });
+      console.log('✅ Graceful shutdown completed');
+      process.exit(0);
 
-      setTimeout(() => {
-        console.error('⚠️  Forced shutdown after timeout');
-        process.exit(1);
-      }, 10000);
-      
     } catch (error) {
       console.error('❌ Error during shutdown:', error);
       process.exit(1);
     }
+
+    // Force shutdown after timeout
+    setTimeout(() => {
+      console.error('⚠️  Forced shutdown after timeout');
+      process.exit(1);
+    }, 10000);
   }
 
-  process.on('SIGTERM', gracefulShutdown);
-  process.on('SIGINT', gracefulShutdown);
-  process.on('unhandledRejection', (err) => {
-    console.error('❌ Unhandled Rejection:', err);
+  // Process event handlers
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+  
+  process.on('unhandledRejection', (reason, promise) => {
+    console.error('❌ Unhandled Rejection at:', promise);
+    console.error('❌ Reason:', reason);
   });
-  process.on('uncaughtException', (err) => {
-    console.error('❌ Uncaught Exception:', err);
-    gracefulShutdown();
+  
+  process.on('uncaughtException', (error) => {
+    console.error('❌ Uncaught Exception:', error);
+    gracefulShutdown('uncaughtException');
   });
 
   // =========================
@@ -540,15 +624,18 @@
 
   async function startServer() {
     try {
+      // Connect to database
       console.log('🔄 Connecting to database...');
       await initMongo();
       console.log('✅ Database connected');
 
-      console.log('🔄 Starting workers...');
+      // Initialize workers
       await initializeWorkerManager();
 
+      // Load all routes
       await applyRoutes();
 
+      // Start HTTP server
       server.listen(PORT, '0.0.0.0', () => {
         console.log('\n' + '='.repeat(60));
         console.log('🚀 InfinityX Backend Server Started Successfully!');
@@ -557,15 +644,19 @@
         console.log(`🩺 Health Check: http://0.0.0.0:${PORT}/api/v1/health`);
         console.log(`🎬 LiveStream WS: ws://0.0.0.0:${PORT}/ws/live-stream`);
         console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+        console.log(`⏱️  Started at: ${new Date().toISOString()}`);
         console.log('='.repeat(60) + '\n');
       });
 
     } catch (error) {
       console.error('❌ Failed to start server:', error);
+      console.error('Stack:', error.stack);
       process.exit(1);
     }
   }
 
+  // Start the server
   startServer();
 
+  // Export for testing
   export default app;
