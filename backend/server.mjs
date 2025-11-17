@@ -36,7 +36,7 @@ import integrationManagerRouter from './src/routes/integrationManager.mjs';
 import selfEvolutionRouter from './src/routes/selfEvolution.mjs';
 import joeChatRouter from './src/routes/joeChat.mjs';
 import joeChatAdvancedRouter from './src/routes/joeChatAdvanced.mjs';
-import browserControlRouter from './src/routes/browserControl.mjs';
+// import browserControlRouter from './src/routes/browserControl.mjs'; // Removed to fix Playwright dependency issue
 import chatHistoryRouter from './src/routes/chatHistory.mjs';
 import fileUploadRouter from './src/routes/fileUpload.mjs';
 import testGrokRouter from './src/routes/testGrok.mjs';
@@ -247,7 +247,7 @@ app.use('/api/v1/integrations', integrationManagerRouter);
 app.use('/api/v1/self-evolution', selfEvolutionRouter);
 app.use('/api/v1/joe/chat', requireRole(ROLES.USER), joeChatRouter);
 app.use('/api/v1/joe/chat-advanced', joeChatAdvancedRouter);
-app.use('/api/v1/browser', requireRole(ROLES.ADMIN), browserControlRouter);
+// app.use('/api/v1/browser', requireRole(ROLES.ADMIN), browserControlRouter); // Removed to fix Playwright dependency issue
 app.use('/api/v1/chat-history', chatHistoryRouter);
 app.use('/api/v1/file', fileUploadRouter);
 app.use('/api/v1', testGrokRouter);
