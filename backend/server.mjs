@@ -1,4 +1,4 @@
-  // backend/server.mjs - النسخة الكاملة والمُصلحة
+  // backend/server.mjs - النسخة الكاملة والمُصلحة نهائياً
   import express from 'express';
   import cors from 'cors';
   import helmet from 'helmet';
@@ -413,6 +413,21 @@
     return null;
   }
 
+  // ✅ Check if value is an Express Router
+  function isExpressRouter(obj) {
+    return obj && 
+           typeof obj === 'object' && 
+           typeof obj.use === 'function' && 
+           typeof obj.get === 'function' && 
+           typeof obj.post === 'function' &&
+           Array.isArray(obj.stack);
+  }
+
+  // ✅ Check if value is a factory function
+  function isFactoryFunction(obj) {
+    return typeof obj === 'function';
+  }
+
   // ✅ Safe route registration with smart router detection
   const safeUseRoute = (path, routerModule, routerName) => {
     if (!routerModule) {
@@ -421,34 +436,47 @@
     }
 
     try {
-      const router = extractRouter(routerModule, routerName);
+      const extracted = extractRouter(routerModule, routerName);
 
-      if (!router) {
+      if (!extracted) {
         console.error(`❌ No valid router found for ${path}`);
         console.error(`   Module keys:`, Object.keys(routerModule));
         return;
       }
 
-      // Handle factory functions
-      if (typeof router === 'function') {
+      // Check if it's already an Express Router
+      if (isExpressRouter(extracted)) {
+        app.use(path, extracted);
+        console.log(`✅ Route registered: ${path} (router)`);
+        return;
+      }
+
+      // Check if it's a factory function
+      if (isFactoryFunction(extracted)) {
         try {
+          // Try to call the factory function
           // Check if function expects parameters (like initMongo)
-          const routerInstance = router.length > 0 ? router(initMongo) : router();
-          app.use(path, routerInstance);
-          console.log(`✅ Route registered: ${path} (factory)`);
+          const routerInstance = extracted.length > 0 ? extracted(initMongo) : extracted();
+          
+          // Verify the result is a router
+          if (isExpressRouter(routerInstance)) {
+            app.use(path, routerInstance);
+            console.log(`✅ Route registered: ${path} (factory)`);
+          } else {
+            console.error(`❌ Factory function for ${path} did not return a valid router`);
+            console.error(`   Returned type:`, typeof routerInstance);
+          }
         } catch (err) {
           console.error(`❌ Factory function failed for ${path}:`, err.message);
+          console.error(`   Stack:`, err.stack);
         }
-      } 
-      // Handle Express Router objects
-      else if (router && typeof router === 'object' && router.stack) {
-        app.use(path, router);
-        console.log(`✅ Route registered: ${path} (router)`);
+        return;
       }
-      else {
-        console.error(`❌ Invalid router type for ${path}:`, typeof router);
-        console.error(`   Router value:`, router);
-      }
+
+      // If we get here, it's neither a router nor a factory
+      console.error(`❌ Invalid router type for ${path}:`, typeof extracted);
+      console.error(`   Value:`, extracted);
+
     } catch (error) {
       console.error(`❌ Failed to register route ${path}:`, error.message);
       console.error(`   Stack:`, error.stack);
