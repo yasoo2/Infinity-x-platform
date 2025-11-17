@@ -257,23 +257,8 @@ app.use('/api/live-stream', liveStreamRouter);
 app.use('/api/v1/sandbox', sandboxRoutes);
 app.use('/api/v1/planning', planningRoutes);
 // =========================
-// Frontend Static Files
+// Frontend Static Files (Removed for Render deployment - Frontend is served by Cloudflare Pages)
 // =========================
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const frontendDistPath = path.join(__dirname, '../dashboard-x/dist');
-
-if (fs.existsSync(frontendDistPath)) {
-  app.use(express.static(frontendDistPath));
-  app.get('*', (req, res) => {
-    if (req.path.startsWith('/api/') || req.path.startsWith('/ws/')) {
-      return res.status(404).json({ error: 'Not Found' });
-    }
-    res.sendFile(path.join(frontendDistPath, 'index.html'));
-  });
-} else {
-  console.warn('⚠️ Frontend dist folder not found at:', frontendDistPath);
-}
 
 // =========================
 // Worker Manager
