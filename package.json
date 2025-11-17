@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node backend/server.mjs",
     "dev": "cd backend && npm run dev",
-    "build": "./build.sh"
+    "build": "./build.sh",
+    "postinstall": "npx playwright install --with-deps"
   },
   "engines": {
     "node": ">=22.0.0",
