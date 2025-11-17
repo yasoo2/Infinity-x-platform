@@ -64,7 +64,6 @@
             align-items: center;
         }
 
-        /* Logo */
         .logo {
             display: flex;
             align-items: center;
@@ -688,6 +687,23 @@
             box-shadow: 0 10px 30px rgba(37, 99, 235, 0.4);
         }
 
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .error-message {
+            color: #dc2626;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        .success-message {
+            color: #059669;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
         footer {
             padding: 60px 100px 30px;
             background: #0F172A;
@@ -939,14 +955,18 @@
                 <div class="form-group">
                     <label data-key="email">Email</label>
                     <input type="email" id="email" placeholder="your@email.com" required>
+                    <div class="error-message" id="emailError"></div>
                 </div>
                 <div class="form-group">
                     <label data-key="password">Password</label>
                     <input type="password" id="password" placeholder="••••••••" required>
+                    <div class="error-message" id="passwordError"></div>
                 </div>
-                <button type="submit" class="submit-btn">
+                <button type="submit" class="submit-btn" id="submitBtn">
                     <span data-key="login">Login</span>
                 </button>
+                <div class="error-message" id="loginError"></div>
+                <div class="success-message" id="loginSuccess"></div>
             </form>
         </div>
     </div>
@@ -1064,16 +1084,72 @@
 
         function closeModal() {
             document.getElementById('loginModal').classList.remove('active');
+            clearErrors();
         }
 
-        function handleLogin(e) {
+        function clearErrors() {
+            document.getElementById('emailError').textContent = '';
+            document.getElementById('passwordError').textContent = '';
+            document.getElementById('loginError').textContent = '';
+            document.getElementById('loginSuccess').textContent = '';
+        }
+
+        async function handleLogin(e) {
             e.preventDefault();
+            clearErrors();
+            
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
+            const submitBtn = document.getElementById('submitBtn');
             
-            if (email && password) {
-                // Redirect to /joe or dashboard
-                window.location.href = '/joe';
+            if (!email || !password) {
+                document.getElementById('loginError').textContent = 'Please fill in all fields';
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Logging in...';
+
+            try {
+                // Get the backend API URL dynamically
+                const protocol = window.location.protocol;
+                const host = window.location.host;
+                const apiUrl = `${protocol}//${host}/api/auth/login`;
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: password
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Store token if provided
+                    if (data.token) {
+                        localStorage.setItem('authToken', data.token);
+                    }
+                    
+                    document.getElementById('loginSuccess').textContent = 'Login successful! Redirecting...';
+                    
+                    // Redirect to dashboard or joe page
+                    setTimeout(() => {
+                        window.location.href = '/joe' || data.redirectUrl || '/dashboard';
+                    }, 1500);
+                } else {
+                    document.getElementById('loginError').textContent = data.message || 'Login failed. Please check your credentials.';
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                document.getElementById('loginError').textContent = 'Connection error. Please try again.';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = translations[currentLang].login;
             }
         }
 
@@ -1088,6 +1164,13 @@
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.lang-selector')) {
                 document.getElementById('langDropdown').classList.remove('active');
+            }
+        });
+
+        // Close modal when clicking outside
+        document.getElementById('loginModal').addEventListener('click', (e) => {
+            if (e.target.id === 'loginModal') {
+                closeModal();
             }
         });
     </script>
