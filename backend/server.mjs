@@ -1,4 +1,4 @@
-  // backend/server.mjs - النسخة المُصلحة والمُحسّنة
+  // backend/server.mjs - النسخة المُصلحة بالكامل
   import express from 'express';
   import cors from 'cors';
   import helmet from 'helmet';
@@ -18,61 +18,6 @@
 
   // ✅ Workers
   import { SimpleWorkerManager } from './src/workers/SimpleWorkerManager.mjs';
-
-  // ✅ Routes - Import with error handling
-  let joeRouter, factoryRouter, publicSiteRouter, dashboardDataRouter;
-  let selfDesignRouter, storeIntegrationRouter, universalStoreRouter;
-  let pageBuilderRouter, githubManagerRouter, integrationManagerRouter;
-  let selfEvolutionRouter, joeChatRouter, joeChatAdvancedRouter;
-  let chatHistoryRouter, fileUploadRouter, testGrokRouter, liveStreamRouter;
-  let sandboxRoutes, planningRoutes;
-
-  // Safe import function
-  async function safeImport(modulePath, moduleName) {
-    try {
-      const module = await import(modulePath);
-      console.log(`✅ Loaded: ${moduleName}`);
-      return module.default || module;
-    } catch (error) {
-      console.warn(`⚠️  Failed to load ${moduleName}:`, error.message);
-      return null;
-    }
-  }
-
-  // Load all routes
-  async function loadRoutes() {
-    joeRouter = await safeImport('./src/routes/joeRouter.js', 'joeRouter');
-    factoryRouter = await safeImport('./src/routes/factoryRouter.js', 'factoryRouter');
-    publicSiteRouter = await safeImport('./src/routes/publicSiteRouter.js', 'publicSiteRouter');
-    dashboardDataRouter = await safeImport('./src/routes/dashboardDataRouter.js', 'dashboardDataRouter');
-    selfDesignRouter = await safeImport('./src/routes/selfDesign.mjs', 'selfDesignRouter');
-    storeIntegrationRouter = await safeImport('./src/routes/storeIntegration.mjs', 'storeIntegrationRouter');
-    universalStoreRouter = await safeImport('./src/routes/universalStore.mjs', 'universalStoreRouter');
-    pageBuilderRouter = await safeImport('./src/routes/pageBuilder.mjs', 'pageBuilderRouter');
-    githubManagerRouter = await safeImport('./src/routes/githubManager.mjs', 'githubManagerRouter');
-    integrationManagerRouter = await safeImport('./src/routes/integrationManager.mjs', 'integrationManagerRouter');
-    selfEvolutionRouter = await safeImport('./src/routes/selfEvolution.mjs', 'selfEvolutionRouter');
-    joeChatRouter = await safeImport('./src/routes/joeChat.mjs', 'joeChatRouter');
-    joeChatAdvancedRouter = await safeImport('./src/routes/joeChatAdvanced.mjs', 'joeChatAdvancedRouter');
-    chatHistoryRouter = await safeImport('./src/routes/chatHistory.mjs', 'chatHistoryRouter');
-    fileUploadRouter = await safeImport('./src/routes/fileUpload.mjs', 'fileUploadRouter');
-    testGrokRouter = await safeImport('./src/routes/testGrok.mjs', 'testGrokRouter');
-    liveStreamRouter = await safeImport('./src/routes/liveStreamRouter.mjs', 'liveStreamRouter');
-    sandboxRoutes = await safeImport('./src/routes/sandboxRoutes.mjs', 'sandboxRoutes');
-    planningRoutes = await safeImport('./src/routes/planningRoutes.mjs', 'planningRoutes');
-  }
-
-  // ✅ WebSocket Services
-  let LiveStreamWebSocketServer;
-  async function loadWebSocketServices() {
-    try {
-      const module = await import('./src/services/liveStreamWebSocket.mjs');
-      LiveStreamWebSocketServer = module.default;
-      console.log('✅ Loaded: LiveStreamWebSocketServer');
-    } catch (error) {
-      console.warn('⚠️  Failed to load LiveStreamWebSocketServer:', error.message);
-    }
-  }
 
   dotenv.config();
 
@@ -98,7 +43,7 @@
   }));
 
   // =========================
-  // CORS (Safe & Production-Ready)
+  // CORS
   // =========================
   const allowedOrigins = [
     'http://localhost:5173',
@@ -113,13 +58,8 @@
 
   app.use(cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, Postman, etc.)
       if (!origin) return callback(null, true);
-      
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      
+      if (allowedOrigins.includes(origin)) return callback(null, true);
       console.warn(`⚠️  CORS blocked origin: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     },
@@ -173,19 +113,12 @@
           return res.status(401).json({ error: 'NO_TOKEN', message: 'Authentication token required' });
         }
 
-        const session = await db.collection('sessions').findOne({ 
-          token, 
-          active: true 
-        });
-        
+        const session = await db.collection('sessions').findOne({ token, active: true });
         if (!session) {
           return res.status(401).json({ error: 'INVALID_SESSION', message: 'Session expired or invalid' });
         }
 
-        const user = await db.collection('users').findOne({ 
-          _id: new ObjectId(session.userId) 
-        });
-        
+        const user = await db.collection('users').findOne({ _id: new ObjectId(session.userId) });
         if (!user) {
           return res.status(401).json({ error: 'NO_USER', message: 'User not found' });
         }
@@ -228,7 +161,6 @@
     }
 
     checks.workers = workerManager?.isRunning || false;
-
     const isHealthy = checks.database;
     
     res.status(isHealthy ? 200 : 503).json({
@@ -318,7 +250,6 @@
     }
   });
 
-  // Login endpoint
   app.post('/api/v1/auth/login', async (req, res) => {
     try {
       const { email, password } = req.body;
@@ -349,14 +280,13 @@
         });
       }
 
-      // Create session
       const token = cryptoRandom();
       const session = {
         userId: user._id,
         token,
         active: true,
         createdAt: new Date(),
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
       };
 
       await db.collection('sessions').insertOne(session);
@@ -375,7 +305,6 @@
     }
   });
 
-  // Logout endpoint
   app.post('/api/v1/auth/logout', requireRole(ROLES.USER), async (req, res) => {
     try {
       const db = await initMongo();
@@ -394,7 +323,6 @@
     }
   });
 
-  // Get current user
   app.get('/api/v1/auth/me', requireRole(ROLES.USER), async (req, res) => {
     res.json({
       success: true,
@@ -403,47 +331,125 @@
   });
 
   // =========================
-  // Apply Routes (with safe checks)
+  // Dynamic Route Loading
   // =========================
-  async function applyRoutes() {
-    await loadRoutes();
-    await loadWebSocketServices();
+  async function safeImport(modulePath, moduleName) {
+    try {
+      const module = await import(modulePath);
+      console.log(`✅ Loaded: ${moduleName}`);
+      return module;
+    } catch (error) {
+      console.warn(`⚠️  Failed to load ${moduleName}:`, error.message);
+      return null;
+    }
+  }
 
-    // Helper function to safely apply routes
-    const safeUseRoute = (path, router, routerName) => {
-      if (router) {
-        // Check if router is a function (factory pattern)
-        if (typeof router === 'function') {
-          app.use(path, router(initMongo));
-        } else {
-          app.use(path, router);
-        }
-        console.log(`✅ Route registered: ${path}`);
-      } else {
-        console.warn(`⚠️  Route not available: ${path} (${routerName})`);
+  // ✅ FIXED: Better router detection
+  const safeUseRoute = (path, routerModule, routerName) => {
+    if (!routerModule) {
+      console.warn(`⚠️  Route not available: ${path} (${routerName})`);
+      return;
+    }
+
+    try {
+      let router = null;
+
+      // Case 1: Module with default export
+      if (routerModule.default) {
+        router = routerModule.default;
       }
+      // Case 2: Module with named export 'router'
+      else if (routerModule.router) {
+        router = routerModule.router;
+      }
+      // Case 3: Direct router object
+      else if (routerModule.stack) {
+        router = routerModule;
+      }
+      // Case 4: Module itself is the router
+      else {
+        router = routerModule;
+      }
+
+      // Check if router is a factory function
+      if (typeof router === 'function') {
+        // Check if it's a factory that needs initMongo
+        const routerInstance = router.length > 0 ? router(initMongo) : router();
+        app.use(path, routerInstance);
+        console.log(`✅ Route registered: ${path} (factory)`);
+      } 
+      // Check if it's an Express Router
+      else if (router && typeof router === 'object' && router.stack) {
+        app.use(path, router);
+        console.log(`✅ Route registered: ${path} (router)`);
+      }
+      else {
+        console.error(`❌ Invalid router type for ${path}:`, typeof router);
+        console.error(`   Module keys:`, Object.keys(routerModule));
+      }
+    } catch (error) {
+      console.error(`❌ Failed to register route ${path}:`, error.message);
+    }
+  };
+
+  async function applyRoutes() {
+    console.log('🔄 Loading routes...');
+
+    // Load all routes
+    const routes = {
+      joeRouter: await safeImport('./src/routes/joeRouter.js', 'joeRouter'),
+      factoryRouter: await safeImport('./src/routes/factoryRouter.js', 'factoryRouter'),
+      publicSiteRouter: await safeImport('./src/routes/publicSiteRouter.js', 'publicSiteRouter'),
+      dashboardDataRouter: await safeImport('./src/routes/dashboardDataRouter.js', 'dashboardDataRouter'),
+      selfDesignRouter: await safeImport('./src/routes/selfDesign.mjs', 'selfDesignRouter'),
+      storeIntegrationRouter: await safeImport('./src/routes/storeIntegration.mjs', 'storeIntegrationRouter'),
+      universalStoreRouter: await safeImport('./src/routes/universalStore.mjs', 'universalStoreRouter'),
+      pageBuilderRouter: await safeImport('./src/routes/pageBuilder.mjs', 'pageBuilderRouter'),
+      githubManagerRouter: await safeImport('./src/routes/githubManager.mjs', 'githubManagerRouter'),
+      integrationManagerRouter: await safeImport('./src/routes/integrationManager.mjs', 'integrationManagerRouter'),
+      selfEvolutionRouter: await safeImport('./src/routes/selfEvolution.mjs', 'selfEvolutionRouter'),
+      joeChatRouter: await safeImport('./src/routes/joeChat.mjs', 'joeChatRouter'),
+      joeChatAdvancedRouter: await safeImport('./src/routes/joeChatAdvanced.mjs', 'joeChatAdvancedRouter'),
+      chatHistoryRouter: await safeImport('./src/routes/chatHistory.mjs', 'chatHistoryRouter'),
+      fileUploadRouter: await safeImport('./src/routes/fileUpload.mjs', 'fileUploadRouter'),
+      testGrokRouter: await safeImport('./src/routes/testGrok.mjs', 'testGrokRouter'),
+      liveStreamRouter: await safeImport('./src/routes/liveStreamRouter.mjs', 'liveStreamRouter'),
+      sandboxRoutes: await safeImport('./src/routes/sandboxRoutes.mjs', 'sandboxRoutes'),
+      planningRoutes: await safeImport('./src/routes/planningRoutes.mjs', 'planningRoutes')
     };
 
     // Apply all routes
-    safeUseRoute('/api/v1/joe/control', joeRouter, 'joeRouter');
-    safeUseRoute('/api/v1/factory', factoryRouter, 'factoryRouter');
-    safeUseRoute('/api/v1/dashboard', dashboardDataRouter, 'dashboardDataRouter');
-    safeUseRoute('/api/v1/public-site', publicSiteRouter, 'publicSiteRouter');
-    safeUseRoute('/api/v1/self-design', selfDesignRouter, 'selfDesignRouter');
-    safeUseRoute('/api/v1/store', storeIntegrationRouter, 'storeIntegrationRouter');
-    safeUseRoute('/api/v1/universal-store', universalStoreRouter, 'universalStoreRouter');
-    safeUseRoute('/api/v1/page-builder', pageBuilderRouter, 'pageBuilderRouter');
-    safeUseRoute('/api/v1/github-manager', githubManagerRouter, 'githubManagerRouter');
-    safeUseRoute('/api/v1/integrations', integrationManagerRouter, 'integrationManagerRouter');
-    safeUseRoute('/api/v1/self-evolution', selfEvolutionRouter, 'selfEvolutionRouter');
-    safeUseRoute('/api/v1/joe/chat', joeChatRouter, 'joeChatRouter');
-    safeUseRoute('/api/v1/joe/chat-advanced', joeChatAdvancedRouter, 'joeChatAdvancedRouter');
-    safeUseRoute('/api/v1/chat-history', chatHistoryRouter, 'chatHistoryRouter');
-    safeUseRoute('/api/v1/file', fileUploadRouter, 'fileUploadRouter');
-    safeUseRoute('/api/v1', testGrokRouter, 'testGrokRouter');
-    safeUseRoute('/api/live-stream', liveStreamRouter, 'liveStreamRouter');
-    safeUseRoute('/api/v1/sandbox', sandboxRoutes, 'sandboxRoutes');
-    safeUseRoute('/api/v1/planning', planningRoutes, 'planningRoutes');
+    safeUseRoute('/api/v1/joe/control', routes.joeRouter, 'joeRouter');
+    safeUseRoute('/api/v1/factory', routes.factoryRouter, 'factoryRouter');
+    safeUseRoute('/api/v1/dashboard', routes.dashboardDataRouter, 'dashboardDataRouter');
+    safeUseRoute('/api/v1/public-site', routes.publicSiteRouter, 'publicSiteRouter');
+    safeUseRoute('/api/v1/self-design', routes.selfDesignRouter, 'selfDesignRouter');
+    safeUseRoute('/api/v1/store', routes.storeIntegrationRouter, 'storeIntegrationRouter');
+    safeUseRoute('/api/v1/universal-store', routes.universalStoreRouter, 'universalStoreRouter');
+    safeUseRoute('/api/v1/page-builder', routes.pageBuilderRouter, 'pageBuilderRouter');
+    safeUseRoute('/api/v1/github-manager', routes.githubManagerRouter, 'githubManagerRouter');
+    safeUseRoute('/api/v1/integrations', routes.integrationManagerRouter, 'integrationManagerRouter');
+    safeUseRoute('/api/v1/self-evolution', routes.selfEvolutionRouter, 'selfEvolutionRouter');
+    safeUseRoute('/api/v1/joe/chat', routes.joeChatRouter, 'joeChatRouter');
+    safeUseRoute('/api/v1/joe/chat-advanced', routes.joeChatAdvancedRouter, 'joeChatAdvancedRouter');
+    safeUseRoute('/api/v1/chat-history', routes.chatHistoryRouter, 'chatHistoryRouter');
+    safeUseRoute('/api/v1/file', routes.fileUploadRouter, 'fileUploadRouter');
+    safeUseRoute('/api/v1', routes.testGrokRouter, 'testGrokRouter');
+    safeUseRoute('/api/live-stream', routes.liveStreamRouter, 'liveStreamRouter');
+    safeUseRoute('/api/v1/sandbox', routes.sandboxRoutes, 'sandboxRoutes');
+    safeUseRoute('/api/v1/planning', routes.planningRoutes, 'planningRoutes');
+
+    // Load WebSocket
+    try {
+      const wsModule = await import('./src/services/liveStreamWebSocket.mjs');
+      const LiveStreamWebSocketServer = wsModule.default;
+      if (LiveStreamWebSocketServer) {
+        new LiveStreamWebSocketServer(server);
+        console.log('✅ WebSocket servers initialized');
+      }
+    } catch (error) {
+      console.warn('⚠️  Failed to load WebSocket:', error.message);
+    }
   }
 
   // =========================
@@ -506,7 +512,6 @@
         process.exit(0);
       });
 
-      // Force exit after 10 seconds
       setTimeout(() => {
         console.error('⚠️  Forced shutdown after timeout');
         process.exit(1);
@@ -535,26 +540,15 @@
 
   async function startServer() {
     try {
-      // 1. Initialize database
       console.log('🔄 Connecting to database...');
       await initMongo();
       console.log('✅ Database connected');
 
-      // 2. Initialize workers
       console.log('🔄 Starting workers...');
       await initializeWorkerManager();
 
-      // 3. Apply routes
-      console.log('🔄 Loading routes...');
       await applyRoutes();
 
-      // 4. Initialize WebSocket
-      if (LiveStreamWebSocketServer) {
-        new LiveStreamWebSocketServer(server);
-        console.log('✅ WebSocket servers initialized');
-      }
-
-      // 5. Start HTTP server
       server.listen(PORT, '0.0.0.0', () => {
         console.log('\n' + '='.repeat(60));
         console.log('🚀 InfinityX Backend Server Started Successfully!');
@@ -572,7 +566,6 @@
     }
   }
 
-  // Start the server
   startServer();
 
   export default app;
