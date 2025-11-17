@@ -3,10 +3,10 @@ import OpenAI from 'openai';
 const openai = new OpenAI();
 
 /**
- * GeminiEngine - محرك Gemini المتقدم (محصّن 100%)
+ * GrokEngine - محرك Grok (محصّن 100%)
  * يستخدم Manus OpenAI API كبديل مؤقت.
  */
-export class GeminiEngine {
+export class GrokEngine {
   constructor() {
     // لا يتطلب مفتاح API خاص به حاليًا، يستخدم إعدادات OpenAI
   }
@@ -20,7 +20,7 @@ export class GeminiEngine {
       ];
 
       const completion = await openai.chat.completions.create({
-        model: 'gpt-4.1-mini', // استخدام gpt-4.1-mini كبديل لـ Gemini
+        model: 'gpt-4.1-mini', // استخدام gpt-4.1-mini كبديل لـ Grok
         messages: messages,
         temperature: 0.7,
         max_tokens: 2000
@@ -28,7 +28,7 @@ export class GeminiEngine {
       
       return completion.choices[0].message.content;
     } catch (error) {
-      console.error('Gemini API Error (using OpenAI fallback):', error);
+      console.error('Grok API Error (using OpenAI fallback):', error);
       throw error;
     }
   }
@@ -36,9 +36,9 @@ export class GeminiEngine {
 
 // === تصدير كائن جاهز ===
 let engine = null;
-export const getGeminiEngine = () => {
+export const getGrokEngine = () => {
   if (!engine) {
-    engine = new GeminiEngine();
+    engine = new GrokEngine();
   }
   return engine;
 };
