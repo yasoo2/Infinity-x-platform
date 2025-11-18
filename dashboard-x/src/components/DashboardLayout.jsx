@@ -8,7 +8,7 @@ export default function DashboardLayout() {
   const [isJoeScreenOpen, setIsJoeScreenOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false); // تم تغيير القيمة الافتراضية
   const [progress, setProgress] = useState(0); // تم تغيير القيمة الافتراضية
-  const [wsLog, setWsLog] = useState<string[]>([]); // تم تحديد النوع
+  const [wsLog, setWsLog] = useState([]); // تم تحديد النوع
 
   const handleTakeover = () => {
     console.log('User has taken over the Joe screen.');
@@ -19,7 +19,7 @@ export default function DashboardLayout() {
     setIsJoeScreenOpen(false);
   };
 
-  const handleCommandSubmit = async (data: { commandText: string; lang: "ar" | "en"; voice: boolean }) => {
+  const handleCommandSubmit = async (data) => {
     setIsProcessing(true);
     setProgress(0);
     setWsLog(prev => [...prev, `Sending command: ${data.commandText}`]);

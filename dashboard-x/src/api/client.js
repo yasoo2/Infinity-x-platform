@@ -1,11 +1,11 @@
-  import axios, { AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios';
+  import axios from 'axios';
 
   // Base URL normalization
   const envBase = import.meta.env?.VITE_API_BASE_URL || 'https://infinity-x-platform.onrender.com';
   const BASE_URL = envBase.replace(/\/+$/, ''); // remove trailing slash
 
   // Helper to detect FormData
-  const isFormData = (data: unknown): data is FormData =>
+  const isFormData = (data) =>
     typeof FormData !== 'undefined' && data instanceof FormData;
 
   // Axios instance
@@ -20,7 +20,7 @@
   });
 
   // Optional: a simple retry policy for idempotent requests (GET/HEAD)
-  const shouldRetry = (error: AxiosError) => {
+  const shouldRetry = (error) => {
     const status = error.response?.status;
     const method = error.config?.method?.toUpperCase();
     // Retry on network or 5xx for idempotent methods
@@ -30,7 +30,7 @@
 
   // Request interceptor: attach session token and correct headers
   apiClient.interceptors.request.use(
-    (config: InternalAxiosRequestConfig) => {
+    (config) => {
       const token = localStorage.getItem('sessionToken'); // Consider HttpOnly cookie on server instead
       if (token) {
         config.headers['x-session-token'] = token;
@@ -50,16 +50,9 @@
   );
 
   // Centralized error normalization
-  type NormalizedError = {
-    status?: number;
-    code?: string;
-    message: string;
-    details?: unknown;
-  };
-
-  const normalizeError = (error: unknown): NormalizedError => {
+  const normalizeError = (error) => {
     if (axios.isAxiosError(error)) {
-      const ax = error as AxiosError<any>;
+      const ax = error;
       const status = ax.response?.status;
       const message =
         ax.response?.data?.message ||
@@ -85,10 +78,10 @@
       // Optional retry
       if (shouldRetry(error)) {
         try {
-          return await axios.request(error.config as AxiosRequestConfig);
+          return await axios.request(error.config);
         } catch (e) {
           // fall through to unified handling
-          error = e as AxiosError;
+          error = e;
         }
       }
 
@@ -117,10 +110,10 @@
 
   export default apiClient;
 
-  // Helper: example usage with typed error
-  export async function getJson<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+  // Helper: example usage
+  export async function getJson(url, config) {
     try {
-      const { data } = await apiClient.get<T>(url, config);
+      const { data } = await apiClient.get(url, config);
       return data;
     } catch (e) {
       const err = normalizeError(e);
