@@ -1,4 +1,4 @@
-// backend/server.mjs - النسخة النهائية المحسّنة والمتكاملة مع JOE Advanced Engine
+// backend/server.mjs - النسخة النهائية المحسّنة (بدون مكتبات إضافية)
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -8,8 +8,6 @@ import { MongoClient, ObjectId } from 'mongodb';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import http from 'http';
-import compression from 'compression';
-import morgan from 'morgan';
 
 // ✅ Shared Types
 import { ROLES } from './shared/roles.js';
@@ -20,9 +18,6 @@ import { initMongo, closeMongoConnection } from './src/db.mjs';
 
 // ✅ Workers
 import { SimpleWorkerManager } from './src/workers/SimpleWorkerManager.mjs';
-
-// ✅ JOE Advanced Engine
-import joeEngine from './src/engines/joeAdvancedEngine.mjs';
 
 dotenv.config();
 
@@ -51,27 +46,10 @@ app.disable('x-powered-by');
 // =========================
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "wss:", "ws:"],
-      fontSrc: ["'self'", "data:"],
-      objectSrc: ["'none'"],
-      mediaSrc: ["'self'"],
-      frameSrc: ["'none'"]
-    }
-  },
-  hsts: {
-    maxAge: 31536000,
-    includeSubDomains: true,
-    preload: true
-  }
+  contentSecurityPolicy: false
 }));
 
-// Rate Limiting with different tiers
+// Rate Limiting
 const createRateLimiter = (windowMs, max, message) => rateLimit({
   windowMs,
   max,
@@ -118,14 +96,12 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
     
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
     
-    // In development, allow all localhost origins
     if (CONFIG.NODE_ENV === 'development' && origin.includes('localhost')) {
       return callback(null, true);
     }
@@ -142,22 +118,14 @@ app.use(cors({
 }));
 
 // =========================
-// 📊 Logging & Monitoring
+// 📊 Request Logging
 // =========================
-if (CONFIG.NODE_ENV === 'development') {
-  app.use(morgan('dev'));
-} else {
-  app.use(morgan('combined'));
-}
-
-// Request ID middleware
 app.use((req, res, next) => {
   req.id = crypto.randomBytes(16).toString('hex');
   res.setHeader('X-Request-ID', req.id);
   next();
 });
 
-// Request timing and logging
 app.use((req, res, next) => {
   const start = Date.now();
   
@@ -167,14 +135,11 @@ app.use((req, res, next) => {
                   res.statusCode >= 400 ? '⚠️' : 
                   res.statusCode >= 300 ? '🔄' : '✅';
     
-    const logLevel = res.statusCode >= 500 ? 'ERROR' : 
-                     res.statusCode >= 400 ? 'WARN' : 'INFO';
-    
-    const logMessage = `${emoji} [${logLevel}] ${req.method} ${req.originalUrl} ${res.statusCode} - ${duration}ms [${req.id}]`;
+    const logMessage = `${emoji} ${req.method} ${req.originalUrl} ${res.statusCode} - ${duration}ms [${req.id}]`;
     
     if (duration > 1000) {
       console.warn(`🐌 Slow request: ${logMessage}`);
-    } else if (logLevel === 'ERROR' || logLevel === 'WARN') {
+    } else if (res.statusCode >= 400) {
       console.warn(logMessage);
     } else {
       console.log(logMessage);
@@ -185,9 +150,8 @@ app.use((req, res, next) => {
 });
 
 // =========================
-// 📦 Body Parsing & Compression
+// 📦 Body Parsing
 // =========================
-app.use(compression());
 app.use(express.json({ limit: CONFIG.BODY_LIMIT }));
 app.use(express.urlencoded({ extended: true, limit: CONFIG.BODY_LIMIT }));
 
@@ -268,7 +232,7 @@ function requireRole(minRole) {
   };
 }
 
-// Optional authentication (doesn't fail if no token)
+// Optional authentication
 const optionalAuth = async (req, res, next) => {
   try {
     const token = req.headers['x-session-token'] || req.headers.authorization?.replace('Bearer ', '');
@@ -309,14 +273,11 @@ app.get('/api/v1/health', async (req, res) => {
   const checks = { 
     database: false, 
     workers: false,
-    joeEngine: false,
-    uptime: process.uptime(),
+    uptime: Math.floor(process.uptime()),
     memory: {
       used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + ' MB',
-      total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + ' MB',
-      external: Math.round(process.memoryUsage().external / 1024 / 1024) + ' MB'
+      total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + ' MB'
     },
-    cpu: process.cpuUsage(),
     environment: CONFIG.NODE_ENV,
     version: '2.0.0',
     timestamp: new Date().toISOString()
@@ -331,18 +292,12 @@ app.get('/api/v1/health', async (req, res) => {
   }
 
   checks.workers = workerManager?.isRunning || false;
-  checks.joeEngine = joeEngine?.version || false;
   
   const isHealthy = checks.database;
   
   res.status(isHealthy ? 200 : 503).json({
     status: isHealthy ? 'healthy' : 'unhealthy',
-    checks,
-    joeStats: isHealthy ? {
-      memory: joeEngine.memory?.getStats(),
-      decisions: joeEngine.decision?.getStats(),
-      tools: joeEngine.tools?.length
-    } : null
+    checks
   });
 });
 
@@ -355,11 +310,6 @@ app.get('/', (req, res) => {
     version: '2.0.0',
     status: 'running',
     timestamp: new Date().toISOString(),
-    joeEngine: {
-      version: joeEngine.version,
-      name: joeEngine.name,
-      tools: joeEngine.tools?.length || 0
-    },
     endpoints: {
       health: '/api/v1/health',
       auth: '/api/v1/auth/*',
@@ -368,8 +318,7 @@ app.get('/', (req, res) => {
       factory: '/api/v1/factory/*',
       store: '/api/v1/store/*',
       integrations: '/api/v1/integrations/*'
-    },
-    documentation: '/api/v1/docs'
+    }
   });
 });
 
@@ -382,7 +331,6 @@ app.post('/api/v1/auth/bootstrap-super', authLimiter, async (req, res) => {
   try {
     const { email, phone, password, secretKey } = req.body;
     
-    // Verify secret key in production
     if (CONFIG.NODE_ENV === 'production' && secretKey !== process.env.BOOTSTRAP_SECRET) {
       return res.status(403).json({ 
         error: 'FORBIDDEN',
@@ -397,7 +345,6 @@ app.post('/api/v1/auth/bootstrap-super', authLimiter, async (req, res) => {
       });
     }
 
-    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return res.status(400).json({ 
@@ -406,7 +353,6 @@ app.post('/api/v1/auth/bootstrap-super', authLimiter, async (req, res) => {
       });
     }
 
-    // Validate password strength
     if (password.length < 8) {
       return res.status(400).json({ 
         error: 'WEAK_PASSWORD',
@@ -481,7 +427,6 @@ app.post('/api/v1/auth/login', authLimiter, async (req, res) => {
     const user = await db.collection('users').findOne({ email });
     
     if (!user) {
-      // Use same delay as valid password to prevent timing attacks
       await bcrypt.compare(password, '$2a$12$invalidhashtopreventtimingattack');
       return res.status(401).json({ 
         error: 'INVALID_CREDENTIALS',
@@ -498,12 +443,6 @@ app.post('/api/v1/auth/login', authLimiter, async (req, res) => {
       });
     }
 
-    // Invalidate old sessions (optional)
-    await db.collection('sessions').updateMany(
-      { userId: user._id, active: true },
-      { $set: { active: false, invalidatedAt: new Date() } }
-    );
-
     const token = cryptoRandom();
     const session = {
       userId: user._id,
@@ -518,7 +457,6 @@ app.post('/api/v1/auth/login', authLimiter, async (req, res) => {
 
     await db.collection('sessions').insertOne(session);
 
-    // Update last login
     await db.collection('users').updateOne(
       { _id: user._id },
       { $set: { lastLogin: new Date() } }
@@ -597,99 +535,6 @@ app.post('/api/v1/auth/refresh', requireRole(ROLES.USER), async (req, res) => {
     res.status(500).json({ 
       error: 'SERVER_ERR',
       message: 'Session refresh failed' 
-    });
-  }
-});
-
-// =========================
-// 🤖 JOE Engine Integration
-// =========================
-
-// JOE Chat Endpoint
-app.post('/api/v1/joe/chat', requireRole(ROLES.USER), async (req, res) => {
-  try {
-    const { message, conversationId } = req.body;
-    
-    if (!message) {
-      return res.status(400).json({
-        error: 'MISSING_MESSAGE',
-        message: 'Message is required'
-      });
-    }
-
-    // Get conversation history
-    let conversationHistory = [];
-    if (conversationId) {
-      const conversation = await req.db.collection('conversations').findOne({
-        _id: new ObjectId(conversationId),
-        userId: req.user.id
-      });
-      
-      if (conversation) {
-        conversationHistory = conversation.messages || [];
-      }
-    }
-
-    // Process with JOE Engine
-    const result = await joeEngine.processMessage(
-      req.user.id,
-      message,
-      conversationHistory
-    );
-
-    // Save conversation
-    const conversationData = {
-      userId: req.user.id,
-      messages: [
-        ...conversationHistory,
-        { role: 'user', content: message, timestamp: new Date() },
-        { role: 'assistant', content: result.response, timestamp: new Date() }
-      ],
-      updatedAt: new Date()
-    };
-
-    if (conversationId) {
-      await req.db.collection('conversations').updateOne(
-        { _id: new ObjectId(conversationId) },
-        { $set: conversationData }
-      );
-    } else {
-      conversationData.createdAt = new Date();
-      const inserted = await req.db.collection('conversations').insertOne(conversationData);
-      result.conversationId = inserted.insertedId;
-    }
-
-    res.json({
-      success: true,
-      ...result
-    });
-
-  } catch (err) {
-    console.error('❌ JOE chat error:', err);
-    res.status(500).json({
-      error: 'SERVER_ERR',
-      message: 'Failed to process message'
-    });
-  }
-});
-
-// JOE Stats
-app.get('/api/v1/joe/stats', requireRole(ROLES.ADMIN), async (req, res) => {
-  try {
-    res.json({
-      success: true,
-      stats: {
-        memory: joeEngine.memory?.getStats(),
-        decisions: joeEngine.decision?.getStats(),
-        tools: joeEngine.tools?.length,
-        version: joeEngine.version
-      }
-    });
-  } catch (err) {
-    console.error('❌ JOE stats error:', err);
-    res.status(500).json({
-      error: 'SERVER_ERR',
-      message: 'Failed to get stats'
     });
   }
 });
@@ -814,7 +659,7 @@ async function applyRoutes() {
   safeUseRoute('/api/v1/github-manager', routes.githubManagerRouter, 'githubManagerRouter');
   safeUseRoute('/api/v1/integrations', routes.integrationManagerRouter, 'integrationManagerRouter');
   safeUseRoute('/api/v1/self-evolution', routes.selfEvolutionRouter, 'selfEvolutionRouter');
-  safeUseRoute('/api/v1/joe/chat-legacy', routes.joeChatRouter, 'joeChatRouter');
+  safeUseRoute('/api/v1/joe/chat', routes.joeChatRouter, 'joeChatRouter');
   safeUseRoute('/api/v1/joe/chat-advanced', routes.joeChatAdvancedRouter, 'joeChatAdvancedRouter');
   safeUseRoute('/api/v1/chat-history', routes.chatHistoryRouter, 'chatHistoryRouter');
   safeUseRoute('/api/v1/file', routes.fileUploadRouter, 'fileUploadRouter');
@@ -952,7 +797,6 @@ async function startServer() {
       console.log('='.repeat(60));
       console.log(`📡 HTTP Server: http://0.0.0.0:${CONFIG.PORT}`);
       console.log(`🩺 Health Check: http://0.0.0.0:${CONFIG.PORT}/api/v1/health`);
-      console.log(`🤖 JOE Engine: ${joeEngine.version} (${joeEngine.tools?.length || 0} tools)`);
       console.log(`🌍 Environment: ${CONFIG.NODE_ENV}`);
       console.log(`⏱️  Started at: ${new Date().toISOString()}`);
       console.log('='.repeat(60) + '\n');
