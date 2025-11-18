@@ -1,8 +1,69 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useReducer } from 'react';
 import { useSessionToken } from '../hooks/useSessionToken';
 import apiClient from '../api/client';
+import {
+  RefreshCw,
+  Rocket,
+  Github,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  Info,
+  Save,
+  Loader2,
+  ExternalLink,
+} from 'lucide-react'; // استيراد أيقونات إضافية
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://admin.xelitesolutions.com';
+
+// Reducer for build process state
+const buildReducer = (state, action) => {
+  switch (action.type) {
+    case 'START_BUILD':
+      return {
+        ...state,
+        building: true,
+        buildProgress: 0,
+        buildLogs: [],
+        buildResult: null,
+        error: '',
+      };
+    case 'ADD_LOG':
+      return {
+        ...state,
+        buildLogs: [...state.buildLogs, action.payload],
+      };
+    case 'SET_PROGRESS':
+      return {
+        ...state,
+        buildProgress: action.payload,
+      };
+    case 'SET_RESULT':
+      return {
+        ...state,
+        buildResult: action.payload,
+      };
+    case 'SET_ERROR':
+      return {
+        ...state,
+        error: action.payload,
+      };
+    case 'FINISH_BUILD':
+      return {
+        ...state,
+        building: false,
+      };
+    case 'RESET_FORM':
+      return {
+        ...state,
+        title: '',
+        description: '',
+        features: '',
+      };
+    default:
+      return state;
+  }
+};
 
 export default function Build() {
   const _TOKEN = useSessionToken();
@@ -13,33 +74,36 @@ export default function Build() {
       delete apiClient.defaults.headers.common.Authorization;
     }
   }, [_TOKEN]);
+
   const [projectType, setProjectType] = useState('page');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [features, setFeatures] = useState('');
   const [style, setStyle] = useState('modern');
-  
+
   // GitHub settings (stored in localStorage)
   const [githubToken, setGithubToken] = useState(localStorage.getItem('github_token') || '');
   const [githubUsername, setGithubUsername] = useState(localStorage.getItem('github_username') || '');
-  
-  // Building state
-  const [building, setBuilding] = useState(false);
-  const [buildProgress, setBuildProgress] = useState(0);
-  const [buildLogs, setBuildLogs] = useState([]);
-  const [buildResult, setBuildResult] = useState(null);
-  const [error, setError] = useState('');
-  
+
+  // Build process state using useReducer
+  const [buildState, dispatch] = useReducer(buildReducer, {
+    building: false,
+    buildProgress: 0,
+    buildLogs: [],
+    buildResult: null,
+    error: '',
+  });
+
+  const { building, buildProgress, buildLogs, buildResult, error } = buildState;
+
   // Jobs list
   const [jobs, setJobs] = useState([]);
+  const [loadingJobs, setLoadingJobs] = useState(true);
+  const [jobsError, setJobsError] = useState(null);
 
-  useEffect(() => {
-    fetchJobs();
-    const interval = setInterval(fetchJobs, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchJobs = async () => {
+  const fetchJobs = useCallback(async () => {
+    setLoadingJobs(true);
+    setJobsError(null);
     try {
       const res = await apiClient.get('/api/v1/factory/jobs');
       if (res.data.ok) {
@@ -47,36 +111,41 @@ export default function Build() {
       }
     } catch (err) {
       console.error('Failed to fetch jobs:', err);
+      setJobsError('فشل تحميل المشاريع الأخيرة.');
+    } finally {
+      setLoadingJobs(false);
     }
-  };
+  }, []);
 
-  const addLog = (message, type = 'info') => {
+  useEffect(() => {
+    fetchJobs();
+    const interval = setInterval(fetchJobs, 5000);
+    return () => clearInterval(interval);
+  }, [fetchJobs]);
+
+  const addLog = useCallback((message, type = 'info') => {
     const timestamp = new Date().toLocaleTimeString();
-    setBuildLogs(prev => [...prev, { timestamp, message, type }]);
-  };
+    dispatch({ type: 'ADD_LOG', payload: { timestamp, message, type } });
+  }, []);
 
   const handleBuild = async (e) => {
     e.preventDefault();
-    
+
     if (!githubToken || !githubUsername) {
-      setError('يرجى إدخال GitHub Token و Username في الإعدادات أولاً!');
+      dispatch({ type: 'SET_ERROR', payload: 'الرجاء إدخال رمز الوصول الشخصي (Token) واسم المستخدم (Username) الخاص بحساب GitHub في الإعدادات أولاً!' });
       return;
     }
 
-    setError('');
-    setBuildResult(null);
-    setBuilding(true);
-    setBuildProgress(0);
-    setBuildLogs([]);
+    dispatch({ type: 'START_BUILD' });
 
     try {
       // Step 1: Starting
-      addLog('🚀 بدء عملية البناء...', 'info');
-      setBuildProgress(10);
+      addLog('🚀 جاري بدء عملية الإنشاء...', 'info');
+      dispatch({ type: 'SET_PROGRESS', payload: 10 });
 
       // Step 2: AI Generation
-      addLog('🤖 توليد الكود باستخدام Gemini AI...', 'info');
-      setBuildProgress(30);
+      addLog('🤖 جاري توليد الكود البرمجي باستخدام تقنية Gemini AI...', 'info');
+      dispatch({ type: 'SET_PROGRESS', payload: 30 });
 
       const featuresList = features
         .split('\n')
@@ -96,49 +165,49 @@ export default function Build() {
       const response = await apiClient.post(`${API_BASE}/api/page-builder/create`, payload);
 
       if (response.data.ok) {
-        addLog('✅ تم توليد الكود بنجاح!', 'success');
-        setBuildProgress(60);
+        addLog('✅ تم توليد الكود البرمجي بنجاح!', 'success');
+        dispatch({ type: 'SET_PROGRESS', payload: 60 });
 
         // Step 3: GitHub Push
-        addLog('📤 رفع الكود على GitHub...', 'info');
-        setBuildProgress(80);
+        addLog('📤 جاري رفع الكود البرمجي إلى GitHub...', 'info');
+        dispatch({ type: 'SET_PROGRESS', payload: 80 });
         addLog(`✅ تم الرفع على: ${response.data.githubUrl}`, 'success');
 
         // Step 4: Deployment
-        addLog('🌐 نشر المشروع...', 'info');
-        setBuildProgress(95);
+        addLog('🌐 جاري نشر المشروع...', 'info');
+        dispatch({ type: 'SET_PROGRESS', payload: 95 });
 
         if (response.data.liveUrl) {
-          addLog(`✅ المشروع منشور على: ${response.data.liveUrl}`, 'success');
+          addLog(`✅ تم نشر المشروع بنجاح على: ${response.data.liveUrl}`, 'success');
         }
 
-        setBuildProgress(100);
-        addLog('🎉 اكتمل البناء بنجاح!', 'success');
-        
-        setBuildResult(response.data);
-        
+        dispatch({ type: 'SET_PROGRESS', payload: 100 });
+        addLog('🎉 اكتملت عملية الإنشاء بنجاح!', 'success');
+
+        dispatch({ type: 'SET_RESULT', payload: response.data });
+
         // Clear form
         setTitle('');
         setDescription('');
         setFeatures('');
-        
+
         // Refresh jobs
         fetchJobs();
       }
     } catch (err) {
       console.error('Build error:', err);
-      const errorMsg = err.response?.data?.error || err.message || 'فشل البناء';
-      setError(errorMsg);
+      const errorMsg = err.response?.data?.error || err.message || 'فشلت عملية الإنشاء';
+      dispatch({ type: 'SET_ERROR', payload: errorMsg });
       addLog(`❌ خطأ: ${errorMsg}`, 'error');
     } finally {
-      setBuilding(false);
+      dispatch({ type: 'FINISH_BUILD' });
     }
   };
 
   const saveGitHubSettings = () => {
     localStorage.setItem('github_token', githubToken);
     localStorage.setItem('github_username', githubUsername);
-    alert('✅ تم حفظ إعدادات GitHub!');
+    alert('✅ تم حفظ إعدادات GitHub بنجاح!');
   };
 
   const getStatusColor = (status) => {
@@ -153,70 +222,76 @@ export default function Build() {
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'QUEUED': return '⏳';
-      case 'WORKING': return '⚙️';
-      case 'DONE': return '✅';
-      case 'FAILED': return '❌';
-      default: return '❓';
+      case 'QUEUED': return <Loader2 size={16} className="animate-spin text-yellow-400" />;
+      case 'WORKING': return <RefreshCw size={16} className="animate-spin text-blue-400" />;
+      case 'DONE': return <CheckCircle size={16} className="text-green-400" />;
+      case 'FAILED': return <XCircle size={16} className="text-red-400" />;
+      default: return <Info size={16} className="text-gray-400" />;
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 md:p-6 lg:p-8">
       <div>
-        <h1 className="text-3xl font-bold mb-2">🎨 Build New Project</h1>
+        <h1 className="text-3xl font-bold mb-2 text-white">🎨 إنشاء مشروع جديد</h1>
         <p className="text-textDim">
-          اكتب الوصف → AI يبني → رفع على GitHub → نشر تلقائي!
+          اكتب الوصف → الذكاء الاصطناعي ينشئ الكود → يُرفع على GitHub → يُنشر تلقائيًا!
         </p>
       </div>
 
       {/* GitHub Settings Banner */}
       {(!githubToken || !githubUsername) && (
-        <div className="bg-yellow-500/10 border border-yellow-500/50 rounded-lg p-4">
-          <p className="text-yellow-400 font-medium mb-2">⚠️ يرجى إعداد GitHub أولاً!</p>
-          <p className="text-sm text-yellow-300">
-            انتقل إلى الأسفل وأدخل GitHub Token و Username لتفعيل البناء التلقائي.
-          </p>
+        <div className="bg-yellow-500/10 border border-yellow-500/50 rounded-lg p-4 flex items-center gap-3">
+          <AlertCircle size={24} className="text-yellow-400 flex-shrink-0" />
+          <div>
+            <p className="text-yellow-400 font-medium mb-1">⚠️ الرجاء إعداد GitHub أولاً!</p>
+            <p className="text-sm text-yellow-300">
+              انتقل إلى الأسفل وأدخل رمز الوصول الشخصي (Token) واسم المستخدم (Username) الخاص بحساب GitHub لتفعيل الإنشاء التلقائي.
+            </p>
+          </div>
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Build Form */}
-        <div className="card">
-          <h2 className="text-xl font-semibold mb-4">تفاصيل المشروع</h2>
+        <div className="card bg-bgLight p-6 rounded-lg shadow-lg">
+          <h2 className="text-xl font-semibold mb-4 text-white">تفاصيل المشروع</h2>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded text-red-400 text-sm">
-              ❌ {error}
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded text-red-400 text-sm flex items-center gap-2">
+              <XCircle size={18} />
+              <span>{error}</span>
             </div>
           )}
 
           <form onSubmit={handleBuild} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-textDim mb-2">
+              <label htmlFor="projectType" className="block text-sm font-medium text-textDim mb-2">
                 نوع المشروع
               </label>
               <select
+                id="projectType"
                 value={projectType}
                 onChange={(e) => setProjectType(e.target.value)}
-                className="input-field w-full"
+                className="input-field w-full bg-bgDark border-borderDim text-white rounded-md p-2"
                 disabled={building}
               >
                 <option value="page">صفحة واحدة (Landing Page)</option>
-                <option value="website">موقع كامل (Multi-page)</option>
+                <option value="website">موقع إلكتروني كامل (Multi-page)</option>
                 <option value="store">متجر إلكتروني (E-commerce)</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-textDim mb-2">
+              <label htmlFor="title" className="block text-sm font-medium text-textDim mb-2">
                 عنوان المشروع *
               </label>
               <input
                 type="text"
+                id="title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="input-field w-full"
+                className="input-field w-full bg-bgDark border-borderDim text-white rounded-md p-2"
                 placeholder="مثال: موقع مطعم إيطالي"
                 required
                 disabled={building}
@@ -224,13 +299,14 @@ export default function Build() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-textDim mb-2">
+              <label htmlFor="description" className="block text-sm font-medium text-textDim mb-2">
                 وصف المشروع *
               </label>
               <textarea
+                id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="input-field w-full"
+                className="input-field w-full bg-bgDark border-borderDim text-white rounded-md p-2"
                 rows={5}
                 placeholder="مثال: صفحة رئيسية لمطعم إيطالي مع قائمة طعام، معرض صور للأطباق، نموذج حجز طاولة، ومعلومات الاتصال والموقع"
                 required
@@ -239,43 +315,53 @@ export default function Build() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-textDim mb-2">
+              <label htmlFor="style" className="block text-sm font-medium text-textDim mb-2">
                 نمط التصميم
               </label>
               <select
+                id="style"
                 value={style}
                 onChange={(e) => setStyle(e.target.value)}
-                className="input-field w-full"
+                className="input-field w-full bg-bgDark border-borderDim text-white rounded-md p-2"
                 disabled={building}
               >
-                <option value="modern">Modern - حديث</option>
-                <option value="minimal">Minimal - بسيط</option>
-                <option value="creative">Creative - إبداعي</option>
-                <option value="professional">Professional - احترافي</option>
-                <option value="playful">Playful - مرح</option>
+                <option value="modern">حديث (Modern)</option>
+                <option value="minimal">بسيط (Minimal)</option>
+                <option value="creative">إبداعي (Creative)</option>
+                <option value="professional">احترافي (Professional)</option>
+                <option value="playful">مرح (Playful)</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-textDim mb-2">
-                ميزات إضافية (سطر لكل ميزة)
+              <label htmlFor="features" className="block text-sm font-medium text-textDim mb-2">
+                ميزات إضافية (ميزة واحدة لكل سطر)
               </label>
               <textarea
+                id="features"
                 value={features}
                 onChange={(e) => setFeatures(e.target.value)}
-                className="input-field w-full"
+                className="input-field w-full bg-bgDark border-borderDim text-white rounded-md p-2"
                 rows={3}
-                placeholder="Contact form&#10;Image gallery&#10;Testimonials section"
+                placeholder="نموذج تواصل&#10;معرض صور&#10;قسم آراء العملاء"
                 disabled={building}
               />
             </div>
 
             <button
               type="submit"
-              className="btn-primary w-full"
+              className="btn-primary w-full flex items-center justify-center gap-2"
               disabled={building || !githubToken || !githubUsername}
             >
-              {building ? '⚙️ جاري البناء...' : '🚀 بناء ونشر'}
+              {building ? (
+                <>
+                  <Loader2 size={20} className="animate-spin" /> جاري الإنشاء...
+                </>
+              ) : (
+                <>
+                  <Rocket size={20} /> إنشاء ونشر
+                </>
+              )}
             </button>
           </form>
         </div>
@@ -283,10 +369,10 @@ export default function Build() {
         {/* Live Progress & Logs */}
         <div className="space-y-6">
           {/* Progress */}
-          {building && (
-            <div className="card">
-              <h2 className="text-xl font-semibold mb-4">🔴 عرض مباشر (Live)</h2>
-              
+          {(building || buildResult) && (
+            <div className="card bg-bgLight p-6 rounded-lg shadow-lg">
+              <h2 className="text-xl font-semibold mb-4 text-white">🔴 التقدم المباشر</h2>
+
               <div className="mb-4">
                 <div className="flex justify-between text-sm text-textDim mb-2">
                   <span>التقدم</span>
@@ -294,14 +380,14 @@ export default function Build() {
                 </div>
                 <div className="w-full bg-bgDark rounded-full h-3">
                   <div
-                    className="bg-gradient-to-r from-primary to-secondary h-3 rounded-full transition-all duration-500 animate-pulse"
+                    className="bg-gradient-to-r from-primary to-secondary h-3 rounded-full transition-all duration-500"
                     style={{ width: `${buildProgress}%` }}
                   />
                 </div>
               </div>
 
               {/* Live Logs */}
-              <div className="bg-bgDark rounded-lg p-4 max-h-64 overflow-y-auto">
+              <div className="bg-bgDark rounded-lg p-4 max-h-64 overflow-y-auto border border-borderDim">
                 <h3 className="text-sm font-semibold text-textDim mb-2">📝 السجلات</h3>
                 <div className="space-y-1 font-mono text-xs">
                   {buildLogs.map((log, i) => (
@@ -323,42 +409,44 @@ export default function Build() {
 
           {/* Build Result */}
           {buildResult && (
-            <div className="card bg-gradient-to-br from-green-500/10 to-teal-500/10 border-green-500/50">
-              <h2 className="text-xl font-semibold mb-4 text-green-400">🎉 نجح البناء!</h2>
-              
+            <div className="card bg-gradient-to-br from-green-500/10 to-teal-500/10 border border-green-500/50 p-6 rounded-lg shadow-lg">
+              <h2 className="text-xl font-semibold mb-4 text-green-400 flex items-center gap-2">
+                <CheckCircle size={24} /> 🎉 اكتمل الإنشاء بنجاح!
+              </h2>
+
               <div className="space-y-3">
                 <div>
-                  <p className="text-sm text-textDim mb-1">GitHub Repository:</p>
+                  <p className="text-sm text-textDim mb-1">مستودع GitHub:</p>
                   <a
                     href={buildResult.githubUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-primary hover:underline break-all"
+                    className="text-primary hover:underline break-all flex items-center gap-1"
                   >
-                    {buildResult.githubUrl} ↗
+                    {buildResult.githubUrl} <ExternalLink size={16} />
                   </a>
                 </div>
 
                 {buildResult.liveUrl && (
                   <div>
-                    <p className="text-sm text-textDim mb-1">Live URL:</p>
+                    <p className="text-sm text-textDim mb-1">الرابط المباشر للمشروع:</p>
                     <a
                       href={buildResult.liveUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-secondary hover:underline break-all"
+                      className="text-secondary hover:underline break-all flex items-center gap-1"
                     >
-                      {buildResult.liveUrl} ↗
+                      {buildResult.liveUrl} <ExternalLink size={16} />
                     </a>
                   </div>
                 )}
 
                 <div className="pt-3 border-t border-borderDim">
                   <p className="text-sm text-textDim">
-                    Files Generated: {buildResult.filesGenerated}
+                    عدد الملفات التي تم إنشاؤها: {buildResult.filesGenerated}
                   </p>
                   <p className="text-sm text-textDim">
-                    Project Type: {buildResult.projectType}
+                    نوع المشروع: {buildResult.projectType}
                   </p>
                 </div>
               </div>
@@ -366,44 +454,48 @@ export default function Build() {
           )}
 
           {/* GitHub Settings */}
-          <div className="card">
-            <h2 className="text-xl font-semibold mb-4">⚙️ إعدادات GitHub</h2>
-            
+          <div className="card bg-bgLight p-6 rounded-lg shadow-lg">
+            <h2 className="text-xl font-semibold mb-4 text-white flex items-center gap-2">
+              <Github size={24} /> ⚙️ إعدادات GitHub
+            </h2>
+
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-textDim mb-2">
-                  GitHub Username *
+                <label htmlFor="githubUsername" className="block text-sm font-medium text-textDim mb-2">
+                  اسم مستخدم GitHub *
                 </label>
                 <input
                   type="text"
+                  id="githubUsername"
                   value={githubUsername}
                   onChange={(e) => setGithubUsername(e.target.value)}
-                  placeholder="your-username"
-                  className="input-field w-full"
+                  placeholder="اسم المستخدم الخاص بك"
+                  className="input-field w-full bg-bgDark border-borderDim text-white rounded-md p-2"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-textDim mb-2">
-                  GitHub Personal Access Token *
+                <label htmlFor="githubToken" className="block text-sm font-medium text-textDim mb-2">
+                  رمز الوصول الشخصي (Personal Access Token) لـ GitHub *
                 </label>
                 <input
                   type="password"
+                  id="githubToken"
                   value={githubToken}
                   onChange={(e) => setGithubToken(e.target.value)}
                   placeholder="ghp_xxxxxxxxxxxx"
-                  className="input-field w-full"
+                  className="input-field w-full bg-bgDark border-borderDim text-white rounded-md p-2"
                 />
-                <p className="text-xs text-textDim mt-1">
-                  احصل عليه من: <a href="https://github.com/settings/tokens" target="_blank" className="text-primary hover:underline">GitHub Settings</a>
+                <p className="text-xs text-textDim mt-1 flex items-center gap-1">
+                  <Info size={14} /> احصل عليه من: <a href="https://github.com/settings/tokens" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">إعدادات GitHub</a>
                 </p>
               </div>
 
               <button
                 onClick={saveGitHubSettings}
-                className="btn-secondary w-full"
+                className="btn-secondary w-full flex items-center justify-center gap-2"
               >
-                💾 حفظ الإعدادات
+                <Save size={20} /> حفظ الإعدادات
               </button>
             </div>
           </div>
@@ -411,30 +503,46 @@ export default function Build() {
       </div>
 
       {/* Recent Projects */}
-      <div className="card">
-        <h2 className="text-xl font-semibold mb-4">📚 المشاريع السابقة</h2>
+      <div className="card bg-bgLight p-6 rounded-lg shadow-lg">
+        <h2 className="text-xl font-semibold mb-4 text-white">📚 المشاريع الأخيرة</h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {jobs.length === 0 ? (
-            <p className="text-textDim text-center py-8 col-span-full">
-              لا توجد مشاريع بعد. ابدأ بإنشاء أول مشروع!
-            </p>
-          ) : (
-            jobs.slice(0, 6).map((job) => (
+        {loadingJobs && (
+          <div className="flex items-center justify-center py-8 text-textDim">
+            <Loader2 size={24} className="animate-spin mr-2" /> جاري تحميل المشاريع...
+          </div>
+        )}
+
+        {jobsError && (
+          <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded text-red-400 text-sm flex items-center gap-2">
+            <XCircle size={18} />
+            <span>{jobsError}</span>
+          </div>
+        )}
+
+        {!loadingJobs && !jobsError && jobs.length === 0 ? (
+          <p className="text-textDim text-center py-8 col-span-full">
+            لا توجد مشاريع بعد. ابدأ بإنشاء أول مشروع لك!
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {jobs.slice(0, 6).map((job) => (
               <div
                 key={job._id}
-                className="p-4 bg-bgLight rounded-lg border border-borderDim hover:border-primary transition-colors"
+                className="p-4 bg-bgDark rounded-lg border border-borderDim hover:border-primary transition-colors"
               >
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-lg">{getStatusIcon(job.status)}</span>
+                  {getStatusIcon(job.status)}
                   <span className={`font-semibold text-sm ${getStatusColor(job.status)}`}>
-                    {job.status}
+                    {job.status === 'QUEUED' && 'في الانتظار'}
+                    {job.status === 'WORKING' && 'قيد العمل'}
+                    {job.status === 'DONE' && 'مكتمل'}
+                    {job.status === 'FAILED' && 'فشل'}
                   </span>
                 </div>
-                
-                <h3 className="font-medium mb-1">{job.title || job.projectType}</h3>
+
+                <h3 className="font-medium mb-1 text-white">{job.title || job.projectType}</h3>
                 <p className="text-sm text-textDim line-clamp-2 mb-2">
-                  {job.shortDescription}
+                  {job.shortDescription || 'لا يوجد وصف متاح.'}
                 </p>
 
                 {job.deploymentUrl && (
@@ -442,15 +550,15 @@ export default function Build() {
                     href={job.deploymentUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-primary hover:underline text-sm"
+                    className="text-primary hover:underline text-sm flex items-center gap-1"
                   >
-                    🌐 View Live ↗
+                    🌐 عرض مباشر <ExternalLink size={14} />
                   </a>
                 )}
               </div>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
