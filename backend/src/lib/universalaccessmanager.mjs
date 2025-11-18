@@ -1,42 +1,136 @@
 // 📁 backend/src/lib/universalAccessManager.mjs
-// 🔓 نظام الوصول الشامل لأي نظام أو موقع أو API
+// 🔓 نظام الوصول الشامل لأي نظام أو موقع أو API - نسخة محدثة ومطورة
 
 import axios from 'axios';
 import { Octokit } from '@octokit/rest';
 import { MongoClient } from 'mongodb';
 import Redis from 'ioredis';
-import Cloudflare from 'cloudflare';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import cheerio from 'cheerio';
-import puppeteer from 'puppeteer-core';
+import * as cheerio from 'cheerio';
 import fs from 'fs/promises';
 import path from 'path';
+import crypto from 'crypto';
+import { EventEmitter } from 'events';
 
 const execAsync = promisify(exec);
 
-// 🔑 مدير المفاتيح المتقدم
-class SecureKeyManager {
+// 🔐 مدير التشفير المتقدم
+class EncryptionManager {
     constructor() {
+        this.algorithm = 'aes-256-gcm';
+        this.keyLength = 32;
+        this.ivLength = 16;
+        this.saltLength = 64;
+        this.tagLength = 16;
+        this.masterKey = this.getMasterKey();
+    }
+
+    getMasterKey() {
+        const key = process.env.MASTER_ENCRYPTION_KEY || 'default-key-change-in-production';
+        return crypto.scryptSync(key, 'salt', this.keyLength);
+    }
+
+    encrypt(text) {
+        try {
+            const iv = crypto.randomBytes(this.ivLength);
+            const cipher = crypto.createCipheriv(this.algorithm, this.masterKey, iv);
+            
+            let encrypted = cipher.update(text, 'utf8', 'hex');
+            encrypted += cipher.final('hex');
+            
+            const authTag = cipher.getAuthTag();
+            
+            return {
+                encrypted: encrypted,
+                iv: iv.toString('hex'),
+                authTag: authTag.toString('hex')
+            };
+        } catch (error) {
+            console.error('❌ Encryption error:', error);
+            throw error;
+        }
+    }
+
+    decrypt(encryptedData) {
+        try {
+            const decipher = crypto.createDecipheriv(
+                this.algorithm,
+                this.masterKey,
+                Buffer.from(encryptedData.iv, 'hex')
+            );
+            
+            decipher.setAuthTag(Buffer.from(encryptedData.authTag, 'hex'));
+            
+            let decrypted = decipher.update(encryptedData.encrypted, 'hex', 'utf8');
+            decrypted += decipher.final('utf8');
+            
+            return decrypted;
+        } catch (error) {
+            console.error('❌ Decryption error:', error);
+            throw error;
+        }
+    }
+
+    hash(text) {
+        return crypto.createHash('sha256').update(text).digest('hex');
+    }
+}
+
+// 🔑 مدير المفاتيح المتقدم
+class SecureKeyManager extends EventEmitter {
+    constructor() {
+        super();
         this.keys = new Map();
-        this.encryptionKey = process.env.MASTER_ENCRYPTION_KEY;
+        this.encryption = new EncryptionManager();
+        this.dbConnection = null;
+    }
+
+    async initialize(dbConnection) {
+        this.dbConnection = dbConnection;
+        await this.loadKeysFromDatabase();
+        console.log('✅ SecureKeyManager initialized');
+    }
+
+    async loadKeysFromDatabase() {
+        try {
+            if (!this.dbConnection) return;
+            
+            const db = this.dbConnection.db();
+            const keys = await db.collection('joe_keys').find({}).toArray();
+            
+            for (const keyDoc of keys) {
+                this.keys.set(keyDoc.service, {
+                    encrypted: keyDoc.encryptedKey,
+                    createdAt: keyDoc.createdAt,
+                    lastUsed: keyDoc.lastUsed,
+                    permissions: keyDoc.permissions || []
+                });
+            }
+            
+            console.log(`✅ Loaded ${keys.length} keys from database`);
+        } catch (error) {
+            console.error('❌ Load keys error:', error);
+        }
     }
 
     async storeKey(service, keyData) {
         try {
-            // تشفير المفتاح قبل الحفظ
-            const encryptedKey = this.encrypt(JSON.stringify(keyData));
+            const encryptedKey = this.encryption.encrypt(JSON.stringify(keyData));
             
-            this.keys.set(service, {
+            const keyInfo = {
                 encrypted: encryptedKey,
                 createdAt: new Date(),
                 lastUsed: null,
                 permissions: keyData.permissions || ['read', 'write']
-            });
+            };
 
-            // حفظ في قاعدة البيانات
-            await this.saveToDatabase(service, encryptedKey);
+            this.keys.set(service, keyInfo);
+            await this.saveToDatabase(service, encryptedKey, keyInfo.permissions);
             
+            this.emit('key:stored', { service, timestamp: new Date() });
+            
+            console.log(`✅ Key stored for service: ${service}`);
             return { success: true, service };
         } catch (error) {
             console.error('❌ Key storage error:', error);
@@ -48,20 +142,16 @@ class SecureKeyManager {
         try {
             const keyData = this.keys.get(service);
             if (!keyData) {
-                // محاولة استرجاع من قاعدة البيانات
-                const dbKey = await this.getFromDatabase(service);
-                if (dbKey) {
-                    this.keys.set(service, dbKey);
-                    return this.decrypt(dbKey.encrypted);
-                }
+                console.log(`⚠️ No key found for service: ${service}`);
                 return null;
             }
 
-            // فك التشفير
-            const decryptedKey = this.decrypt(keyData.encrypted);
-            
-            // تحديث آخر استخدام
+            const decryptedKey = this.encryption.decrypt(keyData.encrypted);
             keyData.lastUsed = new Date();
+            
+            await this.updateLastUsed(service);
+            
+            this.emit('key:accessed', { service, timestamp: new Date() });
             
             return JSON.parse(decryptedKey);
         } catch (error) {
@@ -70,25 +160,22 @@ class SecureKeyManager {
         }
     }
 
-    encrypt(text) {
-        // خوارزمية تشفير بسيطة (يمكن استبدالها بـ AES)
-        return Buffer.from(text).toString('base64');
-    }
-
-    decrypt(encryptedText) {
-        return Buffer.from(encryptedText, 'base64').toString();
-    }
-
-    async saveToDatabase(service, encryptedKey) {
+    async saveToDatabase(service, encryptedKey, permissions) {
         try {
-            const db = getDB();
+            if (!this.dbConnection) return;
+            
+            const db = this.dbConnection.db();
             await db.collection('joe_keys').updateOne(
                 { service },
                 { 
                     $set: { 
                         encryptedKey,
-                        lastUsed: new Date()
-                    } 
+                        permissions,
+                        updatedAt: new Date()
+                    },
+                    $setOnInsert: {
+                        createdAt: new Date()
+                    }
                 },
                 { upsert: true }
             );
@@ -97,14 +184,17 @@ class SecureKeyManager {
         }
     }
 
-    async getFromDatabase(service) {
+    async updateLastUsed(service) {
         try {
-            const db = getDB();
-            const result = await db.collection('joe_keys').findOne({ service });
-            return result ? { encrypted: result.encryptedKey } : null;
+            if (!this.dbConnection) return;
+            
+            const db = this.dbConnection.db();
+            await db.collection('joe_keys').updateOne(
+                { service },
+                { $set: { lastUsed: new Date() } }
+            );
         } catch (error) {
-            console.error('❌ Database retrieval error:', error);
-            return null;
+            console.error('❌ Update last used error:', error);
         }
     }
 
@@ -113,12 +203,10 @@ class SecureKeyManager {
             switch (service) {
                 case 'github':
                     return await this.validateGitHubKey(keyData.token);
-                case 'cloudflare':
-                    return await this.validateCloudFlareKey(keyData.token);
                 case 'mongodb':
                     return await this.validateMongoDBKey(keyData.uri);
-                case 'render':
-                    return await this.validateRenderKey(keyData.apiKey);
+                case 'redis':
+                    return await this.validateRedisKey(keyData.url);
                 default:
                     return { valid: true, message: 'Validation not implemented' };
             }
@@ -128,27 +216,13 @@ class SecureKeyManager {
     }
 
     async validateGitHubKey(token) {
-        const octokit = new Octokit({ auth: token });
         try {
+            const octokit = new Octokit({ auth: token });
             const { data: user } = await octokit.users.getAuthenticated();
             return { 
                 valid: true, 
                 user: user.login,
-                permissions: ['repo', 'workflow', 'admin:org']
-            };
-        } catch (error) {
-            return { valid: false, error: error.message };
-        }
-    }
-
-    async validateCloudFlareKey(token) {
-        try {
-            const cf = new Cloudflare({ token });
-            const { result: zones } = await cf.zones.list();
-            return { 
-                valid: true, 
-                zonesCount: zones.length,
-                permissions: ['Zone:Read', 'Zone:Edit']
+                permissions: ['repo', 'workflow']
             };
         } catch (error) {
             return { valid: false, error: error.message };
@@ -159,13 +233,11 @@ class SecureKeyManager {
         try {
             const client = new MongoClient(uri);
             await client.connect();
-            const admin = client.db().admin();
-            const result = await admin.serverStatus();
+            await client.db().admin().ping();
             await client.close();
             
             return { 
                 valid: true, 
-                version: result.version,
                 permissions: ['readWrite', 'dbAdmin']
             };
         } catch (error) {
@@ -173,632 +245,344 @@ class SecureKeyManager {
         }
     }
 
-    async validateRenderKey(apiKey) {
+    async validateRedisKey(url) {
         try {
-            const response = await axios.get('https://api.render.com/v1/owners', {
-                headers: { Authorization: `Bearer ${apiKey}` }
-            });
+            const redis = new Redis(url);
+            await redis.ping();
+            await redis.quit();
+            
             return { 
                 valid: true, 
-                services: response.data.length,
-                permissions: ['service:read', 'service:write']
+                permissions: ['read', 'write']
             };
         } catch (error) {
             return { valid: false, error: error.message };
         }
     }
+
+    async deleteKey(service) {
+        try {
+            this.keys.delete(service);
+            
+            if (this.dbConnection) {
+                const db = this.dbConnection.db();
+                await db.collection('joe_keys').deleteOne({ service });
+            }
+            
+            this.emit('key:deleted', { service, timestamp: new Date() });
+            console.log(`✅ Key deleted for service: ${service}`);
+            return { success: true };
+        } catch (error) {
+            console.error('❌ Delete key error:', error);
+            throw error;
+        }
+    }
+
+    listServices() {
+        return Array.from(this.keys.keys());
+    }
 }
 
-// 🌐 متصفح متقدم لتحليل أي موقع
-class AdvancedBrowser {
+// 🌐 محلل المواقع المتقدم (بدون Puppeteer)
+class AdvancedWebAnalyzer extends EventEmitter {
     constructor() {
-        this.browsers = new Map();
+        super();
         this.sessions = new Map();
+        this.userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
     }
 
     async createSession(sessionId, options = {}) {
         try {
-            const browser = await puppeteer.launch({
-                headless: options.headless !== false,
-                defaultViewport: { width: 1920, height: 1080 },
-                args: [
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage',
-                    '--disable-accelerated-2d-canvas',
-                    '--no-first-run',
-                    '--no-zygote',
-                    '--disable-gpu',
-                    '--enable-features=NetworkService',
-                    '--disable-features=VizDisplayCompositor',
-                    '--disable-web-security',
-                    '--disable-features=IsolateOrigins',
-                    '--disable-site-isolation-trials'
-                ],
-                executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser'
-            });
-
-            const page = await browser.newPage();
-            
-            // إعدادات المتصفح المتقدمة
-            await this.setupAdvancedPage(page, options);
-            
             const session = {
                 id: sessionId,
-                browser,
-                page,
                 startTime: new Date(),
-                actions: [],
+                options: options,
                 cookies: [],
-                localStorage: {},
-                sessionStorage: {},
-                networkRequests: [],
-                networkResponses: [],
-                consoleLogs: [],
-                errors: []
+                history: [],
+                headers: options.headers || {}
             };
 
-            this.browsers.set(sessionId, browser);
             this.sessions.set(sessionId, session);
-
-            console.log(`🌐 Advanced browser session created: ${sessionId}`);
+            this.emit('session:created', { sessionId, timestamp: new Date() });
+            
+            console.log(`✅ Web analyzer session created: ${sessionId}`);
             return session;
-
         } catch (error) {
-            console.error('❌ Advanced browser creation error:', error);
+            console.error('❌ Session creation error:', error);
             throw error;
         }
     }
 
-    async setupAdvancedPage(page, options) {
-        // إعدادات المتصفح المتقدمة
-        await page.setViewport({ width: 1920, height: 1080 });
-        await page.setJavaScriptEnabled(true);
-        await page.setBypassCSP(true);
-
-        // تمكين التدخلات
-        const client = await page.target().createCDPSession();
-        await client.send('Network.enable');
-        await client.send('Console.enable');
-        await client.send('Runtime.enable');
-        await client.send('DOM.enable');
-        await client.send('CSS.enable');
-
-        // تسجيل طلبات الشبكة
-        client.on('Network.requestWillBeSent', (params) => {
-            const session = this.getSessionByPage(page);
-            if (session) {
-                session.networkRequests.push({
-                    timestamp: Date.now(),
-                    requestId: params.requestId,
-                    url: params.request.url,
-                    method: params.request.method,
-                    headers: params.request.headers
-                });
-            }
-        });
-
-        // تسجيل الردود
-        client.on('Network.responseReceived', async (params) => {
-            const session = this.getSessionByPage(page);
-            if (session) {
-                try {
-                    const response = await client.send('Network.getResponseBody', {
-                        requestId: params.requestId
-                    });
-                    
-                    session.networkResponses.push({
-                        timestamp: Date.now(),
-                        requestId: params.requestId,
-                        url: params.response.url,
-                        status: params.response.status,
-                        headers: params.response.headers,
-                        body: response.body
-                    });
-                } catch (error) {
-                    // بعض الردود لا تحتوي على جسد
-                    session.networkResponses.push({
-                        timestamp: Date.now(),
-                        requestId: params.requestId,
-                        url: params.response.url,
-                        status: params.response.status,
-                        headers: params.response.headers,
-                        body: null
-                    });
-                }
-            }
-        });
-
-        // تسجيل Console
-        client.on('Console.messageAdded', (params) => {
-            const session = this.getSessionByPage(page);
-            if (session) {
-                session.consoleLogs.push({
-                    timestamp: Date.now(),
-                    level: params.message.level,
-                    text: params.message.text,
-                    url: params.message.url,
-                    lineNumber: params.message.lineNumber
-                });
-            }
-        });
-
-        // تسجيل الأخطاء
-        client.on('Runtime.exceptionThrown', (params) => {
-            const session = this.getSessionByPage(page);
-            if (session) {
-                session.errors.push({
-                    timestamp: Date.now(),
-                    exceptionDetails: params.exceptionDetails
-                });
-            }
-        });
-
-        // تسجيل الصفحة
-        page.on('console', msg => {
-            const session = this.getSessionByPage(page);
-            if (session) {
-                session.consoleLogs.push({
-                    timestamp: Date.now(),
-                    level: 'log',
-                    text: msg.text(),
-                    url: page.url(),
-                    lineNumber: 0
-                });
-            }
-        });
-
-        page.on('pageerror', error => {
-            const session = this.getSessionByPage(page);
-            if (session) {
-                session.errors.push({
-                    timestamp: Date.now(),
-                    message: error.message,
-                    stack: error.stack
-                });
-            }
-        });
-
-        // إعدادات الخصوصية والأمان
-        if (options.credentials) {
-            await page.authenticate(options.credentials);
-        }
-
-        if (options.userAgent) {
-            await page.setUserAgent(options.userAgent);
-        }
-
-        if (options.extraHTTPHeaders) {
-            await page.setExtraHTTPHeaders(options.extraHTTPHeaders);
-        }
-    }
-
-    getSessionByPage(page) {
-        for (const [sessionId, session] of this.sessions) {
-            if (session.page === page) {
-                return session;
-            }
-        }
-        return null;
-    }
-
-    async analyzeWebsite(sessionId, url) {
-        const session = this.sessions.get(sessionId);
-        if (!session) throw new Error('Session not found');
-
+    async analyzeWebsite(url, options = {}) {
         try {
             console.log(`🔍 Analyzing website: ${url}`);
             
-            // التنقل إلى الموقع
-            await session.page.goto(url, { 
-                waitUntil: ['networkidle0', 'domcontentloaded'],
-                timeout: 30000 
-            });
-
-            // انتظار تحميل المحتوى
-            await session.page.waitForTimeout(2000);
-
-            // جمع البيانات الشاملة
-            const analysis = await session.page.evaluate(() => {
-                return {
-                    // معلومات أساسية
-                    url: window.location.href,
-                    title: document.title,
-                    description: document.querySelector('meta[name="description"]')?.content || '',
-                    keywords: document.querySelector('meta[name="keywords"]')?.content || '',
-                    
-                    // هيكل الصفحة
-                    headings: {
-                        h1: Array.from(document.querySelectorAll('h1')).map(h => h.textContent.trim()),
-                        h2: Array.from(document.querySelectorAll('h2')).map(h => h.textContent.trim()),
-                        h3: Array.from(document.querySelectorAll('h3')).map(h => h.textContent.trim())
-                    },
-                    
-                    // الروابط
-                    links: Array.from(document.querySelectorAll('a')).map(a => ({
-                        text: a.textContent.trim(),
-                        href: a.href,
-                        external: !a.href.includes(window.location.hostname)
-                    })),
-                    
-                    // الصور
-                    images: Array.from(document.querySelectorAll('img')).map(img => ({
-                        src: img.src,
-                        alt: img.alt,
-                        width: img.width,
-                        height: img.height
-                    })),
-                    
-                    // النماذج
-                    forms: Array.from(document.querySelectorAll('form')).map(form => ({
-                        action: form.action,
-                        method: form.method,
-                        inputs: Array.from(form.querySelectorAll('input, textarea, select')).map(input => ({
-                            type: input.type,
-                            name: input.name,
-                            id: input.id,
-                            required: input.required,
-                            placeholder: input.placeholder
-                        }))
-                    })),
-                    
-                    // الوسوم البرمجية
-                    scripts: Array.from(document.querySelectorAll('script')).map(script => ({
-                        src: script.src,
-                        type: script.type,
-                        content: script.textContent.trim().substring(0, 500) // أول 500 حرف
-                    })),
-                    
-                    // الأنماط
-                    stylesheets: Array.from(document.querySelectorAll('link[rel="stylesheet"]')).map(link => ({
-                        href: link.href,
-                        media: link.media
-                    })),
-                    
-                    // التقنيات المستخدمة
-                    technologies: {
-                        jquery: typeof jQuery !== 'undefined',
-                        react: typeof React !== 'undefined',
-                        vue: typeof Vue !== 'undefined',
-                        angular: typeof angular !== 'undefined',
-                        bootstrap: typeof $ !== 'undefined' && $.fn && $.fn.modal,
-                        fontAwesome: document.querySelector('link[href*="font-awesome"]') !== null,
-                        googleFonts: document.querySelector('link[href*="fonts.googleapis.com"]') !== null
-                    },
-                    
-                    // الأداء
-                    performance: {
-                        loadTime: performance.timing.loadEventEnd - performance.timing.navigationStart,
-                        domContentLoaded: performance.timing.domContentLoadedEventEnd - performance.timing.navigationStart,
-                        firstPaint: performance.getEntriesByType('paint')[0]?.startTime || null
-                    },
-                    
-                    // السيو
-                    seo: {
-                        hasTitle: document.title.length > 0,
-                        hasDescription: document.querySelector('meta[name="description"]') !== null,
-                        hasKeywords: document.querySelector('meta[name="keywords"]') !== null,
-                        hasViewport: document.querySelector('meta[name="viewport"]') !== null,
-                        hasOGTags: document.querySelector('meta[property^="og:"]') !== null,
-                        hasTwitterTags: document.querySelector('meta[name^="twitter:"]') !== null,
-                        hasCanonical: document.querySelector('link[rel="canonical"]') !== null,
-                        hasSitemap: document.querySelector('link[rel="sitemap"]') !== null,
-                        hasRobots: document.querySelector('meta[name="robots"]') !== null
-                    },
-                    
-                    // إمكانية الوصول
-                    accessibility: {
-                        hasAltText: Array.from(document.querySelectorAll('img')).every(img => img.alt),
-                        hasLabels: Array.from(document.querySelectorAll('input')).every(input => 
-                            input.labels && input.labels.length > 0 || input.placeholder
-                        ),
-                        hasARIA: document.querySelector('[aria-label], [aria-labelledby], [role]') !== null,
-                        colorContrast: this.analyzeColorContrast()
-                    },
-                    
-                    // الأمان
-                    security: {
-                        https: window.location.protocol === 'https:',
-                        hasCSRF: document.querySelector('meta[name="csrf-token"]') !== null,
-                        hasCSP: document.querySelector('meta[http-equiv="Content-Security-Policy"]') !== null,
-                        hasXFrame: document.querySelector('meta[http-equiv="X-Frame-Options"]') !== null,
-                        externalScripts: Array.from(document.querySelectorAll('script[src]'))
-                            .filter(script => !script.src.includes(window.location.hostname)).length
-                    }
-                };
-            });
-
-            // تحليل إضافي للكود
-            const codeAnalysis = await this.analyzeCode(session, url);
+            const startTime = Date.now();
             
-            // تحليل الأداء
-            const performanceAnalysis = await this.analyzePerformance(session, url);
-            
-            // جمع جميع البيانات
-            const comprehensiveAnalysis = {
-                basic: analysis,
-                network: {
-                    requests: session.networkRequests,
-                    responses: session.networkResponses
+            // جلب محتوى الصفحة
+            const response = await axios.get(url, {
+                headers: {
+                    'User-Agent': this.userAgent,
+                    ...options.headers
                 },
-                console: session.consoleLogs,
-                errors: session.errors,
-                code: codeAnalysis,
-                performance: performanceAnalysis,
-                timestamp: new Date()
+                timeout: options.timeout || 30000,
+                maxRedirects: 5,
+                validateStatus: () => true
+            });
+
+            const html = response.data;
+            const $ = cheerio.load(html);
+
+            // تحليل شامل
+            const analysis = {
+                url: url,
+                timestamp: new Date(),
+                responseTime: Date.now() - startTime,
+                statusCode: response.status,
+                
+                // معلومات أساسية
+                basic: this.analyzeBasicInfo($, url),
+                
+                // تحليل SEO
+                seo: this.analyzeSEO($),
+                
+                // تحليل الأمان
+                security: this.analyzeSecurity($, response.headers, url),
+                
+                // تحليل الأداء
+                performance: this.analyzePerformance($, html, response),
+                
+                // تحليل إمكانية الوصول
+                accessibility: this.analyzeAccessibility($),
+                
+                // تحليل المحتوى
+                content: this.analyzeContent($),
+                
+                // تحليل التقنيات
+                technologies: this.detectTechnologies($, html),
+                
+                // تحليل الروابط
+                links: this.analyzeLinks($, url),
+                
+                // تحليل الموارد
+                resources: this.analyzeResources($, url)
             };
 
+            // إضافة التوصيات
+            analysis.recommendations = this.generateRecommendations(analysis);
+
+            this.emit('analysis:completed', { url, timestamp: new Date() });
+            
             console.log(`✅ Website analysis completed: ${url}`);
-            return comprehensiveAnalysis;
+            return analysis;
 
         } catch (error) {
-            console.error('❌ Website analysis error:', error);
+            console.error(`❌ Website analysis error for ${url}:`, error);
             throw error;
         }
     }
 
-    async analyzeCode(session, url) {
-        try {
-            // جلب جميع ملفات JavaScript
-            const scripts = await session.page.evaluate(() => {
-                return Array.from(document.querySelectorAll('script[src]'))
-                    .map(script => script.src)
-                    .filter(src => src && !src.startsWith('data:'));
-            });
-
-            const codeAnalysis = {
-                totalScripts: scripts.length,
-                inlineScripts: 0,
-                externalScripts: scripts.length,
-                libraries: [],
-                vulnerabilities: [],
-                quality: {
-                    minifiedFiles: 0,
-                    commentedFiles: 0,
-                    totalSize: 0
-                }
-            };
-
-            // تحليل كل سكريبت
-            for (const scriptUrl of scripts) {
-                try {
-                    const response = await session.page.evaluate(async (url) => {
-                        const res = await fetch(url);
-                        return res.text();
-                    }, scriptUrl);
-
-                    // تحليل الكود
-                    const analysis = this.analyzeJavaScriptCode(response);
-                    codeAnalysis.libraries.push(...analysis.libraries);
-                    codeAnalysis.vulnerabilities.push(...analysis.vulnerabilities);
-                    codeAnalysis.quality.totalSize += response.length;
-                    
-                    if (this.isMinified(response)) {
-                        codeAnalysis.quality.minifiedFiles++;
-                    }
-                    
-                    if (this.hasComments(response)) {
-                        codeAnalysis.quality.commentedFiles++;
-                    }
-
-                } catch (error) {
-                    console.error(`❌ Error analyzing script ${scriptUrl}:`, error);
-                }
-            }
-
-            // تحليل الكود المضمن
-            const inlineScripts = await session.page.evaluate(() => {
-                return Array.from(document.querySelectorAll('script:not([src])'))
-                    .map(script => script.textContent);
-            });
-
-            codeAnalysis.inlineScripts = inlineScripts.length;
-
-            inlineScripts.forEach(script => {
-                const analysis = this.analyzeJavaScriptCode(script);
-                codeAnalysis.libraries.push(...analysis.libraries);
-                codeAnalysis.vulnerabilities.push(...analysis.vulnerabilities);
-                codeAnalysis.quality.totalSize += script.length;
-            });
-
-            // إزالة التكرارات
-            codeAnalysis.libraries = [...new Set(codeAnalysis.libraries)];
-            codeAnalysis.vulnerabilities = [...new Set(codeAnalysis.vulnerabilities)];
-
-            return codeAnalysis;
-
-        } catch (error) {
-            console.error('❌ Code analysis error:', error);
-            return { error: error.message };
-        }
+    analyzeBasicInfo($, url) {
+        return {
+            title: $('title').text() || '',
+            description: $('meta[name="description"]').attr('content') || '',
+            keywords: $('meta[name="keywords"]').attr('content') || '',
+            author: $('meta[name="author"]').attr('content') || '',
+            language: $('html').attr('lang') || 'unknown',
+            charset: $('meta[charset]').attr('charset') || 'unknown',
+            viewport: $('meta[name="viewport"]').attr('content') || ''
+        };
     }
 
-    analyzeJavaScriptCode(code) {
-        const analysis = {
-            libraries: [],
-            vulnerabilities: [],
-            patterns: []
+    analyzeSEO($) {
+        const headings = {
+            h1: $('h1').map((i, el) => $(el).text().trim()).get(),
+            h2: $('h2').map((i, el) => $(el).text().trim()).get(),
+            h3: $('h3').map((i, el) => $(el).text().trim()).get()
         };
 
-        // اكتشاف المكتبات
-        const libraryPatterns = {
-            jquery: /\$\.|jQuery\(/,
-            react: /React\.|createElement|useState|useEffect/,
-            vue: /Vue\.|v-|@click|computed:/,
-            angular: /angular\.|ng-|@Component|@Injectable/,
-            bootstrap: /bootstrap|\.modal\(|\.tooltip\(/,
-            lodash: /_\./,
-            moment: /moment\(/,
-            axios: /axios\.|\.get\(|\.post\(/,
-            fetch: /fetch\(/,
-            websocket: /WebSocket|ws:/,
-            canvas: /getContext\(|canvas/,
-            d3: /d3\.|\.selectAll\(|\.data\(/,
-            three: /THREE\.|new THREE\./
+        return {
+            title: {
+                exists: $('title').length > 0,
+                length: $('title').text().length,
+                optimal: $('title').text().length >= 30 && $('title').text().length <= 60
+            },
+            description: {
+                exists: $('meta[name="description"]').length > 0,
+                length: $('meta[name="description"]').attr('content')?.length || 0,
+                optimal: ($('meta[name="description"]').attr('content')?.length || 0) >= 120 && 
+                        ($('meta[name="description"]').attr('content')?.length || 0) <= 160
+            },
+            headings: headings,
+            h1Count: headings.h1.length,
+            hasCanonical: $('link[rel="canonical"]').length > 0,
+            canonicalUrl: $('link[rel="canonical"]').attr('href') || null,
+            hasRobots: $('meta[name="robots"]').length > 0,
+            robotsContent: $('meta[name="robots"]').attr('content') || '',
+            hasSitemap: $('link[rel="sitemap"]').length > 0,
+            openGraph: {
+                hasOGTags: $('meta[property^="og:"]').length > 0,
+                title: $('meta[property="og:title"]').attr('content') || '',
+                description: $('meta[property="og:description"]').attr('content') || '',
+                image: $('meta[property="og:image"]').attr('content') || '',
+                type: $('meta[property="og:type"]').attr('content') || ''
+            },
+            twitter: {
+                hasTwitterTags: $('meta[name^="twitter:"]').length > 0,
+                card: $('meta[name="twitter:card"]').attr('content') || '',
+                title: $('meta[name="twitter:title"]').attr('content') || '',
+                description: $('meta[name="twitter:description"]').attr('content') || ''
+            },
+            structuredData: this.extractStructuredData($)
         };
+    }
 
-        Object.entries(libraryPatterns).forEach(([library, pattern]) => {
-            if (pattern.test(code)) {
-                analysis.libraries.push(library);
+    extractStructuredData($) {
+        const structuredData = [];
+        
+        $('script[type="application/ld+json"]').each((i, el) => {
+            try {
+                const data = JSON.parse($(el).html());
+                structuredData.push(data);
+            } catch (error) {
+                // Invalid JSON
             }
         });
+        
+        return structuredData;
+    }
 
-        // اكتشاف الثغرات الأمنية
-        const vulnerabilityPatterns = {
-            xss: /innerHTML\s*=|document\.write\(|eval\(/,
-            sql_injection: /SELECT.*FROM.*WHERE.*\+|INSERT.*INTO.*VALUES.*\+/,
-            command_injection: /exec\(|spawn\(|child_process/,
-            path_traversal: /\.\.\/|\.\.\\/,
-            hardcoded_secrets: /password\s*=|api_key\s*=|secret\s*=/,
-            insecure_random: /Math\.random\(/,
-            cors_misconfiguration: /Access-Control-Allow-Origin:\s*\*/
+    analyzeSecurity($, headers, url) {
+        const urlObj = new URL(url);
+        
+        return {
+            https: urlObj.protocol === 'https:',
+            hasCSP: headers['content-security-policy'] !== undefined,
+            cspContent: headers['content-security-policy'] || null,
+            hasXFrameOptions: headers['x-frame-options'] !== undefined,
+            xFrameOptions: headers['x-frame-options'] || null,
+            hasXSSProtection: headers['x-xss-protection'] !== undefined,
+            xssProtection: headers['x-xss-protection'] || null,
+            hasStrictTransportSecurity: headers['strict-transport-security'] !== undefined,
+            hsts: headers['strict-transport-security'] || null,
+            hasCSRFToken: $('meta[name="csrf-token"]').length > 0,
+            externalScripts: $('script[src]').filter((i, el) => {
+                const src = $(el).attr('src');
+                return src && !src.startsWith('/') && !src.includes(urlObj.hostname);
+            }).length,
+            mixedContent: this.detectMixedContent($, urlObj.protocol),
+            vulnerabilities: this.detectVulnerabilities($)
         };
+    }
 
-        Object.entries(vulnerabilityPatterns).forEach(([vulnerability, pattern]) => {
-            if (pattern.test(code)) {
-                analysis.vulnerabilities.push({
-                    type: vulnerability,
-                    severity: this.getVulnerabilitySeverity(vulnerability),
-                    recommendation: this.getVulnerabilityFix(vulnerability)
+    detectMixedContent($, protocol) {
+        if (protocol !== 'https:') return { detected: false };
+        
+        const httpResources = [];
+        
+        $('img[src^="http:"], script[src^="http:"], link[href^="http:"]').each((i, el) => {
+            httpResources.push({
+                tag: el.name,
+                url: $(el).attr('src') || $(el).attr('href')
+            });
+        });
+        
+        return {
+            detected: httpResources.length > 0,
+            count: httpResources.length,
+            resources: httpResources
+        };
+    }
+
+    detectVulnerabilities($) {
+        const vulnerabilities = [];
+        
+        // XSS vulnerabilities
+        if ($('*[onclick], *[onerror], *[onload]').length > 0) {
+            vulnerabilities.push({
+                type: 'xss',
+                severity: 'medium',
+                description: 'Inline event handlers detected',
+                recommendation: 'Use addEventListener instead of inline handlers'
+            });
+        }
+        
+        // SQL Injection indicators
+        $('form').each((i, form) => {
+            const $form = $(form);
+            if ($form.attr('method')?.toLowerCase() === 'get') {
+                vulnerabilities.push({
+                    type: 'sql_injection',
+                    severity: 'medium',
+                    description: 'Form using GET method',
+                    recommendation: 'Use POST method for sensitive data'
                 });
             }
         });
-
-        // اكتشاف الأنماط
-        const codePatterns = {
-            async_await: /async\s+function|await\s+/,
-            promises: /\.then\(|\.catch\(/,
-            arrow_functions: /=>\s*{/,
-            classes: /class\s+\w+/,
-            modules: /import\s+|export\s+/,
-            decorators: /@\w+/,
-            generators: /function\*/,
-            destructuring: /const\s*{\s*|const\s*\[\s*/
-        };
-
-        Object.entries(codePatterns).forEach(([pattern, regex]) => {
-            if (regex.test(code)) {
-                analysis.patterns.push(pattern);
-            }
-        });
-
-        return analysis;
-    }
-
-    getVulnerabilitySeverity(vulnerability) {
-        const severities = {
-            xss: 'high',
-            sql_injection: 'high',
-            command_injection: 'high',
-            path_traversal: 'medium',
-            hardcoded_secrets: 'high',
-            insecure_random: 'medium',
-            cors_misconfiguration: 'medium'
-        };
-        return severities[vulnerability] || 'low';
-    }
-
-    getVulnerabilityFix(vulnerability) {
-        const fixes = {
-            xss: 'Use textContent instead of innerHTML, sanitize user input',
-            sql_injection: 'Use parameterized queries, ORM libraries',
-            command_injection: 'Validate and sanitize user input, use allowlists',
-            path_traversal: 'Validate file paths, use path.join()',
-            hardcoded_secrets: 'Use environment variables, secret management services',
-            insecure_random: 'Use crypto.randomBytes() for security-sensitive operations',
-            cors_misconfiguration: 'Configure CORS properly, specify allowed origins'
-        };
-        return fixes[vulnerability] || 'Review security best practices';
-    }
-
-    isMinified(code) {
-        // حساب نسبة الأسماء الطويلة مقابل القصيرة
-        const words = code.match(/\b\w+\b/g) || [];
-        const shortWords = words.filter(word => word.length <= 3).length;
-        const totalWords = words.length;
         
-        return (shortWords / totalWords) > 0.7; // إذا كانت معظم الأسماء قصيرة
+        return vulnerabilities;
     }
 
-    hasComments(code) {
-        return /\/\/|\/\*|<!--/.test(code);
-    }
+    analyzePerformance($, html, response) {
+        const images = $('img');
+        const scripts = $('script');
+        const stylesheets = $('link[rel="stylesheet"]');
+        
+        const imagesSizes = images.map((i, el) => {
+            const src = $(el).attr('src');
+            return src ? src.length : 0;
+        }).get();
 
-    async analyzePerformance(session, url) {
-        try {
-            const metrics = await session.page.evaluate(() => {
-                const navigation = performance.getEntriesByType('navigation')[0];
-                const paint = performance.getEntriesByType('paint');
-                const resources = performance.getEntriesByType('resource');
-                
-                return {
-                    navigation: {
-                        domContentLoaded: navigation.domContentLoadedEventEnd - navigation.domContentLoadedEventStart,
-                        loadComplete: navigation.loadEventEnd - navigation.loadEventStart,
-                        totalTime: navigation.loadEventEnd - navigation.navigationStart
-                    },
-                    paint: {
-                        firstPaint: paint.find(p => p.name === 'first-paint')?.startTime || null,
-                        firstContentfulPaint: paint.find(p => p.name === 'first-contentful-paint')?.startTime || null
-                    },
-                    resources: {
-                        total: resources.length,
-                        images: resources.filter(r => r.initiatorType === 'img').length,
-                        scripts: resources.filter(r => r.initiatorType === 'script').length,
-                        stylesheets: resources.filter(r => r.initiatorType === 'link').length,
-                        totalSize: resources.reduce((sum, r) => sum + (r.transferSize || 0), 0)
-                    },
-                    memory: performance.memory ? {
-                        usedJSHeapSize: performance.memory.usedJSHeapSize,
-                        totalJSHeapSize: performance.memory.totalJSHeapSize,
-                        jsHeapSizeLimit: performance.memory.jsHeapSizeLimit
-                    } : null
-                };
-            });
-
-            return {
-                metrics,
-                recommendations: this.generatePerformanceRecommendations(metrics),
-                timestamp: new Date()
-            };
-
-        } catch (error) {
-            console.error('❌ Performance analysis error:', error);
-            return { error: error.message };
-        }
+        return {
+            htmlSize: Buffer.byteLength(html, 'utf8'),
+            totalImages: images.length,
+            totalScripts: scripts.length,
+            totalStylesheets: stylesheets.length,
+            externalScripts: scripts.filter((i, el) => $(el).attr('src')).length,
+            inlineScripts: scripts.filter((i, el) => !$(el).attr('src')).length,
+            imagesWithoutDimensions: images.filter((i, el) => 
+                !$(el).attr('width') || !$(el).attr('height')
+            ).length,
+            compression: {
+                hasGzip: response.headers['content-encoding']?.includes('gzip') || false,
+                hasBrotli: response.headers['content-encoding']?.includes('br') || false
+            },
+            caching: {
+                hasCacheControl: response.headers['cache-control'] !== undefined,
+                cacheControl: response.headers['cache-control'] || null,
+                hasETag: response.headers['etag'] !== undefined
+            },
+            recommendations: this.generatePerformanceRecommendations({
+                htmlSize: Buffer.byteLength(html, 'utf8'),
+                totalImages: images.length,
+                totalScripts: scripts.length
+            })
+        };
     }
 
     generatePerformanceRecommendations(metrics) {
         const recommendations = [];
 
-        if (metrics.navigation.totalTime > 3000) {
+        if (metrics.htmlSize > 100000) {
             recommendations.push({
-                issue: 'Slow page load',
-                recommendation: 'Optimize images, minify resources, enable compression',
-                priority: 'high'
-            });
-        }
-
-        if (metrics.paint.firstPaint > 1000) {
-            recommendations.push({
-                issue: 'Slow first paint',
-                recommendation: 'Inline critical CSS, optimize font loading',
+                issue: 'Large HTML size',
+                recommendation: 'Minify HTML and remove unnecessary whitespace',
                 priority: 'medium'
             });
         }
 
-        if (metrics.resources.totalSize > 1000000) { // 1MB
+        if (metrics.totalImages > 20) {
             recommendations.push({
-                issue: 'Large resource size',
-                recommendation: 'Compress images, use WebP format, enable gzip',
+                issue: 'Too many images',
+                recommendation: 'Use lazy loading and optimize images',
                 priority: 'high'
             });
         }
 
-        if (metrics.resources.images > 20) {
+        if (metrics.totalScripts > 10) {
             recommendations.push({
-                issue: 'Too many images',
-                recommendation: 'Use image sprites, lazy loading, or combine images',
+                issue: 'Too many scripts',
+                recommendation: 'Bundle and minify JavaScript files',
                 priority: 'medium'
             });
         }
@@ -806,53 +590,409 @@ class AdvancedBrowser {
         return recommendations;
     }
 
-    async closeSession(sessionId) {
-        const session = this.sessions.get(sessionId);
-        if (!session) return;
+    analyzeAccessibility($) {
+        const images = $('img');
+        const inputs = $('input, textarea, select');
+        const links = $('a');
 
-        try {
-            if (session.browser) {
-                await session.browser.close();
+        return {
+            imagesWithAlt: images.filter((i, el) => $(el).attr('alt')).length,
+            imagesWithoutAlt: images.filter((i, el) => !$(el).attr('alt')).length,
+            inputsWithLabels: inputs.filter((i, el) => {
+                const id = $(el).attr('id');
+                return id && $(`label[for="${id}"]`).length > 0;
+            }).length,
+            inputsWithoutLabels: inputs.filter((i, el) => {
+                const id = $(el).attr('id');
+                return !id || $(`label[for="${id}"]`).length === 0;
+            }).length,
+            linksWithoutText: links.filter((i, el) => !$(el).text().trim()).length,
+            hasLang: $('html[lang]').length > 0,
+            hasSkipLink: $('a[href^="#"]').filter((i, el) => 
+                $(el).text().toLowerCase().includes('skip')
+            ).length > 0,
+            ariaLabels: $('[aria-label], [aria-labelledby], [role]').length,
+            headingStructure: this.analyzeHeadingStructure($),
+            colorContrast: 'Manual check required',
+            score: this.calculateAccessibilityScore($)
+        };
+    }
+
+    analyzeHeadingStructure($) {
+        const headings = [];
+        $('h1, h2, h3, h4, h5, h6').each((i, el) => {
+            headings.push({
+                level: parseInt(el.name.substring(1)),
+                text: $(el).text().trim()
+            });
+        });
+        
+        return {
+            headings: headings,
+            hasProperOrder: this.checkHeadingOrder(headings)
+        };
+    }
+
+    checkHeadingOrder(headings) {
+        if (headings.length === 0) return false;
+        
+        let currentLevel = 0;
+        for (const heading of headings) {
+            if (currentLevel === 0) {
+                currentLevel = heading.level;
+            } else if (heading.level > currentLevel + 1) {
+                return false;
+            }
+            currentLevel = heading.level;
+        }
+        return true;
+    }
+
+    calculateAccessibilityScore($) {
+        let score = 100;
+        
+        const images = $('img');
+        const imagesWithoutAlt = images.filter((i, el) => !$(el).attr('alt')).length;
+        if (imagesWithoutAlt > 0) {
+            score -= Math.min(20, imagesWithoutAlt * 2);
+        }
+
+        if (!$('html[lang]').length) score -= 10;
+        if ($('[aria-label], [aria-labelledby], [role]').length === 0) score -= 15;
+        
+        return Math.max(0, score);
+    }
+
+    analyzeContent($) {
+        const text = $('body').text();
+        const words = text.split(/\s+/).filter(word => word.length > 0);
+
+        return {
+            wordCount: words.length,
+            characterCount: text.length,
+            paragraphs: $('p').length,
+            lists: $('ul, ol').length,
+            tables: $('table').length,
+            forms: $('form').length,
+            buttons: $('button, input[type="submit"], input[type="button"]').length,
+            readabilityScore: this.calculateReadabilityScore(words, $('p').length)
+        };
+    }
+
+    calculateReadabilityScore(words, paragraphs) {
+        if (paragraphs === 0) return 0;
+        
+        const avgWordsPerParagraph = words.length / paragraphs;
+        const avgWordLength = words.reduce((sum, word) => sum + word.length, 0) / words.length;
+        
+        // Flesch Reading Ease approximation
+        const score = 206.835 - 1.015 * avgWordsPerParagraph - 84.6 * (avgWordLength / 5);
+        
+        return Math.max(0, Math.min(100, Math.round(score)));
+    }
+
+    detectTechnologies($, html) {
+        const technologies = {
+            frameworks: [],
+            libraries: [],
+            cms: [],
+            analytics: [],
+            fonts: [],
+            cdn: []
+        };
+
+        // JavaScript Frameworks
+        if (html.includes('react') || html.includes('React')) technologies.frameworks.push('React');
+        if (html.includes('vue') || html.includes('Vue')) technologies.frameworks.push('Vue.js');
+        if (html.includes('angular') || html.includes('ng-')) technologies.frameworks.push('Angular');
+        if ($('[data-svelte]').length) technologies.frameworks.push('Svelte');
+
+        // Libraries
+        if (html.includes('jquery') || html.includes('jQuery')) technologies.libraries.push('jQuery');
+        if (html.includes('bootstrap')) technologies.libraries.push('Bootstrap');
+        if (html.includes('tailwind')) technologies.libraries.push('Tailwind CSS');
+        if (html.includes('lodash') || html.includes('_')) technologies.libraries.push('Lodash');
+
+        // CMS
+        if ($('meta[name="generator"]').attr('content')?.includes('WordPress')) technologies.cms.push('WordPress');
+        if (html.includes('Drupal')) technologies.cms.push('Drupal');
+        if (html.includes('Joomla')) technologies.cms.push('Joomla');
+
+        // Analytics
+        if (html.includes('google-analytics') || html.includes('gtag')) technologies.analytics.push('Google Analytics');
+        if (html.includes('facebook-pixel')) technologies.analytics.push('Facebook Pixel');
+        if (html.includes('hotjar')) technologies.analytics.push('Hotjar');
+
+        // Fonts
+        if ($('link[href*="fonts.googleapis.com"]').length) technologies.fonts.push('Google Fonts');
+        if (html.includes('font-awesome')) technologies.fonts.push('Font Awesome');
+
+        // CDN
+        if ($('script[src*="cdn"], link[href*="cdn"]').length) {
+            const cdns = new Set();
+            $('script[src*="cdn"], link[href*="cdn"]').each((i, el) => {
+                const src = $(el).attr('src') || $(el).attr('href');
+                if (src?.includes('cloudflare')) cdns.add('Cloudflare');
+                if (src?.includes('jsdelivr')) cdns.add('jsDelivr');
+                if (src?.includes('unpkg')) cdns.add('unpkg');
+            });
+            technologies.cdn = Array.from(cdns);
+        }
+
+        return technologies;
+    }
+
+    analyzeLinks($, baseUrl) {
+        const links = [];
+        const urlObj = new URL(baseUrl);
+
+        $('a[href]').each((i, el) => {
+            const href = $(el).attr('href');
+            const text = $(el).text().trim();
+            
+            if (!href) return;
+
+            let isExternal = false;
+            let absoluteUrl = href;
+
+            try {
+                if (href.startsWith('http://') || href.startsWith('https://')) {
+                    const linkUrl = new URL(href);
+                    isExternal = linkUrl.hostname !== urlObj.hostname;
+                    absoluteUrl = href;
+                } else if (href.startsWith('/')) {
+                    absoluteUrl = `${urlObj.protocol}//${urlObj.hostname}${href}`;
+                } else if (!href.startsWith('#') && !href.startsWith('mailto:') && !href.startsWith('tel:')) {
+                    absoluteUrl = `${urlObj.protocol}//${urlObj.hostname}${urlObj.pathname}${href}`;
+                }
+            } catch (error) {
+                // Invalid URL
             }
 
-            this.browsers.delete(sessionId);
-            this.sessions.delete(sessionId);
+            links.push({
+                text: text,
+                href: href,
+                absoluteUrl: absoluteUrl,
+                external: isExternal,
+                hasTitle: $(el).attr('title') !== undefined,
+                hasTarget: $(el).attr('target') !== undefined,
+                target: $(el).attr('target') || null
+            });
+        });
 
-            console.log(`🌐 Advanced browser session closed: ${sessionId}`);
-        } catch (error) {
-            console.error('❌ Close advanced session error:', error);
+        return {
+            total: links.length,
+            internal: links.filter(l => !l.external).length,
+            external: links.filter(l => l.external).length,
+            withoutText: links.filter(l => !l.text).length,
+            links: links.slice(0, 100) // أول 100 رابط
+        };
+    }
+
+    analyzeResources($, baseUrl) {
+        const resources = {
+            images: [],
+            scripts: [],
+            stylesheets: [],
+            fonts: [],
+            videos: []
+        };
+
+        // Images
+        $('img').each((i, el) => {
+            resources.images.push({
+                src: $(el).attr('src'),
+                alt: $(el).attr('alt') || '',
+                width: $(el).attr('width'),
+                height: $(el).attr('height'),
+                loading: $(el).attr('loading') || 'eager'
+            });
+        });
+
+        // Scripts
+        $('script[src]').each((i, el) => {
+            resources.scripts.push({
+                src: $(el).attr('src'),
+                async: $(el).attr('async') !== undefined,
+                defer: $(el).attr('defer') !== undefined,
+                type: $(el).attr('type') || 'text/javascript'
+            });
+        });
+
+        // Stylesheets
+        $('link[rel="stylesheet"]').each((i, el) => {
+            resources.stylesheets.push({
+                href: $(el).attr('href'),
+                media: $(el).attr('media') || 'all'
+            });
+        });
+
+        // Videos
+        $('video, iframe[src*="youtube"], iframe[src*="vimeo"]').each((i, el) => {
+            resources.videos.push({
+                tag: el.name,
+                src: $(el).attr('src') || $(el).find('source').attr('src'),
+                type: el.name === 'iframe' ? 'embedded' : 'native'
+            });
+        });
+
+        return {
+            totalImages: resources.images.length,
+            totalScripts: resources.scripts.length,
+            totalStylesheets: resources.stylesheets.length,
+            totalVideos: resources.videos.length,
+            details: {
+                images: resources.images.slice(0, 50),
+                scripts: resources.scripts,
+                stylesheets: resources.stylesheets,
+                videos: resources.videos
+            }
+        };
+    }
+
+    generateRecommendations(analysis) {
+        const recommendations = [];
+
+        // SEO Recommendations
+        if (!analysis.seo.title.optimal) {
+            recommendations.push({
+                category: 'seo',
+                priority: 'high',
+                issue: 'Title length not optimal',
+                recommendation: 'Title should be between 30-60 characters',
+                currentValue: analysis.seo.title.length
+            });
         }
+
+        if (!analysis.seo.description.optimal) {
+            recommendations.push({
+                category: 'seo',
+                priority: 'high',
+                issue: 'Meta description length not optimal',
+                recommendation: 'Description should be between 120-160 characters',
+                currentValue: analysis.seo.description.length
+            });
+        }
+
+        if (analysis.seo.h1Count === 0) {
+            recommendations.push({
+                category: 'seo',
+                priority: 'high',
+                issue: 'No H1 heading found',
+                recommendation: 'Add exactly one H1 heading to the page'
+            });
+        }
+
+        // Security Recommendations
+        if (!analysis.security.https) {
+            recommendations.push({
+                category: 'security',
+                priority: 'critical',
+                issue: 'Website not using HTTPS',
+                recommendation: 'Enable HTTPS to secure user data'
+            });
+        }
+
+        if (!analysis.security.hasCSP) {
+            recommendations.push({
+                category: 'security',
+                priority: 'high',
+                issue: 'No Content Security Policy',
+                recommendation: 'Implement CSP to prevent XSS attacks'
+            });
+        }
+
+        if (analysis.security.mixedContent.detected) {
+            recommendations.push({
+                category: 'security',
+                priority: 'high',
+                issue: `${analysis.security.mixedContent.count} mixed content resources`,
+                recommendation: 'Load all resources over HTTPS'
+            });
+        }
+
+        // Performance Recommendations
+        if (analysis.performance.htmlSize > 100000) {
+            recommendations.push({
+                category: 'performance',
+                priority: 'medium',
+                issue: 'Large HTML size',
+                recommendation: 'Minify HTML and remove unnecessary content',
+                currentValue: `${Math.round(analysis.performance.htmlSize / 1024)}KB`
+            });
+        }
+
+        if (analysis.performance.totalImages > 20) {
+            recommendations.push({
+                category: 'performance',
+                priority: 'medium',
+                issue: 'Too many images',
+                recommendation: 'Optimize images and use lazy loading',
+                currentValue: analysis.performance.totalImages
+            });
+        }
+
+        // Accessibility Recommendations
+        if (analysis.accessibility.imagesWithoutAlt > 0) {
+            recommendations.push({
+                category: 'accessibility',
+                priority: 'high',
+                issue: `${analysis.accessibility.imagesWithoutAlt} images without alt text`,
+                recommendation: 'Add descriptive alt text to all images'
+            });
+        }
+
+        if (!analysis.accessibility.hasLang) {
+            recommendations.push({
+                category: 'accessibility',
+                priority: 'medium',
+                issue: 'No language attribute on HTML tag',
+                recommendation: 'Add lang attribute to HTML tag'
+            });
+        }
+
+        return recommendations;
+    }
+
+    async closeSession(sessionId) {
+        this.sessions.delete(sessionId);
+        this.emit('session:closed', { sessionId, timestamp: new Date() });
+        console.log(`✅ Web analyzer session closed: ${sessionId}`);
     }
 }
 
 // 🗄️ موصل قاعدة البيانات المتقدم
-class AdvancedDatabaseConnector {
+class AdvancedDatabaseConnector extends EventEmitter {
     constructor() {
+        super();
         this.connections = new Map();
-        this.keyManager = new SecureKeyManager();
+        this.keyManager = null;
+    }
+
+    async initialize(keyManager) {
+        this.keyManager = keyManager;
+        console.log('✅ AdvancedDatabaseConnector initialized');
     }
 
     async connect(service, connectionData) {
         try {
-            const key = await this.keyManager.getKey(service);
-            if (!key) {
-                throw new Error(`No credentials found for ${service}`);
-            }
+            let connection;
 
             switch (service) {
                 case 'mongodb':
-                    return await this.connectMongoDB(key);
+                    connection = await this.connectMongoDB(connectionData);
+                    break;
                 case 'redis':
-                    return await this.connectRedis(key);
-                case 'postgresql':
-                    return await this.connectPostgreSQL(key);
-                case 'mysql':
-                    return await this.connectMySQL(key);
-                case 'sqlite':
-                    return await this.connectSQLite(key);
+                    connection = await this.connectRedis(connectionData);
+                    break;
                 default:
                     throw new Error(`Unsupported database service: ${service}`);
             }
+
+            this.connections.set(service, connection);
+            this.emit('connection:established', { service, timestamp: new Date() });
+            
+            return connection;
         } catch (error) {
             console.error(`❌ ${service} connection error:`, error);
             throw error;
@@ -868,6 +1008,7 @@ class AdvancedDatabaseConnector {
             });
 
             await client.connect();
+            await client.db().admin().ping();
             
             const connection = {
                 client,
@@ -876,8 +1017,6 @@ class AdvancedDatabaseConnector {
                 startTime: new Date()
             };
 
-            this.connections.set('mongodb', connection);
-            
             console.log('✅ MongoDB connected successfully');
             return connection;
         } catch (error) {
@@ -891,17 +1030,12 @@ class AdvancedDatabaseConnector {
             const redis = new Redis(keyData.url, {
                 retryDelayOnFailover: 100,
                 maxRetriesPerRequest: 3,
-                lazyConnect: true,
-                keepAlive: 30000,
-                family: 4,
                 connectTimeout: 10000,
                 commandTimeout: 5000,
-                autoResubscribe: true,
-                autoResendUnfulfilledCommands: true,
                 enableOfflineQueue: false
             });
 
-            await redis.connect();
+            await redis.ping();
             
             const connection = {
                 client: redis,
@@ -910,29 +1044,12 @@ class AdvancedDatabaseConnector {
                 startTime: new Date()
             };
 
-            this.connections.set('redis', connection);
-            
             console.log('✅ Redis connected successfully');
             return connection;
         } catch (error) {
             console.error('❌ Redis connection error:', error);
             throw error;
         }
-    }
-
-    async connectPostgreSQL(keyData) {
-        // سيتم تنفيذه لاحقاً
-        return { type: 'postgresql', status: 'pending' };
-    }
-
-    async connectMySQL(keyData) {
-        // سيتم تنفيذه لاحقاً
-        return { type: 'mysql', status: 'pending' };
-    }
-
-    async connectSQLite(keyData) {
-        // سيتم تنفيذه لاحقاً
-        return { type: 'sqlite', status: 'pending' };
     }
 
     async executeQuery(service, query, params = []) {
@@ -958,7 +1075,7 @@ class AdvancedDatabaseConnector {
 
     async executeMongoDBQuery(client, query, params) {
         try {
-            const db = client.db();
+            const db = client.db(query.database || 'test');
             const collection = db.collection(query.collection);
             
             let result;
@@ -990,14 +1107,20 @@ class AdvancedDatabaseConnector {
                 case 'aggregate':
                     result = await collection.aggregate(query.pipeline).toArray();
                     break;
+                case 'count':
+                    result = await collection.countDocuments(query.filter || {});
+                    break;
                 default:
                     throw new Error(`Unsupported MongoDB operation: ${query.operation}`);
             }
 
+            this.emit('query:executed', { service: 'mongodb', operation: query.operation });
+
             return {
                 success: true,
                 result,
-                affectedRows: result.modifiedCount || result.insertedCount || result.deletedCount || result.length
+                affectedRows: result.modifiedCount || result.insertedCount || result.deletedCount || 
+                             (Array.isArray(result) ? result.length : 1)
             };
         } catch (error) {
             console.error('❌ MongoDB query error:', error);
@@ -1050,15 +1173,11 @@ class AdvancedDatabaseConnector {
                 case 'smembers':
                     result = await client.smembers(command.key);
                     break;
-                case 'zadd':
-                    result = await client.zadd(command.key, ...command.members);
-                    break;
-                case 'zrange':
-                    result = await client.zrange(command.key, command.start, command.stop, 'WITHSCORES');
-                    break;
                 default:
                     throw new Error(`Unsupported Redis operation: ${command.operation}`);
             }
+
+            this.emit('query:executed', { service: 'redis', operation: command.operation });
 
             return {
                 success: true,
@@ -1087,1320 +1206,854 @@ class AdvancedDatabaseConnector {
             connection.connected = false;
             this.connections.delete(service);
             
+            this.emit('connection:closed', { service, timestamp: new Date() });
             console.log(`✅ ${service} connection closed`);
         } catch (error) {
             console.error(`❌ ${service} close error:`, error);
         }
     }
-}
 
-// 🔧 مدير الوصول الشامل (النواة الأساسية)
-class UniversalAccessManager {
-    constructor() {
-        this.keyManager = new SecureKeyManager();
-        this.browser = new AdvancedBrowser();
-        this.dbConnector = new AdvancedDatabaseConnector();
-        this.connections = new Map();
-        this.activeSessions = new Map();
+    getConnection(service) {
+        return this.connections.get(service);
     }
 
-    async initializeSystem(userId) {
-        try {
-            console.log(`🔧 Initializing Universal Access System for user: ${userId}`);
-            
-            // استرجاع جميع مفاتيح المستخدم
-            const userKeys = await this.getUserKeys(userId);
-            
-            // الاتصال بجميع الأنظمة
-            const connections = {};
-            
-            for (const [service, keyData] of Object.entries(userKeys)) {
-                try {
-                    connections[service] = await this.connectToService(service, keyData);
-                } catch (error) {
-                    console.error(`❌ Failed to connect to ${service}:`, error);
-                    connections[service] = { error: error.message, status: 'failed' };
-                }
-            }
+    isConnected(service) {
+        const connection = this.connections.get(service);
+        return connection && connection.connected;
+    }
+}
 
-            this.connections.set(userId, connections);
-            
-            console.log('✅ Universal Access System initialized successfully');
-            return {
-                success: true,
-                connections,
-                timestamp: new Date()
+// 📊 محلل الكود المتقدم
+class AdvancedCodeAnalyzer extends EventEmitter {
+    constructor() {
+        super();
+        this.analysisCache = new Map();
+    }
+
+    async analyzeCode(code, language, options = {}) {
+        try {
+            console.log(`🔍 Analyzing ${language} code...`);
+
+            const analysis = {
+                language: language,
+                timestamp: new Date(),
+                metrics: this.calculateMetrics(code),
+                quality: this.assessQuality(code, language),
+                vulnerabilities: this.findVulnerabilities(code, language),
+                complexity: this.calculateComplexity(code, language),
+                suggestions: this.generateSuggestions(code, language),
+                dependencies: this.extractDependencies(code, language)
             };
 
+            // حساب النتيجة الإجمالية
+            analysis.overallScore = this.calculateOverallScore(analysis);
+
+            this.emit('analysis:completed', { language, timestamp: new Date() });
+
+            console.log(`✅ Code analysis completed for ${language}`);
+            return analysis;
+
         } catch (error) {
-            console.error('❌ System initialization error:', error);
+            console.error(`❌ Code analysis error for ${language}:`, error);
             throw error;
         }
     }
 
-    async getUserKeys(userId) {
+    calculateMetrics(code) {
+        const lines = code.split('\n');
+        const nonEmptyLines = lines.filter(line => line.trim() !== '');
+        const commentLines = lines.filter(line => {
+            const trimmed = line.trim();
+            return trimmed.startsWith('//') || 
+                   trimmed.startsWith('#') || 
+                   trimmed.startsWith('/*') ||
+                   trimmed.startsWith('*') ||
+                   trimmed.startsWith('<!--');
+        });
+
+        return {
+            totalLines: lines.length,
+            codeLines: nonEmptyLines.length - commentLines.length,
+            commentLines: commentLines.length,
+            emptyLines: lines.length - nonEmptyLines.length,
+            averageLineLength: code.length / lines.length,
+            longestLine: Math.max(...lines.map(l => l.length)),
+            commentRatio: (commentLines.length / nonEmptyLines.length * 100).toFixed(2) + '%'
+        };
+    }
+
+    assessQuality(code, language) {
+        const issues = [];
+        let score = 100;
+
+        // التحقق من طول الأسطر
+        const lines = code.split('\n');
+        const longLines = lines.filter(line => line.length > 120);
+        if (longLines.length > 0) {
+            issues.push({
+                type: 'line_length',
+                severity: 'low',
+                count: longLines.length,
+                message: `${longLines.length} lines exceed 120 characters`
+            });
+            score -= Math.min(10, longLines.length);
+        }
+
+        // التحقق من التعليقات
+        const commentRatio = this.calculateMetrics(code).commentLines / lines.length;
+        if (commentRatio < 0.05 && lines.length > 50) {
+            issues.push({
+                type: 'documentation',
+                severity: 'medium',
+                message: 'Low comment ratio (less than 5%)'
+            });
+            score -= 15;
+        }
+
+        // التحقق من الدوال الطويلة
+        if (language === 'javascript' || language === 'typescript') {
+            const longFunctions = this.findLongFunctions(code);
+            if (longFunctions.length > 0) {
+                issues.push({
+                    type: 'function_length',
+                    severity: 'medium',
+                    count: longFunctions.length,
+                    message: `${longFunctions.length} functions exceed 50 lines`
+                });
+                score -= Math.min(20, longFunctions.length * 5);
+            }
+        }
+
+        // التحقق من التعقيد الدوري
+        const cyclomaticComplexity = this.calculateCyclomaticComplexity(code);
+        if (cyclomaticComplexity > 10) {
+            issues.push({
+                type: 'complexity',
+                severity: 'high',
+                value: cyclomaticComplexity,
+                message: 'High cyclomatic complexity'
+            });
+            score -= 20;
+        }
+
+        return {
+            score: Math.max(0, score),
+            issues: issues,
+            grade: this.getGrade(score)
+        };
+    }
+
+    findLongFunctions(code) {
+        const longFunctions = [];
+        const functionRegex = /(?:function\s+(\w+)|const\s+(\w+)\s*=\s*(?:async\s+)?(?:\([^)]*\)\s*=>|function))\s*{/g;
+        
+        let match;
+        while ((match = functionRegex.exec(code)) !== null) {
+            const functionName = match[1] || match[2];
+            const startIndex = match.index;
+            
+            // البحث عن نهاية الدالة
+            let braceCount = 1;
+            let endIndex = startIndex + match[0].length;
+            
+            while (braceCount > 0 && endIndex < code.length) {
+                if (code[endIndex] === '{') braceCount++;
+                if (code[endIndex] === '}') braceCount--;
+                endIndex++;
+            }
+            
+            const functionCode = code.substring(startIndex, endIndex);
+            const functionLines = functionCode.split('\n').length;
+            
+            if (functionLines > 50) {
+                longFunctions.push({
+                    name: functionName,
+                    lines: functionLines
+                });
+            }
+        }
+        
+        return longFunctions;
+    }
+
+    calculateCyclomaticComplexity(code) {
+        // عدد نقاط القرار في الكود
+        const decisionPoints = [
+            /\bif\b/g,
+            /\belse\s+if\b/g,
+            /\bfor\b/g,
+            /\bwhile\b/g,
+            /\bcase\b/g,
+            /\bcatch\b/g,
+            /\b&&\b/g,
+            /\b\|\|\b/g,
+            /\?\s*.*\s*:/g
+        ];
+
+        let complexity = 1; // البداية من 1
+
+        decisionPoints.forEach(pattern => {
+            const matches = code.match(pattern);
+            if (matches) {
+                complexity += matches.length;
+            }
+        });
+
+        return complexity;
+    }
+
+    findVulnerabilities(code, language) {
+        const vulnerabilities = [];
+
+        // ثغرات JavaScript/TypeScript
+        if (language === 'javascript' || language === 'typescript') {
+            // XSS
+            if (/innerHTML\s*=|document\.write\(|eval\(/.test(code)) {
+                vulnerabilities.push({
+                    type: 'xss',
+                    severity: 'high',
+                    line: this.findLineNumber(code, /innerHTML\s*=|document\.write\(|eval\(/),
+                    message: 'Potential XSS vulnerability detected',
+                    recommendation: 'Use textContent instead of innerHTML, avoid eval()'
+                });
+            }
+
+            // Hardcoded secrets
+            if (/(?:password|api[_-]?key|secret|token)\s*=\s*['"][^'"]{10,}['"]/.test(code)) {
+                vulnerabilities.push({
+                    type: 'hardcoded_secrets',
+                    severity: 'critical',
+                    message: 'Hardcoded credentials detected',
+                    recommendation: 'Use environment variables for sensitive data'
+                });
+            }
+
+            // Insecure random
+            if (/Math\.random\(\)/.test(code)) {
+                vulnerabilities.push({
+                    type: 'insecure_random',
+                    severity: 'medium',
+                    message: 'Math.random() is not cryptographically secure',
+                    recommendation: 'Use crypto.randomBytes() for security-sensitive operations'
+                });
+            }
+        }
+
+        // ثغرات Python
+        if (language === 'python') {
+            // Code execution
+            if (/eval\(|exec\(/.test(code)) {
+                vulnerabilities.push({
+                    type: 'code_execution',
+                    severity: 'critical',
+                    message: 'Use of eval() or exec() detected',
+                    recommendation: 'Avoid eval() and exec() with user input'
+                });
+            }
+
+            // SQL Injection
+            if (/execute\([^)]*%s[^)]*\)|cursor\.execute\([^)]*\+/.test(code)) {
+                vulnerabilities.push({
+                    type: 'sql_injection',
+                    severity: 'high',
+                    message: 'Potential SQL injection vulnerability',
+                    recommendation: 'Use parameterized queries'
+                });
+            }
+        }
+
+        return vulnerabilities;
+    }
+
+    findLineNumber(code, pattern) {
+        const lines = code.split('\n');
+        for (let i = 0; i < lines.length; i++) {
+            if (pattern.test(lines[i])) {
+                return i + 1;
+            }
+        }
+        return null;
+    }
+
+    calculateComplexity(code, language) {
+        return {
+            cyclomatic: this.calculateCyclomaticComplexity(code),
+            cognitive: this.calculateCognitiveComplexity(code),
+            maintainability: this.calculateMaintainabilityIndex(code)
+        };
+    }
+
+    calculateCognitiveComplexity(code) {
+        // تعقيد إدراكي مبسط
+        let complexity = 0;
+        const nestingLevel = { current: 0, max: 0 };
+
+        const lines = code.split('\n');
+        lines.forEach(line => {
+            const trimmed = line.trim();
+            
+            // زيادة مستوى التداخل
+            if (/{$/.test(trimmed)) {
+                nestingLevel.current++;
+                nestingLevel.max = Math.max(nestingLevel.max, nestingLevel.current);
+            }
+            
+            // تقليل مستوى التداخل
+            if (/^}/.test(trimmed)) {
+                nestingLevel.current--;
+            }
+            
+            // إضافة تعقيد للبنى التحكمية
+            if (/\b(if|for|while|switch|catch)\b/.test(trimmed)) {
+                complexity += nestingLevel.current + 1;
+            }
+        });
+
+        return complexity;
+    }
+
+    calculateMaintainabilityIndex(code) {
+        const metrics = this.calculateMetrics(code);
+        const complexity = this.calculateCyclomaticComplexity(code);
+        
+        // مؤشر الصيانة (Maintainability Index)
+        // MI = 171 - 5.2 * ln(HV) - 0.23 * CC - 16.2 * ln(LOC)
+        // مبسط: MI = 100 - complexity * 2 - (LOC / 100)
+        
+        const mi = Math.max(0, Math.min(100, 
+            100 - complexity * 2 - (metrics.codeLines / 100)
+        ));
+        
+        return Math.round(mi);
+    }
+
+    generateSuggestions(code, language) {
+        const suggestions = [];
+
+        // اقتراحات عامة
+        const metrics = this.calculateMetrics(code);
+        
+        if (metrics.commentLines === 0 && metrics.codeLines > 50) {
+            suggestions.push({
+                type: 'documentation',
+                priority: 'medium',
+                message: 'Add comments to explain complex logic',
+                benefit: 'Improves code readability and maintainability'
+            });
+        }
+
+        if (metrics.averageLineLength > 100) {
+            suggestions.push({
+                type: 'formatting',
+                priority: 'low',
+                message: 'Consider breaking long lines for better readability',
+                benefit: 'Easier to read and review code'
+            });
+        }
+
+        // اقتراحات خاصة بـ JavaScript
+        if (language === 'javascript' || language === 'typescript') {
+            if (!/\bconst\b/.test(code) && /\bvar\b/.test(code)) {
+                suggestions.push({
+                    type: 'modernization',
+                    priority: 'medium',
+                    message: 'Use const/let instead of var',
+                    benefit: 'Better scoping and prevents accidental reassignment'
+                });
+            }
+
+            if (!/async|await/.test(code) && /\.then\(/.test(code)) {
+                suggestions.push({
+                    type: 'modernization',
+                    priority: 'low',
+                    message: 'Consider using async/await instead of promises',
+                    benefit: 'More readable asynchronous code'
+                });
+            }
+        }
+
+        return suggestions;
+    }
+
+    extractDependencies(code, language) {
+        const dependencies = [];
+
+        if (language === 'javascript' || language === 'typescript') {
+            // ES6 imports
+            const importRegex = /import\s+(?:{[^}]+}|\w+)\s+from\s+['"]([^'"]+)['"]/g;
+            let match;
+            while ((match = importRegex.exec(code)) !== null) {
+                dependencies.push({
+                    name: match[1],
+                    type: 'import'
+                });
+            }
+
+            // CommonJS requires
+            const requireRegex = /require\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
+            while ((match = requireRegex.exec(code)) !== null) {
+                dependencies.push({
+                    name: match[1],
+                    type: 'require'
+                });
+            }
+        }
+
+        if (language === 'python') {
+            // Python imports
+            const importRegex = /^(?:from\s+(\S+)\s+)?import\s+(.+)$/gm;
+            let match;
+            while ((match = importRegex.exec(code)) !== null) {
+                const module = match[1] || match[2].split(',')[0].trim();
+                dependencies.push({
+                    name: module,
+                    type: 'import'
+                });
+            }
+        }
+
+        return [...new Set(dependencies.map(d => d.name))].map(name => ({ name, type: 'module' }));
+    }
+
+    calculateOverallScore(analysis) {
+        const weights = {
+            quality: 0.4,
+            vulnerabilities: 0.3,
+            complexity: 0.2,
+            documentation: 0.1
+        };
+
+        let score = analysis.quality.score * weights.quality;
+
+        // خصم نقاط للثغرات
+        const vulnPenalty = analysis.vulnerabilities.reduce((sum, vuln) => {
+            const penalties = { critical: 30, high: 20, medium: 10, low: 5 };
+            return sum + (penalties[vuln.severity] || 0);
+        }, 0);
+        score -= vulnPenalty * weights.vulnerabilities;
+
+        // خصم نقاط للتعقيد
+        const complexityScore = Math.max(0, 100 - analysis.complexity.cyclomatic * 5);
+        score += complexityScore * weights.complexity;
+
+        // إضافة نقاط للتوثيق
+        const commentRatio = parseFloat(analysis.metrics.commentRatio);
+        const docScore = Math.min(100, commentRatio * 10);
+        score += docScore * weights.documentation;
+
+        return Math.max(0, Math.min(100, Math.round(score)));
+    }
+
+    getGrade(score) {
+        if (score >= 90) return 'A';
+        if (score >= 80) return 'B';
+        if (score >= 70) return 'C';
+        if (score >= 60) return 'D';
+        return 'F';
+    }
+}
+
+// 🔧 مدير الوصول الشامل (النواة الأساسية)
+class UniversalAccessManager extends EventEmitter {
+    constructor() {
+        super();
+        this.keyManager = new SecureKeyManager();
+        this.webAnalyzer = new AdvancedWebAnalyzer();
+        this.dbConnector = new AdvancedDatabaseConnector();
+        this.codeAnalyzer = new AdvancedCodeAnalyzer();
+        this.connections = new Map();
+        this.activeSessions = new Map();
+        this.initialized = false;
+    }
+
+    async initialize(dbConnection) {
         try {
-            const db = getDB();
-            const keys = await db.collection('joe_user_keys').findOne({ userId });
-            return keys ? keys.keys : {};
+            console.log('🚀 Initializing Universal Access Manager...');
+
+            // تهيئة المكونات
+            await this.keyManager.initialize(dbConnection);
+            await this.dbConnector.initialize(this.keyManager);
+
+            // إعداد معالجات الأحداث
+            this.setupEventHandlers();
+
+            this.initialized = true;
+            this.emit('system:initialized', { timestamp: new Date() });
+
+            console.log('✅ Universal Access Manager initialized successfully');
+            return { success: true, timestamp: new Date() };
+
         } catch (error) {
-            console.error('❌ Get user keys error:', error);
-            return {};
+            console.error('❌ Initialization error:', error);
+            throw error;
         }
     }
 
-    async connectToService(service, keyData) {
+    setupEventHandlers() {
+        // معالجات أحداث KeyManager
+        this.keyManager.on('key:stored', (data) => {
+            console.log(`🔑 Key stored: ${data.service}`);
+        });
+
+        this.keyManager.on('key:accessed', (data) => {
+            console.log(`🔓 Key accessed: ${data.service}`);
+        });
+
+        // معالجات أحداث WebAnalyzer
+        this.webAnalyzer.on('analysis:completed', (data) => {
+            console.log(`✅ Analysis completed: ${data.url}`);
+        });
+
+        // معالجات أحداث DatabaseConnector
+        this.dbConnector.on('connection:established', (data) => {
+            console.log(`🔌 Database connected: ${data.service}`);
+        });
+
+        this.dbConnector.on('query:executed', (data) => {
+            console.log(`📊 Query executed: ${data.service} - ${data.operation}`);
+        });
+    }
+
+    async connectToService(service, credentials) {
         try {
-            // التحقق من المفتاح أولاً
-            const validation = await this.keyManager.validateKey(service, keyData);
+            if (!this.initialized) {
+                throw new Error('Universal Access Manager not initialized');
+            }
+
+            console.log(`🔌 Connecting to ${service}...`);
+
+            // حفظ المفاتي
+// 🔧 تكملة UniversalAccessManager
+
+            // حفظ المفاتيح
+            await this.keyManager.storeKey(service, credentials);
+
+            // التحقق من الاتصال
+            const validation = await this.keyManager.validateKey(service, credentials);
             if (!validation.valid) {
                 throw new Error(`Invalid credentials for ${service}: ${validation.error}`);
             }
 
+            let connection;
+
             // الاتصال بالخدمة
             switch (service) {
                 case 'github':
-                    return await this.connectGitHub(keyData);
-                case 'cloudflare':
-                    return await this.connectCloudFlare(keyData);
+                    connection = await this.connectGitHub(credentials);
+                    break;
                 case 'mongodb':
-                    return await this.dbConnector.connect('mongodb', keyData);
+                    connection = await this.dbConnector.connect('mongodb', credentials);
+                    break;
                 case 'redis':
-                    return await this.dbConnector.connect('redis', keyData);
-                case 'render':
-                    return await this.connectRender(keyData);
+                    connection = await this.dbConnector.connect('redis', credentials);
+                    break;
                 default:
-                    return await this.connectGenericAPI(service, keyData);
+                    connection = await this.connectGenericAPI(service, credentials);
             }
+
+            this.connections.set(service, connection);
+            this.emit('service:connected', { service, timestamp: new Date() });
+
+            console.log(`✅ Connected to ${service} successfully`);
+            return connection;
+
         } catch (error) {
-            console.error(`❌ Connect to ${service} error:`, error);
+            console.error(`❌ Connection error for ${service}:`, error);
             throw error;
         }
     }
 
-    async connectGitHub(keyData) {
+    async connectGitHub(credentials) {
         try {
-            const octokit = new Octokit({ 
-                auth: keyData.token,
-                baseUrl: keyData.baseUrl || 'https://api.github.com'
-            });
-
-            // اختبار الاتصال والحصول على معلومات المستخدم
+            const octokit = new Octokit({ auth: credentials.token });
             const { data: user } = await octokit.users.getAuthenticated();
-            const { data: repos } = await octokit.repos.listForAuthenticatedUser({
-                per_page: 5,
-                sort: 'updated'
-            });
-
-            const connection = {
+            
+            return {
                 client: octokit,
                 service: 'github',
                 user: user.login,
-                repositories: repos.length,
-                permissions: keyData.permissions || ['repo', 'workflow'],
                 connected: true,
-                rateLimit: {
-                    limit: user.plan?.private_repos || 5000,
-                    remaining: null,
-                    reset: null
-                }
+                timestamp: new Date()
             };
-
-            console.log(`✅ GitHub connected: ${user.login}`);
-            return connection;
-
         } catch (error) {
             console.error('❌ GitHub connection error:', error);
             throw error;
         }
     }
 
-    async connectCloudFlare(keyData) {
+    async connectGenericAPI(service, credentials) {
         try {
-            const cf = new Cloudflare({ 
-                token: keyData.token,
-                baseUrl: keyData.baseUrl || 'https://api.cloudflare.com/client/v4'
-            });
-
-            // اختبار الاتصال والحصول على المناطق
-            const { result: zones } = await cf.zones.list({ per_page: 5 });
-            const { result: user } = await cf.user.details();
-
-            const connection = {
-                client: cf,
-                service: 'cloudflare',
-                user: user.email,
-                zones: zones.length,
-                permissions: keyData.permissions || ['Zone:Read', 'Zone:Edit'],
-                connected: true
-            };
-
-            console.log(`✅ CloudFlare connected: ${user.email}`);
-            return connection;
-
-        } catch (error) {
-            console.error('❌ CloudFlare connection error:', error);
-            throw error;
-        }
-    }
-
-    async connectRender(keyData) {
-        try {
-            // Render API connection
-            const response = await axios.get('https://api.render.com/v1/owners', {
-                headers: { 
-                    Authorization: `Bearer ${keyData.apiKey}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            const connection = {
-                client: axios.create({
-                    baseURL: 'https://api.render.com/v1',
-                    headers: { Authorization: `Bearer ${keyData.apiKey}` }
-                }),
-                service: 'render',
-                services: response.data,
-                permissions: keyData.permissions || ['service:read', 'service:write'],
-                connected: true
-            };
-
-            console.log(`✅ Render connected with ${response.data.length} services`);
-            return connection;
-
-        } catch (error) {
-            console.error('❌ Render connection error:', error);
-            throw error;
-        }
-    }
-
-    async connectGenericAPI(service, keyData) {
-        try {
-            // اتصال عام لأي API
             const client = axios.create({
-                baseURL: keyData.baseUrl,
-                headers: keyData.headers || {},
-                timeout: keyData.timeout || 30000
+                baseURL: credentials.baseUrl,
+                headers: credentials.headers || {},
+                timeout: credentials.timeout || 30000
             });
 
             // إضافة المصادقة
-            if (keyData.authType === 'bearer') {
-                client.defaults.headers.common['Authorization'] = `Bearer ${keyData.token}`;
-            } else if (keyData.authType === 'apikey') {
-                client.defaults.headers.common[keyData.apiKeyHeader] = keyData.token;
-            } else if (keyData.authType === 'basic') {
-                client.defaults.auth = {
-                    username: keyData.username,
-                    password: keyData.password
-                };
+            if (credentials.authType === 'bearer') {
+                client.defaults.headers.common['Authorization'] = `Bearer ${credentials.token}`;
+            } else if (credentials.authType === 'apikey') {
+                client.defaults.headers.common[credentials.apiKeyHeader || 'X-API-Key'] = credentials.token;
             }
 
-            // اختبار الاتصال
-            if (keyData.testEndpoint) {
-                const response = await client.get(keyData.testEndpoint);
-                console.log(`✅ Generic API ${service} connected successfully`);
-            }
-
-            const connection = {
+            return {
                 client,
                 service,
-                authType: keyData.authType,
-                permissions: keyData.permissions || ['read', 'write'],
                 connected: true,
-                testResponse: keyData.testEndpoint ? response.data : null
+                timestamp: new Date()
             };
-
-            return connection;
-
         } catch (error) {
-            console.error(`❌ Generic API ${service} connection error:`, error);
+            console.error(`❌ Generic API connection error for ${service}:`, error);
             throw error;
         }
     }
 
-    // 🔍 تحليل الكودات تلقائياً
-    async analyzeCodeAutomatically(service, options = {}) {
+    async analyzeWebsite(url, options = {}) {
         try {
-            const connection = this.getConnection(service);
+            if (!this.initialized) {
+                throw new Error('Universal Access Manager not initialized');
+            }
+
+            return await this.webAnalyzer.analyzeWebsite(url, options);
+        } catch (error) {
+            console.error(`❌ Website analysis error for ${url}:`, error);
+            throw error;
+        }
+    }
+
+    async analyzeCode(code, language, options = {}) {
+        try {
+            if (!this.initialized) {
+                throw new Error('Universal Access Manager not initialized');
+            }
+
+            return await this.codeAnalyzer.analyzeCode(code, language, options);
+        } catch (error) {
+            console.error(`❌ Code analysis error for ${language}:`, error);
+            throw error;
+        }
+    }
+
+    async executeQuery(service, query, params = []) {
+        try {
+            if (!this.initialized) {
+                throw new Error('Universal Access Manager not initialized');
+            }
+
+            return await this.dbConnector.executeQuery(service, query, params);
+        } catch (error) {
+            console.error(`❌ Query execution error for ${service}:`, error);
+            throw error;
+        }
+    }
+
+    async disconnectFromService(service) {
+        try {
+            const connection = this.connections.get(service);
             if (!connection) {
-                throw new Error(`No active connection to ${service}`);
+                console.log(`⚠️ No active connection for ${service}`);
+                return;
             }
 
-            console.log(`🔍 Analyzing code in ${service}...`);
-
-            let analysis = {};
-
-            switch (service) {
-                case 'github':
-                    analysis = await this.analyzeGitHubCode(connection, options);
-                    break;
-                case 'cloudflare':
-                    analysis = await this.analyzeCloudFlareCode(connection, options);
-                    break;
-                case 'mongodb':
-                    analysis = await this.analyzeDatabaseSchema(connection, options);
-                    break;
-                default:
-                    analysis = await this.analyzeGenericServiceCode(connection, options);
+            // إغلاق الاتصال بناءً على نوع الخدمة
+            if (service === 'mongodb' || service === 'redis') {
+                await this.dbConnector.closeConnection(service);
             }
 
-            // إضافة التوصيات
-            analysis.recommendations = await this.generateRecommendations(analysis);
-            
-            // حفظ التحليل
-            await this.saveAnalysis(service, analysis);
+            this.connections.delete(service);
+            this.emit('service:disconnected', { service, timestamp: new Date() });
 
-            console.log(`✅ Code analysis completed for ${service}`);
-            return analysis;
-
+            console.log(`✅ Disconnected from ${service}`);
         } catch (error) {
-            console.error(`❌ Code analysis error for ${service}:`, error);
+            console.error(`❌ Disconnect error for ${service}:`, error);
             throw error;
         }
     }
 
-    async analyzeGitHubCode(connection, options) {
-        const { client } = connection;
-        
-        try {
-            // الحصول على المستودعات
-            const { data: repos } = await client.repos.listForAuthenticatedUser({
-                per_page: options.limit || 10,
-                sort: options.sort || 'updated'
-            });
-
-            const analysis = {
-                service: 'github',
-                repositories: [],
-                totalRepositories: repos.length,
-                languages: {},
-                issues: [],
-                vulnerabilities: [],
-                quality: {
-                    averageComplexity: 0,
-                    documentationScore: 0,
-                    testCoverage: 0
-                }
-            };
-
-            // تحليل كل مستودع
-            for (const repo of repos) {
-                console.log(`🔍 Analyzing repository: ${repo.name}`);
-                
-                const repoAnalysis = await this.analyzeRepository(client, repo);
-                analysis.repositories.push(repoAnalysis);
-                
-                // تجميع الإحصائيات
-                analysis.languages[repo.language] = (analysis.languages[repo.language] || 0) + 1;
-                analysis.issues.push(...repoAnalysis.issues);
-                analysis.vulnerabilities.push(...repoAnalysis.vulnerabilities);
-            }
-
-            // حساب المتوسطات
-            if (analysis.repositories.length > 0) {
-                analysis.quality.averageComplexity = analysis.repositories
-                    .reduce((sum, repo) => sum + repo.complexity, 0) / analysis.repositories.length;
-                
-                analysis.quality.documentationScore = analysis.repositories
-                    .reduce((sum, repo) => sum + repo.documentation, 0) / analysis.repositories.length;
-            }
-
-            return analysis;
-
-        } catch (error) {
-            console.error('❌ GitHub code analysis error:', error);
-            throw error;
-        }
-    }
-
-    async analyzeRepository(client, repo) {
-        try {
-            // الحصول على محتويات المستودع
-            const { data: contents } = await client.repos.getContent({
-                owner: repo.owner.login,
-                repo: repo.name,
-                path: ''
-            });
-
-            const repoAnalysis = {
-                name: repo.name,
-                language: repo.language,
-                size: repo.size,
-                complexity: 0,
-                documentation: 0,
-                issues: [],
-                vulnerabilities: [],
-                files: [],
-                structure: {}
-            };
-
-            // تحليل الملفات
-            for (const item of contents) {
-                if (item.type === 'file') {
-                    const fileAnalysis = await this.analyzeFile(client, repo.owner.login, repo.name, item.path);
-                    repoAnalysis.files.push(fileAnalysis);
-                    
-                    if (fileAnalysis.issues.length > 0) {
-                        repoAnalysis.issues.push(...fileAnalysis.issues);
-                    }
-                    
-                    if (fileAnalysis.vulnerabilities.length > 0) {
-                        repoAnalysis.vulnerabilities.push(...fileAnalysis.vulnerabilities);
-                    }
-                }
-            }
-
-            // حساب التعقيد والتوثيق
-            repoAnalysis.complexity = this.calculateComplexity(repoAnalysis.files);
-            repoAnalysis.documentation = this.calculateDocumentation(repoAnalysis.files);
-
-            return repoAnalysis;
-
-        } catch (error) {
-            console.error(`❌ Repository analysis error for ${repo.name}:`, error);
-            return {
-                name: repo.name,
-                error: error.message
-            };
-        }
-    }
-
-    async analyzeFile(client, owner, repo, path) {
-        try {
-            const { data: file } = await client.repos.getContent({
-                owner,
-                repo,
-                path
-            });
-
-            if (file.type !== 'file') {
-                return { path, type: 'directory', issues: [], vulnerabilities: [] };
-            }
-
-            // فك التشفير إذا كان base64
-            const content = Buffer.from(file.content, 'base64').toString('utf8');
-            
-            const fileAnalysis = {
-                path,
-                name: file.name,
-                size: file.size,
-                type: this.getFileType(file.name),
-                content: content.substring(0, 10000), // أول 10 آلاف حرف
-                issues: [],
-                vulnerabilities: [],
-                metrics: this.analyzeFileMetrics(content)
-            };
-
-            // تحليل نوع الملف
-            switch (fileAnalysis.type) {
-                case 'javascript':
-                case 'typescript':
-                    Object.assign(fileAnalysis, this.analyzeJavaScriptFile(content));
-                    break;
-                case 'python':
-                    Object.assign(fileAnalysis, this.analyzePythonFile(content));
-                    break;
-                case 'html':
-                    Object.assign(fileAnalysis, this.analyzeHTMLFile(content));
-                    break;
-                case 'css':
-                case 'scss':
-                case 'less':
-                    Object.assign(fileAnalysis, this.analyzeCSSFile(content));
-                    break;
-                case 'json':
-                    Object.assign(fileAnalysis, this.analyzeJSONFile(content));
-                    break;
-                case 'dockerfile':
-                    Object.assign(fileAnalysis, this.analyzeDockerFile(content));
-                    break;
-                case 'markdown':
-                    fileAnalysis.documentation = this.analyzeMarkdownFile(content);
-                    break;
-            }
-
-            return fileAnalysis;
-
-        } catch (error) {
-            console.error(`❌ File analysis error for ${path}:`, error);
-            return {
-                path,
-                error: error.message,
-                issues: [],
-                vulnerabilities: []
-            };
-        }
-    }
-
-    getFileType(filename) {
-        const ext = filename.split('.').pop().toLowerCase();
-        const types = {
-            js: 'javascript',
-            jsx: 'javascript',
-            ts: 'typescript',
-            tsx: 'typescript',
-            py: 'python',
-            html: 'html',
-            htm: 'html',
-            css: 'css',
-            scss: 'scss',
-            less: 'less',
-            json: 'json',
-            xml: 'xml',
-            yml: 'yaml',
-            yaml: 'yaml',
-            dockerfile: 'dockerfile',
-            md: 'markdown',
-            txt: 'text'
-        };
-        return types[ext] || 'unknown';
-    }
-
-    analyzeFileMetrics(content) {
-        const lines = content.split('\n');
-        const words = content.split(/\s+/);
-        
-        return {
-            lines: lines.length,
-            words: words.length,
-            characters: content.length,
-            averageLineLength: content.length / lines.length,
-            commentLines: content.split('\n').filter(line => 
-                line.trim().startsWith('//') || 
-                line.trim().startsWith('#') || 
-                line.trim().startsWith('/*') ||
-                line.trim().startsWith('*') ||
-                line.trim().startsWith('<!--')
-            ).length,
-            emptyLines: content.split('\n').filter(line => line.trim() === '').length
-        };
-    }
-
-    analyzeJavaScriptFile(content) {
-        const analysis = {
-            issues: [],
-            vulnerabilities: [],
-            dependencies: [],
-            functions: [],
-            classes: [],
-            imports: []
-        };
-
-        // تحليل الاستيرادات
-        const importRegex = /(?:import|require)\s*\(?['"]([^'"]+)['"]/g;
-        let match;
-        while ((match = importRegex.exec(content)) !== null) {
-            analysis.imports.push(match[1]);
-        }
-
-        // تحليل الدوال
-        const functionRegex = /(?:function\s+(\w+)|const\s+(\w+)\s*=\s*(?:async\s+)?(?:\([^)]*\)\s*=>|function))/g;
-        while ((match = functionRegex.exec(content)) !== null) {
-            analysis.functions.push(match[1] || match[2]);
-        }
-
-        // تحليل الكلاسات
-        const classRegex = /class\s+(\w+)/g;
-        while ((match = classRegex.exec(content)) !== null) {
-            analysis.classes.push(match[1]);
-        }
-
-        // تحليل package.json
-        if (content.includes('package.json')) {
-            try {
-                const packageData = JSON.parse(content);
-                analysis.dependencies = Object.keys(packageData.dependencies || {});
-            } catch (error) {
-                analysis.issues.push({
-                    type: 'parse_error',
-                    message: 'Invalid package.json format',
-                    severity: 'medium'
-                });
-            }
-        }
-
-        // تحليل الثغرات الأمنية
-        const vulnerabilities = this.analyzeJavaScriptCode(content);
-        analysis.vulnerabilities.push(...vulnerabilities.vulnerabilities);
-
-        // قضايا الكود
-        if (content.length > 5000 && !content.includes('//')) {
-            analysis.issues.push({
-                type: 'documentation',
-                message: 'Large file with no comments',
-                severity: 'low'
-            });
-        }
-
-        if (content.includes('console.log')) {
-            analysis.issues.push({
-                type: 'debugging',
-                message: 'Console.log statements found',
-                severity: 'low'
-            });
-        }
-
-        if (content.includes('TODO') || content.includes('FIXME')) {
-            analysis.issues.push({
-                type: 'maintenance',
-                message: 'TODO/FIXME comments found',
-                severity: 'low'
-            });
-        }
-
-        return analysis;
-    }
-
-    analyzePythonFile(content) {
-        const analysis = {
-            issues: [],
-            vulnerabilities: [],
-            imports: [],
-            functions: [],
-            classes: [],
-            docstrings: []
-        };
-
-        // تحليل الاستيرادات
-        const importRegex = /^(?:import|from)\s+(\w+)/gm;
-        let match;
-        while ((match = importRegex.exec(content)) !== null) {
-            analysis.imports.push(match[1]);
-        }
-
-        // تحليل الدوال
-        const functionRegex = /^def\s+(\w+)\s*\(/gm;
-        while ((match = functionRegex.exec(content)) !== null) {
-            analysis.functions.push(match[1]);
-        }
-
-        // تحليل الكلاسات
-        const classRegex = /^class\s+(\w+)/gm;
-        while ((match = classRegex.exec(content)) !== null) {
-            analysis.classes.push(match[1]);
-        }
-
-        // تحليل docstrings
-        const docstringRegex = /"""(.*?)"""/gs;
-        while ((match = docstringRegex.exec(content)) !== null) {
-            analysis.docstrings.push(match[1].trim());
-        }
-
-        // قضايا الكود
-        if (analysis.docstrings.length === 0 && analysis.functions.length > 0) {
-            analysis.issues.push({
-                type: 'documentation',
-                message: 'Functions without docstrings',
-                severity: 'medium'
-            });
-        }
-
-        if (content.includes('print(')) {
-            analysis.issues.push({
-                type: 'debugging',
-                message: 'Print statements found (use logging instead)',
-                severity: 'low'
-            });
-        }
-
-        // تحليل الثغرات الأمنية
-        if (content.includes('eval(') || content.includes('exec(')) {
-            analysis.vulnerabilities.push({
-                type: 'code_execution',
-                message: 'Use of eval() or exec() detected',
-                severity: 'high',
-                recommendation: 'Avoid using eval() and exec() with user input'
-            });
-        }
-
-        return analysis;
-    }
-
-    analyzeHTMLFile(content) {
-        const analysis = {
-            issues: [],
-            vulnerabilities: [],
-            forms: [],
-            links: [],
-            images: [],
-            semanticTags: []
-        };
-
-        try {
-            const $ = cheerio.load(content);
-            
-            // تحليل الأشكال
-            $('form').each((i, form) => {
-                const $form = $(form);
-                analysis.forms.push({
-                    action: $form.attr('action'),
-                    method: $form.attr('method') || 'GET',
-                    inputs: $form.find('input, textarea, select').map((j, input) => ({
-                        type: $(input).attr('type'),
-                        name: $(input).attr('name'),
-                        required: $(input).attr('required') !== undefined
-                    })).get()
-                });
-            });
-
-            // تحليل الروابط
-            $('a[href]').each((i, link) => {
-                const $link = $(link);
-                analysis.links.push({
-                    href: $link.attr('href'),
-                    text: $link.text().trim(),
-                    external: !$link.attr('href').startsWith('/') && 
-                             !$link.attr('href').includes(window.location.hostname)
-                });
-            });
-
-            // تحليل الصور
-            $('img').each((i, img) => {
-                const $img = $(img);
-                analysis.images.push({
-                    src: $img.attr('src'),
-                    alt: $img.attr('alt'),
-                    width: $img.attr('width'),
-                    height: $img.attr('height'),
-                    hasAlt: $img.attr('alt') !== undefined
-                });
-            });
-
-            // تحليل العلامات الدلالية
-            const semanticTags = ['header', 'nav', 'main', 'article', 'section', 'aside', 'footer', 'figure', 'figcaption'];
-            semanticTags.forEach(tag => {
-                if ($(tag).length > 0) {
-                    analysis.semanticTags.push({
-                        tag,
-                        count: $(tag).length
-                    });
-                }
-            });
-
-            // قضايا HTML
-            if ($('img:not([alt])').length > 0) {
-                analysis.issues.push({
-                    type: 'accessibility',
-                    message: `${$('img:not([alt])').length} images without alt text`,
-                    severity: 'medium'
-                });
-            }
-
-            if ($('form input:not([name])').length > 0) {
-                analysis.issues.push({
-                    type: 'validation',
-                    message: 'Form inputs without name attributes',
-                    severity: 'high'
-                });
-            }
-
-            if (!$('meta[name="viewport"]').length) {
-                analysis.issues.push({
-                    type: 'mobile',
-                    message: 'Missing viewport meta tag',
-                    severity: 'high'
-                });
-            }
-
-            // تحليل الثغرات
-            if (content.includes('<script>') && content.includes('document.write')) {
-                analysis.vulnerabilities.push({
-                    type: 'xss',
-                    message: 'Use of document.write() detected',
-                    severity: 'medium'
-                });
-            }
-
-            return analysis;
-
-        } catch (error) {
-            console.error('❌ HTML analysis error:', error);
-            return { error: error.message };
-        }
-    }
-
-    analyzeCSSFile(content) {
-        const analysis = {
-            issues: [],
-            vulnerabilities: [],
-            selectors: [],
-            properties: [],
-            colors: [],
-            fonts: []
-        };
-
-        // عدد السيليكتورات
-        const selectorMatches = content.match(/[.#]?[\w-]+\s*{/g);
-        if (selectorMatches) {
-            analysis.selectors = selectorMatches.map(s => s.replace('{', '').trim());
-        }
-
-        // استخراج الألوان
-        const colorMatches = content.match(/#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{3}|rgb\([^)]+\)|rgba\([^)]+\)|hsl\([^)]+\)/g);
-        if (colorMatches) {
-            analysis.colors = [...new Set(colorMatches)];
-        }
-
-        // استخراج الخطوط
-        const fontMatches = content.match(/font-family:\s*([^;]+)/g);
-        if (fontMatches) {
-            analysis.fonts = [...new Set(fontMatches.map(f => f.replace('font-family:', '').trim()))];
-        }
-
-        // قضايا CSS
-        if (analysis.selectors.length > 1000) {
-            analysis.issues.push({
-                type: 'performance',
-                message: 'Too many CSS selectors may impact performance',
-                severity: 'low'
-            });
-        }
-
-        if (analysis.colors.length > 50) {
-            analysis.issues.push({
-                type: 'consistency',
-                message: 'Too many different colors, consider using CSS variables',
-                severity: 'low'
-            });
-        }
-
-        // تحليل الثغرات
-        if (content.includes('expression(') || content.includes('behavior:')) {
-            analysis.vulnerabilities.push({
-                type: 'css_injection',
-                message: 'Potentially dangerous CSS properties detected',
-                severity: 'medium'
-            });
-        }
-
-        return analysis;
-    }
-
-    analyzeJSONFile(content) {
-        const analysis = {
-            issues: [],
-            vulnerabilities: [],
-            structure: {},
-            secrets: []
-        };
-
-        try {
-            const jsonData = JSON.parse(content);
-            
-            // تحليل البنية
-            analysis.structure = this.analyzeJSONStructure(jsonData);
-            
-            // البحث عن أسرار
-            analysis.secrets = this.findSecretsInJSON(jsonData);
-            
-            // قضايا JSON
-            if (Object.keys(jsonData).length === 0) {
-                analysis.issues.push({
-                    type: 'empty',
-                    message: 'Empty JSON file',
-                    severity: 'low'
-                });
-            }
-
-            // تحليل الثغرات
-            if (analysis.secrets.length > 0) {
-                analysis.vulnerabilities.push({
-                    type: 'secrets_exposure',
-                    message: `${analysis.secrets.length} potential secrets found in JSON`,
-                    severity: 'high',
-                    secrets: analysis.secrets
-                });
-            }
-
-            return analysis;
-
-        } catch (error) {
-            analysis.issues.push({
-                type: 'parse_error',
-                message: 'Invalid JSON format',
-                severity: 'high'
-            });
-            return analysis;
-        }
-    }
-
-    analyzeJSONStructure(obj, path = '', depth = 0) {
-        if (depth > 10) return { type: 'too_deep', depth };
-
-        const structure = {
-            type: Array.isArray(obj) ? 'array' : 'object',
-            depth: depth,
-            keys: Array.isArray(obj) ? obj.length : Object.keys(obj).length
-        };
-
-        if (Array.isArray(obj) && obj.length > 0) {
-            structure.sampleType = typeof obj[0];
-        } else if (!Array.isArray(obj) && Object.keys(obj).length > 0) {
-            structure.sampleKey = Object.keys(obj)[0];
-            structure.sampleValueType = typeof obj[Object.keys(obj)[0]];
-        }
-
-        return structure;
-    }
-
-    findSecretsInJSON(obj, path = '') {
-        const secrets = [];
-        const secretPatterns = {
-            api_key: /api[_-]?key/i,
-            secret: /secret/i,
-            password: /password/i,
-            token: /token/i,
-            private_key: /private[_-]?key/i,
-            auth: /auth/i
-        };
-
-        for (const [key, value] of Object.entries(obj)) {
-            const currentPath = path ? `${path}.${key}` : key;
-            
-            if (typeof value === 'object' && value !== null) {
-                secrets.push(...this.findSecretsInJSON(value, currentPath));
-            } else if (typeof value === 'string') {
-                for (const [patternName, pattern] of Object.entries(secretPatterns)) {
-                    if (pattern.test(key) && value.length > 10) {
-                        secrets.push({
-                            path: currentPath,
-                            type: patternName,
-                            value: value.substring(0, 10) + '...' // إخفاء الجزء الأكبر
-                        });
-                    }
-                }
-            }
-        }
-
-        return secrets;
-    }
-
-    calculateComplexity(files) {
-        // حساب تعقيد المشروع بناءً على عدد الملفات والأسطر
-        const totalLines = files.reduce((sum, file) => sum + (file.metrics?.lines || 0), 0);
-        const totalFiles = files.length;
-        const averageFileSize = totalLines / totalFiles;
-        
-        if (averageFileSize > 500) return 'high';
-        if (averageFileSize > 200) return 'medium';
-        return 'low';
-    }
-
-    calculateDocumentation(files) {
-        // حساب نسبة التوثيق
-        const documentedFiles = files.filter(file => 
-            file.docstrings?.length > 0 || 
-            file.type === 'markdown' ||
-            (file.metrics?.commentLines / file.metrics?.lines > 0.1)
-        ).length;
-        
-        return (documentedFiles / files.length) * 100;
-    }
-
-    async generateRecommendations(analysis) {
-        const recommendations = [];
-
-        // توصيات عامة بناءً على التحليل
-        if (analysis.vulnerabilities && analysis.vulnerabilities.length > 0) {
-            recommendations.push({
-                priority: 'high',
-                category: 'security',
-                issue: `${analysis.vulnerabilities.length} security vulnerabilities found`,
-                recommendation: 'Review and fix security issues immediately',
-                autoFix: true,
-                fixes: analysis.vulnerabilities.map(v => ({
-                    type: v.type,
-                    description: v.message,
-                    recommendation: v.recommendation
-                }))
-            });
-        }
-
-        if (analysis.issues && analysis.issues.length > 0) {
-            recommendations.push({
-                priority: 'medium',
-                category: 'code_quality',
-                issue: `${analysis.issues.length} code quality issues found`,
-                recommendation: 'Improve code quality and maintainability',
-                autoFix: true,
-                fixes: analysis.issues
-            });
-        }
-
-        if (analysis.quality && analysis.quality.documentationScore < 50) {
-            recommendations.push({
-                priority: 'low',
-                category: 'documentation',
-                issue: 'Poor documentation coverage',
-                recommendation: 'Add more comments and documentation',
-                autoFix: false
-            });
-        }
-
-        return recommendations;
-    }
-
-    async saveAnalysis(service, analysis) {
-        try {
-            const db = getDB();
-            await db.collection('joe_code_analyses').insertOne({
-                service,
-                analysis,
-                timestamp: new Date(),
-                recommendations: analysis.recommendations || []
-            });
-        } catch (error) {
-            console.error('❌ Save analysis error:', error);
-        }
-    }
-
-    // 🔧 نظام التطوير التلقائي
-    async autoDevelopCode(service, analysis) {
-        try {
-            console.log(`🔧 Auto-developing code for ${service}...`);
-
-            const improvements = [];
-            
-            // تنفيذ التوصيات القابلة للتنفيذ التلقائي
-            for (const recommendation of analysis.recommendations || []) {
-                if (recommendation.autoFix) {
-                    const fixResult = await this.autoFixIssue(service, recommendation);
-                    improvements.push(fixResult);
-                }
-            }
-
-            // تطبيق تحسينات الأداء
-            const performanceImprovements = await this.autoOptimizePerformance(service, analysis);
-            improvements.push(...performanceImprovements);
-
-            console.log(`✅ Auto-development completed for ${service}`);
-            
-            return {
-                success: true,
-                improvements,
-                timestamp: new Date()
-            };
-
-        } catch (error) {
-            console.error(`❌ Auto-development error for ${service}:`, error);
-            throw error;
-        }
-    }
-
-    async autoFixIssue(service, recommendation) {
-        try {
-            const fixes = [];
-
-            for (const fix of recommendation.fixes || []) {
-                let fixResult;
-                
-                switch (fix.type) {
-                    case 'xss':
-                        fixResult = await this.fixXSSIssue(service, fix);
-                        break;
-                    case 'sql_injection':
-                        fixResult = await this.fixSQLInjectionIssue(service, fix);
-                        break;
-                    case 'hardcoded_secrets':
-                        fixResult = await this.fixHardcodedSecrets(service, fix);
-                        break;
-                    case 'documentation':
-                        fixResult = await this.fixDocumentation(service, fix);
-                        break;
-                    default:
-                        fixResult = {
-                            success: false,
-                            message: `Auto-fix not implemented for ${fix.type}`
-                        };
-                }
-                
-                fixes.push(fixResult);
-            }
-
-            return {
-                recommendation: recommendation.category,
-                fixes,
-                timestamp: new Date()
-            };
-
-        } catch (error) {
-            console.error('❌ Auto-fix error:', error);
-            return {
-                success: false,
-                error: error.message
-            };
-        }
-    }
-
-    async fixXSSIssue(service, issue) {
-        try {
-            // تنفيذ تلقائي لإصلاح ثغرات XSS
-            const fixes = [
-                'Replaced innerHTML with textContent',
-                'Added input sanitization',
-                'Implemented Content Security Policy'
-            ];
-
-            return {
-                success: true,
-                type: 'xss',
-                fixes,
-                message: 'XSS vulnerabilities fixed automatically'
-            };
-        } catch (error) {
-            return {
-                success: false,
-                error: error.message
-            };
-        }
-    }
-
-    async fixSQLInjectionIssue(service, issue) {
-        try {
-            // تنفيذ تلقائي لإصلاح ثغرات SQL Injection
-            const fixes = [
-                'Replaced string concatenation with parameterized queries',
-                'Added input validation',
-                'Implemented ORM with built-in protection'
-            ];
-
-            return {
-                success: true,
-                type: 'sql_injection',
-                fixes,
-                message: 'SQL Injection vulnerabilities fixed automatically'
-            };
-        } catch (error) {
-            return {
-                success: false,
-                error: error.message
-            };
-        }
-    }
-
-    async fixHardcodedSecrets(service, issue) {
-        try {
-            // تنفيذ تلقائي لإصلاح الأسرار المكتوبة في الكود
-            const fixes = [
-                'Moved secrets to environment variables',
-                'Implemented secure secret management',
-                'Added .env to .gitignore'
-            ];
-
-            return {
-                success: true,
-                type: 'hardcoded_secrets',
-                fixes,
-                message: 'Hardcoded secrets fixed automatically'
-            };
-        } catch (error) {
-            return {
-                success: false,
-                error: error.message
-            };
-        }
-    }
-
-    async fixDocumentation(service, issue) {
-        try {
-            // تنفيذ تلقائي لإصلاح التوثيق
-            const fixes = [
-                'Added function docstrings',
-                'Created README file',
-                'Added inline comments for complex logic'
-            ];
-
-            return {
-                success: true,
-                type: 'documentation',
-                fixes,
-                message: 'Documentation improved automatically'
-            };
-        } catch (error) {
-            return {
-                success: false,
-                error: error.message
-            };
-        }
-    }
-
-    async autoOptimizePerformance(service, analysis) {
-        const improvements = [];
-
-        // تحسينات الأداء التلقائية
-        if (analysis.code?.quality?.minifiedFiles > 0) {
-            improvements.push({
-                type: 'minification',
-                message: 'Minified JavaScript files for better performance',
-                success: true
-            });
-        }
-
-        if (analysis.performance?.recommendations) {
-            for (const rec of analysis.performance.recommendations) {
-                if (rec.priority === 'high') {
-                    improvements.push({
-                        type: 'performance',
-                        message: rec.recommendation,
-                        success: true
-                    });
-                }
-            }
-        }
-
-        return improvements;
-    }
-
-    // 🌐 الوصول لأي موقع وتحليله
-    async accessAnyWebsite(url, options = {}) {
-        try {
-            console.log(`🌐 Accessing website: ${url}`);
-
-            // إنشاء جلسة متصفح متقدمة
-            const sessionId = `web_${Date.now()}`;
-            const session = await this.browser.createSession(sessionId, options);
-
-            // التنقل إلى الموقع
-            await this.browser.navigateTo(sessionId, url);
-
-            // تحليل شامل للموقع
-            const analysis = await this.browser.analyzeWebsite(sessionId, url);
-
-            // تطوير تلقائي للموقع إذا طُلب
-            if (options.autoDevelop) {
-                const improvements = await this.autoDevelopCode('website', analysis);
-                analysis.improvements = improvements;
-            }
-
-            // إغلاق الجلسة
-            await this.browser.closeSession(sessionId);
-
-            console.log(`✅ Website access and analysis completed: ${url}`);
-            return analysis;
-
-        } catch (error) {
-            console.error(`❌ Website access error for ${url}:`, error);
-            throw error;
-        }
-    }
-
-    // 🔧 أدوات المساعدة
     getConnection(service) {
         return this.connections.get(service);
     }
 
-    async saveDevelopmentResult(service, result) {
-        try {
-            const db = getDB();
-            await db.collection('joe_auto_development').insertOne({
-                service,
-                result,
-                timestamp: new Date()
-            });
-        } catch (error) {
-            console.error('❌ Save development result error:', error);
-        }
+    isConnected(service) {
+        const connection = this.connections.get(service);
+        return connection && connection.connected;
+    }
+
+    listConnections() {
+        return Array.from(this.connections.keys());
+    }
+
+    async getSystemStatus() {
+        return {
+            initialized: this.initialized,
+            connections: this.listConnections(),
+            services: this.keyManager.listServices(),
+            activeSessions: this.activeSessions.size,
+            timestamp: new Date()
+        };
     }
 }
 
 // 🧠 المحرك الرئيسي للوصول الشامل
-export class UniversalAccessEngine {
+class UniversalAccessEngine extends EventEmitter {
     constructor() {
+        super();
         this.accessManager = new UniversalAccessManager();
-        this.codeAnalyzer = new CodeAnalyzer();
-        this.autoDeveloper = new AutoDeveloper();
-        this.connections = new Map();
+        this.initialized = false;
     }
 
-    async initializeForUser(userId) {
-        return await this.accessManager.initializeSystem(userId);
-    }
-
-    async analyzeAndDevelop(service, options = {}) {
+    async initialize(dbConnection) {
         try {
-            // تحليل الكود
-            const analysis = await this.accessManager.analyzeCodeAutomatically(service, options);
-            
-            // التطوير التلقائي
-            const development = await this.accessManager.autoDevelopCode(service, analysis);
-            
-            return {
-                success: true,
-                analysis,
-                development,
-                timestamp: new Date()
-            };
+            console.log('🚀 Initializing Universal Access Engine...');
+
+            await this.accessManager.initialize(dbConnection);
+
+            // إعداد معالجات الأحداث
+            this.setupEventHandlers();
+
+            this.initialized = true;
+            this.emit('engine:initialized', { timestamp: new Date() });
+
+            console.log('✅ Universal Access Engine initialized successfully');
+            return { success: true, timestamp: new Date() };
+
         } catch (error) {
-            console.error(`❌ Analyze and develop error for ${service}:`, error);
+            console.error('❌ Engine initialization error:', error);
             throw error;
         }
     }
 
-    async accessAndAnalyzeWebsite(url, options = {}) {
-        return await this.accessManager.accessAnyWebsite(url, options);
+    setupEventHandlers() {
+        this.accessManager.on('system:initialized', () => {
+            console.log('✅ Access Manager initialized');
+        });
+
+        this.accessManager.on('service:connected', (data) => {
+            this.emit('service:connected', data);
+        });
+
+        this.accessManager.on('service:disconnected', (data) => {
+            this.emit('service:disconnected', data);
+        });
     }
 
-    async executeOnService(service, operation, parameters) {
-        return await this.accessManager.executeOperation(service, operation, parameters);
+    async connectToService(service, credentials) {
+        if (!this.initialized) {
+            throw new Error('Universal Access Engine not initialized');
+        }
+
+        return await this.accessManager.connectToService(service, credentials);
+    }
+
+    async analyzeWebsite(url, options = {}) {
+        if (!this.initialized) {
+            throw new Error('Universal Access Engine not initialized');
+        }
+
+        return await this.accessManager.analyzeWebsite(url, options);
+    }
+
+    async analyzeCode(code, language, options = {}) {
+        if (!this.initialized) {
+            throw new Error('Universal Access Engine not initialized');
+        }
+
+        return await this.accessManager.analyzeCode(code, language, options);
+    }
+
+    async executeQuery(service, query, params = []) {
+        if (!this.initialized) {
+            throw new Error('Universal Access Engine not initialized');
+        }
+
+        return await this.accessManager.executeQuery(service, query, params);
+    }
+
+    async disconnectFromService(service) {
+        if (!this.initialized) {
+            throw new Error('Universal Access Engine not initialized');
+        }
+
+        return await this.accessManager.disconnectFromService(service);
+    }
+
+    async getSystemStatus() {
+        if (!this.initialized) {
+            return {
+                initialized: false,
+                message: 'Engine not initialized'
+            };
+        }
+
+        return await this.accessManager.getSystemStatus();
+    }
+
+    isConnected(service) {
+        if (!this.initialized) return false;
+        return this.accessManager.isConnected(service);
+    }
+
+    listConnections() {
+        if (!this.initialized) return [];
+        return this.accessManager.listConnections();
     }
 }
 
-// 📊 محلل الكودات المتقدم
-class CodeAnalyzer {
-    async analyzeCode(code, language) {
-        // تحليل شامل للكود
-        return {
-            language,
-            metrics: this.calculateMetrics(code),
-            vulnerabilities: this.findVulnerabilities(code, language),
-            quality: this.assessQuality(code, language),
-            suggestions: this.generateSuggestions(code, language)
-        };
-    }
-
-    calculateMetrics(code) {
-        const lines = code.split('\n');
-        return {
-            lines: lines.length,
-            codeLines: lines.filter(line => line.trim() && !line.trim().startsWith('//') && !line.trim().startsWith('#')).length,
-            commentLines: lines.filter(line => line.trim().startsWith('//') || line.trim().startsWith('#')).length,
-            emptyLines: lines.filter(line => line.trim() === '').length,
-            complexity: this.calculateComplexity(code)
-        };
-    }
-
-    findVulnerabilities(code, language) {
-        // منطق البحث عن الثغرات
-        return [];
-    }
-
-    assessQuality(code, language) {
-        // تقييم جودة الكود
-        return {
-            score: 85,
-            issues: [],
-            recommendations: []
-        };
-    }
-
-    generateSuggestions(code, language) {
-        // توليد اقتراحات التحسين
-        return [];
-    }
-}
-
-// 🛠️ مطور تلقائي متقدم
-class AutoDeveloper {
-    async developCode(analysis, requirements) {
-        // منطق التطوير التلقائي
-        return {
-            improvements: [],
-            newCode: '',
-            summary: 'Code developed automatically'
-        };
-    }
-}
-
-// تصدير النظام المتكامل
+// 📤 التصدير
 export default UniversalAccessManager;
-export { UniversalAccessEngine, SecureKeyManager, AdvancedBrowser, AdvancedDatabaseConnector };
+export {
+    UniversalAccessEngine,
+    SecureKeyManager,
+    AdvancedWebAnalyzer,
+    AdvancedDatabaseConnector,
+    AdvancedCodeAnalyzer,
+    EncryptionManager
+};
+
+// 🎯 مثال على الاستخدام (للتوضيح فقط)
+/*
+import { UniversalAccessEngine } from './universalAccessManager.mjs';
+import { MongoClient } from 'mongodb';
+
+// تهيئة النظام
+const engine = new UniversalAccessEngine();
+const mongoClient = new MongoClient('mongodb://localhost:27017');
+await mongoClient.connect();
+await engine.initialize(mongoClient);
+
+// الاتصال بـ GitHub
+await engine.connectToService('github', {
+    token: 'your-github-token',
+    permissions: ['repo', 'workflow']
+});
+
+// تحليل موقع
+const websiteAnalysis = await engine.analyzeWebsite('https://example.com');
+console.log(websiteAnalysis);
+
+// تحليل كود
+const code = `
+function hello() {
+    console.log("Hello World");
+}
+`;
+const codeAnalysis = await engine.analyzeCode(code, 'javascript');
+console.log(codeAnalysis);
+
+// الاتصال بـ MongoDB
+await engine.connectToService('mongodb', {
+    uri: 'mongodb://localhost:27017/mydb'
+});
+
+// تنفيذ استعلام
+const result = await engine.executeQuery('mongodb', {
+    operation: 'find',
+    collection: 'users',
+    filter: { active: true }
+});
+console.log(result);
+
+// الحصول على حالة النظام
+const status = await engine.getSystemStatus();
+console.log(status);
+*/
