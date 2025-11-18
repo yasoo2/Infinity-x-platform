@@ -32,7 +32,7 @@
   });
 
   export default function CommandForm({ onSubmit, loading }) {
-    const form = useForm<z.infer<typeof formSchema>>({
+    const form = useForm({
       resolver: zodResolver(formSchema),
       defaultValues: {
         commandText: "",
@@ -41,7 +41,7 @@
       },
     });
 
-    const handleSubmit = (values: z.infer<typeof formSchema>) => {
+    const handleSubmit = (values) => {
       onSubmit(values);
     };
 

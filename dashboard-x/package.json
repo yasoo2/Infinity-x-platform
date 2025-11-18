@@ -12,18 +12,29 @@
     "start": "serve -s dist -l $PORT"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
+    "@radix-ui/react-label": "^2.1.8",
+    "@radix-ui/react-select": "^2.2.6",
+    "@radix-ui/react-slot": "^1.2.4",
+    "@radix-ui/react-switch": "^1.2.6",
     "autoprefixer": "^10.4.21",
     "axios": "^1.13.2",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.552.0",
     "postcss": "^8.5.6",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-draggable": "^4.5.0",
+    "react-hook-form": "^7.66.1",
+    "react-hot-toast": "^2.6.0",
     "react-resizable": "^3.0.5",
     "react-router-dom": "^7.9.5",
     "serve": "^14.2.5",
-    "tailwindcss": "^4.1.16"
+    "tailwind-merge": "^3.4.0",
+    "tailwindcss": "^4.1.16",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

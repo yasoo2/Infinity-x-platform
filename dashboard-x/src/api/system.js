@@ -1,10 +1,10 @@
   import apiClient from './client';
 
   // Base path helpers
-  const v1 = (p: string) => `/api/v1${p}`;
-  const joe = (p: string) => v1(`/joe${p}`);
-  const admin = (p: string) => v1(`/admin${p}`);
-  const system = (p: string) => v1(`/system${p}`);
+  const v1 = (p) => `/api/v1${p}`;
+  const joe = (p) => v1(`/joe${p}`);
+  const admin = (p) => v1(`/admin${p}`);
+  const system = (p) => v1(`/system${p}`);
 
   // Unified call wrapper to normalize errors and support AbortSignal
   /**
