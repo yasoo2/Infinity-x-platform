@@ -1,0 +1,15 @@
+# Cloudflare Pages Redirects
+
+# الصفحة الرئيسية → صفحة الشركة
+/  /index.html  200
+
+# لوحة التحكم → تطبيق React
+/dashboard  /dashboard.html  200
+/dashboard/*  /dashboard.html  200
+
+# صفحات المصادقة → تطبيق React
+/login  /dashboard.html  200
+/signup  /dashboard.html  200
+
+# جميع المسارات الأخرى → تطبيق React (SPA fallback)
+/*  /dashboard.html  200
