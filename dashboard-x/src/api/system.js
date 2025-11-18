@@ -1,51 +1,106 @@
-import apiClient from './client';
+  import apiClient from './client';
 
-/**
- * Get system status and health metrics
- */
-export const getSystemStatus = async () => {
-  const response = await apiClient.get('/api/v1/system/metrics');
-  return response.data;
-};
+  // Base path helpers
+  const v1 = (p: string) => `/api/v1${p}`;
+  const joe = (p: string) => v1(`/joe${p}`);
+  const admin = (p: string) => v1(`/admin${p}`);
+  const system = (p: string) => v1(`/system${p}`);
 
-/**
- * Get activity/events stream
- */
-export const getActivityStream = async () => {
-  const response = await apiClient.get('/api/v1/joe/activity-stream');
-  return response.data;
-};
+  // Unified call wrapper to normalize errors and support AbortSignal
+  /**
+   * @template T
+   * @param {() => Promise<{ data: T }>} fn
+   * @returns {Promise<T>}
+   */
+  const call = async (fn) => {
+    try {
+      const res = await fn();
+      return res.data;
+    } catch (e) {
+      // If using the normalized error from client.ts, it already has {status, code, message}
+      // Otherwise fall back to Axios error shape.
+      const err = /** @type {any} */ (e);
+      const message =
+        err?.message ||
+        err?.response?.data?.message ||
+        'حدث خطأ أثناء الاتصال بالخادم';
+      const status = err?.status ?? err?.response?.status;
+      const details = err?.details ?? err?.response?.data;
+      const normalized = { status, message, details };
+      // Re-throw normalized error to upper layers (UI/toasts)
+      throw normalized;
+    }
+  };
 
-/**
- * Send command to Joe
- * @param {Object} payload - { sessionToken, lang, voice, commandText }
- */
-export const sendCommand = async (payload) => {
-  const response = await apiClient.post('/api/v1/joe/command', payload);
-  return response.data;
-};
+  /**
+   * Get system status and health metrics
+   * @param {{ signal?: AbortSignal }=} opts
+   */
+  export const getSystemStatus = (opts) =>
+    call(() => apiClient.get(system('/metrics'), { signal: opts?.signal }));
 
-/**
- * Get admin users list
- */
-export const getAdminUsers = async () => {
-  const response = await apiClient.get('/api/v1/admin/users');
-  return response.data;
-};
+  /**
+   * Get activity/events stream (polling JSON). For SSE, use EventSource instead.
+   * @param {{ page?: number, pageSize?: number, since?: string, signal?: AbortSignal }=} params
+   */
+  export const getActivityStream = (params) =>
+    call(() =>
+      apiClient.get(joe('/activity-stream'), {
+        params: {
+          page: params?.page,
+          pageSize: params?.pageSize,
+          since: params?.since,
+        },
+        signal: params?.signal,
+      })
+    );
 
-/**
- * Get Joe suggestions
- */
-export const getJoeSuggestions = async () => {
-  const response = await apiClient.get('/api/v1/joe/suggestions');
-  return response.data;
-};
+  /**
+   * Send command to Joe
+   * @param {{ sessionToken?: string, lang?: string, voice?: string, commandText: string }} payload
+   * @param {{ signal?: AbortSignal }=} opts
+   */
+  export const sendCommand = (payload, opts) =>
+    call(() => apiClient.post(joe('/command'), payload, { signal: opts?.signal }));
 
-/**
- * Submit decision on Joe suggestion
- * @param {Object} payload - { suggestionId, decision }
- */
-export const submitSuggestionDecision = async (payload) => {
-  const response = await apiClient.post('/api/v1/joe/suggestions/decision', payload);
-  return response.data;
-};
+  /**
+   * Get admin users list
+   * @param {{ page?: number, pageSize?: number, query?: string, signal?: AbortSignal }=} params
+   */
+  export const getAdminUsers = (params) =>
+    call(() =>
+      apiClient.get(admin('/users'), {
+        params: {
+          page: params?.page,
+          pageSize: params?.pageSize,
+          q: params?.query,
+        },
+        signal: params?.signal,
+      })
+    );
+
+  /**
+   * Get Joe suggestions
+   * @param {{ limit?: number, signal?: AbortSignal }=} params
+   */
+  export const getJoeSuggestions = (params) =>
+    call(() =>
+      apiClient.get(joe('/suggestions'), {
+        params: { limit: params?.limit },
+        signal: params?.signal,
+      })
+    );
+
+  /**
+   * Submit decision on Joe suggestion
+   * @param {{ suggestionId: string, decision: 'approve' | 'reject', reason?: string }} payload
+   * @param {{ signal?: AbortSignal }=} opts
+   */
+  export const submitSuggestionDecision = (payload, opts) =>
+    call(() => apiClient.post(joe('/suggestions/decision'), payload, { signal: opts?.signal }));
+
+  // Optional: helper for cancellable calls
+  export const withAbort = () => {
+    const controller = new AbortController();
+    return { controller, signal: controller.signal };
+  };
