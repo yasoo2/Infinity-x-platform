@@ -1,4 +1,4 @@
-// backend/server.mjs - النسخة النهائية المحسّنة (بدون مكتبات إضافية)
+// backend/server.mjs - النسخة النهائية المحسّنة (مع إصلاح تحميل الـ Routes)
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -554,19 +554,6 @@ async function safeImport(modulePath, moduleName) {
   }
 }
 
-function extractRouter(routerModule, routerName) {
-  if (!routerModule) return null;
-  if (routerModule[routerName]) return routerModule[routerName];
-  if (routerModule.default) return routerModule.default;
-  if (routerModule.router) return routerModule.router;
-  if (routerModule.stack) return routerModule;
-  
-  const keys = Object.keys(routerModule).filter(k => k !== '__esModule');
-  if (keys.length > 0) return routerModule[keys[0]];
-  
-  return null;
-}
-
 function isExpressRouter(obj) {
   return obj && 
          typeof obj === 'object' && 
@@ -587,36 +574,60 @@ const safeUseRoute = (path, routerModule, routerName) => {
   }
 
   try {
-    const extracted = extractRouter(routerModule, routerName);
+    // Try to get the router from different export patterns
+    let router = null;
+    
+    // Pattern 1: Named export matching routerName
+    if (routerModule[routerName]) {
+      router = routerModule[routerName];
+    }
+    // Pattern 2: Default export
+    else if (routerModule.default) {
+      router = routerModule.default;
+    }
+    // Pattern 3: 'router' export
+    else if (routerModule.router) {
+      router = routerModule.router;
+    }
+    // Pattern 4: First non-__esModule key
+    else {
+      const keys = Object.keys(routerModule).filter(k => k !== '__esModule');
+      if (keys.length > 0) {
+        router = routerModule[keys[0]];
+      }
+    }
 
-    if (!extracted) {
-      console.error(`❌ No valid router found for ${path}`);
+    if (!router) {
+      console.error(`❌ No router found for ${path}`);
       return;
     }
 
-    if (isExpressRouter(extracted)) {
-      app.use(path, extracted);
-      console.log(`✅ Route registered: ${path} (router)`);
+    // Check if it's already a router
+    if (isExpressRouter(router)) {
+      app.use(path, router);
+      console.log(`✅ Route registered: ${path} (direct router)`);
       return;
     }
 
-    if (isFactoryFunction(extracted)) {
+    // Check if it's a factory function
+    if (isFactoryFunction(router)) {
       try {
-        const routerInstance = extracted.length > 0 ? extracted(initMongo) : extracted();
+        // Call factory with initMongo if it expects parameters
+        const routerInstance = router.length > 0 ? router(initMongo) : router();
         
         if (isExpressRouter(routerInstance)) {
           app.use(path, routerInstance);
           console.log(`✅ Route registered: ${path} (factory)`);
         } else {
-          console.error(`❌ Factory function for ${path} did not return a valid router`);
+          console.error(`❌ Factory for ${path} returned invalid router:`, typeof routerInstance);
         }
       } catch (err) {
-        console.error(`❌ Factory function failed for ${path}:`, err.message);
+        console.error(`❌ Factory failed for ${path}:`, err.message);
       }
       return;
     }
 
-    console.error(`❌ Invalid router type for ${path}:`, typeof extracted);
+    console.error(`❌ Invalid router type for ${path}:`, typeof router);
 
   } catch (error) {
     console.error(`❌ Failed to register route ${path}:`, error.message);
@@ -626,47 +637,33 @@ const safeUseRoute = (path, routerModule, routerName) => {
 async function applyRoutes() {
   console.log('🔄 Loading routes...');
 
-  const routes = {
-    joeRouter: await safeImport('./src/routes/joeRouter.js', 'joeRouter'),
-    factoryRouter: await safeImport('./src/routes/factoryRouter.js', 'factoryRouter'),
-    publicSiteRouter: await safeImport('./src/routes/publicSiteRouter.js', 'publicSiteRouter'),
-    dashboardDataRouter: await safeImport('./src/routes/dashboardDataRouter.js', 'dashboardDataRouter'),
-    selfDesignRouter: await safeImport('./src/routes/selfDesign.mjs', 'selfDesignRouter'),
-    storeIntegrationRouter: await safeImport('./src/routes/storeIntegration.mjs', 'storeIntegrationRouter'),
-    universalStoreRouter: await safeImport('./src/routes/universalStore.mjs', 'universalStoreRouter'),
-    pageBuilderRouter: await safeImport('./src/routes/pageBuilder.mjs', 'pageBuilderRouter'),
-    githubManagerRouter: await safeImport('./src/routes/githubManager.mjs', 'githubManagerRouter'),
-    integrationManagerRouter: await safeImport('./src/routes/integrationManager.mjs', 'integrationManagerRouter'),
-    selfEvolutionRouter: await safeImport('./src/routes/selfEvolution.mjs', 'selfEvolutionRouter'),
-    joeChatRouter: await safeImport('./src/routes/joeChat.mjs', 'joeChatRouter'),
-    joeChatAdvancedRouter: await safeImport('./src/routes/joeChatAdvanced.mjs', 'joeChatAdvancedRouter'),
-    chatHistoryRouter: await safeImport('./src/routes/chatHistory.mjs', 'chatHistoryRouter'),
-    fileUploadRouter: await safeImport('./src/routes/fileUpload.mjs', 'fileUploadRouter'),
-    testGrokRouter: await safeImport('./src/routes/testGrok.mjs', 'testGrokRouter'),
-    liveStreamRouter: await safeImport('./src/routes/liveStreamRouter.mjs', 'liveStreamRouter'),
-    sandboxRoutes: await safeImport('./src/routes/sandboxRoutes.mjs', 'sandboxRoutes'),
-    planningRoutes: await safeImport('./src/routes/planningRoutes.mjs', 'planningRoutes')
-  };
+  const routes = [
+    { path: '/api/v1/joe/control', module: './src/routes/joeRouter.js', name: 'joeRouter' },
+    { path: '/api/v1/factory', module: './src/routes/factoryRouter.js', name: 'factoryRouter' },
+    { path: '/api/v1/dashboard', module: './src/routes/dashboardDataRouter.js', name: 'dashboardDataRouter' },
+    { path: '/api/v1/public-site', module: './src/routes/publicSiteRouter.js', name: 'publicSiteRouter' },
+    { path: '/api/v1/self-design', module: './src/routes/selfDesign.mjs', name: 'selfDesignRouter' },
+    { path: '/api/v1/store', module: './src/routes/storeIntegration.mjs', name: 'storeIntegrationRouter' },
+    { path: '/api/v1/universal-store', module: './src/routes/universalStore.mjs', name: 'universalStoreRouter' },
+    { path: '/api/v1/page-builder', module: './src/routes/pageBuilder.mjs', name: 'pageBuilderRouter' },
+    { path: '/api/v1/github-manager', module: './src/routes/githubManager.mjs', name: 'githubManagerRouter' },
+    { path: '/api/v1/integrations', module: './src/routes/integrationManager.mjs', name: 'integrationManagerRouter' },
+    { path: '/api/v1/self-evolution', module: './src/routes/selfEvolution.mjs', name: 'selfEvolutionRouter' },
+    { path: '/api/v1/joe/chat', module: './src/routes/joeChat.mjs', name: 'joeChatRouter' },
+    { path: '/api/v1/joe/chat-advanced', module: './src/routes/joeChatAdvanced.mjs', name: 'joeChatAdvancedRouter' },
+    { path: '/api/v1/chat-history', module: './src/routes/chatHistory.mjs', name: 'chatHistoryRouter' },
+    { path: '/api/v1/file', module: './src/routes/fileUpload.mjs', name: 'fileUploadRouter' },
+    { path: '/api/v1', module: './src/routes/testGrok.mjs', name: 'testGrokRouter' },
+    { path: '/api/live-stream', module: './src/routes/liveStreamRouter.mjs', name: 'liveStreamRouter' },
+    { path: '/api/v1/sandbox', module: './src/routes/sandboxRoutes.mjs', name: 'sandboxRoutes' },
+    { path: '/api/v1/planning', module: './src/routes/planningRoutes.mjs', name: 'planningRoutes' }
+  ];
 
-  safeUseRoute('/api/v1/joe/control', routes.joeRouter, 'joeRouter');
-  safeUseRoute('/api/v1/factory', routes.factoryRouter, 'factoryRouter');
-  safeUseRoute('/api/v1/dashboard', routes.dashboardDataRouter, 'dashboardDataRouter');
-  safeUseRoute('/api/v1/public-site', routes.publicSiteRouter, 'publicSiteRouter');
-  safeUseRoute('/api/v1/self-design', routes.selfDesignRouter, 'selfDesignRouter');
-  safeUseRoute('/api/v1/store', routes.storeIntegrationRouter, 'storeIntegrationRouter');
-  safeUseRoute('/api/v1/universal-store', routes.universalStoreRouter, 'universalStoreRouter');
-  safeUseRoute('/api/v1/page-builder', routes.pageBuilderRouter, 'pageBuilderRouter');
-  safeUseRoute('/api/v1/github-manager', routes.githubManagerRouter, 'githubManagerRouter');
-  safeUseRoute('/api/v1/integrations', routes.integrationManagerRouter, 'integrationManagerRouter');
-  safeUseRoute('/api/v1/self-evolution', routes.selfEvolutionRouter, 'selfEvolutionRouter');
-  safeUseRoute('/api/v1/joe/chat', routes.joeChatRouter, 'joeChatRouter');
-  safeUseRoute('/api/v1/joe/chat-advanced', routes.joeChatAdvancedRouter, 'joeChatAdvancedRouter');
-  safeUseRoute('/api/v1/chat-history', routes.chatHistoryRouter, 'chatHistoryRouter');
-  safeUseRoute('/api/v1/file', routes.fileUploadRouter, 'fileUploadRouter');
-  safeUseRoute('/api/v1', routes.testGrokRouter, 'testGrokRouter');
-  safeUseRoute('/api/live-stream', routes.liveStreamRouter, 'liveStreamRouter');
-  safeUseRoute('/api/v1/sandbox', routes.sandboxRoutes, 'sandboxRoutes');
-  safeUseRoute('/api/v1/planning', routes.planningRoutes, 'planningRoutes');
+  // Load all routes
+  for (const route of routes) {
+    const routerModule = await safeImport(route.module, route.name);
+    safeUseRoute(route.path, routerModule, route.name);
+  }
 
   // WebSocket
   try {
