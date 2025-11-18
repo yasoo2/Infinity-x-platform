@@ -1,41 +1,130 @@
-import axios from 'axios';
+  import axios, { AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios';
 
-// Base URL - can be overridden with environment variable
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://infinity-x-platform.onrender.com';
+  // Base URL normalization
+  const envBase = import.meta.env?.VITE_API_BASE_URL || 'https://infinity-x-platform.onrender.com';
+  const BASE_URL = envBase.replace(/\/+$/, ''); // remove trailing slash
 
-// Create axios instance
-const apiClient = axios.create({
-  baseURL: BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+  // Helper to detect FormData
+  const isFormData = (data: unknown): data is FormData =>
+    typeof FormData !== 'undefined' && data instanceof FormData;
 
-// Request interceptor to add session token
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('sessionToken');
-    if (token) {
-      config.headers['x-session-token'] = token;
+  // Axios instance
+  const apiClient = axios.create({
+    baseURL: BASE_URL,
+    timeout: 15000, // 15s reasonable default
+    headers: {
+      Accept: 'application/json',
+      // don't set Content-Type globally; axios sets it for JSON, and FormData needs boundary
+    },
+    withCredentials: false, // set true only if server uses cookies for auth
+  });
+
+  // Optional: a simple retry policy for idempotent requests (GET/HEAD)
+  const shouldRetry = (error: AxiosError) => {
+    const status = error.response?.status;
+    const method = error.config?.method?.toUpperCase();
+    // Retry on network or 5xx for idempotent methods
+    const idempotent = method === 'GET' || method === 'HEAD';
+    return (error.code === 'ECONNABORTED' || !status || (status >= 500 && status < 600)) && idempotent;
+  };
+
+  // Request interceptor: attach session token and correct headers
+  apiClient.interceptors.request.use(
+    (config: InternalAxiosRequestConfig) => {
+      const token = localStorage.getItem('sessionToken'); // Consider HttpOnly cookie on server instead
+      if (token) {
+        config.headers['x-session-token'] = token;
+      }
+      // Let axios set JSON content-type; ensure we don't override FormData headers
+      if (!isFormData(config.data) && !config.headers['Content-Type']) {
+        // axios will set to application/json automatically; explicit is fine too:
+        config.headers['Content-Type'] = 'application/json';
+      }
+      // Prevent accidental double slashes in URL
+      if (config.url?.startsWith('/')) {
+        config.url = config.url.replace(/^\/+/, '/');
+      }
+      return config;
+    },
+    (error) => Promise.reject(error)
+  );
+
+  // Centralized error normalization
+  type NormalizedError = {
+    status?: number;
+    code?: string;
+    message: string;
+    details?: unknown;
+  };
+
+  const normalizeError = (error: unknown): NormalizedError => {
+    if (axios.isAxiosError(error)) {
+      const ax = error as AxiosError<any>;
+      const status = ax.response?.status;
+      const message =
+        ax.response?.data?.message ||
+        ax.message ||
+        'حدث خطأ غير متوقع أثناء الاتصال بالخادم';
+      return {
+        status,
+        code: ax.code,
+        message,
+        details: ax.response?.data ?? ax.toJSON?.() ?? null,
+      };
     }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
+    return { message: 'خطأ غير متوقع', details: String(error) };
+  };
 
-// Response interceptor for error handling
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Unauthorized - clear token and redirect to login
-      localStorage.removeItem('sessionToken');
-      window.location.href = '/login';
+  // Simple in-flight flag for auth redirect throttling
+  let isRedirecting = false;
+
+  // Response interceptor
+  apiClient.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+      // Optional retry
+      if (shouldRetry(error)) {
+        try {
+          return await axios.request(error.config as AxiosRequestConfig);
+        } catch (e) {
+          // fall through to unified handling
+          error = e as AxiosError;
+        }
+      }
+
+      const status = error.response?.status;
+
+      if (status === 401) {
+        // Clear token and emit an event; let the app decide how to redirect
+        localStorage.removeItem('sessionToken');
+        window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+        // Fallback redirect if app doesn't handle event within a tick
+        if (!isRedirecting) {
+          isRedirecting = true;
+          setTimeout(() => {
+            if (location.pathname !== '/login') {
+              window.location.href = `/login?redirect=${encodeURIComponent(location.pathname + location.search)}`;
+            }
+            isRedirecting = false;
+          }, 0);
+        }
+      }
+
+      // Throw normalized error for consistent handling in callers
+      return Promise.reject(normalizeError(error));
     }
-    return Promise.reject(error);
-  }
-);
+  );
 
-export default apiClient;
+  export default apiClient;
+
+  // Helper: example usage with typed error
+  export async function getJson<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+    try {
+      const { data } = await apiClient.get<T>(url, config);
+      return data;
+    } catch (e) {
+      const err = normalizeError(e);
+      // Optionally log or show toast here
+      throw err;
+    }
+  }
