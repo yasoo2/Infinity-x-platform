@@ -1,690 +1,970 @@
-  // backend/server.mjs - النسخة الكاملة والمُصلحة نهائياً
-  import express from 'express';
-  import cors from 'cors';
-  import helmet from 'helmet';
-  import rateLimit from 'express-rate-limit';
-  import dotenv from 'dotenv';
-  import { MongoClient, ObjectId } from 'mongodb';
-  import bcrypt from 'bcryptjs';
-  import crypto from 'crypto';
-  import http from 'http';
+// backend/server.mjs - النسخة النهائية المحسّنة والمتكاملة مع JOE Advanced Engine
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import dotenv from 'dotenv';
+import { MongoClient, ObjectId } from 'mongodb';
+import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
+import http from 'http';
+import compression from 'compression';
+import morgan from 'morgan';
 
-  // ✅ Shared Types
-  import { ROLES } from './shared/roles.js';
-  import { sanitizeUserForClient } from './shared/userTypes.js';
+// ✅ Shared Types
+import { ROLES } from './shared/roles.js';
+import { sanitizeUserForClient } from './shared/userTypes.js';
 
-  // ✅ Database
-  import { initMongo, closeMongoConnection } from './src/db.mjs';
+// ✅ Database
+import { initMongo, closeMongoConnection } from './src/db.mjs';
 
-  // ✅ Workers
-  import { SimpleWorkerManager } from './src/workers/SimpleWorkerManager.mjs';
+// ✅ Workers
+import { SimpleWorkerManager } from './src/workers/SimpleWorkerManager.mjs';
 
-  dotenv.config();
+// ✅ JOE Advanced Engine
+import joeEngine from './src/engines/joeAdvancedEngine.mjs';
 
-  // =========================
-  // Init Express App
-  // =========================
-  const app = express();
-  const PORT = process.env.PORT || 4000;
-  app.set('trust proxy', 1);
+dotenv.config();
 
-  // =========================
-  // Security Middlewares
-  // =========================
-  app.use(helmet({
-    crossOriginResourcePolicy: { policy: "cross-origin" },
-    contentSecurityPolicy: false
-  }));
+// =========================
+// 🎯 Configuration
+// =========================
+const CONFIG = {
+  PORT: process.env.PORT || 4000,
+  NODE_ENV: process.env.NODE_ENV || 'development',
+  RATE_LIMIT_WINDOW: 15 * 60 * 1000, // 15 minutes
+  RATE_LIMIT_MAX: 200,
+  SESSION_EXPIRY: 30 * 24 * 60 * 60 * 1000, // 30 days
+  BODY_LIMIT: '10mb',
+  SHUTDOWN_TIMEOUT: 10000
+};
 
-  app.use(rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 200,
-    message: { error: 'TOO_MANY_REQUESTS' }
-  }));
+// =========================
+// 🚀 Init Express App
+// =========================
+const app = express();
+app.set('trust proxy', 1);
+app.disable('x-powered-by');
 
-  // =========================
-  // CORS Configuration
-  // =========================
-  const allowedOrigins = [
-    'http://localhost:5173',
-    'http://localhost:3000',
-    'http://localhost:4000',
-    'https://admin.xelitesolutions.com',
-    'https://dashboard.xelitesolutions.com',
-    'https://xelitesolutions.com',
-    'https://www.xelitesolutions.com',
-    'https://api.xelitesolutions.com'
-  ];
-
-  app.use(cors({
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) return callback(null, true);
-      console.warn(`⚠️  CORS blocked origin: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Session-Token'],
-    preflightContinue: false,
-    optionsSuccessStatus: 204
-  }));
-
-  // =========================
-  // Request Logging Middleware
-  // =========================
-  app.use((req, res, next) => {
-    const start = Date.now();
-    res.on('finish', () => {
-      const duration = Date.now() - start;
-      const emoji = res.statusCode >= 500 ? '❌' : res.statusCode >= 400 ? '⚠️' : '✅';
-      console.log(`${emoji} [${new Date().toISOString()}] ${req.method} ${req.originalUrl} ${res.statusCode} - ${duration}ms`);
-    });
-    next();
-  });
-
-  // =========================
-  // Body Parsing
-  // =========================
-  app.use(express.json({ limit: '10mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-  // =========================
-  // Utility: Crypto Random
-  // =========================
-  const cryptoRandom = () => crypto.randomBytes(32).toString('hex');
-
-  // =========================
-  // Role-Based Access Control
-  // =========================
-  const rolePriority = {
-    [ROLES.SUPER_ADMIN]: 3,
-    [ROLES.ADMIN]: 2,
-    [ROLES.USER]: 1,
-  };
-
-  function requireRole(minRole) {
-    return async (req, res, next) => {
-      try {
-        const db = await initMongo();
-        const token = req.headers['x-session-token'];
-        
-        if (!token) {
-          return res.status(401).json({ 
-            error: 'NO_TOKEN', 
-            message: 'Authentication token required' 
-          });
-        }
-
-        const session = await db.collection('sessions').findOne({ 
-          token, 
-          active: true 
-        });
-        
-        if (!session) {
-          return res.status(401).json({ 
-            error: 'INVALID_SESSION', 
-            message: 'Session expired or invalid' 
-          });
-        }
-
-        const user = await db.collection('users').findOne({ 
-          _id: new ObjectId(session.userId) 
-        });
-        
-        if (!user) {
-          return res.status(401).json({ 
-            error: 'NO_USER', 
-            message: 'User not found' 
-          });
-        }
-
-        if (rolePriority[user.role] < rolePriority[minRole]) {
-          return res.status(403).json({ 
-            error: 'FORBIDDEN', 
-            message: `Requires ${minRole} role or higher` 
-          });
-        }
-
-        req.user = sanitizeUserForClient(user);
-        req.session = session;
-        next();
-      } catch (err) {
-        console.error('❌ requireRole error:', err);
-        res.status(500).json({ 
-          error: 'SERVER_ERR', 
-          message: 'Authentication failed' 
-        });
-      }
-    };
+// =========================
+// 🔒 Security Middlewares
+// =========================
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "wss:", "ws:"],
+      fontSrc: ["'self'", "data:"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"]
+    }
+  },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true
   }
+}));
 
-  // =========================
-  // Health Check Endpoint
-  // =========================
-  app.get('/api/v1/health', async (req, res) => {
-    const checks = { 
-      database: false, 
-      workers: false,
-      uptime: process.uptime(),
-      memory: process.memoryUsage(),
-      environment: process.env.NODE_ENV || 'development'
-    };
+// Rate Limiting with different tiers
+const createRateLimiter = (windowMs, max, message) => rateLimit({
+  windowMs,
+  max,
+  message: { error: 'TOO_MANY_REQUESTS', message },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    console.warn(`⚠️  Rate limit exceeded: ${req.ip} - ${req.path}`);
+    res.status(429).json({
+      error: 'TOO_MANY_REQUESTS',
+      message,
+      retryAfter: Math.ceil(windowMs / 1000)
+    });
+  }
+});
 
-    try {
-      const db = await initMongo();
-      await db.command({ ping: 1 });
-      checks.database = true;
-    } catch (err) {
-      console.error('❌ Health check - DB failed:', err);
-    }
+// Global rate limiter
+app.use(createRateLimiter(
+  CONFIG.RATE_LIMIT_WINDOW,
+  CONFIG.RATE_LIMIT_MAX,
+  'Too many requests, please try again later'
+));
 
-    checks.workers = workerManager?.isRunning || false;
-    const isHealthy = checks.database;
+// Strict rate limiter for auth endpoints
+const authLimiter = createRateLimiter(
+  15 * 60 * 1000,
+  5,
+  'Too many authentication attempts'
+);
+
+// =========================
+// 🌐 CORS Configuration
+// =========================
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:4000',
+  'https://admin.xelitesolutions.com',
+  'https://dashboard.xelitesolutions.com',
+  'https://xelitesolutions.com',
+  'https://www.xelitesolutions.com',
+  'https://api.xelitesolutions.com'
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
     
-    res.status(isHealthy ? 200 : 503).json({
-      status: isHealthy ? 'healthy' : 'unhealthy',
-      checks,
-      timestamp: new Date().toISOString(),
-      version: '2.0.0'
-    });
-  });
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // In development, allow all localhost origins
+    if (CONFIG.NODE_ENV === 'development' && origin.includes('localhost')) {
+      return callback(null, true);
+    }
+    
+    console.warn(`⚠️  CORS blocked origin: ${origin}`);
+    callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Session-Token'],
+  exposedHeaders: ['X-Total-Count', 'X-Page-Count'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+}));
 
-  // =========================
-  // Root Endpoint
-  // =========================
-  app.get('/', (req, res) => {
-    res.json({
-      name: 'InfinityX Backend API',
-      version: '2.0.0',
-      status: 'running',
-      timestamp: new Date().toISOString(),
-      endpoints: {
-        health: '/api/v1/health',
-        auth: '/api/v1/auth/*',
-        joe: '/api/v1/joe/*',
-        dashboard: '/api/v1/dashboard/*',
-        factory: '/api/v1/factory/*',
-        store: '/api/v1/store/*',
-        integrations: '/api/v1/integrations/*'
-      }
-    });
-  });
+// =========================
+// 📊 Logging & Monitoring
+// =========================
+if (CONFIG.NODE_ENV === 'development') {
+  app.use(morgan('dev'));
+} else {
+  app.use(morgan('combined'));
+}
 
-  // =========================
-  // Authentication Routes
-  // =========================
+// Request ID middleware
+app.use((req, res, next) => {
+  req.id = crypto.randomBytes(16).toString('hex');
+  res.setHeader('X-Request-ID', req.id);
+  next();
+});
+
+// Request timing and logging
+app.use((req, res, next) => {
+  const start = Date.now();
   
-  // Bootstrap Super Admin
-  app.post('/api/v1/auth/bootstrap-super', async (req, res) => {
-    try {
-      const { email, phone, password } = req.body;
-      
-      if (!email || !password) {
-        return res.status(400).json({ 
-          error: 'MISSING_FIELDS',
-          message: 'Email and password are required' 
-        });
-      }
-
-      const db = await initMongo();
-      const exist = await db.collection('users').findOne({ 
-        role: ROLES.SUPER_ADMIN 
-      });
-      
-      const hash = await bcrypt.hash(password, 10);
-
-      if (exist) {
-        await db.collection('users').updateOne(
-          { _id: exist._id },
-          { 
-            $set: { 
-              email, 
-              phone: phone || null, 
-              passwordHash: hash,
-              updatedAt: new Date()
-            } 
-          }
-        );
-        console.log('✅ Super Admin updated');
-        return res.json({ 
-          ok: true, 
-          mode: 'UPDATED_EXISTING_SUPER_ADMIN',
-          userId: exist._id
-        });
-      } else {
-        const newUser = {
-          email,
-          phone: phone || null,
-          passwordHash: hash,
-          role: ROLES.SUPER_ADMIN,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        };
-        const result = await db.collection('users').insertOne(newUser);
-        console.log('✅ Super Admin created');
-        return res.json({ 
-          ok: true, 
-          mode: 'CREATED_NEW_SUPER_ADMIN', 
-          superAdminId: result.insertedId 
-        });
-      }
-    } catch (err) {
-      console.error('❌ bootstrap-super error:', err);
-      res.status(500).json({ 
-        error: 'SERVER_ERR',
-        message: 'Failed to bootstrap super admin' 
-      });
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    const emoji = res.statusCode >= 500 ? '❌' : 
+                  res.statusCode >= 400 ? '⚠️' : 
+                  res.statusCode >= 300 ? '🔄' : '✅';
+    
+    const logLevel = res.statusCode >= 500 ? 'ERROR' : 
+                     res.statusCode >= 400 ? 'WARN' : 'INFO';
+    
+    const logMessage = `${emoji} [${logLevel}] ${req.method} ${req.originalUrl} ${res.statusCode} - ${duration}ms [${req.id}]`;
+    
+    if (duration > 1000) {
+      console.warn(`🐌 Slow request: ${logMessage}`);
+    } else if (logLevel === 'ERROR' || logLevel === 'WARN') {
+      console.warn(logMessage);
+    } else {
+      console.log(logMessage);
     }
   });
+  
+  next();
+});
 
-  // Login
-  app.post('/api/v1/auth/login', async (req, res) => {
+// =========================
+// 📦 Body Parsing & Compression
+// =========================
+app.use(compression());
+app.use(express.json({ limit: CONFIG.BODY_LIMIT }));
+app.use(express.urlencoded({ extended: true, limit: CONFIG.BODY_LIMIT }));
+
+// =========================
+// 🔐 Authentication Utilities
+// =========================
+const cryptoRandom = () => crypto.randomBytes(32).toString('hex');
+
+const rolePriority = {
+  [ROLES.SUPER_ADMIN]: 3,
+  [ROLES.ADMIN]: 2,
+  [ROLES.USER]: 1,
+};
+
+function requireRole(minRole) {
+  return async (req, res, next) => {
     try {
-      const { email, password } = req.body;
+      const db = await initMongo();
+      const token = req.headers['x-session-token'] || req.headers.authorization?.replace('Bearer ', '');
       
-      if (!email || !password) {
-        return res.status(400).json({ 
-          error: 'MISSING_FIELDS',
-          message: 'Email and password are required' 
+      if (!token) {
+        return res.status(401).json({ 
+          error: 'NO_TOKEN', 
+          message: 'Authentication token required' 
         });
       }
 
-      const db = await initMongo();
-      const user = await db.collection('users').findOne({ email });
+      const session = await db.collection('sessions').findOne({ 
+        token, 
+        active: true,
+        expiresAt: { $gt: new Date() }
+      });
+      
+      if (!session) {
+        return res.status(401).json({ 
+          error: 'INVALID_SESSION', 
+          message: 'Session expired or invalid' 
+        });
+      }
+
+      const user = await db.collection('users').findOne({ 
+        _id: new ObjectId(session.userId) 
+      });
       
       if (!user) {
         return res.status(401).json({ 
-          error: 'INVALID_CREDENTIALS',
-          message: 'Invalid email or password' 
+          error: 'NO_USER', 
+          message: 'User not found' 
         });
       }
 
-      const validPassword = await bcrypt.compare(password, user.passwordHash);
-      
-      if (!validPassword) {
-        return res.status(401).json({ 
-          error: 'INVALID_CREDENTIALS',
-          message: 'Invalid email or password' 
+      if (rolePriority[user.role] < rolePriority[minRole]) {
+        return res.status(403).json({ 
+          error: 'FORBIDDEN', 
+          message: `Requires ${minRole} role or higher`,
+          required: minRole,
+          current: user.role
         });
       }
 
-      const token = cryptoRandom();
-      const session = {
-        userId: user._id,
-        token,
-        active: true,
-        createdAt: new Date(),
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-      };
-
-      await db.collection('sessions').insertOne(session);
-
-      res.json({
-        success: true,
-        token,
-        user: sanitizeUserForClient(user)
-      });
-    } catch (err) {
-      console.error('❌ Login error:', err);
-      res.status(500).json({ 
-        error: 'SERVER_ERR',
-        message: 'Login failed' 
-      });
-    }
-  });
-
-  // Logout
-  app.post('/api/v1/auth/logout', requireRole(ROLES.USER), async (req, res) => {
-    try {
-      const db = await initMongo();
+      // Update last activity
       await db.collection('sessions').updateOne(
-        { _id: req.session._id },
-        { $set: { active: false, loggedOutAt: new Date() } }
+        { _id: session._id },
+        { $set: { lastActivity: new Date() } }
       );
 
-      res.json({ 
-        success: true, 
-        message: 'Logged out successfully' 
-      });
+      req.user = sanitizeUserForClient(user);
+      req.session = session;
+      req.db = db;
+      next();
     } catch (err) {
-      console.error('❌ Logout error:', err);
+      console.error('❌ requireRole error:', err);
       res.status(500).json({ 
-        error: 'SERVER_ERR',
-        message: 'Logout failed' 
+        error: 'SERVER_ERR', 
+        message: 'Authentication failed' 
       });
     }
-  });
+  };
+}
 
-  // Get Current User
-  app.get('/api/v1/auth/me', requireRole(ROLES.USER), async (req, res) => {
+// Optional authentication (doesn't fail if no token)
+const optionalAuth = async (req, res, next) => {
+  try {
+    const token = req.headers['x-session-token'] || req.headers.authorization?.replace('Bearer ', '');
+    
+    if (!token) {
+      return next();
+    }
+
+    const db = await initMongo();
+    const session = await db.collection('sessions').findOne({ 
+      token, 
+      active: true,
+      expiresAt: { $gt: new Date() }
+    });
+    
+    if (session) {
+      const user = await db.collection('users').findOne({ 
+        _id: new ObjectId(session.userId) 
+      });
+      
+      if (user) {
+        req.user = sanitizeUserForClient(user);
+        req.session = session;
+      }
+    }
+    
+    next();
+  } catch (err) {
+    console.error('⚠️  Optional auth error:', err);
+    next();
+  }
+};
+
+// =========================
+// 🩺 Health Check Endpoint
+// =========================
+app.get('/api/v1/health', async (req, res) => {
+  const checks = { 
+    database: false, 
+    workers: false,
+    joeEngine: false,
+    uptime: process.uptime(),
+    memory: {
+      used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + ' MB',
+      total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + ' MB',
+      external: Math.round(process.memoryUsage().external / 1024 / 1024) + ' MB'
+    },
+    cpu: process.cpuUsage(),
+    environment: CONFIG.NODE_ENV,
+    version: '2.0.0',
+    timestamp: new Date().toISOString()
+  };
+
+  try {
+    const db = await initMongo();
+    await db.command({ ping: 1 });
+    checks.database = true;
+  } catch (err) {
+    console.error('❌ Health check - DB failed:', err);
+  }
+
+  checks.workers = workerManager?.isRunning || false;
+  checks.joeEngine = joeEngine?.version || false;
+  
+  const isHealthy = checks.database;
+  
+  res.status(isHealthy ? 200 : 503).json({
+    status: isHealthy ? 'healthy' : 'unhealthy',
+    checks,
+    joeStats: isHealthy ? {
+      memory: joeEngine.memory?.getStats(),
+      decisions: joeEngine.decision?.getStats(),
+      tools: joeEngine.tools?.length
+    } : null
+  });
+});
+
+// =========================
+// 🏠 Root Endpoint
+// =========================
+app.get('/', (req, res) => {
+  res.json({
+    name: 'InfinityX Backend API',
+    version: '2.0.0',
+    status: 'running',
+    timestamp: new Date().toISOString(),
+    joeEngine: {
+      version: joeEngine.version,
+      name: joeEngine.name,
+      tools: joeEngine.tools?.length || 0
+    },
+    endpoints: {
+      health: '/api/v1/health',
+      auth: '/api/v1/auth/*',
+      joe: '/api/v1/joe/*',
+      dashboard: '/api/v1/dashboard/*',
+      factory: '/api/v1/factory/*',
+      store: '/api/v1/store/*',
+      integrations: '/api/v1/integrations/*'
+    },
+    documentation: '/api/v1/docs'
+  });
+});
+
+// =========================
+// 🔐 Authentication Routes
+// =========================
+
+// Bootstrap Super Admin
+app.post('/api/v1/auth/bootstrap-super', authLimiter, async (req, res) => {
+  try {
+    const { email, phone, password, secretKey } = req.body;
+    
+    // Verify secret key in production
+    if (CONFIG.NODE_ENV === 'production' && secretKey !== process.env.BOOTSTRAP_SECRET) {
+      return res.status(403).json({ 
+        error: 'FORBIDDEN',
+        message: 'Invalid secret key' 
+      });
+    }
+    
+    if (!email || !password) {
+      return res.status(400).json({ 
+        error: 'MISSING_FIELDS',
+        message: 'Email and password are required' 
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ 
+        error: 'INVALID_EMAIL',
+        message: 'Invalid email format' 
+      });
+    }
+
+    // Validate password strength
+    if (password.length < 8) {
+      return res.status(400).json({ 
+        error: 'WEAK_PASSWORD',
+        message: 'Password must be at least 8 characters' 
+      });
+    }
+
+    const db = await initMongo();
+    const exist = await db.collection('users').findOne({ 
+      role: ROLES.SUPER_ADMIN 
+    });
+    
+    const hash = await bcrypt.hash(password, 12);
+
+    if (exist) {
+      await db.collection('users').updateOne(
+        { _id: exist._id },
+        { 
+          $set: { 
+            email, 
+            phone: phone || null, 
+            passwordHash: hash,
+            updatedAt: new Date()
+          } 
+        }
+      );
+      console.log('✅ Super Admin updated');
+      return res.json({ 
+        ok: true, 
+        mode: 'UPDATED_EXISTING_SUPER_ADMIN',
+        userId: exist._id
+      });
+    } else {
+      const newUser = {
+        email,
+        phone: phone || null,
+        passwordHash: hash,
+        role: ROLES.SUPER_ADMIN,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      const result = await db.collection('users').insertOne(newUser);
+      console.log('✅ Super Admin created');
+      return res.json({ 
+        ok: true, 
+        mode: 'CREATED_NEW_SUPER_ADMIN', 
+        superAdminId: result.insertedId 
+      });
+    }
+  } catch (err) {
+    console.error('❌ bootstrap-super error:', err);
+    res.status(500).json({ 
+      error: 'SERVER_ERR',
+      message: 'Failed to bootstrap super admin' 
+    });
+  }
+});
+
+// Login
+app.post('/api/v1/auth/login', authLimiter, async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({ 
+        error: 'MISSING_FIELDS',
+        message: 'Email and password are required' 
+      });
+    }
+
+    const db = await initMongo();
+    const user = await db.collection('users').findOne({ email });
+    
+    if (!user) {
+      // Use same delay as valid password to prevent timing attacks
+      await bcrypt.compare(password, '$2a$12$invalidhashtopreventtimingattack');
+      return res.status(401).json({ 
+        error: 'INVALID_CREDENTIALS',
+        message: 'Invalid email or password' 
+      });
+    }
+
+    const validPassword = await bcrypt.compare(password, user.passwordHash);
+    
+    if (!validPassword) {
+      return res.status(401).json({ 
+        error: 'INVALID_CREDENTIALS',
+        message: 'Invalid email or password' 
+      });
+    }
+
+    // Invalidate old sessions (optional)
+    await db.collection('sessions').updateMany(
+      { userId: user._id, active: true },
+      { $set: { active: false, invalidatedAt: new Date() } }
+    );
+
+    const token = cryptoRandom();
+    const session = {
+      userId: user._id,
+      token,
+      active: true,
+      createdAt: new Date(),
+      lastActivity: new Date(),
+      expiresAt: new Date(Date.now() + CONFIG.SESSION_EXPIRY),
+      ip: req.ip,
+      userAgent: req.headers['user-agent']
+    };
+
+    await db.collection('sessions').insertOne(session);
+
+    // Update last login
+    await db.collection('users').updateOne(
+      { _id: user._id },
+      { $set: { lastLogin: new Date() } }
+    );
+
     res.json({
       success: true,
-      user: req.user
+      token,
+      user: sanitizeUserForClient(user),
+      expiresAt: session.expiresAt
     });
-  });
-
-  // =========================
-  // Dynamic Route Loading
-  // =========================
-  
-  // Safe module import with error handling
-  async function safeImport(modulePath, moduleName) {
-    try {
-      const module = await import(modulePath);
-      console.log(`✅ Loaded: ${moduleName}`);
-      return module;
-    } catch (error) {
-      console.warn(`⚠️  Failed to load ${moduleName}:`, error.message);
-      return null;
-    }
+  } catch (err) {
+    console.error('❌ Login error:', err);
+    res.status(500).json({ 
+      error: 'SERVER_ERR',
+      message: 'Login failed' 
+    });
   }
+});
 
-  // ✅ Smart router extraction function
-  function extractRouter(routerModule, routerName) {
-    if (!routerModule) return null;
+// Logout
+app.post('/api/v1/auth/logout', requireRole(ROLES.USER), async (req, res) => {
+  try {
+    await req.db.collection('sessions').updateOne(
+      { _id: req.session._id },
+      { $set: { active: false, loggedOutAt: new Date() } }
+    );
 
-    // Priority 1: Named export matching the router name
-    if (routerModule[routerName]) {
-      return routerModule[routerName];
+    res.json({ 
+      success: true, 
+      message: 'Logged out successfully' 
+    });
+  } catch (err) {
+    console.error('❌ Logout error:', err);
+    res.status(500).json({ 
+      error: 'SERVER_ERR',
+      message: 'Logout failed' 
+    });
+  }
+});
+
+// Get Current User
+app.get('/api/v1/auth/me', requireRole(ROLES.USER), async (req, res) => {
+  res.json({
+    success: true,
+    user: req.user,
+    session: {
+      createdAt: req.session.createdAt,
+      expiresAt: req.session.expiresAt,
+      lastActivity: req.session.lastActivity
+    }
+  });
+});
+
+// Refresh Session
+app.post('/api/v1/auth/refresh', requireRole(ROLES.USER), async (req, res) => {
+  try {
+    const newExpiresAt = new Date(Date.now() + CONFIG.SESSION_EXPIRY);
+    
+    await req.db.collection('sessions').updateOne(
+      { _id: req.session._id },
+      { 
+        $set: { 
+          expiresAt: newExpiresAt,
+          lastActivity: new Date()
+        } 
+      }
+    );
+
+    res.json({
+      success: true,
+      expiresAt: newExpiresAt
+    });
+  } catch (err) {
+    console.error('❌ Refresh error:', err);
+    res.status(500).json({ 
+      error: 'SERVER_ERR',
+      message: 'Session refresh failed' 
+    });
+  }
+});
+
+// =========================
+// 🤖 JOE Engine Integration
+// =========================
+
+// JOE Chat Endpoint
+app.post('/api/v1/joe/chat', requireRole(ROLES.USER), async (req, res) => {
+  try {
+    const { message, conversationId } = req.body;
+    
+    if (!message) {
+      return res.status(400).json({
+        error: 'MISSING_MESSAGE',
+        message: 'Message is required'
+      });
     }
 
-    // Priority 2: Default export
-    if (routerModule.default) {
-      return routerModule.default;
+    // Get conversation history
+    let conversationHistory = [];
+    if (conversationId) {
+      const conversation = await req.db.collection('conversations').findOne({
+        _id: new ObjectId(conversationId),
+        userId: req.user.id
+      });
+      
+      if (conversation) {
+        conversationHistory = conversation.messages || [];
+      }
     }
 
-    // Priority 3: 'router' named export
-    if (routerModule.router) {
-      return routerModule.router;
+    // Process with JOE Engine
+    const result = await joeEngine.processMessage(
+      req.user.id,
+      message,
+      conversationHistory
+    );
+
+    // Save conversation
+    const conversationData = {
+      userId: req.user.id,
+      messages: [
+        ...conversationHistory,
+        { role: 'user', content: message, timestamp: new Date() },
+        { role: 'assistant', content: result.response, timestamp: new Date() }
+      ],
+      updatedAt: new Date()
+    };
+
+    if (conversationId) {
+      await req.db.collection('conversations').updateOne(
+        { _id: new ObjectId(conversationId) },
+        { $set: conversationData }
+      );
+    } else {
+      conversationData.createdAt = new Date();
+      const inserted = await req.db.collection('conversations').insertOne(conversationData);
+      result.conversationId = inserted.insertedId;
     }
 
-    // Priority 4: Direct router object (has stack property)
-    if (routerModule.stack) {
-      return routerModule;
-    }
+    res.json({
+      success: true,
+      ...result
+    });
 
-    // Priority 5: First exported value (excluding __esModule)
-    const keys = Object.keys(routerModule).filter(k => k !== '__esModule');
-    if (keys.length > 0) {
-      return routerModule[keys[0]];
-    }
+  } catch (err) {
+    console.error('❌ JOE chat error:', err);
+    res.status(500).json({
+      error: 'SERVER_ERR',
+      message: 'Failed to process message'
+    });
+  }
+});
 
+// JOE Stats
+app.get('/api/v1/joe/stats', requireRole(ROLES.ADMIN), async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      stats: {
+        memory: joeEngine.memory?.getStats(),
+        decisions: joeEngine.decision?.getStats(),
+        tools: joeEngine.tools?.length,
+        version: joeEngine.version
+      }
+    });
+  } catch (err) {
+    console.error('❌ JOE stats error:', err);
+    res.status(500).json({
+      error: 'SERVER_ERR',
+      message: 'Failed to get stats'
+    });
+  }
+});
+
+// =========================
+// 📁 Dynamic Route Loading
+// =========================
+
+async function safeImport(modulePath, moduleName) {
+  try {
+    const module = await import(modulePath);
+    console.log(`✅ Loaded: ${moduleName}`);
+    return module;
+  } catch (error) {
+    console.warn(`⚠️  Failed to load ${moduleName}:`, error.message);
     return null;
   }
+}
 
-  // ✅ Check if value is an Express Router
-  function isExpressRouter(obj) {
-    return obj && 
-           typeof obj === 'object' && 
-           typeof obj.use === 'function' && 
-           typeof obj.get === 'function' && 
-           typeof obj.post === 'function' &&
-           Array.isArray(obj.stack);
+function extractRouter(routerModule, routerName) {
+  if (!routerModule) return null;
+  if (routerModule[routerName]) return routerModule[routerName];
+  if (routerModule.default) return routerModule.default;
+  if (routerModule.router) return routerModule.router;
+  if (routerModule.stack) return routerModule;
+  
+  const keys = Object.keys(routerModule).filter(k => k !== '__esModule');
+  if (keys.length > 0) return routerModule[keys[0]];
+  
+  return null;
+}
+
+function isExpressRouter(obj) {
+  return obj && 
+         typeof obj === 'object' && 
+         typeof obj.use === 'function' && 
+         typeof obj.get === 'function' && 
+         typeof obj.post === 'function' &&
+         Array.isArray(obj.stack);
+}
+
+function isFactoryFunction(obj) {
+  return typeof obj === 'function';
+}
+
+const safeUseRoute = (path, routerModule, routerName) => {
+  if (!routerModule) {
+    console.warn(`⚠️  Route not available: ${path} (${routerName})`);
+    return;
   }
 
-  // ✅ Check if value is a factory function
-  function isFactoryFunction(obj) {
-    return typeof obj === 'function';
-  }
+  try {
+    const extracted = extractRouter(routerModule, routerName);
 
-  // ✅ Safe route registration with smart router detection
-  const safeUseRoute = (path, routerModule, routerName) => {
-    if (!routerModule) {
-      console.warn(`⚠️  Route not available: ${path} (${routerName})`);
+    if (!extracted) {
+      console.error(`❌ No valid router found for ${path}`);
       return;
     }
 
-    try {
-      const extracted = extractRouter(routerModule, routerName);
-
-      if (!extracted) {
-        console.error(`❌ No valid router found for ${path}`);
-        console.error(`   Module keys:`, Object.keys(routerModule));
-        return;
-      }
-
-      // Check if it's already an Express Router
-      if (isExpressRouter(extracted)) {
-        app.use(path, extracted);
-        console.log(`✅ Route registered: ${path} (router)`);
-        return;
-      }
-
-      // Check if it's a factory function
-      if (isFactoryFunction(extracted)) {
-        try {
-          // Try to call the factory function
-          // Check if function expects parameters (like initMongo)
-          const routerInstance = extracted.length > 0 ? extracted(initMongo) : extracted();
-          
-          // Verify the result is a router
-          if (isExpressRouter(routerInstance)) {
-            app.use(path, routerInstance);
-            console.log(`✅ Route registered: ${path} (factory)`);
-          } else {
-            console.error(`❌ Factory function for ${path} did not return a valid router`);
-            console.error(`   Returned type:`, typeof routerInstance);
-          }
-        } catch (err) {
-          console.error(`❌ Factory function failed for ${path}:`, err.message);
-          console.error(`   Stack:`, err.stack);
-        }
-        return;
-      }
-
-      // If we get here, it's neither a router nor a factory
-      console.error(`❌ Invalid router type for ${path}:`, typeof extracted);
-      console.error(`   Value:`, extracted);
-
-    } catch (error) {
-      console.error(`❌ Failed to register route ${path}:`, error.message);
-      console.error(`   Stack:`, error.stack);
+    if (isExpressRouter(extracted)) {
+      app.use(path, extracted);
+      console.log(`✅ Route registered: ${path} (router)`);
+      return;
     }
+
+    if (isFactoryFunction(extracted)) {
+      try {
+        const routerInstance = extracted.length > 0 ? extracted(initMongo) : extracted();
+        
+        if (isExpressRouter(routerInstance)) {
+          app.use(path, routerInstance);
+          console.log(`✅ Route registered: ${path} (factory)`);
+        } else {
+          console.error(`❌ Factory function for ${path} did not return a valid router`);
+        }
+      } catch (err) {
+        console.error(`❌ Factory function failed for ${path}:`, err.message);
+      }
+      return;
+    }
+
+    console.error(`❌ Invalid router type for ${path}:`, typeof extracted);
+
+  } catch (error) {
+    console.error(`❌ Failed to register route ${path}:`, error.message);
+  }
+};
+
+async function applyRoutes() {
+  console.log('🔄 Loading routes...');
+
+  const routes = {
+    joeRouter: await safeImport('./src/routes/joeRouter.js', 'joeRouter'),
+    factoryRouter: await safeImport('./src/routes/factoryRouter.js', 'factoryRouter'),
+    publicSiteRouter: await safeImport('./src/routes/publicSiteRouter.js', 'publicSiteRouter'),
+    dashboardDataRouter: await safeImport('./src/routes/dashboardDataRouter.js', 'dashboardDataRouter'),
+    selfDesignRouter: await safeImport('./src/routes/selfDesign.mjs', 'selfDesignRouter'),
+    storeIntegrationRouter: await safeImport('./src/routes/storeIntegration.mjs', 'storeIntegrationRouter'),
+    universalStoreRouter: await safeImport('./src/routes/universalStore.mjs', 'universalStoreRouter'),
+    pageBuilderRouter: await safeImport('./src/routes/pageBuilder.mjs', 'pageBuilderRouter'),
+    githubManagerRouter: await safeImport('./src/routes/githubManager.mjs', 'githubManagerRouter'),
+    integrationManagerRouter: await safeImport('./src/routes/integrationManager.mjs', 'integrationManagerRouter'),
+    selfEvolutionRouter: await safeImport('./src/routes/selfEvolution.mjs', 'selfEvolutionRouter'),
+    joeChatRouter: await safeImport('./src/routes/joeChat.mjs', 'joeChatRouter'),
+    joeChatAdvancedRouter: await safeImport('./src/routes/joeChatAdvanced.mjs', 'joeChatAdvancedRouter'),
+    chatHistoryRouter: await safeImport('./src/routes/chatHistory.mjs', 'chatHistoryRouter'),
+    fileUploadRouter: await safeImport('./src/routes/fileUpload.mjs', 'fileUploadRouter'),
+    testGrokRouter: await safeImport('./src/routes/testGrok.mjs', 'testGrokRouter'),
+    liveStreamRouter: await safeImport('./src/routes/liveStreamRouter.mjs', 'liveStreamRouter'),
+    sandboxRoutes: await safeImport('./src/routes/sandboxRoutes.mjs', 'sandboxRoutes'),
+    planningRoutes: await safeImport('./src/routes/planningRoutes.mjs', 'planningRoutes')
   };
 
-  // Load and apply all routes
-  async function applyRoutes() {
-    console.log('🔄 Loading routes...');
+  safeUseRoute('/api/v1/joe/control', routes.joeRouter, 'joeRouter');
+  safeUseRoute('/api/v1/factory', routes.factoryRouter, 'factoryRouter');
+  safeUseRoute('/api/v1/dashboard', routes.dashboardDataRouter, 'dashboardDataRouter');
+  safeUseRoute('/api/v1/public-site', routes.publicSiteRouter, 'publicSiteRouter');
+  safeUseRoute('/api/v1/self-design', routes.selfDesignRouter, 'selfDesignRouter');
+  safeUseRoute('/api/v1/store', routes.storeIntegrationRouter, 'storeIntegrationRouter');
+  safeUseRoute('/api/v1/universal-store', routes.universalStoreRouter, 'universalStoreRouter');
+  safeUseRoute('/api/v1/page-builder', routes.pageBuilderRouter, 'pageBuilderRouter');
+  safeUseRoute('/api/v1/github-manager', routes.githubManagerRouter, 'githubManagerRouter');
+  safeUseRoute('/api/v1/integrations', routes.integrationManagerRouter, 'integrationManagerRouter');
+  safeUseRoute('/api/v1/self-evolution', routes.selfEvolutionRouter, 'selfEvolutionRouter');
+  safeUseRoute('/api/v1/joe/chat-legacy', routes.joeChatRouter, 'joeChatRouter');
+  safeUseRoute('/api/v1/joe/chat-advanced', routes.joeChatAdvancedRouter, 'joeChatAdvancedRouter');
+  safeUseRoute('/api/v1/chat-history', routes.chatHistoryRouter, 'chatHistoryRouter');
+  safeUseRoute('/api/v1/file', routes.fileUploadRouter, 'fileUploadRouter');
+  safeUseRoute('/api/v1', routes.testGrokRouter, 'testGrokRouter');
+  safeUseRoute('/api/live-stream', routes.liveStreamRouter, 'liveStreamRouter');
+  safeUseRoute('/api/v1/sandbox', routes.sandboxRoutes, 'sandboxRoutes');
+  safeUseRoute('/api/v1/planning', routes.planningRoutes, 'planningRoutes');
 
-    // Load all route modules
-    const routes = {
-      joeRouter: await safeImport('./src/routes/joeRouter.js', 'joeRouter'),
-      factoryRouter: await safeImport('./src/routes/factoryRouter.js', 'factoryRouter'),
-      publicSiteRouter: await safeImport('./src/routes/publicSiteRouter.js', 'publicSiteRouter'),
-      dashboardDataRouter: await safeImport('./src/routes/dashboardDataRouter.js', 'dashboardDataRouter'),
-      selfDesignRouter: await safeImport('./src/routes/selfDesign.mjs', 'selfDesignRouter'),
-      storeIntegrationRouter: await safeImport('./src/routes/storeIntegration.mjs', 'storeIntegrationRouter'),
-      universalStoreRouter: await safeImport('./src/routes/universalStore.mjs', 'universalStoreRouter'),
-      pageBuilderRouter: await safeImport('./src/routes/pageBuilder.mjs', 'pageBuilderRouter'),
-      githubManagerRouter: await safeImport('./src/routes/githubManager.mjs', 'githubManagerRouter'),
-      integrationManagerRouter: await safeImport('./src/routes/integrationManager.mjs', 'integrationManagerRouter'),
-      selfEvolutionRouter: await safeImport('./src/routes/selfEvolution.mjs', 'selfEvolutionRouter'),
-      joeChatRouter: await safeImport('./src/routes/joeChat.mjs', 'joeChatRouter'),
-      joeChatAdvancedRouter: await safeImport('./src/routes/joeChatAdvanced.mjs', 'joeChatAdvancedRouter'),
-      chatHistoryRouter: await safeImport('./src/routes/chatHistory.mjs', 'chatHistoryRouter'),
-      fileUploadRouter: await safeImport('./src/routes/fileUpload.mjs', 'fileUploadRouter'),
-      testGrokRouter: await safeImport('./src/routes/testGrok.mjs', 'testGrokRouter'),
-      liveStreamRouter: await safeImport('./src/routes/liveStreamRouter.mjs', 'liveStreamRouter'),
-      sandboxRoutes: await safeImport('./src/routes/sandboxRoutes.mjs', 'sandboxRoutes'),
-      planningRoutes: await safeImport('./src/routes/planningRoutes.mjs', 'planningRoutes')
-    };
-
-    // Apply all routes with smart extraction
-    safeUseRoute('/api/v1/joe/control', routes.joeRouter, 'joeRouter');
-    safeUseRoute('/api/v1/factory', routes.factoryRouter, 'factoryRouter');
-    safeUseRoute('/api/v1/dashboard', routes.dashboardDataRouter, 'dashboardDataRouter');
-    safeUseRoute('/api/v1/public-site', routes.publicSiteRouter, 'publicSiteRouter');
-    safeUseRoute('/api/v1/self-design', routes.selfDesignRouter, 'selfDesignRouter');
-    safeUseRoute('/api/v1/store', routes.storeIntegrationRouter, 'storeIntegrationRouter');
-    safeUseRoute('/api/v1/universal-store', routes.universalStoreRouter, 'universalStoreRouter');
-    safeUseRoute('/api/v1/page-builder', routes.pageBuilderRouter, 'pageBuilderRouter');
-    safeUseRoute('/api/v1/github-manager', routes.githubManagerRouter, 'githubManagerRouter');
-    safeUseRoute('/api/v1/integrations', routes.integrationManagerRouter, 'integrationManagerRouter');
-    safeUseRoute('/api/v1/self-evolution', routes.selfEvolutionRouter, 'selfEvolutionRouter');
-    safeUseRoute('/api/v1/joe/chat', routes.joeChatRouter, 'joeChatRouter');
-    safeUseRoute('/api/v1/joe/chat-advanced', routes.joeChatAdvancedRouter, 'joeChatAdvancedRouter');
-    safeUseRoute('/api/v1/chat-history', routes.chatHistoryRouter, 'chatHistoryRouter');
-    safeUseRoute('/api/v1/file', routes.fileUploadRouter, 'fileUploadRouter');
-    safeUseRoute('/api/v1', routes.testGrokRouter, 'testGrokRouter');
-    safeUseRoute('/api/live-stream', routes.liveStreamRouter, 'liveStreamRouter');
-    safeUseRoute('/api/v1/sandbox', routes.sandboxRoutes, 'sandboxRoutes');
-    safeUseRoute('/api/v1/planning', routes.planningRoutes, 'planningRoutes');
-
-    // Load WebSocket server
-    try {
-      const wsModule = await import('./src/services/liveStreamWebSocket.mjs');
-      const LiveStreamWebSocketServer = wsModule.default;
-      if (LiveStreamWebSocketServer) {
-        new LiveStreamWebSocketServer(server);
-        console.log('✅ WebSocket servers initialized');
-      }
-    } catch (error) {
-      console.warn('⚠️  Failed to load WebSocket:', error.message);
+  // WebSocket
+  try {
+    const wsModule = await import('./src/services/liveStreamWebSocket.mjs');
+    const LiveStreamWebSocketServer = wsModule.default;
+    if (LiveStreamWebSocketServer) {
+      new LiveStreamWebSocketServer(server);
+      console.log('✅ WebSocket servers initialized');
     }
+  } catch (error) {
+    console.warn('⚠️  Failed to load WebSocket:', error.message);
+  }
+}
+
+// =========================
+// ❌ 404 Handler
+// =========================
+app.use((req, res) => {
+  res.status(404).json({
+    error: 'NOT_FOUND',
+    message: `Route ${req.method} ${req.path} not found`,
+    suggestion: 'Check /api/v1/health for available endpoints',
+    requestId: req.id
+  });
+});
+
+// =========================
+// ⚠️ Global Error Handler
+// =========================
+app.use((err, req, res, next) => {
+  console.error('❌ Global Error:', err);
+  
+  const statusCode = err.status || err.statusCode || 500;
+  const errorResponse = {
+    error: err.name || 'SERVER_ERROR',
+    message: err.message || 'Internal Server Error',
+    timestamp: new Date().toISOString(),
+    requestId: req.id
+  };
+
+  if (CONFIG.NODE_ENV === 'development') {
+    errorResponse.stack = err.stack;
   }
 
-  // =========================
-  // 404 Handler
-  // =========================
-  app.use((req, res) => {
-    res.status(404).json({
-      error: 'NOT_FOUND',
-      message: `Route ${req.method} ${req.path} not found`,
-      suggestion: 'Check /api/v1/health for available endpoints'
+  res.status(statusCode).json(errorResponse);
+});
+
+// =========================
+// 👷 Worker Manager
+// =========================
+let workerManager;
+
+async function initializeWorkerManager() {
+  try {
+    console.log('🔄 Starting workers...');
+    workerManager = new SimpleWorkerManager({ maxConcurrent: 3 });
+    await workerManager.start();
+    console.log('✅ Worker Manager started');
+  } catch (error) {
+    console.error('❌ Worker Manager failed:', error);
+    workerManager = { isRunning: false };
+  }
+}
+
+// =========================
+// 🛑 Graceful Shutdown
+// =========================
+async function gracefulShutdown(signal) {
+  console.log(`\n🛑 Received ${signal}. Shutting down gracefully...`);
+  
+  try {
+    server.close(() => {
+      console.log('✅ HTTP server closed');
     });
-  });
 
-  // =========================
-  // Global Error Handler
-  // =========================
-  app.use((err, req, res, next) => {
-    console.error('❌ Global Error:', err);
+    if (workerManager?.stop) {
+      await workerManager.stop();
+      console.log('✅ Workers stopped');
+    }
     
-    const statusCode = err.status || err.statusCode || 500;
-    const errorResponse = {
-      error: err.name || 'SERVER_ERROR',
-      message: err.message || 'Internal Server Error',
-      timestamp: new Date().toISOString()
-    };
-
-    // Include stack trace in development
-    if (process.env.NODE_ENV === 'development') {
-      errorResponse.stack = err.stack;
-    }
-
-    res.status(statusCode).json(errorResponse);
-  });
-
-  // =========================
-  // Worker Manager
-  // =========================
-  let workerManager;
-
-  async function initializeWorkerManager() {
-    try {
-      console.log('🔄 Starting workers...');
-      workerManager = new SimpleWorkerManager({ maxConcurrent: 3 });
-      await workerManager.start();
-      console.log('✅ Worker Manager started');
-      console.log('✅ SimpleWorkerManager started');
-    } catch (error) {
-      console.error('❌ Worker Manager failed:', error);
-      workerManager = { isRunning: false };
-    }
-  }
-
-  // =========================
-  // Graceful Shutdown
-  // =========================
-  async function gracefulShutdown(signal) {
-    console.log(`\n🛑 Received ${signal}. Shutting down gracefully...`);
+    await closeMongoConnection();
+    console.log('✅ Database connection closed');
     
-    try {
-      // Stop accepting new requests
-      server.close(() => {
-        console.log('✅ HTTP server closed');
-      });
+    console.log('✅ Graceful shutdown completed');
+    process.exit(0);
 
-      // Stop workers
-      if (workerManager?.stop) {
-        await workerManager.stop();
-        console.log('✅ Workers stopped');
-      }
-      
-      // Close database connection
-      await closeMongoConnection();
-      console.log('✅ Database connection closed');
-      
-      console.log('✅ Graceful shutdown completed');
-      process.exit(0);
-
-    } catch (error) {
-      console.error('❌ Error during shutdown:', error);
-      process.exit(1);
-    }
-
-    // Force shutdown after timeout
-    setTimeout(() => {
-      console.error('⚠️  Forced shutdown after timeout');
-      process.exit(1);
-    }, 10000);
+  } catch (error) {
+    console.error('❌ Error during shutdown:', error);
+    process.exit(1);
   }
 
-  // Process event handlers
-  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-  
-  process.on('unhandledRejection', (reason, promise) => {
-    console.error('❌ Unhandled Rejection at:', promise);
-    console.error('❌ Reason:', reason);
-  });
-  
-  process.on('uncaughtException', (error) => {
-    console.error('❌ Uncaught Exception:', error);
-    gracefulShutdown('uncaughtException');
-  });
+  setTimeout(() => {
+    console.error('⚠️  Forced shutdown after timeout');
+    process.exit(1);
+  }, CONFIG.SHUTDOWN_TIMEOUT);
+}
 
-  // =========================
-  // Start Server
-  // =========================
-  const server = http.createServer(app);
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-  async function startServer() {
-    try {
-      // Connect to database
-      console.log('🔄 Connecting to database...');
-      await initMongo();
-      console.log('✅ Database connected');
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise);
+  console.error('❌ Reason:', reason);
+});
 
-      // Initialize workers
-      await initializeWorkerManager();
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception:', error);
+  gracefulShutdown('uncaughtException');
+});
 
-      // Load all routes
-      await applyRoutes();
+// =========================
+// 🚀 Start Server
+// =========================
+const server = http.createServer(app);
 
-      // Start HTTP server
-      server.listen(PORT, '0.0.0.0', () => {
-        console.log('\n' + '='.repeat(60));
-        console.log('🚀 InfinityX Backend Server Started Successfully!');
-        console.log('='.repeat(60));
-        console.log(`📡 HTTP Server: http://0.0.0.0:${PORT}`);
-        console.log(`🩺 Health Check: http://0.0.0.0:${PORT}/api/v1/health`);
-        console.log(`🎬 LiveStream WS: ws://0.0.0.0:${PORT}/ws/live-stream`);
-        console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-        console.log(`⏱️  Started at: ${new Date().toISOString()}`);
-        console.log('='.repeat(60) + '\n');
-      });
+async function startServer() {
+  try {
+    console.log('🔄 Connecting to database...');
+    await initMongo();
+    console.log('✅ Database connected');
 
-    } catch (error) {
-      console.error('❌ Failed to start server:', error);
-      console.error('Stack:', error.stack);
-      process.exit(1);
-    }
+    await initializeWorkerManager();
+    await applyRoutes();
+
+    server.listen(CONFIG.PORT, '0.0.0.0', () => {
+      console.log('\n' + '='.repeat(60));
+      console.log('🚀 InfinityX Backend Server Started Successfully!');
+      console.log('='.repeat(60));
+      console.log(`📡 HTTP Server: http://0.0.0.0:${CONFIG.PORT}`);
+      console.log(`🩺 Health Check: http://0.0.0.0:${CONFIG.PORT}/api/v1/health`);
+      console.log(`🤖 JOE Engine: ${joeEngine.version} (${joeEngine.tools?.length || 0} tools)`);
+      console.log(`🌍 Environment: ${CONFIG.NODE_ENV}`);
+      console.log(`⏱️  Started at: ${new Date().toISOString()}`);
+      console.log('='.repeat(60) + '\n');
+    });
+
+  } catch (error) {
+    console.error('❌ Failed to start server:', error);
+    process.exit(1);
   }
+}
 
-  // Start the server
-  startServer();
+startServer();
 
-  // Export for testing
-  export default app;
+export default app;
+export { requireRole, optionalAuth, CONFIG };
