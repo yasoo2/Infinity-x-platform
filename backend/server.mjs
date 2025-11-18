@@ -8,6 +8,8 @@
   import bcrypt from 'bcryptjs';
   import crypto from 'crypto';
   import http from 'http';
+  import session from 'express-session';
+  import passport from 'passport';
 
   // ✅ Shared Types
   import { ROLES } from './shared/roles.js';
@@ -18,6 +20,9 @@
 
   // ✅ Workers
   import { SimpleWorkerManager } from './src/workers/SimpleWorkerManager.mjs';
+
+  // ✅ Google OAuth
+  import { setupGoogleAuth, setupGoogleRoutes } from './src/auth/googleAuth.mjs';
 
   dotenv.config();
 
@@ -154,6 +159,22 @@
   // =========================
   app.use(express.json({ limit: CONFIG.BODY_LIMIT }));
   app.use(express.urlencoded({ extended: true, limit: CONFIG.BODY_LIMIT }));
+
+  // =========================
+  // 🔐 Session & Passport Setup
+  // =========================
+  app.use(session({
+    secret: process.env.SESSION_SECRET || 'infinity-x-secret-key-change-in-production',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      maxAge: CONFIG.SESSION_EXPIRY
+    }
+  }));
+  app.use(passport.initialize());
+  app.use(passport.session());
 
   // =========================
   // 🔐 Authentication Utilities
@@ -870,6 +891,19 @@
 
       await initializeWorkerManager();
       await applyRoutes();
+
+      // ✅ Setup Google OAuth
+      const googleClientId = process.env.GOOGLE_CLIENT_ID;
+      const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+      const frontendURL = process.env.FRONTEND_URL || 'https://xelitesolutions.com';
+      const backendURL = process.env.BACKEND_URL || `http://localhost:${CONFIG.PORT}`;
+      const googleCallbackURL = `${backendURL}/api/v1/auth/google/callback`;
+      
+      const googleEnabled = setupGoogleAuth(googleClientId, googleClientSecret, googleCallbackURL);
+      if (googleEnabled) {
+        setupGoogleRoutes(app, frontendURL);
+        console.log('✅ Google OAuth routes configured');
+      }
 
       server.listen(CONFIG.PORT, '0.0.0.0', () => {
         console.log('\n' + '='.repeat(60));

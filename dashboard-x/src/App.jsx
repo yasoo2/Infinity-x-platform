@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import RequireAuth from './components/RequireAuth';
 import DashboardLayout from './components/DashboardLayout';
 import Login from './pages/Login';
+import Signup from './pages/Signup';
 import Overview from './pages/Overview';
 import Activity from './pages/Activity';
 import Command from './pages/Command';
@@ -23,6 +24,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
         
         <Route
           path="/"
