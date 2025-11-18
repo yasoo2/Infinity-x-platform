@@ -329,7 +329,8 @@
   // Bootstrap Super Admin
   app.post('/api/v1/auth/bootstrap-super', authLimiter, async (req, res) => {
     try {
-      const { email, phone, password, secretKey } = req.body;
+      const { email: rawEmail, phone, password, secretKey } = req.body;
+      const email = rawEmail ? rawEmail.toLowerCase() : null;
       
       if (CONFIG.NODE_ENV === 'production' && secretKey !== process.env.BOOTSTRAP_SECRET) {
         return res.status(403).json({ 
@@ -414,7 +415,8 @@
   // Login
   app.post('/api/v1/auth/login', authLimiter, async (req, res) => {
     try {
-      const { email, password } = req.body;
+      const { email: rawEmail, password } = req.body;
+      const email = rawEmail ? rawEmail.toLowerCase() : null;
       
       if (!email || !password) {
         return res.status(400).json({ 
