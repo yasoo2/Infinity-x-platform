@@ -1,4 +1,4 @@
-  // backend/server.mjs - النسخة النهائية المحسّنة v2.0.2
+  // backend/server.mjs - النسخة النهائية المحسّنة v2.0.3
   import express from 'express';
   import cors from 'cors';
   import helmet from 'helmet';
@@ -279,7 +279,7 @@
         total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + ' MB'
       },
       environment: CONFIG.NODE_ENV,
-      version: '2.0.2',
+      version: '2.0.3',
       timestamp: new Date().toISOString()
     };
 
@@ -307,7 +307,7 @@
   app.get('/', (req, res) => {
     res.json({
       name: 'InfinityX Backend API',
-      version: '2.0.2',
+      version: '2.0.3',
       status: 'running',
       timestamp: new Date().toISOString(),
       endpoints: {
@@ -540,7 +540,7 @@
   });
 
   // =========================
-  // 📁 Dynamic Route Loading - FIXED VERSION 2.0.2
+  // 📁 Dynamic Route Loading - FIXED VERSION 2.0.3
   // =========================
 
   async function safeImport(modulePath, moduleName) {
@@ -557,25 +557,6 @@
     }
   }
 
-  function isExpressRouter(obj) {
-    if (!obj || typeof obj !== 'object') return false;
-    
-    // Check for Express Router methods
-    const hasRouterMethods = 
-      typeof obj.use === 'function' && 
-      typeof obj.get === 'function' && 
-      typeof obj.post === 'function';
-    
-    // Check for router stack
-    const hasStack = Array.isArray(obj.stack) || obj.stack !== undefined;
-    
-    return hasRouterMethods && hasStack;
-  }
-
-  function isFactoryFunction(obj) {
-    return typeof obj === 'function';
-  }
-
   async function safeUseRoute(path, routerModule, routerName) {
     if (!routerModule) {
       console.warn(`⚠️  Route not available: ${path} (${routerName})`);
@@ -584,15 +565,15 @@
 
     try {
       // Step 1: Extract router from module
-      let router = null;
+      let routerOrFactory = null;
       
       // Try different export patterns
       if (routerModule[routerName]) {
-        router = routerModule[routerName];
+        routerOrFactory = routerModule[routerName];
       } else if (routerModule.default) {
-        router = routerModule.default;
+        routerOrFactory = routerModule.default;
       } else if (routerModule.router) {
-        router = routerModule.router;
+        routerOrFactory = routerModule.router;
       } else {
         // Find first non-internal export
         const keys = Object.keys(routerModule).filter(k => 
@@ -601,88 +582,105 @@
           !k.startsWith('_')
         );
         if (keys.length > 0) {
-          router = routerModule[keys[0]];
+          routerOrFactory = routerModule[keys[0]];
         }
       }
 
-      if (!router) {
+      if (!routerOrFactory) {
         console.error(`❌ No router found in ${routerName}`);
         console.error(`   Available exports:`, Object.keys(routerModule));
         return false;
       }
 
-      // Step 2: Check if it's already a valid Express Router
-      if (isExpressRouter(router)) {
-        app.use(path, router);
-        console.log(`✅ Route registered: ${path} (direct router)`);
-        return true;
-      }
+      let finalRouter = null;
 
-      // Step 3: Check if it's a factory function
-      if (isFactoryFunction(router)) {
-        try {
-          let routerInstance;
-          
-          // Analyze function signature
-          const funcString = router.toString();
-          const factoryParams = router.length;
-          
-          // Determine parameters based on function analysis
-          if (factoryParams === 0) {
-            // No parameters
-            routerInstance = router();
-          } else if (factoryParams === 1) {
-            // Single parameter - check what it expects
-            if (funcString.includes('initMongo') || funcString.includes('getDb')) {
-              routerInstance = router(initMongo);
-            } else if (funcString.includes('requireRole') || funcString.includes('auth')) {
-              routerInstance = router(requireRole);
+      // Step 2: Check if it's a factory function (must be called first)
+      if (typeof routerOrFactory === 'function') {
+        // Check if it's already an Express Router by checking its stack property
+        const isAlreadyRouter = routerOrFactory.stack !== undefined;
+        
+        if (isAlreadyRouter) {
+          // It's already a router instance
+          finalRouter = routerOrFactory;
+          console.log(`   → Direct router (has stack)`);
+        } else {
+          // It's a factory function - call it
+          console.log(`   → Factory function (${routerOrFactory.length} params)`);
+          try {
+            const funcString = routerOrFactory.toString();
+            const paramCount = routerOrFactory.length;
+            
+            let routerInstance;
+            
+            if (paramCount === 0) {
+              routerInstance = routerOrFactory();
+            } else if (paramCount === 1) {
+              // Determine what parameter it needs
+              if (funcString.includes('initMongo') || funcString.includes('getDb') || funcString.includes('db')) {
+                routerInstance = routerOrFactory(initMongo);
+              } else if (funcString.includes('requireRole') || funcString.includes('auth')) {
+                routerInstance = routerOrFactory(requireRole);
+              } else {
+                // Default to initMongo
+                routerInstance = routerOrFactory(initMongo);
+              }
+            } else if (paramCount === 2) {
+              routerInstance = routerOrFactory(initMongo, requireRole);
             } else {
-              // Default to initMongo
-              routerInstance = router(initMongo);
+              routerInstance = routerOrFactory(initMongo, requireRole, optionalAuth);
             }
-          } else if (factoryParams === 2) {
-            // Two parameters - likely initMongo and requireRole
-            routerInstance = router(initMongo, requireRole);
-          } else if (factoryParams >= 3) {
-            // Three or more - include optionalAuth
-            routerInstance = router(initMongo, requireRole, optionalAuth);
-          }
-          
-          // Handle async factory functions
-          if (routerInstance instanceof Promise) {
-            routerInstance = await routerInstance;
-          }
-          
-          // Verify the result is a valid router
-          if (isExpressRouter(routerInstance)) {
-            app.use(path, routerInstance);
-            console.log(`✅ Route registered: ${path} (factory with ${factoryParams} params)`);
-            return true;
-          } else {
-            console.error(`❌ Factory for ${path} returned invalid router`);
-            console.error(`   Type:`, typeof routerInstance);
-            console.error(`   Has methods:`, {
-              use: typeof routerInstance?.use,
-              get: typeof routerInstance?.get,
-              post: typeof routerInstance?.post
-            });
+            
+            // Handle async factory
+            if (routerInstance instanceof Promise) {
+              routerInstance = await routerInstance;
+            }
+            
+            finalRouter = routerInstance;
+          } catch (err) {
+            console.error(`❌ Factory execution failed for ${path}:`, err.message);
+            if (CONFIG.NODE_ENV === 'development') {
+              console.error(err.stack);
+            }
             return false;
           }
-        } catch (err) {
-          console.error(`❌ Factory failed for ${path}:`, err.message);
-          if (CONFIG.NODE_ENV === 'development') {
-            console.error(err.stack);
-          }
-          return false;
         }
+      } else {
+        // Not a function, use as-is
+        finalRouter = routerOrFactory;
+        console.log(`   → Direct object`);
       }
 
-      // Step 4: Unknown type
-      console.error(`❌ Invalid router type for ${path}`);
-      console.error(`   Type:`, typeof router);
-      console.error(`   Constructor:`, router?.constructor?.name);
-      return false;
+      // Step 3: Validate the final router
+      if (!finalRouter) {
+        console.error(`❌ Router is null/undefined for ${path}`);
+        return false;
+      }
+
+      // Check if it's a valid Express Router
+      const hasRouterMethods = 
+        typeof finalRouter.use === 'function' && 
+        typeof finalRouter.get === 'function' && 
+        typeof finalRouter.post === 'function';
+      
+      const hasStack = finalRouter.stack !== undefined;
+      
+      if (!hasRouterMethods) {
+        console.error(`❌ Invalid router for ${path} - missing methods`);
+        console.error(`   Type:`, typeof finalRouter);
+        console.error(`   Constructor:`, finalRouter?.constructor?.name);
+        console.error(`   Has methods:`, {
+          use: typeof finalRouter.use,
+          get: typeof finalRouter.get,
+          post: typeof finalRouter.post,
+          stack: typeof finalRouter.stack
+        });
+        return false;
+      }
+
+      // Step 4: Register the router
+      app.use(path, finalRouter);
+      console.log(`✅ Route registered: ${path}`);
+      return true;
 
     } catch (error) {
       console.error(`❌ Failed to register route ${path}:`, error.message);
@@ -722,7 +720,7 @@
     let failCount = 0;
     let skipCount = 0;
 
-    // Load all routes sequentially to avoid race conditions
+    // Load all routes sequentially
     for (const route of routes) {
       const routerModule = await safeImport(route.module, route.name);
       
