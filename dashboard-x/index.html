@@ -1,36 +1,469 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>XeliteSolutions - Dashboard</title>
-    <script>
-      // فحص إذا كان هناك توكن في URL (من Google OAuth)
-      const urlParams = new URLSearchParams(window.location.search);
-      const tokenFromUrl = urlParams.get('token');
-      const fromGoogle = urlParams.get('from') === 'google';
-      
-      if (tokenFromUrl && fromGoogle) {
-        // حفظ التوكن في localStorage
-        localStorage.setItem('sessionToken', tokenFromUrl);
-        // إزالة التوكن من URL
-        window.history.replaceState({}, document.title, '/');
-      }
-      
-      // فحص إذا كان المستخدم مسجل دخول
-      const sessionToken = localStorage.getItem('sessionToken');
-      const currentPath = window.location.pathname;
-      
-      // إذا كان المستخدم غير مسجل دخول وليس في صفحة landing.html
-      if (!sessionToken && currentPath === '/' && !urlParams.has('from')) {
-        // توجيه إلى صفحة الهبوط
-        window.location.href = '/landing.html';
-      }
-    </script>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XeliteSolutions - حلول برمجية متقدمة</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2563EB;
+            --secondary: #7C3AED;
+            --accent: #DB2777;
+            --success: #059669;
+            --dark: #1E293B;
+            --darker: #0F172A;
+            --light: #F8FAFC;
+            --gold: #F59E0B;
+        }
+
+        body {
+            font-family: 'Cairo', 'Tajawal', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #1E293B;
+            overflow-x: hidden;
+            line-height: 1.8;
+            direction: rtl;
+        }
+
+        /* زر تسجيل الدخول في الزاوية */
+        .login-btn-corner {
+            position: fixed;
+            top: 30px;
+            left: 30px;
+            z-index: 9999;
+            background: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%);
+            color: white;
+            padding: 12px 30px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 16px;
+            box-shadow: 0 8px 25px rgba(37, 99, 235, 0.4);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .login-btn-corner:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 35px rgba(37, 99, 235, 0.6);
+        }
+
+        .login-btn-corner i {
+            font-size: 18px;
+        }
+
+        /* Header */
+        header {
+            position: relative;
+            width: 100%;
+            padding: 40px 100px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo-icon {
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 25px rgba(37, 99, 235, 0.3);
+        }
+
+        .logo-icon svg {
+            width: 40px;
+            height: 40px;
+            fill: white;
+        }
+
+        .logo-text h1 {
+            font-size: 32px;
+            font-weight: 900;
+            background: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .logo-text p {
+            font-size: 14px;
+            color: #64748B;
+            font-weight: 600;
+        }
+
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 100px 50px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            border-radius: 50%;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(-50px, -50px); }
+        }
+
+        .hero-content {
+            max-width: 1200px;
+            text-align: center;
+            color: white;
+            position: relative;
+            z-index: 2;
+        }
+
+        .hero-content h1 {
+            font-size: 72px;
+            font-weight: 900;
+            margin-bottom: 30px;
+            line-height: 1.2;
+            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .hero-content .highlight {
+            background: linear-gradient(135deg, #F59E0B 0%, #DB2777 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-content p {
+            font-size: 24px;
+            margin-bottom: 50px;
+            opacity: 0.95;
+            line-height: 1.8;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 18px 45px;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn-primary {
+            background: white;
+            color: #2563EB;
+            box-shadow: 0 8px 25px rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 35px rgba(255, 255, 255, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        /* Features Section */
+        .features {
+            padding: 120px 50px;
+            background: white;
+        }
+
+        .features-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .section-title {
+            text-align: center;
+            margin-bottom: 80px;
+        }
+
+        .section-title h2 {
+            font-size: 48px;
+            font-weight: 900;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .section-title p {
+            font-size: 20px;
+            color: #64748B;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 40px;
+        }
+
+        .feature-card {
+            padding: 40px;
+            background: linear-gradient(135deg, #F8FAFC 0%, #EFF6FF 100%);
+            border-radius: 24px;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, transparent 100%);
+            border-radius: 0 0 0 100%;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-10px);
+            border-color: #2563EB;
+            box-shadow: 0 20px 60px rgba(37, 99, 235, 0.2);
+        }
+
+        .feature-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 25px;
+            box-shadow: 0 8px 25px rgba(37, 99, 235, 0.3);
+        }
+
+        .feature-icon i {
+            font-size: 36px;
+            color: white;
+        }
+
+        .feature-card h3 {
+            font-size: 26px;
+            font-weight: 800;
+            margin-bottom: 15px;
+            color: #1E293B;
+        }
+
+        .feature-card p {
+            font-size: 16px;
+            color: #64748B;
+            line-height: 1.8;
+        }
+
+        /* Footer */
+        footer {
+            padding: 60px 50px;
+            background: #0F172A;
+            color: white;
+            text-align: center;
+        }
+
+        footer p {
+            font-size: 16px;
+            opacity: 0.8;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero-content h1 {
+                font-size: 42px;
+            }
+
+            .hero-content p {
+                font-size: 18px;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .login-btn-corner {
+                top: 15px;
+                left: 15px;
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+
+            header {
+                padding: 20px 30px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- زر تسجيل الدخول في الزاوية -->
+    <a href="/login" class="login-btn-corner">
+        <i class="fas fa-sign-in-alt"></i>
+        <span>تسجيل الدخول</span>
+    </a>
+
+    <!-- Header -->
+    <header>
+        <div class="header-container">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M20 20 L50 50 L80 20 M20 80 L50 50 L80 80" stroke="white" stroke-width="8" stroke-linecap="round" fill="none"/>
+                    </svg>
+                </div>
+                <div class="logo-text">
+                    <h1>XeliteSolutions</h1>
+                    <p>حلول برمجية متقدمة</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1>
+                نبني المستقبل الرقمي<br>
+                <span class="highlight">بتقنيات متقدمة</span>
+            </h1>
+            <p>
+                نحن فريق من المهندسين والمطورين المتخصصين في بناء حلول برمجية مبتكرة<br>
+                تساعد الشركات على النمو والتطور في العصر الرقمي
+            </p>
+            <div class="cta-buttons">
+                <a href="/login" class="btn btn-primary">
+                    <i class="fas fa-rocket"></i>
+                    <span>ابدأ الآن</span>
+                </a>
+                <a href="#features" class="btn btn-secondary">
+                    <i class="fas fa-info-circle"></i>
+                    <span>اعرف المزيد</span>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="features-container">
+            <div class="section-title">
+                <h2>خدماتنا المتميزة</h2>
+                <p>نقدم مجموعة شاملة من الحلول التقنية المتقدمة</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <h3>الذكاء الاصطناعي</h3>
+                    <p>نطور حلول ذكاء اصطناعي متقدمة تساعد في أتمتة العمليات وتحسين الكفاءة</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-cloud"></i>
+                    </div>
+                    <h3>الحوسبة السحابية</h3>
+                    <p>بنية تحتية سحابية قوية وآمنة لتشغيل تطبيقاتك بكفاءة عالية</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h3>الأمن السيبراني</h3>
+                    <p>حماية متقدمة لبياناتك وأنظمتك من التهديدات الإلكترونية</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-mobile-alt"></i>
+                    </div>
+                    <h3>تطبيقات الجوال</h3>
+                    <p>تطوير تطبيقات جوال عصرية لنظامي iOS و Android</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-globe"></i>
+                    </div>
+                    <h3>تطوير الويب</h3>
+                    <p>مواقع وتطبيقات ويب سريعة وآمنة بتصميم عصري</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h3>تحليل البيانات</h3>
+                    <p>استخراج رؤى قيمة من بياناتك لاتخاذ قرارات أفضل</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2025 XeliteSolutions. جميع الحقوق محفوظة.</p>
+        <p>Powered by InfinityX Platform</p>
+    </footer>
+</body>
 </html>

@@ -26,6 +26,12 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: false,
     minify: 'terser',
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+        dashboard: path.resolve(__dirname, 'dashboard.html'),
+      },
+    },
     terserOptions: {
       compress: {
         drop_console: true,
