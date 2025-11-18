@@ -6,13 +6,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>XeliteSolutions - Dashboard</title>
     <script>
+      // فحص إذا كان هناك توكن في URL (من Google OAuth)
+      const urlParams = new URLSearchParams(window.location.search);
+      const tokenFromUrl = urlParams.get('token');
+      const fromGoogle = urlParams.get('from') === 'google';
+      
+      if (tokenFromUrl && fromGoogle) {
+        // حفظ التوكن في localStorage
+        localStorage.setItem('sessionToken', tokenFromUrl);
+        // إزالة التوكن من URL
+        window.history.replaceState({}, document.title, '/');
+      }
+      
       // فحص إذا كان المستخدم مسجل دخول
-      // إذا لم يكن مسجل دخول وكان في الصفحة الرئيسية، نوجهه إلى صفحة الهبوط
       const sessionToken = localStorage.getItem('sessionToken');
       const currentPath = window.location.pathname;
       
       // إذا كان المستخدم غير مسجل دخول وليس في صفحة landing.html
-      if (!sessionToken && currentPath === '/' && !window.location.search.includes('from=landing')) {
+      if (!sessionToken && currentPath === '/' && !urlParams.has('from')) {
         // توجيه إلى صفحة الهبوط
         window.location.href = '/landing.html';
       }
