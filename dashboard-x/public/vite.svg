@@ -1,1 +1,61 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" class="iconify iconify--logos" width="31.88" height="32" preserveAspectRatio="xMidYMid meet" viewBox="0 0 256 257"><defs><linearGradient id="IconifyId1813088fe1fbc01fb466" x1="-.828%" x2="57.636%" y1="7.652%" y2="78.411%"><stop offset="0%" stop-color="#41D1FF"></stop><stop offset="100%" stop-color="#BD34FE"></stop></linearGradient><linearGradient id="IconifyId1813088fe1fbc01fb467" x1="43.376%" x2="50.316%" y1="2.242%" y2="89.03%"><stop offset="0%" stop-color="#FFEA83"></stop><stop offset="8.333%" stop-color="#FFDD35"></stop><stop offset="100%" stop-color="#FFA800"></stop></linearGradient></defs><path fill="url(#IconifyId1813088fe1fbc01fb466)" d="M255.153 37.938L134.897 252.976c-2.483 4.44-8.862 4.466-11.382.048L.875 37.958c-2.746-4.814 1.371-10.646 6.827-9.67l120.385 21.517a6.537 6.537 0 0 0 2.322-.004l117.867-21.483c5.438-.991 9.574 4.796 6.877 9.62Z"></path><path fill="url(#IconifyId1813088fe1fbc01fb467)" d="M185.432.063L96.44 17.501a3.268 3.268 0 0 0-2.634 3.014l-5.474 92.456a3.268 3.268 0 0 0 3.997 3.378l24.777-5.718c2.318-.535 4.413 1.507 3.936 3.838l-7.361 36.047c-.495 2.426 1.782 4.5 4.151 3.78l15.304-4.649c2.372-.72 4.652 1.36 4.15 3.788l-11.698 56.621c-.732 3.542 3.979 5.473 5.943 2.437l1.313-2.028l72.516-144.72c1.215-2.423-.88-5.186-3.54-4.672l-25.505 4.922c-2.396.462-4.435-1.77-3.759-4.114l16.646-57.705c.677-2.35-1.37-4.583-3.769-4.113Z"></path></svg>
+  <!-- X — Tri Minimal (Black & Quiet Silver) -->
+  <div class="logo-icon x-tri-min" aria-label="X Logo — Minimal Triangles" role="img">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="56" height="56" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <!-- Quiet silver (subtle, professional) -->
+        <linearGradient id="sv_quiet" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#F2F4F6"/>
+          <stop offset="50%" stop-color="#D5DAE0"/>
+          <stop offset="100%" stop-color="#BFC6CE"/>
+        </linearGradient>
+        <!-- Deep black (solid) -->
+        <linearGradient id="bk_deep" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#0B0F14"/>
+          <stop offset="100%" stop-color="#1A1F27"/>
+        </linearGradient>
+        <!-- Hairline separator for crisp edges -->
+        <linearGradient id="hair" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#111827"/>
+          <stop offset="100%" stop-color="#374151"/>
+        </linearGradient>
+        <style>
+          .facet { stroke: url(#hair); stroke-width: 0.6; }
+        </style>
+      </defs>
+
+      <!-- Minimal X made of closed triangles + center diamond -->
+      <!-- Upper-left triangle (black) -->
+      <path class="facet" d="M48 56 L112 56 L128 96 Z" fill="url(#bk_deep)"/>
+      <!-- Upper-right triangle (silver) -->
+      <path class="facet" d="M208 56 L144 56 L128 96 Z" fill="url(#sv_quiet)"/>
+      <!-- Lower-left triangle (silver) -->
+      <path class="facet" d="M48 200 L112 200 L128 160 Z" fill="url(#sv_quiet)"/>
+      <!-- Lower-right triangle (black) -->
+      <path class="facet" d="M208 200 L144 200 L128 160 Z" fill="url(#bk_deep)"/>
+      <!-- Center diamond (small, neutral) -->
+      <path class="facet" d="M128 112 L144 128 L128 144 L112 128 Z" fill="url(#sv_quiet)"/>
+
+    </svg>
+  </div>
+
+  <style>
+    .logo-icon.x-tri-min svg { width: 56px; height: 56px; display: block; }
+    .logo-icon.x-tri-min { transition: transform .2s ease; }
+    .logo-icon.x-tri-min:hover { transform: translateY(-1px); }
+
+    /* Sizes */
+    .logo-icon.x-tri-min.size-48 svg { width: 48px; height: 48px; }
+    .logo-icon.x-tri-min.size-64 svg { width: 64px; height: 64px; }
+
+    /* Strict mono: convert to pure black/white (no gradients) */
+    .logo-icon.x-tri-min.mono svg linearGradient { display: none; }
+    .logo-icon.x-tri-min.mono svg path:nth-of-type(1),
+    .logo-icon.x-tri-min.mono svg path:nth-of-type(4) { fill: #111111 !important; }
+    .logo-icon.x-tri-min.mono svg path:nth-of-type(2),
+    .logo-icon.x-tri-min.mono svg path:nth-of-type(3),
+    .logo-icon.x-tri-min.mono svg path:nth-of-type(5) { fill: #E5E7EB !important; }
+    .logo-icon.x-tri-min.mono svg .facet { stroke: #222 !important; }
+
+    /* Print */
+    @media print { .logo-icon.x-tri-min svg .facet { stroke: #111; } }
+  </style>
