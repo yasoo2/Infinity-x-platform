@@ -1,4 +1,4 @@
-  // backend/server.mjs - النسخة النهائية المحسّنة (مع إصلاح كامل لتحميل الـ Routes)
+  // backend/server.mjs - النسخة النهائية المحسّنة v2.0.2
   import express from 'express';
   import cors from 'cors';
   import helmet from 'helmet';
@@ -279,7 +279,7 @@
         total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + ' MB'
       },
       environment: CONFIG.NODE_ENV,
-      version: '2.0.1',
+      version: '2.0.2',
       timestamp: new Date().toISOString()
     };
 
@@ -307,7 +307,7 @@
   app.get('/', (req, res) => {
     res.json({
       name: 'InfinityX Backend API',
-      version: '2.0.1',
+      version: '2.0.2',
       status: 'running',
       timestamp: new Date().toISOString(),
       endpoints: {
@@ -540,7 +540,7 @@
   });
 
   // =========================
-  // 📁 Dynamic Route Loading - FIXED VERSION
+  // 📁 Dynamic Route Loading - FIXED VERSION 2.0.2
   // =========================
 
   async function safeImport(modulePath, moduleName) {
@@ -623,26 +623,29 @@
         try {
           let routerInstance;
           
-          // Try to determine what parameters the factory needs
+          // Analyze function signature
+          const funcString = router.toString();
           const factoryParams = router.length;
           
+          // Determine parameters based on function analysis
           if (factoryParams === 0) {
-            // No parameters needed
+            // No parameters
             routerInstance = router();
           } else if (factoryParams === 1) {
-            // Might need initMongo or requireRole
-            // Try with initMongo first
-            try {
+            // Single parameter - check what it expects
+            if (funcString.includes('initMongo') || funcString.includes('getDb')) {
               routerInstance = router(initMongo);
-            } catch (e) {
-              // If that fails, try with requireRole
+            } else if (funcString.includes('requireRole') || funcString.includes('auth')) {
               routerInstance = router(requireRole);
+            } else {
+              // Default to initMongo
+              routerInstance = router(initMongo);
             }
           } else if (factoryParams === 2) {
-            // Needs both initMongo and requireRole
+            // Two parameters - likely initMongo and requireRole
             routerInstance = router(initMongo, requireRole);
-          } else {
-            // Unknown parameters, try with common ones
+          } else if (factoryParams >= 3) {
+            // Three or more - include optionalAuth
             routerInstance = router(initMongo, requireRole, optionalAuth);
           }
           
@@ -659,6 +662,11 @@
           } else {
             console.error(`❌ Factory for ${path} returned invalid router`);
             console.error(`   Type:`, typeof routerInstance);
+            console.error(`   Has methods:`, {
+              use: typeof routerInstance?.use,
+              get: typeof routerInstance?.get,
+              post: typeof routerInstance?.post
+            });
             return false;
           }
         } catch (err) {
