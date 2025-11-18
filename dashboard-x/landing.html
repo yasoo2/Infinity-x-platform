@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XeliteSolutions - Software Engineering Excellence</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@700;800;900&family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2563EB;
+            --secondary: #7C3AED;
+            --accent: #DB2777;
+            --success: #059669;
+            --dark: #1E293B;
+            --darker: #0F172A;
+            --light: #F8FAFC;
+            --gold: #F59E0B;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: #FFFFFF;
+            color: #1E293B;
+            overflow-x: hidden;
+            line-height: 1.6;
+            transition: all 0.3s ease;
+        }
+
+        body.rtl {
+            direction: rtl;
+            font-family: 'Cairo', 'Poppins', sans-serif;
+        }
+
+        /* Header */
+        header {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            padding: 20px 100px;
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(20px);
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.05);
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+
+        header.scrolled {
+            padding: 15px 100px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Premium Logo with X Shape */
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .logo:hover {
+            transform: scale(1.02);
+        }
+
+        .logo-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            box-shadow: 0 8px 25px rgba(37, 99, 235, 0.3);
+            overflow: hidden;
+        }
+
+        .logo-icon::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
+            animation: shimmer 3s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+
+        .x-logo {
+            position: relative;
+            width: 40px;
+            height: 40px;
+            z-index: 1;
+        }
+
+        .x-logo svg {
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+        }
+
+        .x-line {
+            stroke: white;
+            stroke-width: 4;
+            stroke-linecap: round;
+            fill: none;
+            animation: drawLine 2s ease-in-out infinite;
+        }
+
+        .x-line-1 { animation-delay: 0s; }
+        .x-line-2 { animation-delay: 0.3s; }
+
+        @keyframes drawLine {
+            0%, 100% {
+                stroke-dasharray: 50;
+                stroke-dashoffset: 50;
+                opacity: 0.7;
+            }
+            50% {
+                stroke-dasharray: 50;
+                stroke-dashoffset: 0;
+                opacity: 1;
+            }
+        }
+
+        .code-bracket {
+            fill: rgba(255, 255, 255, 0.9);
+            font-family: 'Courier New', monospace;
+            font-size: 24px;
+            font-weight: bold;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .bracket-left { animation-delay: 0.1s; }
+        .bracket-right { animation-delay: 0.5s; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.1); }
+        }
+
+        .binary-dot {
+            fill: white;
+            opacity: 0;
+            animation: binaryBlink 3s ease-in-out infinite;
+        }
+
+        .dot-1 { animation-delay: 0s; }
+        .dot-2 { animation-delay: 0.5s; }
+        .dot-3 { animation-delay: 1s; }
+        .dot-4 { animation-delay: 1.5s; }
+
+        @keyframes binaryBlink {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 0.8; }
+        }
+
+        .logo-text h1 {
+            font-size: 26px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #2563EB, #7C3AED);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+            margin-bottom: 2px;
+        }
+
+        .logo-text p {
+            font-size: 10px;
+            color: #64748B;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        nav {
+            display: flex;
+            align-items: center;
+            gap: 50px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 40px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: #475569;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 15px;
+            transition: color 0.3s;
+            position: relative;
+        }
+
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #2563EB, #7C3AED);
+            transition: width 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: #2563EB;
+        }
+
+        .nav-links a:hover::after {
+            width: 100%;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .lang-selector {
+            position: relative;
+        }
+
+        .lang-btn {
+            background: #F1F5F9;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            color: #475569;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+
+        .lang-btn:hover {
+            background: #E2E8F0;
+            color: #2563EB;
+        }
+
+        .lang-dropdown {
+            position: absolute;
+            top: 55px;
+            right: 0;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            padding: 10px;
+            min-width: 180px;
+            display: none;
+            z-index: 100;
+        }
+
+        .lang-dropdown.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .lang-option {
+            padding: 12px 15px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #475569;
+        }
+
+        .lang-option:hover {
+            background: #F1F5F9;
+            color: #2563EB;
+        }
+
+        .lang-option.active {
+            background: #EEF2FF;
+            color: #2563EB;
+            font-weight: 600;
+        }
+
+        .login-btn {
+            background: linear-gradient(135deg, #2563EB, #7C3AED);
+            color: white;
+            border: none;
+            padding: 12px 28px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(37, 99, 235, 0.4);
+        }
+
+        .hero {
+            padding: 180px 100px 120px;
+            background: linear-gradient(135deg, #EEF2FF 0%, #F8FAFC 100%);
+        }
+
+        .hero-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 80px;
+            align-items: center;
+        }
+
+        .hero-content h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 62px;
+            font-weight: 900;
+            line-height: 1.2;
+            color: #0F172A;
+            margin-bottom: 25px;
+        }
+
+        .hero-content .highlight {
+            background: linear-gradient(135deg, #2563EB, #7C3AED);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-content p {
+            font-size: 19px;
+            color: #475569;
+            line-height: 1.8;
+            margin-bottom: 40px;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 20px;
+        }
+
+        .btn {
+            padding: 14px 30px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #2563EB, #7C3AED);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(37, 99, 235, 0.4);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #2563EB;
+            border: 2px solid #2563EB;
+        }
+
+        .btn-secondary:hover {
+            background: #2563EB;
+            color: white;
+        }
+
+        .hero-image {
+            position: relative;
+            padding: 20px;
+        }
+
+        .hero-img-main {
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+        }
+
+        .hero-img-main img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .hero-badge {
+            position: absolute;
+            background: white;
+            padding: 15px 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .hero-badge.badge-1 {
+            top: 50px;
+            left: -50px;
+        }
+
+        .hero-badge.badge-2 {
+            bottom: 50px;
+            right: -50px;
+        }
+
+        .badge-icon {
+            width: 40px;
+            height: 40px;
+            background: #EEF2FF;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #2563EB;
+            font-size: 18px;
+        }
+
+        .badge-content h4 {
+            font-size: 20px;
+            font-weight: 800;
+            color: #0F172A;
+        }
+
+        .badge-content p {
+            font-size: 12px;
+            color: #64748B;
+            margin: 0;
+        }
+
+        .stats {
+            padding: 80px 100px;
+            background: white;
+        }
+
+        .stats-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 30px;
+            text-align: center;
+        }
+
+        .stat-card {
+            padding: 30px;
+            border-radius: 15px;
+            background: #F8FAFC;
+            transition: all 0.3s;
+        }
+
+        .stat-card:hover {
+            background: #EEF2FF;
+            transform: translateY(-5px);
+        }
+
+        .stat-icon {
+            width: 50px;
+            height: 50px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #2563EB;
+            font-size: 22px;
+            margin: 0 auto 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        .stat-number {
+            font-size: 48px;
+            font-weight: 900;
+            color: #0F172A;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            font-size: 15px;
+            color: #64748B;
+            font-weight: 600;
+        }
+
+        .services {
+            padding: 120px 100px;
+            background: #F8FAFC;
+        }
+
+        .section-header {
+            text-align: center;
+            max-width: 700px;
+            margin: 0 auto 80px;
+        }
+
+        .section-tag {
+            display: inline-block;
+            padding: 8px 20px;
+            background: #EEF2FF;
+            color: #2563EB;
+            border-radius: 50px;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 48px;
+            font-weight: 900;
+            color: #0F172A;
+            margin-bottom: 20px;
+            line-height: 1.3;
+        }
+
+        .section-title .highlight {
+            background: linear-gradient(135deg, #2563EB, #7C3AED);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .section-desc {
+            font-size: 17px;
+            color: #64748B;
+            line-height: 1.8;
+        }
+
+        .services-grid {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+        }
+
+        .service-card {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s;
+        }
+
+        .service-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+        }
+
+        .service-image {
+            width: 100%;
+            height: 220px;
+            overflow: hidden;
+        }
+
+        .service-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s;
+        }
+
+        .service-card:hover .service-image img {
+            transform: scale(1.1);
+        }
+
+        .service-content {
+            padding: 35px;
+        }
+
+        .service-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #2563EB, #7C3AED);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 28px;
+            margin-bottom: 20px;
+        }
+
+        .service-card h3 {
+            font-size: 22px;
+            font-weight: 700;
+            color: #0F172A;
+            margin-bottom: 12px;
+        }
+
+        .service-card p {
+            font-size: 15px;
+            color: #64748B;
+            line-height: 1.7;
+            margin-bottom: 20px;
+        }
+
+        .service-link {
+            color: #2563EB;
+            font-weight: 700;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            transition: gap 0.3s;
+        }
+
+        .service-link:hover {
+            gap: 15px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 24px;
+            padding: 50px;
+            max-width: 500px;
+            width: 90%;
+            position: relative;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            background: #F1F5F9;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: none;
+            font-size: 20px;
+            color: #475569;
+        }
+
+        .close-modal:hover {
+            background: #E2E8F0;
+            transform: rotate(90deg);
+        }
+
+        .modal h2 {
+            font-size: 32px;
+            font-weight: 800;
+            color: #0F172A;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #475569;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 14px 16px;
+            background: #F8FAFC;
+            border: 2px solid #E2E8F0;
+            border-radius: 10px;
+            color: #0F172A;
+            font-size: 15px;
+            font-family: 'Poppins', sans-serif;
+            transition: all 0.3s;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #2563EB;
+            background: white;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #2563EB, #7C3AED);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-weight: 800;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(37, 99, 235, 0.4);
+        }
+
+        footer {
+            padding: 60px 100px 30px;
+            background: #0F172A;
+            color: white;
+            text-align: center;
+        }
+
+        footer p {
+            color: #94A3B8;
+            font-size: 14px;
+        }
+
+        @media (max-width: 1200px) {
+            .hero-container { grid-template-columns: 1fr; }
+            .services-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 768px) {
+            header { padding: 15px 20px; }
+            .nav-links { display: none; }
+            .hero { padding: 120px 20px 80px; }
+            .hero-content h1 { font-size: 38px; }
+            .services { padding: 80px 20px; }
+            .services-grid { grid-template-columns: 1fr; }
+            .stats-container { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <header id="header">
+        <div class="header-container">
+            <div class="logo">
+                <div class="logo-icon">
+                    <div class="x-logo">
+                        <svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+                            <text x="2" y="30" class="code-bracket bracket-left">&lt;</text>
+                            <text x="38" y="30" class="code-bracket bracket-right">/&gt;</text>
+                            <line x1="12" y1="12" x2="38" y2="38" class="x-line x-line-1" />
+                            <line x1="38" y1="12" x2="12" y2="38" class="x-line x-line-2" />
+                            <circle cx="25" cy="8" r="1.5" class="binary-dot dot-1" />
+                            <circle cx="42" cy="25" r="1.5" class="binary-dot dot-2" />
+                            <circle cx="25" cy="42" r="1.5" class="binary-dot dot-3" />
+                            <circle cx="8" cy="25" r="1.5" class="binary-dot dot-4" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="logo-text">
+                    <h1>XeliteSolutions</h1>
+                    <p data-key="tagline">CODE EXCELLENCE</p>
+                </div>
+            </div>
+            <nav>
+                <ul class="nav-links">
+                    <li><a href="#services" data-key="services">Services</a></li>
+                    <li><a href="#contact" data-key="contact">Contact</a></li>
+                </ul>
+                <div class="header-actions">
+                    <div class="lang-selector">
+                        <button class="lang-btn" onclick="toggleLang()">
+                            <i class="fas fa-globe"></i>
+                            <span id="currentLang">EN</span>
+                            <i class="fas fa-chevron-down" style="font-size: 12px;"></i>
+                        </button>
+                        <div class="lang-dropdown" id="langDropdown">
+                            <div class="lang-option active" onclick="changeLang('en')">
+                                <i class="fas fa-flag-usa"></i> English
+                            </div>
+                            <div class="lang-option" onclick="changeLang('ar')">
+                                <i class="fas fa-flag"></i> العربية
+                            </div>
+                            <div class="lang-option" onclick="changeLang('es')">
+                                <i class="fas fa-flag"></i> Español
+                            </div>
+                            <div class="lang-option" onclick="changeLang('fr')">
+                                <i class="fas fa-flag"></i> Français
+                            </div>
+                        </div>
+                    </div>
+                    <button class="login-btn" onclick="openModal()">
+                        <i class="fas fa-sign-in-alt"></i>
+                        <span data-key="login">Login</span>
+                    </button>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <section class="hero">
+        <div class="hero-container">
+            <div class="hero-content">
+                <h1>
+                    <span class="highlight" data-key="heroTitle1">Advanced Software Engineering</span>
+                    <span data-key="heroTitle2">Consultancy & Elite Recruitment</span>
+                </h1>
+                <p data-key="heroDesc">
+                    Premier software engineering consultancy specializing in AI solutions, web development, smart applications, and recruiting world-class engineers through rigorous technical assessments.
+                </p>
+                <div class="hero-buttons">
+                    <button class="btn btn-primary" onclick="openModal()">
+                        <i class="fas fa-rocket"></i>
+                        <span data-key="getStarted">Get Started</span>
+                    </button>
+                    <button class="btn btn-secondary">
+                        <i class="fas fa-clipboard-check"></i>
+                        <span data-key="learnMore">Learn More</span>
+                    </button>
+                </div>
+            </div>
+            <div class="hero-image">
+                <div class="hero-img-main">
+                    <img src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1200&q=80" alt="Team">
+                </div>
+                <div class="hero-badge badge-1">
+                    <div class="badge-icon"><i class="fas fa-users"></i></div>
+                    <div class="badge-content">
+                        <h4>350+</h4>
+                        <p data-key="engineers">Engineers</p>
+                    </div>
+                </div>
+                <div class="hero-badge badge-2">
+                    <div class="badge-icon"><i class="fas fa-trophy"></i></div>
+                    <div class="badge-content">
+                        <h4>99%</h4>
+                        <p data-key="success">Success Rate</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="stats">
+        <div class="stats-container">
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-project-diagram"></i></div>
+                <div class="stat-number">1,500+</div>
+                <div class="stat-label" data-key="projects">Projects</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-users-cog"></i></div>
+                <div class="stat-number">350+</div>
+                <div class="stat-label" data-key="engineers">Engineers</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-award"></i></div>
+                <div class="stat-number">75+</div>
+                <div class="stat-label" data-key="awards">Awards</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-globe"></i></div>
+                <div class="stat-number">45+</div>
+                <div class="stat-label" data-key="countries">Countries</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="services" id="services">
+        <div class="section-header">
+            <div class="section-tag" data-key="ourServices">OUR SERVICES</div>
+            <h2 class="section-title">
+                <span data-key="comprehensive">Comprehensive</span>
+                <span class="highlight" data-key="solutions">Engineering Solutions</span>
+            </h2>
+            <p class="section-desc" data-key="servicesDesc">
+                Expert consultancy and recruitment services for advanced software engineering
+            </p>
+        </div>
+        <div class="services-grid">
+            <div class="service-card">
+                <div class="service-image">
+                    <img src="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800&q=80" alt="Consultancy">
+                </div>
+                <div class="service-content">
+                    <div class="service-icon"><i class="fas fa-chalkboard-teacher"></i></div>
+                    <h3 data-key="service1">Engineering Consultancy</h3>
+                    <p data-key="service1Desc">Expert consultation for software architecture and system design.</p>
+                    <a href="#" class="service-link">
+                        <span data-key="learnMore">Learn More</span>
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="service-card">
+                <div class="service-image">
+                    <img src="https://images.unsplash.com/photo-1573164713714-d95e436ab8d6?w=800&q=80" alt="Recruitment">
+                </div>
+                <div class="service-content">
+                    <div class="service-icon"><i class="fas fa-user-check"></i></div>
+                    <h3 data-key="service2">Elite Talent Recruitment</h3>
+                    <p data-key="service2Desc">Recruiting highly qualified engineers through rigorous assessments.</p>
+                    <a href="#" class="service-link">
+                        <span data-key="learnMore">Learn More</span>
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="service-card">
+                <div class="service-image">
+                    <img src="https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&q=80" alt="AI">
+                </div>
+                <div class="service-content">
+                    <div class="service-icon"><i class="fas fa-brain"></i></div>
+                    <h3 data-key="service3">AI & Information Systems</h3>
+                    <p data-key="service3Desc">Advanced artificial intelligence and information management systems.</p>
+                    <a href="#" class="service-link">
+                        <span data-key="learnMore">Learn More</span>
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="service-card">
+                <div class="service-image">
+                    <img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&q=80" alt="Web">
+                </div>
+                <div class="service-content">
+                    <div class="service-icon"><i class="fas fa-laptop-code"></i></div>
+                    <h3 data-key="service4">Web Development</h3>
+                    <p data-key="service4Desc">Professional websites, web applications, and e-commerce platforms.</p>
+                    <a href="#" class="service-link">
+                        <span data-key="learnMore">Learn More</span>
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="service-card">
+                <div class="service-image">
+                    <img src="https://images.unsplash.com/photo-1551650975-87deedd944c3?w=800&q=80" alt="Apps">
+                </div>
+                <div class="service-content">
+                    <div class="service-icon"><i class="fas fa-mobile-alt"></i></div>
+                    <h3 data-key="service5">Smart Applications</h3>
+                    <p data-key="service5Desc">Intelligent mobile and desktop applications with advanced features.</p>
+                    <a href="#" class="service-link">
+                        <span data-key="learnMore">Learn More</span>
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="service-card">
+                <div class="service-image">
+                    <img src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&q=80" alt="Management">
+                </div>
+                <div class="service-content">
+                    <div class="service-icon"><i class="fas fa-tasks"></i></div>
+                    <h3 data-key="service6">Engineering Management</h3>
+                    <p data-key="service6Desc">Comprehensive project management and team leadership.</p>
+                    <a href="#" class="service-link">
+                        <span data-key="learnMore">Learn More</span>
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer id="contact">
+        <p>&copy; 2024 XeliteSolutions. <span data-key="rights">All rights reserved.</span></p>
+    </footer>
+
+    <div class="modal" id="loginModal">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeModal()">
+                <i class="fas fa-times"></i>
+            </button>
+            <h2 data-key="loginTitle">Welcome Back</h2>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label data-key="email">Email</label>
+                    <input type="email" id="email" placeholder="info.auraaluxury@gmail.com" required>
+                </div>
+                <div class="form-group">
+                    <label data-key="password">Password</label>
+                    <input type="password" id="password" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="submit-btn">
+                    <span data-key="login">Login</span>
+                </button>
+                <p id="loginMessage" style="color: red; margin-top: 15px; display: none;"></p>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const translations = {
+            en: {
+                tagline: "CODE EXCELLENCE",
+                services: "Services",
+                contact: "Contact",
+                login: "Login",
+                heroTitle1: "Advanced Software Engineering",
+                heroTitle2: "Consultancy & Elite Recruitment",
+                heroDesc: "Premier software engineering consultancy specializing in AI solutions, web development, smart applications, and recruiting world-class engineers through rigorous technical assessments.",
+                getStarted: "Get Started",
+                learnMore: "Learn More",
+                engineers: "Engineers",
+                success: "Success Rate",
+                projects: "Projects",
+                awards: "Awards",
+                countries: "Countries",
+                ourServices: "OUR SERVICES",
+                comprehensive: "Comprehensive",
+                solutions: "Engineering Solutions",
+                servicesDesc: "Expert consultancy and recruitment services for advanced software engineering",
+                service1: "Engineering Consultancy",
+                service1Desc: "Expert consultation for software architecture and system design.",
+                service2: "Elite Talent Recruitment",
+                service2Desc: "Recruiting highly qualified engineers through rigorous assessments.",
+                service3: "AI & Information Systems",
+                service3Desc: "Advanced artificial intelligence and information management systems.",
+                service4: "Web Development",
+                service4Desc: "Professional websites, web applications, and e-commerce platforms.",
+                service5: "Smart Applications",
+                service5Desc: "Intelligent mobile and desktop applications with advanced features.",
+                service6: "Engineering Management",
+                service6Desc: "Comprehensive project management and team leadership.",
+                rights: "All rights reserved.",
+                loginTitle: "Welcome Back",
+                email: "Email",
+                password: "Password"
+            },
+            ar: {
+                tagline: "تميز البرمجة",
+                services: "الخدمات",
+                contact: "اتصل بنا",
+                login: "تسجيل الدخول",
+                heroTitle1: "الهندسة البرمجية المتقدمة",
+                heroTitle2: "استشارات وتوظيف نخبوي",
+                heroDesc: "شركة استشارات هندسة برمجية رائدة متخصصة في حلول الذكاء الاصطناعي وتطوير الويب والتطبيقات الذكية وتوظيف مهندسين عالميين من خلال تقييمات تقنية صارمة.",
+                getStarted: "ابدأ الآن",
+                learnMore: "اعرف المزيد",
+                engineers: "مهندس",
+                success: "معدل النجاح",
+                projects: "مشروع",
+                awards: "جائزة",
+                countries: "دولة",
+                ourServices: "خدماتنا",
+                comprehensive: "حلول هندسية",
+                solutions: "شاملة",
+                servicesDesc: "خدمات استشارية وتوظيف متخصصة في الهندسة البرمجية المتقدمة",
+                service1: "الاستشارات الهندسية",
+                service1Desc: "استشارات متخصصة في بنية البرمجيات وتصميم الأنظمة.",
+                service2: "توظيف المواهب النخبوية",
+                service2Desc: "توظيف مهندسين مؤهلين من خلال تقييمات صارمة.",
+                service3: "الذكاء الاصطناعي وأنظمة المعلومات",
+                service3Desc: "حلول ذكاء اصطناعي متقدمة وأنظمة إدارة معلومات ذكية.",
+                service4: "تطوير الويب",
+                service4Desc: "مواقع احترافية وتطبيقات ويب ومنصات تجارة إلكترونية.",
+                service5: "التطبيقات الذكية",
+                service5Desc: "تطبيقات موبايل وسطح مكتب ذكية بمميزات متقدمة.",
+                service6: "إدارة الهندسة",
+                service6Desc: "إدارة مشاريع شاملة وقيادة فرق العمل.",
+                rights: "جميع الحقوق محفوظة.",
+                loginTitle: "مرحباً بعودتك",
+                email: "البريد الإلكتروني",
+                password: "كلمة المرور"
+            },
+            es: {
+                tagline: "EXCELENCIA EN CÓDIGO",
+                services: "Servicios",
+                contact: "Contacto",
+                login: "Iniciar Sesión",
+                heroTitle1: "Ingeniería de Software Avanzada",
+                heroTitle2: "Consultoría y Reclutamiento Elite",
+                heroDesc: "Consultoría premier en ingeniería de software especializada en soluciones de IA, desarrollo web, aplicaciones inteligentes y reclutamiento de ingenieros de clase mundial.",
+                getStarted: "Comenzar",
+                learnMore: "Saber Más",
+                engineers: "Ingenieros",
+                success: "Tasa de Éxito",
+                projects: "Proyectos",
+                awards: "Premios",
+                countries: "Países",
+                ourServices: "NUESTROS SERVICIOS",
+                comprehensive: "Soluciones de Ingeniería",
+                solutions: "Integrales",
+                servicesDesc: "Servicios de consultoría y reclutamiento expertos para ingeniería de software avanzada",
+                service1: "Consultoría de Ingeniería",
+                service1Desc: "Consultoría experta en arquitectura de software y diseño de sistemas.",
+                service2: "Reclutamiento de Talento Elite",
+                service2Desc: "Reclutamiento de ingenieros altamente calificados mediante evaluaciones rigurosas.",
+                service3: "IA y Sistemas de Información",
+                service3Desc: "Soluciones avanzadas de inteligencia artificial y sistemas de gestión.",
+                service4: "Desarrollo Web",
+                service4Desc: "Sitios web profesionales, aplicaciones web y plataformas de comercio electrónico.",
+                service5: "Aplicaciones Inteligentes",
+                service5Desc: "Aplicaciones móviles y de escritorio inteligentes con características avanzadas.",
+                service6: "Gestión de Ingeniería",
+                service6Desc: "Gestión integral de proyectos y liderazgo de equipos.",
+                rights: "Todos los derechos reservados.",
+                loginTitle: "Bienvenido de Nuevo",
+                email: "Correo Electrónico",
+                password: "Contraseña"
+            },
+            fr: {
+                tagline: "EXCELLENCE DU CODE",
+                services: "Services",
+                contact: "Contact",
+                login: "Connexion",
+                heroTitle1: "Ingénierie Logicielle Avancée",
+                heroTitle2: "Conseil et Recrutement d'Élite",
+                heroDesc: "Cabinet de conseil en ingénierie logicielle spécialisé dans les solutions IA, le développement web, les applications intelligentes et le recrutement d'ingénieurs de classe mondiale.",
+                getStarted: "Commencer",
+                learnMore: "En Savoir Plus",
+                engineers: "Ingénieurs",
+                success: "Taux de Réussite",
+                projects: "Projets",
+                awards: "Prix",
+                countries: "Pays",
+                ourServices: "NOS SERVICES",
+                comprehensive: "Solutions d'Ingénierie",
+                solutions: "Complètes",
+                servicesDesc: "Services de conseil et de recrutement experts pour l'ingénierie logicielle avancée",
+                service1: "Conseil en Ingénierie",
+                service1Desc: "Consultation experte en architecture logicielle et conception de systèmes.",
+                service2: "Recrutement de Talents d'Élite",
+                service2Desc: "Recrutement d'ingénieurs hautement qualifiés par des évaluations rigoureuses.",
+                service3: "IA et Systèmes d'Information",
+                service3Desc: "Solutions avancées d'intelligence artificielle et systèmes de gestion.",
+                service4: "Développement Web",
+                service4Desc: "Sites web professionnels, applications web et plateformes e-commerce.",
+                service5: "Applications Intelligentes",
+                service5Desc: "Applications mobiles et de bureau intelligentes avec fonctionnalités avancées.",
+                service6: "Gestion de l'Ingénierie",
+                service6Desc: "Gestion de projet complète et leadership d'équipe.",
+                rights: "Tous droits réservés.",
+                loginTitle: "Bon Retour",
+                email: "Email",
+                password: "Mot de Passe"
+            }
+        };
+
+        let currentLang = 'en';
+
+        function changeLang(lang) {
+            currentLang = lang;
+            document.getElementById('currentLang').textContent = lang.toUpperCase();
+            
+            document.querySelectorAll('.lang-option').forEach(opt => opt.classList.remove('active'));
+            document.querySelector(`.lang-option[onclick="changeLang('${lang}')"]`).classList.add('active');
+            
+            if (lang === 'ar') {
+                document.body.classList.add('rtl');
+                document.documentElement.setAttribute('dir', 'rtl');
+            } else {
+                document.body.classList.remove('rtl');
+                document.documentElement.setAttribute('dir', 'ltr');
+            }
+            
+            document.querySelectorAll('[data-key]').forEach(el => {
+                const key = el.getAttribute('data-key');
+                if (translations[lang][key]) {
+                    el.textContent = translations[lang][key];
+                }
+            });
+            
+            toggleLang();
+        }
+
+        function toggleLang() {
+            document.getElementById('langDropdown').classList.toggle('active');
+        }
+
+        function openModal() {
+            document.getElementById('loginModal').classList.add('active');
+            document.getElementById('loginMessage').style.display = 'none';
+        }
+
+        function closeModal() {
+            document.getElementById('loginModal').classList.remove('active');
+        }
+
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 50) {
+                document.getElementById('header').classList.add('scrolled');
+            } else {
+                document.getElementById('header').classList.remove('scrolled');
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.lang-selector') && !e.target.closest('.login-btn')) {
+                document.getElementById('langDropdown').classList.remove('active');
+            }
+        });
+
+        // --- تصحيح وظيفة تسجيل الدخول ---
+        const loginForm = document.getElementById('loginForm');
+        const loginMessage = document.getElementById('loginMessage');
+        const API_BASE_URL = 'https://api.xelitesolutions.com'; // تم استنتاجه من إعدادات Render
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            loginMessage.style.display = 'none';
+            loginMessage.textContent = '';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password }),
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // تسجيل الدخول ناجح
+                    // حفظ الرمز المميز (Session Token)
+                    const sessionToken = data.sessionToken || data.token; 
+                    localStorage.setItem('sessionToken', sessionToken);
+                    
+                    // التوجيه إلى لوحة التحكم (dashboard-x)
+                    // بما أن الواجهة الأمامية هي تطبيق React، سنقوم بالتوجيه إلى المسار الرئيسي
+                    // نضيف معامل from=landing لتجنب إعادة التوجيه الدائرية
+                    window.location.href = '/?from=landing'; 
+                } else {
+                    // فشل تسجيل الدخول
+                    const errorMessage = data.message || 'Login failed. Please check your credentials.';
+                    loginMessage.textContent = errorMessage;
+                    loginMessage.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Login Error:', error);
+                loginMessage.textContent = 'An error occurred during login. Please try again later.';
+                loginMessage.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>
