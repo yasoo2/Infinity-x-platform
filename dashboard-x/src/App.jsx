@@ -21,7 +21,7 @@ import MonitoringPage from './pages/MonitoringPage';
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/dashboard">
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
