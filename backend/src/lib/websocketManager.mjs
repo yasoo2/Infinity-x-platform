@@ -1,533 +1,455 @@
-// backend/src/lib/websocketManager.mjs - إدارة WebSocket المتقدمة
-import { WebSocketServer } from 'ws';
-import { v4 as uuidv4 } from 'uuid';
-import { getDB } from '../db.mjs';
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار WebSocket</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-export class WebSocketManager {
-    constructor(server) {
-        this.wss = new WebSocketServer({ server });
-        this.clients = new Map();
-        this.rooms = new Map();
-        this.setupServer();
-    }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
 
-    setupServer() {
-        this.wss.on('connection', (ws, req) => {
-            const clientId = uuidv4();
-            const client = {
-                id: clientId,
-                ws,
-                userId: null,
-                rooms: new Set(),
-                metadata: {
-                    ip: req.socket.remoteAddress,
-                    userAgent: req.headers['user-agent'],
-                    connectedAt: new Date()
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .status.connected {
+            background: #10b981;
+            color: white;
+        }
+
+        .status.disconnected {
+            background: #ef4444;
+            color: white;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            background: #667eea;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .messages {
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+
+        .message {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+            background: white;
+        }
+
+        .message.error {
+            border-left-color: #ef4444;
+            background: #fee;
+        }
+
+        .message.success {
+            border-left-color: #10b981;
+            background: #efe;
+        }
+
+        .timestamp {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 5px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔌 اختبار WebSocket المتقدم</h1>
+
+        <div id="status" class="status disconnected">
+            غير متصل
+        </div>
+
+        <div class="controls">
+            <button onclick="connect()">🔌 اتصال</button>
+            <button onclick="disconnect()">🔌 قطع الاتصال</button>
+            <button onclick="authenticate()">🔐 مصادقة</button>
+            <button onclick="getStats()">📊 الإحصائيات</button>
+            <button onclick="getRooms()">🏠 قائمة الغرف</button>
+            <button onclick="clearMessages()">🗑️ مسح الرسائل</button>
+        </div>
+
+        <div class="input-group">
+            <input type="text" id="roomId" placeholder="معرف الغرفة" value="room_test">
+        </div>
+
+        <div class="controls">
+            <button onclick="joinRoom()">👥 انضم للغرفة</button>
+            <button onclick="leaveRoom()">👋 غادر الغرفة</button>
+            <button onclick="broadcastMessage()">📢 بث رسالة</button>
+        </div>
+
+        <div class="input-group">
+            <input type="text" id="streamId" placeholder="معرف البث" value="stream_test">
+        </div>
+
+        <div class="controls">
+            <button onclick="subscribeStream()">📺 اشترك في البث</button>
+            <button onclick="unsubscribeStream()">📺 إلغاء الاشتراك</button>
+            <button onclick="sendTaskUpdate()">📊 تحديث مهمة</button>
+        </div>
+
+        <div class="stats" id="stats">
+            <div class="stat-card">
+                <div class="stat-value" id="clientCount">0</div>
+                <div class="stat-label">عملاء متصلين</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="roomCount">0</div>
+                <div class="stat-label">غرف نشطة</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="messageCount">0</div>
+                <div class="stat-label">رسائل مستلمة</div>
+            </div>
+        </div>
+
+        <div class="messages" id="messages">
+            <div class="message">
+                <strong>مرحباً!</strong> اضغط على "اتصال" للبدء
+                <div class="timestamp">جاهز للاختبار</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let clientId = null;
+        let messageCount = 0;
+
+        function connect() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                addMessage('⚠️ أنت متصل بالفعل', 'error');
+                return;
+            }
+
+            const wsUrl = 'ws://localhost:3000/ws';
+            addMessage(`🔌 جاري الاتصال بـ ${wsUrl}...`);
+
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                updateStatus(true);
+                addMessage('✅ تم الاتصال بنجاح!', 'success');
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleMessage(data);
+                } catch (error) {
+                    addMessage(`❌ خطأ في تحليل الرسالة: ${error.message}`, 'error');
                 }
             };
 
-            this.clients.set(clientId, client);
-            
-            console.log(`🔌 WebSocket client connected: ${clientId}`);
+            ws.onerror = (error) => {
+                addMessage(`❌ خطأ في الاتصال: ${error}`, 'error');
+            };
 
-            this.sendToClient(clientId, {
-                type: 'connected',
-                clientId,
-                timestamp: new Date()
-            });
+            ws.onclose = () => {
+                updateStatus(false);
+                addMessage('🔌 تم قطع الاتصال', 'error');
+            };
+        }
 
-            ws.on('message', async (data) => {
-                await this.handleMessage(clientId, data);
-            });
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+                clientId = null;
+            }
+        }
 
-            ws.on('close', () => {
-                this.handleDisconnect(clientId);
-            });
+        function handleMessage(data) {
+            messageCount++;
+            document.getElementById('messageCount').textContent = messageCount;
 
-            ws.on('error', (error) => {
-                console.error(`❌ WebSocket error for client ${clientId}:`, error);
-            });
-        });
-
-        console.log('✅ WebSocket server initialized');
-    }
-
-    async handleMessage(clientId, data) {
-        try {
-            const message = JSON.parse(data);
-            const client = this.clients.get(clientId);
-            
-            if (!client) return;
-
-            console.log(`📨 Message from client ${clientId}:`, message.type);
-
-            switch (message.type) {
-                case 'authenticate':
-                    await this.authenticateClient(clientId, message.token);
+            switch (data.type) {
+                case 'connected':
+                    clientId = data.clientId;
+                    addMessage(`🎉 معرف العميل: ${clientId}`, 'success');
                     break;
-                case 'join_room':
-                    await this.joinRoom(clientId, message.roomId);
+
+                case 'authenticated':
+                    addMessage(`✅ تمت المصادقة: ${data.userId}`, 'success');
                     break;
-                case 'leave_room':
-                    await this.leaveRoom(clientId, message.roomId);
+
+                case 'room_joined':
+                    addMessage(`👥 انضممت إلى الغرفة: ${data.roomId} (${data.memberCount} أعضاء)`, 'success');
                     break;
-                case 'broadcast':
-                    await this.broadcastToRoom(message.roomId, message.data);
+
+                case 'room_left':
+                    addMessage(`👋 غادرت الغرفة: ${data.roomId}`, 'success');
                     break;
-                case 'task_update':
-                    await this.handleTaskUpdate(clientId, message.data);
+
+                case 'user_joined':
+                    addMessage(`👤 انضم مستخدم: ${data.userId}`, 'success');
                     break;
-                case 'stream_subscribe':
-                    await this.handleStreamSubscribe(clientId, message.streamId);
+
+                case 'user_left':
+                    addMessage(`👋 غادر مستخدم: ${data.userId}`, 'success');
                     break;
-                case 'browser_control':
-                    await this.handleBrowserControl(clientId, message.data);
+
+                case 'stats':
+                    updateStats(data.data);
+                    addMessage('📊 تم تحديث الإحصائيات', 'success');
                     break;
+
+                case 'rooms_list':
+                    addMessage(`🏠 الغرف النشطة: ${data.count}`, 'success');
+                    data.rooms.forEach(room => {
+                        addMessage(`  - ${room.id}: ${room.memberCount} أعضاء`);
+                    });
+                    break;
+
+                case 'error':
+                    addMessage(`❌ ${data.error.title}: ${data.error.message}`, 'error');
+                    break;
+
+                case 'pong':
+                    addMessage('🏓 Pong!');
+                    break;
+
                 default:
-                    console.log(`⚠️ Unknown message type: ${message.type}`);
+                    addMessage(`📨 ${data.type}: ${JSON.stringify(data).substring(0, 100)}`);
+            }
+        }
+
+        function sendMessage(data) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                addMessage('❌ غير متصل! اضغط على "اتصال" أولاً', 'error');
+                return false;
             }
 
-        } catch (error) {
-            console.error('❌ WebSocket message handling error:', error);
-            this.sendToClient(clientId, {
-                type: 'error',
-                message: error.message
+            ws.send(JSON.stringify(data));
+            return true;
+        }
+
+        function authenticate() {
+            sendMessage({
+                type: 'authenticate',
+                token: 'test_token_' + Date.now(),
+                credentials: {
+                    userId: 'user_test_' + Math.random().toString(36).substr(2, 9)
+                }
             });
         }
-    }
 
-    async authenticateClient(clientId, token) {
-        try {
-            // التحقق من التوكن (سيتم تنفيذه لاحقاً)
-            const client = this.clients.get(clientId);
-            if (client) {
-                client.userId = `user_${token}`; // مؤقت
-                client.authenticated = true;
-                
-                this.sendToClient(clientId, {
-                    type: 'authenticated',
-                    userId: client.userId,
-                    timestamp: new Date()
-                });
-
-                console.log(`✅ Client authenticated: ${clientId}`);
+        function joinRoom() {
+            const roomId = document.getElementById('roomId').value;
+            if (!roomId) {
+                addMessage('❌ أدخل معرف الغرفة', 'error');
+                return;
             }
-        } catch (error) {
-            console.error('❌ Client authentication error:', error);
-        }
-    }
-
-    async joinRoom(clientId, roomId) {
-        const client = this.clients.get(clientId);
-        if (!client) return;
-
-        // إنشاء الغرفة إذا لم تكن موجودة
-        if (!this.rooms.has(roomId)) {
-            this.rooms.set(roomId, new Set());
+            sendMessage({
+                type: 'join_room',
+                roomId
+            });
         }
 
-        const room = this.rooms.get(roomId);
-        room.add(clientId);
-        client.rooms.add(roomId);
+        function leaveRoom() {
+            const roomId = document.getElementById('roomId').value;
+            sendMessage({
+                type: 'leave_room',
+                roomId
+            });
+        }
 
-        // إشعار العميل بالانضمام
-        this.sendToClient(clientId, {
-            type: 'room_joined',
-            roomId,
-            timestamp: new Date()
-        });
-
-        // إشعار الغرفة
-        this.broadcastToRoom(roomId, {
-            type: 'user_joined',
-            userId: client.userId,
-            timestamp: new Date()
-        }, clientId);
-
-        console.log(`👥 Client ${clientId} joined room: ${roomId}`);
-    }
-
-    async leaveRoom(clientId, roomId) {
-        const client = this.clients.get(clientId);
-        if (!client) return;
-
-        const room = this.rooms.get(roomId);
-        if (room) {
-            room.delete(clientId);
-            client.rooms.delete(roomId);
-
-            // إشعار العميل بالمغادرة
-            this.sendToClient(clientId, {
-                type: 'room_left',
+        function broadcastMessage() {
+            const roomId = document.getElementById('roomId').value;
+            sendMessage({
+                type: 'broadcast',
                 roomId,
-                timestamp: new Date()
+                data: {
+                    message: 'مرحباً من العميل!',
+                    timestamp: new Date()
+                }
             });
+        }
 
-            // إشعار الغرفة
-            this.broadcastToRoom(roomId, {
-                type: 'user_left',
-                userId: client.userId,
-                timestamp: new Date()
-            }, clientId);
+        function subscribeStream() {
+            const streamId = document.getElementById('streamId').value;
+            sendMessage({
+                type: 'stream_subscribe',
+                streamId
+            });
+        }
 
-            // حذف الغرفة إذا كانت فارغة
-            if (room.size === 0) {
-                this.rooms.delete(roomId);
+        function unsubscribeStream() {
+            const streamId = document.getElementById('streamId').value;
+            sendMessage({
+                type: 'stream_unsubscribe',
+                streamId
+            });
+        }
+
+        function sendTaskUpdate() {
+            sendMessage({
+                type: 'task_update',
+                data: {
+                    taskId: 'task_' + Date.now(),
+                    progress: Math.floor(Math.random() * 100),
+                    status: 'running',
+                    message: 'اختبار تحديث المهمة'
+                }
+            });
+        }
+
+        function getStats() {
+            sendMessage({ type: 'get_stats' });
+        }
+
+        function getRooms() {
+            sendMessage({ type: 'get_rooms' });
+        }
+
+        function updateStatus(connected) {
+            const statusEl = document.getElementById('status');
+            if (connected) {
+                statusEl.className = 'status connected';
+                statusEl.textContent = '✅ متصل';
+            } else {
+                statusEl.className = 'status disconnected';
+                statusEl.textContent = '❌ غير متصل';
             }
-
-            console.log(`👋 Client ${clientId} left room: ${roomId}`);
         }
-    }
 
-    broadcastToRoom(roomId, data, excludeClientId = null) {
-        const room = this.rooms.get(roomId);
-        if (!room) return;
-
-        room.forEach(clientId => {
-            if (clientId !== excludeClientId) {
-                this.sendToClient(clientId, data);
-            }
-        });
-
-        console.log(`📢 Broadcast to room ${roomId}: ${data.type}`);
-    }
-
-    sendToClient(clientId, data) {
-        const client = this.clients.get(clientId);
-        if (!client || client.ws.readyState !== WebSocket.OPEN) return;
-
-        try {
-            client.ws.send(JSON.stringify(data));
-        } catch (error) {
-            console.error(`❌ Error sending to client ${clientId}:`, error);
+        function updateStats(stats) {
+            document.getElementById('clientCount').textContent = stats.totalClients || 0;
+            document.getElementById('roomCount').textContent = stats.totalRooms || 0;
         }
-    }
 
-    broadcast(data) {
-        this.clients.forEach((client, clientId) => {
-            if (client.ws.readyState === WebSocket.OPEN) {
-                this.sendToClient(clientId, data);
-            }
-        });
-    }
-
-    async handleTaskUpdate(clientId, data) {
-        const { taskId, progress, status, message } = data;
-        
-        // بث التحديث إلى جميع المشتركين في مهمة Joe
-        this.broadcast({
-            type: 'task_update',
-            taskId,
-            progress,
-            status,
-            message,
-            timestamp: new Date()
-        });
-
-        // حفظ في قاعدة البيانات
-        try {
-            const db = getDB();
-            await db.collection('joe_task_updates').insertOne({
-                taskId,
-                progress,
-                status,
-                message,
-                timestamp: new Date()
-            });
-        } catch (error) {
-            console.error('❌ Save task update error:', error);
+        function addMessage(text, type = '') {
+            const messagesEl = document.getElementById('messages');
+            const messageEl = document.createElement('div');
+            messageEl.className = 'message ' + type;
+            
+            const timestamp = new Date().toLocaleTimeString('ar-SA');
+            messageEl.innerHTML = `
+                <strong>${text}</strong>
+                <div class="timestamp">${timestamp}</div>
+            `;
+            
+            messagesEl.appendChild(messageEl);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
         }
-    }
 
-    async handleStreamSubscribe(clientId, streamId) {
-        const client = this.clients.get(clientId);
-        if (!client) return;
-
-        // إضافة العميل إلى قائمة انتظار البث
-        if (!client.streams) {
-            client.streams = new Set();
+        function clearMessages() {
+            document.getElementById('messages').innerHTML = '';
+            messageCount = 0;
+            document.getElementById('messageCount').textContent = '0';
         }
-        client.streams.add(streamId);
 
-        // إشعار بالاشتراك
-        this.sendToClient(clientId, {
-            type: 'stream_subscribed',
-            streamId,
-            timestamp: new Date()
-        });
-
-        console.log(`📺 Client ${clientId} subscribed to stream: ${streamId}`);
-    }
-
-    async handleBrowserControl(clientId, data) {
-        const { action, sessionId, parameters } = data;
-        
-        // بث أوامر التحكم في المتصفح
-        this.broadcast({
-            type: 'browser_control',
-            clientId,
-            action,
-            sessionId,
-            parameters,
-            timestamp: new Date()
-        });
-
-        console.log(`🌐 Browser control: ${action} from client ${clientId}`);
-    }
-
-    handleDisconnect(clientId) {
-        const client = this.clients.get(clientId);
-        if (!client) return;
-
-        // إزالة من الغرف
-        client.rooms.forEach(roomId => {
-            this.leaveRoom(clientId, roomId);
-        });
-
-        // حفظ سجل الاتصال
-        this.saveConnectionLog(client);
-
-        // حذف العميل
-        this.clients.delete(clientId);
-
-        console.log(`🔌 Client disconnected: ${clientId}`);
-    }
-
-    async saveConnectionLog(client) {
-        try {
-            const db = getDB();
-            await db.collection('joe_websocket_logs').insertOne({
-                clientId: client.id,
-                userId: client.userId,
-                metadata: client.metadata,
-                duration: Date.now() - client.metadata.connectedAt.getTime(),
-                rooms: Array.from(client.rooms),
-                timestamp: new Date()
-            });
-        } catch (error) {
-            console.error('❌ Save connection log error:', error);
-        }
-    }
-
-    // أدوات البث المتقدمة
-    startLiveStream(streamId, streamData) {
-        const stream = {
-            id: streamId,
-            startTime: new Date(),
-            viewers: new Set(),
-            data: streamData
+        // اتصال تلقائي عند تحميل الصفحة
+        window.onload = () => {
+            addMessage('🚀 جاهز للاختبار! اضغط على "اتصال" للبدء');
         };
-
-        // إشعار المشتركين
-        this.broadcast({
-            type: 'stream_started',
-            streamId,
-            data: streamData,
-            timestamp: new Date()
-        });
-
-        console.log(`🎬 Live stream started: ${streamId}`);
-    }
-
-    updateLiveStream(streamId, data) {
-        this.broadcast({
-            type: 'stream_update',
-            streamId,
-            data,
-            timestamp: new Date()
-        });
-    }
-
-    stopLiveStream(streamId) {
-        this.broadcast({
-            type: 'stream_ended',
-            streamId,
-            timestamp: new Date()
-        });
-
-        console.log(`🛑 Live stream stopped: ${streamId}`);
-    }
-
-    // أدوات المساعدة
-    getConnectedClients() {
-        return Array.from(this.clients.keys());
-    }
-
-    getRoomMembers(roomId) {
-        const room = this.rooms.get(roomId);
-        return room ? Array.from(room) : [];
-    }
-
-    getClientStats() {
-        return {
-            totalClients: this.clients.size,
-            totalRooms: this.rooms.size,
-            authenticatedClients: Array.from(this.clients.values()).filter(c => c.authenticated).length
-        };
-    }
-
-    // WebSocket للبث الحي
-    broadcastFrame(streamId, frameData) {
-        const message = {
-            type: 'frame',
-            streamId,
-            frame: frameData,
-            timestamp: new Date()
-        };
-
-        this.broadcast(message);
-    }
-
-    broadcastProgress(taskId, progress, message) {
-        const data = {
-            type: 'progress',
-            taskId,
-            progress,
-            message,
-            timestamp: new Date()
-        };
-
-        this.broadcast(data);
-    }
-
-    // إدارة حالة النظام
-    async getSystemStatus() {
-        return {
-            websocket: {
-                connectedClients: this.clients.size,
-                activeRooms: this.rooms.size,
-                uptime: process.uptime()
-            },
-            timestamp: new Date()
-        };
-    }
-}
-
-// مدير البث المتقدم
-export class StreamingManager {
-    constructor(webSocketManager) {
-        this.wsManager = webSocketManager;
-        this.activeStreams = new Map();
-    }
-
-    createStream(streamId, streamType, metadata = {}) {
-        const stream = {
-            id: streamId,
-            type: streamType,
-            startTime: new Date(),
-            metadata,
-            frames: [],
-            status: 'active',
-            viewers: new Set()
-        };
-
-        this.activeStreams.set(streamId, stream);
-        
-        // بدء البث
-        this.wsManager.startLiveStream(streamId, metadata);
-        
-        console.log(`🎬 Stream created: ${streamId} (${streamType})`);
-        return stream;
-    }
-
-    addFrame(streamId, frameData) {
-        const stream = this.activeStreams.get(streamId);
-        if (!stream) return;
-
-        const frame = {
-            timestamp: Date.now(),
-            data: frameData,
-            type: 'screenshot'
-        };
-
-        stream.frames.push(frame);
-        
-        // بث الإطار
-        this.wsManager.broadcastFrame(streamId, frameData);
-        
-        // حذف الإطارات القديمة (الاحتفاظ بآخر 100)
-        if (stream.frames.length > 100) {
-            stream.frames.shift();
-        }
-    }
-
-    addViewer(streamId, clientId) {
-        const stream = this.activeStreams.get(streamId);
-        if (stream) {
-            stream.viewers.add(clientId);
-            console.log(`👤 Viewer added to stream ${streamId}: ${clientId}`);
-        }
-    }
-
-    removeViewer(streamId, clientId) {
-        const stream = this.activeStreams.get(streamId);
-        if (stream) {
-            stream.viewers.delete(clientId);
-            console.log(`👋 Viewer removed from stream ${streamId}: ${clientId}`);
-        }
-    }
-
-    stopStream(streamId) {
-        const stream = this.activeStreams.get(streamId);
-        if (!stream) return;
-
-        stream.status = 'stopped';
-        stream.endTime = new Date();
-        
-        // إيقاف البث
-        this.wsManager.stopLiveStream(streamId);
-        
-        // حفظ السجل
-        this.saveStreamLog(stream);
-        
-        // حذف من القائمة النشطة
-        this.activeStreams.delete(streamId);
-        
-        console.log(`🛑 Stream stopped: ${streamId}`);
-    }
-
-    async saveStreamLog(stream) {
-        try {
-            const db = getDB();
-            await db.collection('joe_stream_logs').insertOne({
-                streamId: stream.id,
-                type: stream.type,
-                startTime: stream.startTime,
-                endTime: stream.endTime,
-                duration: stream.endTime.getTime() - stream.startTime.getTime(),
-                frameCount: stream.frames.length,
-                viewerCount: stream.viewers.size,
-                metadata: stream.metadata
-            });
-        } catch (error) {
-            console.error('❌ Save stream log error:', error);
-        }
-    }
-
-    getStreamStats(streamId) {
-        const stream = this.activeStreams.get(streamId);
-        if (!stream) return null;
-
-        return {
-            id: stream.id,
-            type: stream.type,
-            duration: Date.now() - stream.startTime.getTime(),
-            frameCount: stream.frames.length,
-            viewerCount: stream.viewers.size,
-            status: stream.status
-        };
-    }
-
-    getAllStreams() {
-        return Array.from(this.activeStreams.values()).map(stream => ({
-            id: stream.id,
-            type: stream.type,
-            startTime: stream.startTime,
-            viewerCount: stream.viewers.size,
-            status: stream.status
-        }));
-    }
-}
-
-export default WebSocketManager;
-export { StreamingManager };
+    </script>
+</body>
+</html>
