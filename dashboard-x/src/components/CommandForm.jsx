@@ -1,73 +1,154 @@
-import { useState } from 'react';
+  import React, { useState } from 'react';
+  import { useForm } from 'react-hook-form';
+  import { zodResolver } from '@hookform/resolvers/zod';
+  import * as z from 'zod';
+  import { Send, Volume2, Globe, MessageSquareText, Loader2 } from 'lucide-react';
 
-export default function CommandForm({ onSubmit, loading }) {
-  const [commandText, setCommandText] = useState('');
-  const [lang, setLang] = useState('ar');
-  const [voice, setVoice] = useState(false);
+  import { Button } from "@/components/ui/button";
+  import { Input } from "@/components/ui/input";
+  import { Label } from "@/components/ui/label";
+  import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+  import { Switch } from "@/components/ui/switch";
+  import { Textarea } from "@/components/ui/textarea"; // استخدام Textarea من shadcn/ui
+  import {
+    Form,
+    FormControl,
+    FormDescription,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage,
+  } from "@/components/ui/form";
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!commandText.trim()) return;
-    
-    onSubmit({ commandText, lang, voice });
-  };
+  // تعريف مخطط التحقق باستخدام Zod
+  const formSchema = z.object({
+    commandText: z.string().min(1, {
+      message: "يجب ألا يكون الأمر فارغًا.",
+    }),
+    lang: z.enum(["ar", "en"], {
+      required_error: "الرجاء تحديد لغة.",
+    }),
+    voice: z.boolean().default(false),
+  });
 
-  return (
-    <form onSubmit={handleSubmit} className="card space-y-6">
-      <div>
-        <label className="block text-sm font-medium text-textDim mb-2">
-          Command to Joe / System
-        </label>
-        <textarea
-          value={commandText}
-          onChange={(e) => setCommandText(e.target.value)}
-          className="input-field w-full min-h-[200px] resize-y"
-          placeholder="Enter your command in Arabic or English..."
-          disabled={loading}
-        />
-      </div>
+  export default function CommandForm({ onSubmit, loading }) {
+    const form = useForm<z.infer<typeof formSchema>>({
+      resolver: zodResolver(formSchema),
+      defaultValues: {
+        commandText: "",
+        lang: "ar",
+        voice: false,
+      },
+    });
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium text-textDim mb-2">
-            Language
-          </label>
-          <select
-            value={lang}
-            onChange={(e) => setLang(e.target.value)}
-            className="input-field w-full"
-            disabled={loading}
-          >
-            <option value="ar">Arabic (العربية)</option>
-            <option value="en">English</option>
-          </select>
-        </div>
+    const handleSubmit = (values: z.infer<typeof formSchema>) => {
+      onSubmit(values);
+    };
 
-        <div className="flex items-end">
-          <label className="flex items-center space-x-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={voice}
-              onChange={(e) => setVoice(e.target.checked)}
-              className="w-5 h-5 rounded border-textDim/30 bg-cardDark text-neonGreen focus:ring-neonGreen focus:ring-offset-0"
-              disabled={loading}
+    return (
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6 p-6 bg-cardDark rounded-lg shadow-lg border border-gray-700">
+          <FormField
+            control={form.control}
+            name="commandText"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-textDim flex items-center gap-2">
+                  <MessageSquareText className="h-4 w-4" />
+                  الأمر إلى جو / النظام
+                </FormLabel>
+                <FormControl>
+                  <Textarea
+                    placeholder="أدخل أمرك باللغة العربية أو الإنجليزية..."
+                    className="min-h-[150px] resize-y bg-gray-800 border-gray-600 text-white placeholder:text-gray-400 focus-visible:ring-neonGreen"
+                    disabled={loading}
+                    {...field}
+                  />
+                </FormControl>
+                <FormDescription className="text-gray-400">
+                  أدخل الأمر الذي تريد إرساله إلى النظام.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <FormField
+              control={form.control}
+              name="lang"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-textDim flex items-center gap-2">
+                    <Globe className="h-4 w-4" />
+                    اللغة
+                  </FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value} disabled={loading}>
+                    <FormControl>
+                      <SelectTrigger className="bg-gray-800 border-gray-600 text-white focus:ring-neonGreen">
+                        <SelectValue placeholder="اختر لغة" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="bg-gray-800 border-gray-600 text-white">
+                      <SelectItem value="ar">العربية</SelectItem>
+                      <SelectItem value="en">الإنجليزية</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormDescription className="text-gray-400">
+                    اللغة التي سيتم بها تفسير الأمر.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-            <span className="text-sm font-medium text-textDim">
-              Voice Response
-            </span>
-          </label>
-        </div>
-      </div>
 
-      <div className="flex justify-end">
-        <button
-          type="submit"
-          disabled={loading || !commandText.trim()}
-          className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading ? 'Sending...' : 'Send Command'}
-        </button>
-      </div>
-    </form>
-  );
-}
+            <FormField
+              control={form.control}
+              name="voice"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border border-gray-700 p-4 bg-gray-800 shadow-sm">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-textDim flex items-center gap-2">
+                      <Volume2 className="h-4 w-4" />
+                      استجابة صوتية
+                    </FormLabel>
+                    <FormDescription className="text-gray-400">
+                      تفعيل الاستجابة الصوتية من النظام.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      disabled={loading}
+                      className="data-[state=checked]:bg-neonGreen data-[state=unchecked]:bg-gray-600"
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <div className="flex justify-end">
+            <Button
+              type="submit"
+              disabled={loading}
+              className="bg-neonGreen hover:bg-neonGreen/90 text-gray-900 font-bold py-2 px-6 rounded-md transition-colors duration-200 flex items-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  جاري الإرسال...
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4" />
+                  إرسال الأمر
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
+      </Form>
+    );
+  }
