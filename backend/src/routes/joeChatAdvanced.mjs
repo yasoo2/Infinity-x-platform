@@ -1,5 +1,5 @@
 import express from 'express';
-import JoeAdvancedEngine from '../lib/joeAdvancedEngine.mjs';
+import { processMessage } from '../lib/joeAdvancedEngine.mjs';
 
 const router = express.Router();
 
@@ -19,32 +19,34 @@ router.post('/', async (req, res) => {
     console.log('🤖 JOE Advanced processing:', message);
 
     // استخدام المحرك النهائي مع جميع القدرات
-    const joeAdvancedEngine = new JoeAdvancedEngine();
-    const result = await joeAdvancedEngine.processMessageManus(message, context);
+    const result = await processMessage(userId, message, context);
 
-    if (result.success) {
+    if (result && result.response) {
       res.json({
         ok: true,
         response: result.response,
         toolsUsed: result.toolsUsed || [],
+        requestType: result.requestType,
+        complexity: result.complexity,
+        stats: result.stats,
         aiEngine: 'openai-advanced',
-        model: 'gpt-4o-mini'
+        model: 'gpt-4o'
       });
     } else {
       res.json({
         ok: false,
-        error: result.error,
-        response: result.response
+        error: 'No response generated',
+        response: 'عذراً، لم أتمكن من معالجة طلبك.'
       });
     }
 
   } catch (error) {
     console.error('❌ JOE Advanced error:', error);
-      res.json({ 
-        ok: false, 
-        error: error.message,
-        response: 'عذراً، حدث خطأ أثناء معالجة رسالتك.'
-      });
+    res.json({ 
+      ok: false, 
+      error: error.message,
+      response: 'عذراً، حدث خطأ أثناء معالجة رسالتك. الرجاء المحاولة مرة أخرى.'
+    });
   }
 });
 
