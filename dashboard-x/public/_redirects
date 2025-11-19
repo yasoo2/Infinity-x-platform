@@ -1,8 +1,2 @@
-# Serve the landing page on root (from public folder)
-/  /index.html  200
-
-# Serve React dashboard app on /dashboard routes
-/dashboard/*  /index.html  200
-
-# Fallback for React Router - all other routes go to React app
+# SPA fallback - all routes go to React app
 /*  /index.html  200

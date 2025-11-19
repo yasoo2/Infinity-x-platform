@@ -21,7 +21,7 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  base: '/dashboard/',
+  base: '//',
   build: {
     outDir: 'dist',
     sourcemap: false,
