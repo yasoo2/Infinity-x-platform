@@ -10,6 +10,13 @@
   import http from 'http';
   import session from 'express-session';
   import passport from 'passport';
+  import path from 'path';
+  import { fileURLToPath } from 'url';
+  import fs from 'fs';
+
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  const publicPath = path.join(__dirname, '..', 'dashboard-x', 'public');
 
   // ✅ Shared Types
   import { ROLES } from './shared/roles.mjs';
@@ -175,6 +182,17 @@
   }));
   app.use(passport.initialize());
   app.use(passport.session());
+
+  // =========================
+  // 📁 Serve Static Files (Frontend)
+  // =========================
+  if (fs.existsSync(publicPath)) {
+    app.use(express.static(publicPath));
+    // Serve index.html for root path
+    app.get('/', (req, res) => {
+      res.sendFile(path.join(publicPath, 'index.html'));
+    });
+  }
 
   // =========================
   // 🔐 Authentication Utilities
