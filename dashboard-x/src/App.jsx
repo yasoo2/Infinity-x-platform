@@ -28,39 +28,26 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         
-        {/* Protected Dashboard Routes */}
+        {/* Protected Dashboard Routes - All under root */}
         <Route
-          path="/dashboard"
           element={
             <RequireAuth>
               <DashboardLayout />
             </RequireAuth>
           }
         >
-          <Route index element={<Navigate to="/joe" replace />} />
-          <Route path="overview" element={<Overview />} />
-          <Route path="activity" element={<Activity />} />
-          <Route path="command" element={<Command />} />
-          <Route path="users" element={<Users />} />
-          <Route path="build" element={<Build />} />
-          <Route path="self-design" element={<SelfDesign />} />
-          <Route path="store-integration" element={<UniversalStoreIntegration />} />
-          <Route path="page-builder" element={<PageBuilder />} />
-          <Route path="super-admin" element={<SuperAdminPanel />} />
-          <Route path="joe-v2" element={<JoeV2 />} />
-          <Route path="monitoring" element={<MonitoringPage />} />
-        </Route>
-
-        {/* Joe AI - Direct Protected Route */}
-        <Route
-          path="/joe"
-          element={
-            <RequireAuth>
-              <DashboardLayout />
-            </RequireAuth>
-          }
-        >
-          <Route index element={<Joe />} />
+          <Route path="/overview" element={<Overview />} />
+          <Route path="/joe" element={<Joe />} />
+          <Route path="/activity" element={<Activity />} />
+          <Route path="/command" element={<Command />} />
+          <Route path="/users" element={<Users />} />
+          <Route path="/build" element={<Build />} />
+          <Route path="/self-design" element={<SelfDesign />} />
+          <Route path="/store-integration" element={<UniversalStoreIntegration />} />
+          <Route path="/page-builder" element={<PageBuilder />} />
+          <Route path="/super-admin" element={<SuperAdminPanel />} />
+          <Route path="/joe-v2" element={<JoeV2 />} />
+          <Route path="/monitoring" element={<MonitoringPage />} />
         </Route>
 
         {/* Fallback */}

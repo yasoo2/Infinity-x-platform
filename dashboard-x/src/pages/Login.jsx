@@ -122,8 +122,8 @@ export default function Login() {
         // حفظ الـ token
         saveToken(response.data.token);
         
-        // التوجيه إلى Joe AI
-        navigate('/joe');
+        // التوجيه إلى Overview Dashboard
+        navigate('/overview');
       } else {
         setError(t.loginFailed);
       }
