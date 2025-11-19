@@ -12,7 +12,7 @@
   import passport from 'passport';
 
   // ✅ Shared Types
-  import { ROLES } from './shared/roles.js';
+  import { ROLES } from './shared/roles.mjs';
   import { sanitizeUserForClient } from './shared/userTypes.mjs';
 
   // ✅ Database
@@ -736,10 +736,10 @@
     console.log('\n🔄 Loading routes...\n');
 
     const routes = [
-      { path: '/api/v1/joe/control', module: './src/routes/joeRouter.js', name: 'joeRouter' },
-      { path: '/api/v1/factory', module: './src/routes/factoryRouter.js', name: 'factoryRouter' },
-      { path: '/api/v1/dashboard', module: './src/routes/dashboardDataRouter.js', name: 'dashboardDataRouter' },
-      { path: '/api/v1/public-site', module: './src/routes/publicSiteRouter.js', name: 'publicSiteRouter' },
+      { path: '/api/v1/joe/control', module: './src/routes/joeRouter.mjs', name: 'joeRouter' },
+      { path: '/api/v1/factory', module: './src/routes/factoryRouter.mjs', name: 'factoryRouter' },
+      { path: '/api/v1/dashboard', module: './src/routes/dashboardDataRouter.mjs', name: 'dashboardDataRouter' },
+      { path: '/api/v1/public-site', module: './src/routes/publicSiteRouter.mjs', name: 'publicSiteRouter' },
       { path: '/api/v1/self-design', module: './src/routes/selfDesign.mjs', name: 'selfDesignRouter' },
       { path: '/api/v1/store', module: './src/routes/storeIntegration.mjs', name: 'storeIntegrationRouter' },
       { path: '/api/v1/universal-store', module: './src/routes/universalStore.mjs', name: 'universalStoreRouter' },
