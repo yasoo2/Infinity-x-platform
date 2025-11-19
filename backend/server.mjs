@@ -436,18 +436,36 @@
   // Login
   app.post('/api/v1/auth/login', authLimiter, async (req, res) => {
     try {
-      const { email: rawEmail, password } = req.body;
-      const email = rawEmail ? rawEmail.toLowerCase() : null;
+      const { email: rawEmail, phone: rawPhone, emailOrPhone, password } = req.body;
       
-      if (!email || !password) {
+      // Support multiple input formats: email, phone, or emailOrPhone
+      let email = null;
+      let phone = null;
+      
+      if (emailOrPhone) {
+        // Check if emailOrPhone is an email or phone
+        if (emailOrPhone.includes('@')) {
+          email = emailOrPhone.toLowerCase();
+        } else {
+          phone = emailOrPhone;
+        }
+      } else {
+        email = rawEmail ? rawEmail.toLowerCase() : null;
+        phone = rawPhone || null;
+      }
+      
+      if ((!email && !phone) || !password) {
         return res.status(400).json({ 
           error: 'MISSING_FIELDS',
-          message: 'Email and password are required' 
+          message: 'Email/Phone and password are required' 
         });
       }
 
       const db = await initMongo();
-      const user = await db.collection('users').findOne({ email });
+      
+      // Find user by email or phone
+      const query = email ? { email } : { phone };
+      const user = await db.collection('users').findOne(query);
       
       if (!user) {
         await bcrypt.compare(password, '$2a$12$invalidhashtopreventtimingattack');
