@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import RequireAuth from './components/RequireAuth';
 import DashboardLayout from './components/DashboardLayout';
+import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Overview from './pages/Overview';
@@ -16,25 +17,27 @@ import JoeTest from './pages/Joe-test';
 import JoeSimple from './pages/Joe-simple';
 import JoeV2 from './pages/Joe-v2';
 import SuperAdminPanel from './pages/SuperAdminPanel';
-
 import MonitoringPage from './pages/MonitoringPage';
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Public Routes */}
+        <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         
+        {/* Protected Dashboard Routes */}
         <Route
-          path="/"
+          path="/dashboard"
           element={
             <RequireAuth>
               <DashboardLayout />
             </RequireAuth>
           }
         >
-          <Route index element={<Navigate to="/overview" replace />} />
+          <Route index element={<Navigate to="/joe" replace />} />
           <Route path="overview" element={<Overview />} />
           <Route path="activity" element={<Activity />} />
           <Route path="command" element={<Command />} />
@@ -43,19 +46,28 @@ function App() {
           <Route path="self-design" element={<SelfDesign />} />
           <Route path="store-integration" element={<UniversalStoreIntegration />} />
           <Route path="page-builder" element={<PageBuilder />} />
-          <Route path="joe" element={<Joe />} />
           <Route path="super-admin" element={<SuperAdminPanel />} />
           <Route path="joe-v2" element={<JoeV2 />} />
-          
           <Route path="monitoring" element={<MonitoringPage />} />
         </Route>
 
-        <Route path="*" element={<Navigate to="/overview" replace />} />
+        {/* Joe AI - Direct Protected Route */}
+        <Route
+          path="/joe"
+          element={
+            <RequireAuth>
+              <DashboardLayout />
+            </RequireAuth>
+          }
+        >
+          <Route index element={<Joe />} />
+        </Route>
+
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
 }
 
 export default App;
-
-
