@@ -502,6 +502,10 @@ async function processMessage(userId, message, conversationHistory = []) {
     { role: 'user', content: message }
   ];
   
+  if (!openai) {
+    throw new Error('OPENAI_API_KEY is not configured. Please add it to environment variables.');
+  }
+  
   let response = await openai.chat.completions.create({
     model: 'gpt-4o',
     messages,
