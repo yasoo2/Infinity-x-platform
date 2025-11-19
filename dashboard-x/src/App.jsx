@@ -13,9 +13,6 @@ import SelfDesign from './pages/SelfDesign';
 import UniversalStoreIntegration from './pages/UniversalStoreIntegration';
 import PageBuilder from './pages/PageBuilder';
 import Joe from './pages/Joe';
-import JoeTest from './pages/Joe-test';
-import JoeSimple from './pages/Joe-simple';
-import JoeV2 from './pages/Joe-v2';
 import SuperAdminPanel from './pages/SuperAdminPanel';
 import MonitoringPage from './pages/MonitoringPage';
 
@@ -36,18 +33,29 @@ function App() {
             </RequireAuth>
           }
         >
-          <Route path="/overview" element={<Overview />} />
-          <Route path="/joe" element={<Joe />} />
-          <Route path="/activity" element={<Activity />} />
-          <Route path="/command" element={<Command />} />
-          <Route path="/users" element={<Users />} />
-          <Route path="/build" element={<Build />} />
-          <Route path="/self-design" element={<SelfDesign />} />
-          <Route path="/store-integration" element={<UniversalStoreIntegration />} />
-          <Route path="/page-builder" element={<PageBuilder />} />
-          <Route path="/super-admin" element={<SuperAdminPanel />} />
-          <Route path="/joe-v2" element={<JoeV2 />} />
-          <Route path="/monitoring" element={<MonitoringPage />} />
+          <Route index element={<Navigate to="/joe" replace />} />
+          <Route path="overview" element={<Overview />} />
+          <Route path="activity" element={<Activity />} />
+          <Route path="command" element={<Command />} />
+          <Route path="users" element={<Users />} />
+          <Route path="build" element={<Build />} />
+          <Route path="self-design" element={<SelfDesign />} />
+          <Route path="store-integration" element={<UniversalStoreIntegration />} />
+          <Route path="page-builder" element={<PageBuilder />} />
+          <Route path="super-admin" element={<SuperAdminPanel />} />
+          <Route path="monitoring" element={<MonitoringPage />} />
+        </Route>
+
+        {/* Joe AI - Direct Protected Route */}
+        <Route
+          path="/joe"
+          element={
+            <RequireAuth>
+              <DashboardLayout />
+            </RequireAuth>
+          }
+        >
+          <Route index element={<Joe />} />
         </Route>
 
         {/* Fallback */}
