@@ -13,7 +13,7 @@
 
   // ✅ Shared Types
   import { ROLES } from './shared/roles.js';
-  import { sanitizeUserForClient } from './shared/userTypes.js';
+  import { sanitizeUserForClient } from './shared/userTypes.mjs';
 
   // ✅ Database
   import { initMongo, closeMongoConnection } from './src/db.mjs';

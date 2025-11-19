@@ -1,4 +1,4 @@
-// backend/shared/userTypes.js
+// backend/shared/userTypes.mjs
 export function sanitizeUserForClient(user) {
   if (!user) return null;
   

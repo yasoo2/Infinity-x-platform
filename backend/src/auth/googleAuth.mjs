@@ -1,7 +1,7 @@
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { getDb } from '../db.mjs';
-import { sanitizeUserForClient } from '../../shared/userTypes.js';
+import { sanitizeUserForClient } from '../../shared/userTypes.mjs';
 
 /**
  * إعداد Google OAuth Strategy
