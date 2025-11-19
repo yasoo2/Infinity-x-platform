@@ -1,1178 +1,801 @@
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>XeliteSolutions - Software Engineering Excellence</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@700;800;900&family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --primary: #2563EB;
-            --secondary: #7C3AED;
-            --accent: #DB2777;
-            --success: #059669;
-            --dark: #1E293B;
-            --darker: #0F172A;
-            --light: #F8FAFC;
-            --gold: #F59E0B;
-        }
-
-        body {
-            font-family: 'Poppins', sans-serif;
-            background: #FFFFFF;
-            color: #1E293B;
-            overflow-x: hidden;
-            line-height: 1.6;
-            transition: all 0.3s ease;
-        }
-
-        body.rtl {
-            direction: rtl;
-            font-family: 'Cairo', 'Poppins', sans-serif;
-        }
-
-        /* Header */
-        header {
-            position: fixed;
-            top: 0;
-            width: 100%;
-            padding: 20px 100px;
-            background: rgba(255, 255, 255, 0.98);
-            backdrop-filter: blur(20px);
-            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.05);
-            z-index: 1000;
-            transition: all 0.3s ease;
-        }
-
-        header.scrolled {
-            padding: 15px 100px;
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-        }
-
-        .header-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            cursor: pointer;
-            transition: transform 0.3s ease;
-        }
-
-        .logo:hover {
-            transform: scale(1.02);
-        }
-
-        .logo-icon {
-            width: 60px;
-            height: 60px;
-            background: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%);
-            border-radius: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            box-shadow: 0 8px 25px rgba(37, 99, 235, 0.3);
-            overflow: hidden;
-        }
-
-        .logo-icon::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
-            animation: shimmer 3s infinite;
-        }
-
-        @keyframes shimmer {
-            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
-            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
-        }
-
-        .logo-text h1 {
-            font-size: 26px;
-            font-weight: 800;
-            background: linear-gradient(135deg, #2563EB, #7C3AED);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            letter-spacing: -0.5px;
-            margin-bottom: 2px;
-        }
-
-        .logo-text p {
-            font-size: 10px;
-            color: #64748B;
-            font-weight: 600;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-        }
-
-        nav {
-            display: flex;
-            align-items: center;
-            gap: 50px;
-        }
-
-        .nav-links {
-            display: flex;
-            gap: 40px;
-            list-style: none;
-        }
-
-        .nav-links a {
-            color: #475569;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 15px;
-            transition: color 0.3s;
-            position: relative;
-        }
-
-        .nav-links a::after {
-            content: '';
-            position: absolute;
-            bottom: -5px;
-            left: 0;
-            width: 0;
-            height: 2px;
-            background: linear-gradient(90deg, #2563EB, #7C3AED);
-            transition: width 0.3s;
-        }
-
-        .nav-links a:hover {
-            color: #2563EB;
-        }
-
-        .nav-links a:hover::after {
-            width: 100%;
-        }
-
-        .header-actions {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-
-        .lang-selector {
-            position: relative;
-        }
-
-        .lang-btn {
-            background: #F1F5F9;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 10px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 14px;
-            color: #475569;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.3s;
-        }
-
-        .lang-btn:hover {
-            background: #E2E8F0;
-            color: #2563EB;
-        }
-
-        .lang-dropdown {
-            position: absolute;
-            top: 55px;
-            right: 0;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-            padding: 10px;
-            min-width: 180px;
-            display: none;
-            z-index: 100;
-        }
-
-        .lang-dropdown.active {
-            display: block;
-            animation: fadeIn 0.3s ease;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .lang-option {
-            padding: 12px 15px;
-            cursor: pointer;
-            border-radius: 8px;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-size: 14px;
-            font-weight: 500;
-            color: #475569;
-        }
-
-        .lang-option:hover {
-            background: #F1F5F9;
-            color: #2563EB;
-        }
-
-        .lang-option.active {
-            background: #EEF2FF;
-            color: #2563EB;
-            font-weight: 600;
-        }
-
-        .login-btn {
-            background: linear-gradient(135deg, #2563EB, #7C3AED);
-            color: white;
-            border: none;
-            padding: 12px 28px;
-            border-radius: 10px;
-            font-weight: 700;
-            font-size: 14px;
-            cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
-        }
-
-        .login-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 25px rgba(37, 99, 235, 0.4);
-        }
-
-        .hero {
-            padding: 180px 100px 120px;
-            background: linear-gradient(135deg, #EEF2FF 0%, #F8FAFC 100%);
-        }
-
-        .hero-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 80px;
-            align-items: center;
-        }
-
-        .hero-content h1 {
-            font-family: 'Playfair Display', serif;
-            font-size: 62px;
-            font-weight: 900;
-            line-height: 1.2;
-            color: #0F172A;
-            margin-bottom: 25px;
-        }
-
-        .hero-content .highlight {
-            background: linear-gradient(135deg, #2563EB, #7C3AED);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .hero-content p {
-            font-size: 19px;
-            color: #475569;
-            line-height: 1.8;
-            margin-bottom: 40px;
-        }
-
-        .hero-buttons {
-            display: flex;
-            gap: 20px;
-            flex-wrap: wrap;
-        }
-
-        .btn {
-            padding: 16px 35px;
-            border-radius: 12px;
-            font-weight: 700;
-            font-size: 15px;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            border: none;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #2563EB, #7C3AED);
-            color: white;
-            box-shadow: 0 8px 25px rgba(37, 99, 235, 0.3);
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 12px 35px rgba(37, 99, 235, 0.4);
-        }
-
-        .btn-secondary {
-            background: white;
-            color: #2563EB;
-            border: 2px solid #2563EB;
-        }
-
-        .btn-secondary:hover {
-            background: #EEF2FF;
-            transform: translateY(-3px);
-        }
-
-        .hero-image {
-            position: relative;
-        }
-
-        .hero-img-main {
-            width: 100%;
-            height: 550px;
-            border-radius: 24px;
-            overflow: hidden;
-            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.15);
-        }
-
-        .hero-img-main img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .hero-badge {
-            position: absolute;
-            background: white;
-            padding: 20px 25px;
-            border-radius: 16px;
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .badge-1 { top: 30px; left: -30px; }
-        .badge-2 { bottom: 30px; right: -30px; }
-
-        .badge-icon {
-            width: 50px;
-            height: 50px;
-            background: linear-gradient(135deg, #2563EB, #7C3AED);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 24px;
-        }
-
-        .badge-content h4 {
-            font-size: 28px;
-            font-weight: 800;
-            color: #0F172A;
-            margin-bottom: 2px;
-        }
-
-        .badge-content p {
-            font-size: 13px;
-            color: #64748B;
-            font-weight: 600;
-        }
-
-        .stats {
-            padding: 100px 100px;
-            background: white;
-        }
-
-        .stats-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 40px;
-        }
-
-        .stat-card {
-            text-align: center;
-            padding: 40px 30px;
-            background: linear-gradient(135deg, #EEF2FF 0%, #F8FAFC 100%);
-            border-radius: 20px;
-            transition: all 0.3s;
-        }
-
-        .stat-card:hover {
-            transform: translateY(-10px);
-            box-shadow: 0 20px 50px rgba(37, 99, 235, 0.15);
-        }
-
-        .stat-icon {
-            width: 70px;
-            height: 70px;
-            background: linear-gradient(135deg, #2563EB, #7C3AED);
-            border-radius: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 20px;
-            color: white;
-            font-size: 32px;
-        }
-
-        .stat-number {
-            font-size: 48px;
-            font-weight: 900;
-            color: #0F172A;
-            margin-bottom: 8px;
-        }
-
-        .stat-label {
-            font-size: 15px;
-            color: #64748B;
-            font-weight: 600;
-        }
-
-        .services {
-            padding: 120px 100px;
-            background: #F8FAFC;
-        }
-
-        .section-header {
-            text-align: center;
-            max-width: 700px;
-            margin: 0 auto 80px;
-        }
-
-        .section-tag {
-            display: inline-block;
-            padding: 8px 20px;
-            background: #EEF2FF;
-            color: #2563EB;
-            border-radius: 50px;
-            font-size: 13px;
-            font-weight: 700;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            margin-bottom: 20px;
-        }
-
-        .section-title {
-            font-family: 'Playfair Display', serif;
-            font-size: 48px;
-            font-weight: 900;
-            color: #0F172A;
-            margin-bottom: 20px;
-            line-height: 1.3;
-        }
-
-        .section-title .highlight {
-            background: linear-gradient(135deg, #2563EB, #7C3AED);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .section-desc {
-            font-size: 17px;
-            color: #64748B;
-            line-height: 1.8;
-        }
-
-        .services-grid {
-            max-width: 1400px;
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 30px;
-        }
-
-        .service-card {
-            background: white;
-            border-radius: 20px;
-            overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            transition: all 0.3s;
-        }
-
-        .service-card:hover {
-            transform: translateY(-10px);
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
-        }
-
-        .service-image {
-            width: 100%;
-            height: 220px;
-            overflow: hidden;
-        }
-
-        .service-image img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: transform 0.5s;
-        }
-
-        .service-card:hover .service-image img {
-            transform: scale(1.1);
-        }
-
-        .service-content {
-            padding: 35px;
-        }
-
-        .service-icon {
-            width: 60px;
-            height: 60px;
-            background: linear-gradient(135deg, #2563EB, #7C3AED);
-            border-radius: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 28px;
-            margin-bottom: 20px;
-        }
-
-        .service-card h3 {
-            font-size: 22px;
-            font-weight: 700;
-            color: #0F172A;
-            margin-bottom: 12px;
-        }
-
-        .service-card p {
-            font-size: 15px;
-            color: #64748B;
-            line-height: 1.7;
-            margin-bottom: 20px;
-        }
-
-        .service-link {
-            color: #2563EB;
-            font-weight: 700;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 14px;
-            transition: gap 0.3s;
-        }
-
-        .service-link:hover {
-            gap: 15px;
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 2000;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal.active {
-            display: flex;
-        }
-
-        .modal-content {
-            background: white;
-            border-radius: 24px;
-            padding: 50px;
-            max-width: 500px;
-            width: 90%;
-            position: relative;
-            animation: slideUp 0.3s ease;
-        }
-
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .close-modal {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            width: 40px;
-            height: 40px;
-            background: #F1F5F9;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.3s;
-            border: none;
-            font-size: 20px;
-            color: #475569;
-        }
-
-        .close-modal:hover {
-            background: #E2E8F0;
-            transform: rotate(90deg);
-        }
-
-        .modal h2 {
-            font-size: 32px;
-            font-weight: 800;
-            color: #0F172A;
-            margin-bottom: 30px;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            color: #475569;
-            font-weight: 600;
-            font-size: 14px;
-        }
-
-        .form-group input,
-        .form-group textarea {
-            width: 100%;
-            padding: 14px 16px;
-            background: #F8FAFC;
-            border: 2px solid #E2E8F0;
-            border-radius: 10px;
-            color: #0F172A;
-            font-size: 15px;
-            font-family: 'Poppins', sans-serif;
-            transition: all 0.3s;
-        }
-
-        .form-group textarea {
-            resize: vertical;
-            min-height: 100px;
-        }
-
-        .form-group input:focus,
-        .form-group textarea:focus {
-            outline: none;
-            border-color: #2563EB;
-            background: white;
-        }
-
-        .submit-btn {
-            width: 100%;
-            padding: 16px;
-            background: linear-gradient(135deg, #2563EB, #7C3AED);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-weight: 800;
-            font-size: 16px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .submit-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 30px rgba(37, 99, 235, 0.4);
-        }
-
-        .submit-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-
-        .error-message {
-            color: #dc2626;
-            font-size: 14px;
-            margin-top: 8px;
-        }
-
-        .success-message {
-            color: #059669;
-            font-size: 14px;
-            margin-top: 8px;
-        }
-
-        footer {
-            padding: 60px 100px 30px;
-            background: #0F172A;
-            color: white;
-            text-align: center;
-        }
-
-        footer p {
-            color: #94A3B8;
-            font-size: 14px;
-        }
-
-        @media (max-width: 1200px) {
-            .hero-container { grid-template-columns: 1fr; }
-            .services-grid { grid-template-columns: repeat(2, 1fr); }
-        }
-
-        @media (max-width: 768px) {
-            header { padding: 15px 20px; }
-            .nav-links { display: none; }
-            .hero { padding: 120px 20px 80px; }
-            .hero-content h1 { font-size: 38px; }
-            .services { padding: 80px 20px; }
-            .services-grid { grid-template-columns: 1fr; }
-            .stats-container { grid-template-columns: repeat(2, 1fr); }
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>XeliteSolutions - Software Engineering Excellence</title>
+
+  <!-- Fonts & Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@700;800;900&family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+  <!-- Meta -->
+  <meta name="description" content="XeliteSolutions: Advanced software engineering consultancy, AI solutions, elite recruitment, and world-class development services." />
+  <meta name="theme-color" content="#2563EB" />
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --primary: #2563EB; --secondary: #7C3AED; --accent: #DB2777; --success: #059669;
+      --dark: #1E293B; --darker: #0F172A; --light: #F8FAFC; --gold: #F59E0B;
+      --muted: #64748B; --muted-2: #94A3B8;
+    }
+    html, body { scroll-behavior: smooth; }
+    body {
+      font-family: 'Poppins', sans-serif; background: #FFFFFF; color: var(--dark);
+      overflow-x: hidden; line-height: 1.6;
+    }
+    body.rtl { direction: rtl; font-family: 'Cairo','Poppins',sans-serif; }
+
+    /* Header */
+    header {
+      position: fixed; top: 0; left: 0; width: 100%;
+      padding: 20px 100px; background: rgba(255,255,255,0.98);
+      backdrop-filter: blur(20px); box-shadow: 0 2px 20px rgba(0,0,0,0.05);
+      z-index: 1000; transition: all .3s ease;
+    }
+    header.scrolled { padding: 12px 100px; box-shadow: 0 6px 30px rgba(0,0,0,0.10); }
+    .header-container { max-width: 1400px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .logo { display: flex; align-items: center; gap: 14px; cursor: pointer; transform: translateZ(0); transition: transform .25s ease; }
+    .logo:hover { transform: translateY(-2px); }
+    .logo-icon {
+      width: 56px; height: 56px; border-radius: 14px; position: relative; overflow: hidden;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      display: grid; place-items: center; box-shadow: 0 10px 25px rgba(37,99,235,.35);
+    }
+    .logo-icon::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,.14) 50%, transparent 70%);
+      animation: shimmer 3.2s infinite;
+    }
+    @keyframes shimmer { from { transform: translate(-100%, -100%) rotate(45deg); } to { transform: translate(100%, 100%) rotate(45deg); } }
+    .logo-text h1 {
+      font-size: 24px; font-weight: 900; letter-spacing: -.4px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .logo-text p { font-size: 10px; color: var(--muted); font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+
+    nav { display: flex; align-items: center; gap: 28px; }
+    .nav-links { display: flex; gap: 28px; list-style: none; }
+    .nav-links a {
+      text-decoration: none; color: #475569; font-weight: 700; font-size: 14px; position: relative; transition: color .2s ease;
+    }
+    .nav-links a::after {
+      content: ''; position: absolute; bottom: -6px; left: 0; height: 2px; width: 0%;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+      transition: width .25s ease;
+    }
+    .nav-links a:hover { color: var(--primary); }
+    .nav-links a:hover::after { width: 100%; }
+
+    .header-actions { display: flex; align-items: center; gap: 12px; }
+    .lang-selector { position: relative; }
+    .lang-btn {
+      background: #F1F5F9; color: #334155; border: none; padding: 10px 14px; border-radius: 10px;
+      cursor: pointer; font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 8px; transition: all .2s;
+    }
+    .lang-btn:hover { background: #E2E8F0; color: var(--primary); }
+    .lang-dropdown {
+      position: absolute; top: 48px; inset-inline-end: 0; background: #fff; border-radius: 12px; min-width: 180px;
+      box-shadow: 0 18px 50px rgba(0,0,0,.15); padding: 8px; display: none; z-index: 100;
+    }
+    .lang-dropdown.active { display: block; animation: fadeIn .2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px);} to { opacity: 1; transform: translateY(0);} }
+    .lang-option {
+      padding: 10px 12px; cursor: pointer; border-radius: 8px; display: flex; align-items: center; gap: 10px;
+      font-size: 13px; color: #475569; font-weight: 600; transition: all .2s;
+    }
+    .lang-option:hover { background: #F1F5F9; color: var(--primary); }
+    .lang-option.active { background: #EEF2FF; color: var(--primary); }
+
+    .login-btn, .btn {
+      border: none; cursor: pointer; border-radius: 12px; display: inline-flex; align-items: center; gap: 10px; font-weight: 800;
+      transition: all .25s ease;
+    }
+    .login-btn { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: #fff; padding: 12px 20px; box-shadow: 0 12px 25px rgba(37,99,235,.35); }
+    .login-btn:hover { transform: translateY(-2px); box-shadow: 0 18px 35px rgba(37,99,235,.45); }
+
+    /* Hero */
+    .hero { padding: 160px 100px 100px; background: linear-gradient(135deg, #EEF2FF, #F8FAFC); }
+    .hero-container {
+      max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 1.05fr .95fr;
+      gap: 70px; align-items: center;
+    }
+    .hero-content h1 {
+      font-family: 'Playfair Display', serif; font-size: 58px; font-weight: 900; line-height: 1.2; color: var(--darker); margin-bottom: 22px;
+    }
+    .hero-content .highlight { background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .hero-content p { font-size: 18px; color: #475569; line-height: 1.8; margin-bottom: 28px; }
+    .hero-buttons { display: flex; flex-wrap: wrap; gap: 12px; }
+    .btn { padding: 14px 22px; font-size: 14px; }
+    .btn-primary { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: #fff; box-shadow: 0 16px 30px rgba(37,99,235,.28); }
+    .btn-primary:hover { transform: translateY(-3px); box-shadow: 0 22px 40px rgba(37,99,235,.38); }
+    .btn-secondary { background: #fff; color: var(--primary); border: 2px solid var(--primary); }
+    .btn-secondary:hover { background: #EEF2FF; transform: translateY(-3px); }
+
+    .hero-image { position: relative; }
+    .hero-img-main { width: 100%; height: 520px; border-radius: 24px; overflow: hidden; box-shadow: 0 25px 60px rgba(0,0,0,.15); }
+    .hero-img-main img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.02); transition: transform 6s ease-out; }
+    .hero-img-main:hover img { transform: scale(1.06); }
+    .hero-badge {
+      position: absolute; background: #fff; padding: 18px 22px; border-radius: 16px; box-shadow: 0 15px 40px rgba(0,0,0,.15);
+      display: flex; align-items: center; gap: 14px;
+    }
+    .badge-1 { top: 20px; inset-inline-start: -24px; }
+    .badge-2 { bottom: 22px; inset-inline-end: -24px; }
+    .badge-icon { width: 48px; height: 48px; border-radius: 12px; display: grid; place-items: center; color: #fff; font-size: 22px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary)); }
+    .badge-content h4 { font-size: 26px; font-weight: 900; color: var(--darker); }
+    .badge-content p { font-size: 12px; color: var(--muted); font-weight: 700; }
+
+    /* Stats */
+    .stats { padding: 90px 100px; background: #fff; }
+    .stats-container { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: repeat(4,1fr); gap: 28px; }
+    .stat-card { text-align: center; padding: 34px 24px; background: linear-gradient(135deg, #EEF2FF, #F8FAFC); border-radius: 18px; transition: all .25s; }
+    .stat-card:hover { transform: translateY(-8px); box-shadow: 0 22px 50px rgba(37,99,235,.18); }
+    .stat-icon { width: 64px; height: 64px; margin: 0 auto 16px; border-radius: 14px; display: grid; place-items: center; color: #fff; font-size: 28px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary)); }
+    .stat-number { font-size: 40px; font-weight: 900; color: var(--darker); margin-bottom: 6px; }
+    .stat-label { font-size: 14px; color: var(--muted); font-weight: 700; }
+
+    /* Services */
+    .services { padding: 110px 100px; background: #F8FAFC; }
+    .section-header { text-align: center; max-width: 740px; margin: 0 auto 60px; }
+    .section-tag { display: inline-block; padding: 7px 16px; background: #EEF2FF; color: var(--primary); border-radius: 999px; font-size: 12px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 16px; }
+    .section-title { font-family: 'Playfair Display', serif; font-size: 44px; font-weight: 900; color: var(--darker); margin-bottom: 14px; line-height: 1.28; }
+    .section-title .highlight { background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .section-desc { font-size: 16px; color: var(--muted); line-height: 1.8; }
+
+    .services-grid { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: repeat(3,1fr); gap: 26px; }
+    .service-card { background: #fff; border-radius: 18px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,.08); transition: all .25s; display: flex; flex-direction: column; }
+    .service-card:hover { transform: translateY(-8px); box-shadow: 0 22px 50px rgba(0,0,0,.15); }
+    .service-image { width: 100%; height: 200px; overflow: hidden; }
+    .service-image img { width: 100%; height: 100%; object-fit: cover; transition: transform .55s ease; }
+    .service-card:hover .service-image img { transform: scale(1.08); }
+    .service-content { padding: 26px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+    .service-icon { width: 56px; height: 56px; border-radius: 14px; display: grid; place-items: center; color: #fff; font-size: 24px; background: linear-gradient(135deg, var(--primary), var(--secondary)); }
+    .service-card h3 { font-size: 20px; font-weight: 800; color: var(--darker); }
+    .service-card p { font-size: 14px; color: var(--muted); line-height: 1.7; }
+    .service-link { margin-top: auto; color: var(--primary); font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-size: 13px; transition: gap .25s; }
+    .service-link:hover { gap: 12px; }
+
+    /* CTA */
+    .cta {
+      padding: 80px 100px; background: radial-gradient(1200px 600px at 20% 20%, rgba(37,99,235,.08), transparent 55%), radial-gradient(1000px 600px at 80% 50%, rgba(124,58,237,.08), transparent 60%), linear-gradient(135deg, #ffffff, #F8FAFC);
+    }
+    .cta-container {
+      max-width: 1100px; margin: 0 auto; background: #fff; border-radius: 18px; padding: 28px;
+      box-shadow: 0 20px 60px rgba(37,99,235,.15); display: grid; grid-template-columns: 1.4fr 1fr; gap: 22px;
+    }
+    .cta h3 { font-size: 28px; color: var(--darker); margin-bottom: 8px; }
+    .cta p { color: var(--muted); font-size: 14px; }
+    .cta .cta-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 999px; background: #F1F5F9; color: #334155; font-weight: 700; font-size: 12px;
+    }
+
+    /* Footer */
+    footer { padding: 60px 100px 30px; background: var(--darker); color: #fff; text-align: center; }
+    footer p { color: var(--muted-2); font-size: 13px; }
+    .foot-grid {
+      max-width: 1100px; margin: 0 auto 20px; display: grid; grid-template-columns: repeat(3,1fr); gap: 22px; text-align: start;
+    }
+    .foot-col h4 { margin-bottom: 10px; font-size: 16px; }
+    .foot-col a { color: #cbd5e1; text-decoration: none; font-size: 13px; display: block; margin: 6px 0; }
+    .foot-col a:hover { color: #fff; }
+
+    /* Modal */
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 2000; align-items: center; justify-content: center; padding: 16px; }
+    .modal.active { display: flex; }
+    .modal-content {
+      background: #fff; border-radius: 20px; padding: 28px; max-width: 460px; width: 100%; position: relative; animation: slideUp .25s ease;
+    }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(22px);} to { opacity: 1; transform: translateY(0);} }
+    .close-modal { position: absolute; top: 16px; inset-inline-end: 16px; width: 40px; height: 40px; border-radius: 10px; border: none; background: #F1F5F9; display: grid; place-items: center; cursor: pointer; color: #334155; transition: all .2s; }
+    .close-modal:hover { background: #E2E8F0; transform: rotate(90deg); }
+    .modal h2 { font-size: 26px; font-weight: 900; color: var(--darker); margin-bottom: 18px; }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; margin-bottom: 8px; color: #475569; font-weight: 700; font-size: 13px; }
+    .form-group input { width: 100%; padding: 12px 14px; background: #F8FAFC; border: 2px solid #E2E8F0; border-radius: 10px; color: var(--darker); font-size: 14px; transition: all .2s; }
+    .form-group input:focus { outline: none; border-color: var(--primary); background: #fff; }
+    .submit-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, var(--primary), var(--secondary)); color: #fff; border: none; border-radius: 12px; font-weight: 900; font-size: 15px; cursor: pointer; transition: all .2s; }
+    .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 16px 35px rgba(37,99,235,.35); }
+    .submit-btn:disabled { opacity: .6; cursor: not-allowed; }
+    .error-message { color: #dc2626; font-size: 13px; margin-top: 6px; min-height: 16px; }
+    .success-message { color: var(--success); font-size: 13px; margin-top: 6px; min-height: 16px; }
+    .login-link { text-align: center; margin-top: 12px; }
+    .login-link a { color: var(--primary); text-decoration: none; font-weight: 700; }
+    .login-link a:hover { text-decoration: underline; }
+
+    /* Responsive */
+    @media (max-width: 1200px) {
+      .hero-container { grid-template-columns: 1fr; gap: 36px; }
+      .services-grid { grid-template-columns: repeat(2,1fr); }
+      .cta .cta-container { grid-template-columns: 1fr; }
+      .foot-grid { grid-template-columns: repeat(2,1fr); }
+    }
+    @media (max-width: 768px) {
+      header { padding: 12px 18px; }
+      .nav-links { display: none; }
+      .hero { padding: 120px 18px 70px; }
+      .hero-content h1 { font-size: 36px; }
+      .services { padding: 80px 18px; }
+      .services-grid { grid-template-columns: 1fr; }
+      .stats { padding: 70px 18px; }
+      .stats-container { grid-template-columns: repeat(2,1fr); }
+      .cta { padding: 60px 18px; }
+      footer { padding: 50px 18px 26px; }
+      .foot-grid { grid-template-columns: 1fr; }
+    }
+  </style>
 </head>
 <body>
-    <header id="header">
-        <div class="header-container">
-            <div class="logo">
-                <div class="logo-icon">
-                    <span style="font-size: 32px; color: white; font-weight: bold;">&lt;/&gt;</span>
-                </div>
-                <div class="logo-text">
-                    <h1>XeliteSolutions</h1>
-                    <p data-key="tagline">CODE EXCELLENCE</p>
-                </div>
-            </div>
-            <nav>
-                <ul class="nav-links">
-                    <li><a href="#services" data-key="services">Services</a></li>
-                    <li><a href="#contact" data-key="contact">Contact</a></li>
-                </ul>
-                <div class="header-actions">
-                    <div class="lang-selector">
-                        <button class="lang-btn" onclick="toggleLang()">
-                            <i class="fas fa-globe"></i>
-                            <span id="currentLang">EN</span>
-                            <i class="fas fa-chevron-down" style="font-size: 12px;"></i>
-                        </button>
-                        <div class="lang-dropdown" id="langDropdown">
-                            <div class="lang-option active" onclick="changeLang('en')">
-                                <i class="fas fa-flag-usa"></i> English
-                            </div>
-                            <div class="lang-option" onclick="changeLang('ar')">
-                                <i class="fas fa-flag"></i> العربية
-                            </div>
-                        </div>
-                    </div>
-                    <button class="login-btn" onclick="openModal()">
-                        <i class="fas fa-sign-in-alt"></i>
-                        <span data-key="login">Login</span>
-                    </button>
-                </div>
-            </nav>
+  <!-- Header -->
+  <header id="header">
+    <div class="header-container">
+      <div class="logo" onclick="window.scrollTo({ top: 0, behavior: 'smooth' })">
+        <div class="logo-icon"><span style="font-size: 28px; color: white; font-weight: bold;">&lt;/&gt;</span></div>
+        <div class="logo-text">
+          <h1>XeliteSolutions</h1>
+          <p data-key="tagline">CODE EXCELLENCE</p>
         </div>
-    </header>
-
-    <section class="hero">
-        <div class="hero-container">
-            <div class="hero-content">
-                <h1>
-                    <span class="highlight" data-key="heroTitle1">Advanced Software Engineering</span>
-                    <span data-key="heroTitle2">Consultancy & Elite Recruitment</span>
-                </h1>
-                <p data-key="heroDesc">
-                    Premier software engineering consultancy specializing in AI solutions, web development, smart applications, and recruiting world-class engineers through rigorous technical assessments.
-                </p>
-                <div class="hero-buttons">
-                    <button class="btn btn-primary" onclick="openModal()">
-                        <i class="fas fa-rocket"></i>
-                        <span data-key="getStarted">Get Started</span>
-                    </button>
-                    <button class="btn btn-secondary">
-                        <i class="fas fa-clipboard-check"></i>
-                        <span data-key="learnMore">Learn More</span>
-                    </button>
-                </div>
-            </div>
-            <div class="hero-image">
-                <div class="hero-img-main">
-                    <img src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1200&q=80" alt="Team">
-                </div>
-                <div class="hero-badge badge-1">
-                    <div class="badge-icon"><i class="fas fa-users"></i></div>
-                    <div class="badge-content">
-                        <h4>350+</h4>
-                        <p data-key="engineers">Engineers</p>
-                    </div>
-                </div>
-                <div class="hero-badge badge-2">
-                    <div class="badge-icon"><i class="fas fa-trophy"></i></div>
-                    <div class="badge-content">
-                        <h4>99%</h4>
-                        <p data-key="success">Success Rate</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section class="stats">
-        <div class="stats-container">
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-project-diagram"></i></div>
-                <div class="stat-number">1,500+</div>
-                <div class="stat-label" data-key="projects">Projects</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-users-cog"></i></div>
-                <div class="stat-number">350+</div>
-                <div class="stat-label" data-key="engineers">Engineers</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-trophy"></i></div>
-                <div class="stat-number">75+</div>
-                <div class="stat-label" data-key="awards">Awards</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-globe"></i></div>
-                <div class="stat-number">45+</div>
-                <div class="stat-label" data-key="countries">Countries</div>
-            </div>
-        </div>
-    </section>
-
-    <section class="services" id="services">
-        <div class="section-header">
-            <div class="section-tag" data-key="ourServices">OUR SERVICES</div>
-            <h2 class="section-title">
-                <span data-key="comprehensive">Comprehensive</span>
-                <span class="highlight" data-key="solutions">Engineering Solutions</span>
-            </h2>
-            <p class="section-desc" data-key="servicesDesc">
-                Expert consultancy and recruitment services for advanced software engineering
-            </p>
-        </div>
-        <div class="services-grid">
-            <div class="service-card">
-                <div class="service-image">
-                    <img src="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800&q=80" alt="Consultancy">
-                </div>
-                <div class="service-content">
-                    <div class="service-icon"><i class="fas fa-chalkboard-teacher"></i></div>
-                    <h3 data-key="service1">Engineering Consultancy</h3>
-                    <p data-key="service1Desc">Expert consultation for software architecture and system design.</p>
-                    <a href="#" class="service-link">
-                        <span data-key="learnMore">Learn More</span>
-                        <i class="fas fa-arrow-right"></i>
-                    </a>
-                </div>
-            </div>
-            <div class="service-card">
-                <div class="service-image">
-                    <img src="https://images.unsplash.com/photo-1573164713714-d95e436ab8d6?w=800&q=80" alt="Recruitment">
-                </div>
-                <div class="service-content">
-                    <div class="service-icon"><i class="fas fa-user-check"></i></div>
-                    <h3 data-key="service2">Elite Talent Recruitment</h3>
-                    <p data-key="service2Desc">Recruiting highly qualified engineers through rigorous assessments.</p>
-                    <a href="#" class="service-link">
-                        <span data-key="learnMore">Learn More</span>
-                        <i class="fas fa-arrow-right"></i>
-                    </a>
-                </div>
-            </div>
-            <div class="service-card">
-                <div class="service-image">
-                    <img src="https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&q=80" alt="AI">
-                </div>
-                <div class="service-content">
-                    <div class="service-icon"><i class="fas fa-brain"></i></div>
-                    <h3 data-key="service3">AI & Information Systems</h3>
-                    <p data-key="service3Desc">Advanced artificial intelligence and information management systems.</p>
-                    <a href="#" class="service-link">
-                        <span data-key="learnMore">Learn More</span>
-                        <i class="fas fa-arrow-right"></i>
-                    </a>
-                </div>
-            </div>
-            <div class="service-card">
-                <div class="service-image">
-                    <img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&q=80" alt="Web">
-                </div>
-                <div class="service-content">
-                    <div class="service-icon"><i class="fas fa-laptop-code"></i></div>
-                    <h3 data-key="service4">Web Development</h3>
-                    <p data-key="service4Desc">Professional websites, web applications, and e-commerce platforms.</p>
-                    <a href="#" class="service-link">
-                        <span data-key="learnMore">Learn More</span>
-                        <i class="fas fa-arrow-right"></i>
-                    </a>
-                </div>
-            </div>
-            <div class="service-card">
-                <div class="service-image">
-                    <img src="https://images.unsplash.com/photo-1551650975-87deedd944c3?w=800&q=80" alt="Apps">
-                </div>
-                <div class="service-content">
-                    <div class="service-icon"><i class="fas fa-mobile-alt"></i></div>
-                    <h3 data-key="service5">Smart Applications</h3>
-                    <p data-key="service5Desc">Intelligent mobile and desktop applications with advanced features.</p>
-                    <a href="#" class="service-link">
-                        <span data-key="learnMore">Learn More</span>
-                        <i class="fas fa-arrow-right"></i>
-                    </a>
-                </div>
-            </div>
-            <div class="service-card">
-                <div class="service-image">
-                    <img src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&q=80" alt="Management">
-                </div>
-                <div class="service-content">
-                    <div class="service-icon"><i class="fas fa-tasks"></i></div>
-                    <h3 data-key="service6">Engineering Management</h3>
-                    <p data-key="service6Desc">Comprehensive project management and team leadership.</p>
-                    <a href="#" class="service-link">
-                        <span data-key="learnMore">Learn More</span>
-                        <i class="fas fa-arrow-right"></i>
-                    </a>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <footer id="contact">
-        <p>&copy; 2024 XeliteSolutions. <span data-key="rights">All rights reserved.</span></p>
-    </footer>
-
-    <div class="modal" id="loginModal">
-        <div class="modal-content">
-            <button class="close-modal" onclick="closeModal()">
-                <i class="fas fa-times"></i>
+      </div>
+      <nav>
+        <ul class="nav-links">
+          <li><a href="#services" data-key="services">Services</a></li>
+          <li><a href="#contact" data-key="contact">Contact</a></li>
+        </ul>
+        <div class="header-actions">
+          <div class="lang-selector">
+            <button class="lang-btn" onclick="toggleLang()">
+              <i class="fas fa-globe"></i>
+              <span id="currentLang">EN</span>
+              <i class="fas fa-chevron-down" style="font-size: 12px;"></i>
             </button>
-            <h2 data-key="loginTitle">Welcome Back</h2>
-            <form onsubmit="handleLogin(event)">
-                <div class="form-group">
-                    <label data-key="email">Email</label>
-                    <input type="email" id="email" placeholder="your@email.com" required>
-                    <div class="error-message" id="emailError"></div>
-                </div>
-                <div class="form-group">
-                    <label data-key="password">Password</label>
-                    <input type="password" id="password" placeholder="••••••••" required>
-                    <div class="error-message" id="passwordError"></div>
-                </div>
-                <button type="submit" class="submit-btn" id="submitBtn">
-                    <span data-key="login">Login</span>
-                </button>
-                <div class="error-message" id="loginError"></div>
-                <div class="success-message" id="loginSuccess"></div>
-            </form>
+            <div class="lang-dropdown" id="langDropdown">
+              <div class="lang-option" onclick="changeLang('en', event)">
+                <i class="fas fa-flag-usa"></i> English
+              </div>
+              <div class="lang-option" onclick="changeLang('ar', event)">
+                <i class="fas fa-flag"></i> العربية
+              </div>
+              <div class="lang-option" onclick="changeLang('fr', event)">
+                <i class="fas fa-flag"></i> Français
+              </div>
+              <div class="lang-option" onclick="changeLang('es', event)">
+                <i class="fas fa-flag"></i> Español
+              </div>
+            </div>
+          </div>
+          <button class="login-btn" onclick="openModal()">
+            <i class="fas fa-sign-in-alt"></i>
+            <span data-key="login">Login</span>
+          </button>
         </div>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-container">
+      <div class="hero-content">
+        <h1>
+          <span class="highlight" data-key="heroTitle1">Advanced Software Engineering</span><br />
+          <span data-key="heroTitle2">Consultancy & Elite Recruitment</span>
+        </h1>
+        <p data-key="heroDesc">Premier software engineering consultancy specializing in AI solutions, web development, smart applications, and recruiting world-class engineers through rigorous technical assessments.</p>
+        <div class="hero-buttons">
+          <button class="btn btn-primary" onclick="openModal()">
+            <i class="fas fa-rocket"></i>
+            <span data-key="getStarted">Get Started</span>
+          </button>
+          <button class="btn btn-secondary" onclick="document.getElementById('services').scrollIntoView({behavior:'smooth'})">
+            <i class="fas fa-clipboard-check"></i>
+            <span data-key="learnMore">Learn More</span>
+          </button>
+        </div>
+      </div>
+      <div class="hero-image">
+        <div class="hero-img-main">
+          <img src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1600&q=80&auto=format&fit=crop" alt="Team" />
+        </div>
+        <div class="hero-badge badge-1">
+          <div class="badge-icon"><i class="fas fa-users"></i></div>
+          <div class="badge-content">
+            <h4>350+</h4>
+            <p data-key="engineers">Engineers</p>
+          </div>
+        </div>
+        <div class="hero-badge badge-2">
+          <div class="badge-icon"><i class="fas fa-check-circle"></i></div>
+          <div class="badge-content">
+            <h4>98%</h4>
+            <p data-key="success">Success Rate</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stats -->
+  <section class="stats">
+    <div class="stats-container">
+      <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-code"></i></div>
+        <div class="stat-number">350+</div>
+        <div class="stat-label" data-key="engineers">Engineers</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
+        <div class="stat-number">98%</div>
+        <div class="stat-label" data-key="success">Success Rate</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-briefcase"></i></div>
+        <div class="stat-number">500+</div>
+        <div class="stat-label" data-key="projects">Projects</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-globe"></i></div>
+        <div class="stat-number">45+</div>
+        <div class="stat-label" data-key="countries">Countries</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Services -->
+  <section class="services" id="services">
+    <div class="section-header">
+      <span class="section-tag" data-key="ourServices">OUR SERVICES</span>
+      <h2 class="section-title"><span class="highlight" data-key="comprehensive">Comprehensive</span> <span data-key="solutions">Engineering Solutions</span></h2>
+      <p class="section-desc" data-key="servicesDesc">Expert consultancy and recruitment services for advanced software engineering</p>
     </div>
 
-    <script>
-        const translations = {
-            en: {
-                tagline: "CODE EXCELLENCE",
-                services: "Services",
-                contact: "Contact",
-                login: "Login",
-                heroTitle1: "Advanced Software Engineering",
-                heroTitle2: "Consultancy & Elite Recruitment",
-                heroDesc: "Premier software engineering consultancy specializing in AI solutions, web development, smart applications, and recruiting world-class engineers through rigorous technical assessments.",
-                getStarted: "Get Started",
-                learnMore: "Learn More",
-                engineers: "Engineers",
-                success: "Success Rate",
-                projects: "Projects",
-                awards: "Awards",
-                countries: "Countries",
-                ourServices: "OUR SERVICES",
-                comprehensive: "Comprehensive",
-                solutions: "Engineering Solutions",
-                servicesDesc: "Expert consultancy and recruitment services for advanced software engineering",
-                service1: "Engineering Consultancy",
-                service1Desc: "Expert consultation for software architecture and system design.",
-                service2: "Elite Talent Recruitment",
-                service2Desc: "Recruiting highly qualified engineers through rigorous assessments.",
-                service3: "AI & Information Systems",
-                service3Desc: "Advanced artificial intelligence and information management systems.",
-                service4: "Web Development",
-                service4Desc: "Professional websites, web applications, and e-commerce platforms.",
-                service5: "Smart Applications",
-                service5Desc: "Intelligent mobile and desktop applications with advanced features.",
-                service6: "Engineering Management",
-                service6Desc: "Comprehensive project management and team leadership.",
-                rights: "All rights reserved.",
-                loginTitle: "Welcome Back",
-                email: "Email",
-                password: "Password"
-            },
-            ar: {
-                tagline: "تميز البرمجة",
-                services: "الخدمات",
-                contact: "اتصل بنا",
-                login: "تسجيل الدخول",
-                heroTitle1: "الهندسة البرمجية المتقدمة",
-                heroTitle2: "استشارات وتوظيف نخبوي",
-                heroDesc: "شركة استشارات هندسة برمجية رائدة متخصصة في حلول الذكاء الاصطناعي وتطوير الويب والتطبيقات الذكية وتوظيف مهندسين عالميين من خلال تقييمات تقنية صارمة.",
-                getStarted: "ابدأ الآن",
-                learnMore: "اعرف المزيد",
-                engineers: "مهندس",
-                success: "معدل النجاح",
-                projects: "مشروع",
-                awards: "جائزة",
-                countries: "دولة",
-                ourServices: "خدماتنا",
-                comprehensive: "حلول هندسية",
-                solutions: "شاملة",
-                servicesDesc: "خدمات استشارية وتوظيف متخصصة في الهندسة البرمجية المتقدمة",
-                service1: "الاستشارات الهندسية",
-                service1Desc: "استشارات متخصصة في بنية البرمجيات وتصميم الأنظمة.",
-                service2: "توظيف المواهب النخبوية",
-                service2Desc: "توظيف مهندسين مؤهلين من خلال تقييمات صارمة.",
-                service3: "الذكاء الاصطناعي وأنظمة المعلومات",
-                service3Desc: "حلول ذكاء اصطناعي متقدمة وأنظمة إدارة معلومات ذكية.",
-                service4: "تطوير الويب",
-                service4Desc: "مواقع احترافية وتطبيقات ويب ومنصات تجارة إلكترونية.",
-                service5: "التطبيقات الذكية",
-                service5Desc: "تطبيقات موبايل وسطح مكتب ذكية بمميزات متقدمة.",
-                service6: "إدارة الهندسة",
-                service6Desc: "إدارة مشاريع شاملة وقيادة فرق العمل.",
-                rights: "جميع الحقوق محفوظة.",
-                loginTitle: "مرحباً بعودتك",
-                email: "البريد الإلكتروني",
-                password: "كلمة المرور"
-            }
-        };
+    <div class="services-grid">
+      <div class="service-card">
+        <div class="service-image">
+          <img src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=1000&q=80&auto=format&fit=crop" alt="Consultancy" />
+        </div>
+        <div class="service-content">
+          <div class="service-icon"><i class="fas fa-lightbulb"></i></div>
+          <h3 data-key="service1">Engineering Consultancy</h3>
+          <p data-key="service1Desc">Expert consultation for software architecture and system design.</p>
+          <a href="#" class="service-link">
+            <span data-key="learnMore">Learn More</span> <i class="fas fa-arrow-right"></i>
+          </a>
+        </div>
+      </div>
 
-        let currentLang = 'en';
+      <div class="service-card">
+        <div class="service-image">
+          <img src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=1000&q=80&auto=format&fit=crop" alt="Recruitment" />
+        </div>
+        <div class="service-content">
+          <div class="service-icon"><i class="fas fa-user-tie"></i></div>
+          <h3 data-key="service2">Elite Talent Recruitment</h3>
+          <p data-key="service2Desc">Recruiting highly qualified engineers through rigorous assessments.</p>
+          <a href="#" class="service-link">
+            <span data-key="learnMore">Learn More</span> <i class="fas fa-arrow-right"></i>
+          </a>
+        </div>
+      </div>
 
-        function changeLang(lang) {
-            currentLang = lang;
-            document.getElementById('currentLang').textContent = lang.toUpperCase();
-            
-            document.querySelectorAll('.lang-option').forEach(opt => opt.classList.remove('active'));
-            event.target.closest('.lang-option').classList.add('active');
-            
-            if (lang === 'ar') {
-                document.body.classList.add('rtl');
-                document.documentElement.setAttribute('dir', 'rtl');
-            } else {
-                document.body.classList.remove('rtl');
-                document.documentElement.setAttribute('dir', 'ltr');
-            }
-            
-            document.querySelectorAll('[data-key]').forEach(el => {
-                const key = el.getAttribute('data-key');
-                if (translations[lang][key]) {
-                    el.textContent = translations[lang][key];
-                }
-            });
-            
-            toggleLang();
-        }
+      <div class="service-card">
+        <div class="service-image">
+          <img src="https://images.unsplash.com/photo-1677442d019cecf8978f0a0c5a1a3b3d?w=1000&q=80&auto=format&fit=crop" alt="AI Systems" />
+        </div>
+        <div class="service-content">
+          <div class="service-icon"><i class="fas fa-brain"></i></div>
+          <h3 data-key="service3">AI & Information Systems</h3>
+          <p data-key="service3Desc">Advanced artificial intelligence and information management systems.</p>
+          <a href="#" class="service-link">
+            <span data-key="learnMore">Learn More</span> <i class="fas fa-arrow-right"></i>
+          </a>
+        </div>
+      </div>
 
-        function toggleLang() {
-            document.getElementById('langDropdown').classList.toggle('active');
-        }
+      <div class="service-card">
+        <div class="service-image">
+          <img src="https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=1000&q=80&auto=format&fit=crop" alt="Web Development" />
+        </div>
+        <div class="service-content">
+          <div class="service-icon"><i class="fas fa-globe"></i></div>
+          <h3 data-key="service4">Web Development</h3>
+          <p data-key="service4Desc">Professional websites, web applications, and e-commerce platforms.</p>
+          <a href="#" class="service-link">
+            <span data-key="learnMore">Learn More</span> <i class="fas fa-arrow-right"></i>
+          </a>
+        </div>
+      </div>
 
-        function openModal() {
-            document.getElementById('loginModal').classList.add('active');
-        }
+      <div class="service-card">
+        <div class="service-image">
+          <img src="https://images.unsplash.com/photo-1551650975-87deedd944c3?w=1000&q=80&auto=format&fit=crop" alt="Apps" />
+        </div>
+        <div class="service-content">
+          <div class="service-icon"><i class="fas fa-mobile-alt"></i></div>
+          <h3 data-key="service5">Smart Applications</h3>
+          <p data-key="service5Desc">Intelligent mobile and desktop applications with advanced features.</p>
+          <a href="#" class="service-link">
+            <span data-key="learnMore">Learn More</span> <i class="fas fa-arrow-right"></i>
+          </a>
+        </div>
+      </div>
 
-        function closeModal() {
-            document.getElementById('loginModal').classList.remove('active');
-            clearErrors();
-        }
+      <div class="service-card">
+        <div class="service-image">
+          <img src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=1000&q=80&auto=format&fit=crop" alt="Management" />
+        </div>
+        <div class="service-content">
+          <div class="service-icon"><i class="fas fa-tasks"></i></div>
+          <h3 data-key="service6">Engineering Management</h3>
+          <p data-key="service6Desc">Comprehensive project management and team leadership.</p>
+          <a href="#" class="service-link">
+            <span data-key="learnMore">Learn More</span> <i class="fas fa-arrow-right"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
 
-        function clearErrors() {
-            document.getElementById('emailError').textContent = '';
-            document.getElementById('passwordError').textContent = '';
-            document.getElementById('loginError').textContent = '';
-            document.getElementById('loginSuccess').textContent = '';
-        }
+  <!-- CTA -->
+  <section class="cta">
+    <div class="cta-container">
+      <div>
+        <h3 data-key="ctaTitle">Ready to elevate your engineering team?</h3>
+        <p data-key="ctaDesc">Talk to our experts or start the talent assessment process today.</p>
+      </div>
+      <div class="cta-actions">
+        <button class="btn btn-primary" onclick="openModal()"><i class="fas fa-envelope-open-text"></i><span data-key="contactCta">Contact Us</span></button>
+        <span class="chip"><i class="fas fa-shield-alt"></i> ISO 27001</span>
+        <span class="chip"><i class="fas fa-certificate"></i> Best Practices</span>
+        <span class="chip"><i class="fas fa-rocket"></i> AI-Driven</span>
+      </div>
+    </div>
+  </section>
 
-        async function handleLogin(e) {
-            e.preventDefault();
-            clearErrors();
-            
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const submitBtn = document.getElementById('submitBtn');
-            
-            if (!email || !password) {
-                document.getElementById('loginError').textContent = 'Please fill in all fields';
-                return;
-            }
+  <!-- Footer -->
+  <footer id="contact">
+    <div class="foot-grid">
+      <div class="foot-col">
+        <h4>XeliteSolutions</h4>
+        <a href="#" data-key="footAbout">About</a>
+        <a href="#" data-key="footCareers">Careers</a>
+        <a href="#" data-key="footBlog">Blog</a>
+      </div>
+      <div class="foot-col">
+        <h4 data-key="services">Services</h4>
+        <a href="#">Consultancy</a>
+        <a href="#">Recruitment</a>
+        <a href="#">AI Systems</a>
+      </div>
+      <div class="foot-col">
+        <h4 data-key="contact">Contact</h4>
+        <a href="mailto:hello@xelitesolutions.com">hello@xelitesolutions.com</a>
+        <a href="https://api.xelitesolutions.com/api/v1/health" target="_blank" rel="noopener">API Health</a>
+      </div>
+    </div>
+    <p>&copy; <span id="year"></span> XeliteSolutions. <span data-key="rights">All rights reserved.</span></p>
+  </footer>
 
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Logging in...';
+  <!-- Login Modal -->
+  <div class="modal" id="loginModal">
+    <div class="modal-content">
+      <button class="close-modal" onclick="closeModal()"><i class="fas fa-times"></i></button>
+      <h2 data-key="loginTitle">Welcome Back</h2>
+      <form onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label data-key="email">Email</label>
+          <input type="email" id="email" placeholder="your@email.com" required />
+          <div class="error-message" id="emailError"></div>
+        </div>
+        <div class="form-group">
+          <label data-key="password">Password</label>
+          <input type="password" id="password" placeholder="••••••••" required />
+          <div class="error-message" id="passwordError"></div>
+        </div>
+        <button type="submit" class="submit-btn" id="submitBtn">
+          <span data-key="login">Login</span>
+        </button>
+        <div class="error-message" id="loginError"></div>
+        <div class="success-message" id="loginSuccess"></div>
+      </form>
+    </div>
+  </div>
 
-            try {
-                // Get the backend API URL dynamically
-                const protocol = window.location.protocol;
-                const host = window.location.host;
-                const apiUrl = `${protocol}//${host}/api/auth/login`;
+  <script>
+    // Comprehensive Translations - English, Arabic, French, Spanish
+    const translations = {
+      en: {
+        tagline: "CODE EXCELLENCE",
+        services: "Services",
+        contact: "Contact",
+        login: "Login",
+        heroTitle1: "Advanced Software Engineering",
+        heroTitle2: "Consultancy & Elite Recruitment",
+        heroDesc: "Premier software engineering consultancy specializing in AI solutions, web development, smart applications, and recruiting world-class engineers through rigorous technical assessments.",
+        getStarted: "Get Started",
+        learnMore: "Learn More",
+        engineers: "Engineers",
+        success: "Success Rate",
+        projects: "Projects",
+        awards: "Awards",
+        countries: "Countries",
+        ourServices: "OUR SERVICES",
+        comprehensive: "Comprehensive",
+        solutions: "Engineering Solutions",
+        servicesDesc: "Expert consultancy and recruitment services for advanced software engineering",
+        service1: "Engineering Consultancy",
+        service1Desc: "Expert consultation for software architecture and system design.",
+        service2: "Elite Talent Recruitment",
+        service2Desc: "Recruiting highly qualified engineers through rigorous assessments.",
+        service3: "AI & Information Systems",
+        service3Desc: "Advanced artificial intelligence and information management systems.",
+        service4: "Web Development",
+        service4Desc: "Professional websites, web applications, and e-commerce platforms.",
+        service5: "Smart Applications",
+        service5Desc: "Intelligent mobile and desktop applications with advanced features.",
+        service6: "Engineering Management",
+        service6Desc: "Comprehensive project management and team leadership.",
+        rights: "All rights reserved.",
+        loginTitle: "Welcome Back",
+        email: "Email",
+        password: "Password",
+        ctaTitle: "Ready to elevate your engineering team?",
+        ctaDesc: "Talk to our experts or start the talent assessment process today.",
+        contactCta: "Contact Us",
+        footAbout: "About",
+        footCareers: "Careers",
+        footBlog: "Blog"
+      },
+      ar: {
+        tagline: "تميز البرمجة",
+        services: "الخدمات",
+        contact: "اتصل بنا",
+        login: "تسجيل الدخول",
+        heroTitle1: "الهندسة البرمجية المتقدمة",
+        heroTitle2: "استشارات وتوظيف نخبوي",
+        heroDesc: "شركة استشارات هندسة برمجية رائدة متخصصة في حلول الذكاء الاصطناعي وتطوير الويب والتطبيقات الذكية وتوظيف مهندسين عالميين من خلال تقييمات تقنية صارمة.",
+        getStarted: "ابدأ الآن",
+        learnMore: "اعرف المزيد",
+        engineers: "مهندس",
+        success: "معدل النجاح",
+        projects: "مشروع",
+        awards: "جائزة",
+        countries: "دولة",
+        ourServices: "خدماتنا",
+        comprehensive: "حلول هندسية",
+        solutions: "شاملة",
+        servicesDesc: "خدمات استشارية وتوظيف متخصصة في الهندسة البرمجية المتقدمة",
+        service1: "الاستشارات الهندسية",
+        service1Desc: "استشارات متخصصة في بنية البرمجيات وتصميم الأنظمة.",
+        service2: "توظيف المواهب النخبوية",
+        service2Desc: "توظيف مهندسين مؤهلين من خلال تقييمات صارمة.",
+        service3: "الذكاء الاصطناعي وأنظمة المعلومات",
+        service3Desc: "حلول ذكاء اصطناعي متقدمة وأنظمة إدارة معلومات ذكية.",
+        service4: "تطوير الويب",
+        service4Desc: "مواقع احترافية وتطبيقات ويب ومنصات تجارة إلكترونية.",
+        service5: "التطبيقات الذكية",
+        service5Desc: "تطبيقات موبايل وسطح مكتب ذكية بمميزات متقدمة.",
+        service6: "إدارة الهندسة",
+        service6Desc: "إدارة مشاريع شاملة وقيادة فرق العمل.",
+        rights: "جميع الحقوق محفوظة.",
+        loginTitle: "مرحباً بعودتك",
+        email: "البريد الإلكتروني",
+        password: "كلمة المرور",
+        ctaTitle: "جاهز للارتقاء بفريقك الهندسي؟",
+        ctaDesc: "تحدّث مع خبرائنا أو ابدأ عملية تقييم المواهب اليوم.",
+        contactCta: "تواصل معنا",
+        footAbout: "من نحن",
+        footCareers: "وظائف",
+        footBlog: "المدونة"
+      },
+      fr: {
+        tagline: "EXCELLENCE EN CODE",
+        services: "Services",
+        contact: "Contact",
+        login: "Connexion",
+        heroTitle1: "Ingénierie Logicielle Avancée",
+        heroTitle2: "Conseil & Recrutement d'Élite",
+        heroDesc: "Cabinet de conseil en ingénierie logicielle de premier plan spécialisé dans les solutions d'IA, le développement web, les applications intelligentes et le recrutement d'ingénieurs de classe mondiale.",
+        getStarted: "Commencer",
+        learnMore: "En Savoir Plus",
+        engineers: "Ingénieurs",
+        success: "Taux de Réussite",
+        projects: "Projets",
+        awards: "Récompenses",
+        countries: "Pays",
+        ourServices: "NOS SERVICES",
+        comprehensive: "Solutions",
+        solutions: "d'Ingénierie Complètes",
+        servicesDesc: "Services de conseil et de recrutement spécialisés en ingénierie logicielle avancée",
+        service1: "Conseil en Ingénierie",
+        service1Desc: "Consultation experte en architecture logicielle et conception de systèmes.",
+        service2: "Recrutement de Talents d'Élite",
+        service2Desc: "Recrutement d'ingénieurs hautement qualifiés par des évaluations rigoureuses.",
+        service3: "IA et Systèmes d'Information",
+        service3Desc: "Solutions d'IA avancées et systèmes de gestion de l'information intelligents.",
+        service4: "Développement Web",
+        service4Desc: "Sites professionnels, applications web et plateformes de commerce électronique.",
+        service5: "Applications Intelligentes",
+        service5Desc: "Applications mobiles et de bureau intelligentes avec des fonctionnalités avancées.",
+        service6: "Gestion de l'Ingénierie",
+        service6Desc: "Gestion complète des projets et leadership d'équipe.",
+        rights: "Tous droits réservés.",
+        loginTitle: "Bienvenue",
+        email: "Email",
+        password: "Mot de Passe",
+        ctaTitle: "Prêt à élever votre équipe d'ingénierie?",
+        ctaDesc: "Parlez à nos experts ou commencez l'évaluation des talents dès aujourd'hui.",
+        contactCta: "Nous Contacter",
+        footAbout: "À Propos",
+        footCareers: "Carrières",
+        footBlog: "Blog"
+      },
+      es: {
+        tagline: "EXCELENCIA EN CÓDIGO",
+        services: "Servicios",
+        contact: "Contacto",
+        login: "Iniciar Sesión",
+        heroTitle1: "Ingeniería de Software Avanzada",
+        heroTitle2: "Consultoría y Reclutamiento de Élite",
+        heroDesc: "Firma de consultoría de ingeniería de software de primer nivel especializada en soluciones de IA, desarrollo web, aplicaciones inteligentes y reclutamiento de ingenieros de clase mundial.",
+        getStarted: "Comenzar",
+        learnMore: "Más Información",
+        engineers: "Ingenieros",
+        success: "Tasa de Éxito",
+        projects: "Proyectos",
+        awards: "Premios",
+        countries: "Países",
+        ourServices: "NUESTROS SERVICIOS",
+        comprehensive: "Soluciones",
+        solutions: "de Ingeniería Integral",
+        servicesDesc: "Servicios de consultoría y reclutamiento especializados en ingeniería de software avanzada",
+        service1: "Consultoría de Ingeniería",
+        service1Desc: "Consulta experta en arquitectura de software y diseño de sistemas.",
+        service2: "Reclutamiento de Talento de Élite",
+        service2Desc: "Reclutamiento de ingenieros altamente calificados mediante evaluaciones rigurosas.",
+        service3: "IA y Sistemas de Información",
+        service3Desc: "Soluciones avanzadas de IA y sistemas de gestión de información inteligentes.",
+        service4: "Desarrollo Web",
+        service4Desc: "Sitios web profesionales, aplicaciones web y plataformas de comercio electrónico.",
+        service5: "Aplicaciones Inteligentes",
+        service5Desc: "Aplicaciones móviles y de escritorio inteligentes con características avanzadas.",
+        service6: "Gestión de Ingeniería",
+        service6Desc: "Gestión integral de proyectos y liderazgo de equipos.",
+        rights: "Todos los derechos reservados.",
+        loginTitle: "Bienvenido",
+        email: "Correo Electrónico",
+        password: "Contraseña",
+        ctaTitle: "¿Listo para elevar tu equipo de ingeniería?",
+        ctaDesc: "Habla con nuestros expertos o comienza el proceso de evaluación de talento hoy.",
+        contactCta: "Contáctanos",
+        footAbout: "Acerca de",
+        footCareers: "Carreras",
+        footBlog: "Blog"
+      }
+    };
 
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        email: email,
-                        password: password
-                    })
-                });
+    let currentLang = localStorage.getItem('lang') || 'en';
 
-                const data = await response.json();
+    function applyLang(lang) {
+      currentLang = lang;
+      localStorage.setItem('lang', lang);
+      document.getElementById('currentLang').textContent = lang.toUpperCase();
 
-                if (response.ok) {
-                    // Store token if provided
-                    if (data.token) {
-                        localStorage.setItem('authToken', data.token);
-                    }
-                    
-                    document.getElementById('loginSuccess').textContent = 'Login successful! Redirecting...';
-                    
-                    // Redirect to dashboard or joe page
-                    setTimeout(() => {
-                        window.location.href = '/joe' || data.redirectUrl || '/dashboard';
-                    }, 1500);
-                } else {
-                    document.getElementById('loginError').textContent = data.message || 'Login failed. Please check your credentials.';
-                }
-            } catch (error) {
-                console.error('Login error:', error);
-                document.getElementById('loginError').textContent = 'Connection error. Please try again.';
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.textContent = translations[currentLang].login;
-            }
-        }
+      if (lang === 'ar') {
+        document.body.classList.add('rtl');
+        document.documentElement.setAttribute('dir', 'rtl');
+      } else {
+        document.body.classList.remove('rtl');
+        document.documentElement.setAttribute('dir', 'ltr');
+      }
 
-        window.addEventListener('scroll', () => {
-            if (window.scrollY > 50) {
-                document.getElementById('header').classList.add('scrolled');
-            } else {
-                document.getElementById('header').classList.remove('scrolled');
-            }
+      document.querySelectorAll('[data-key]').forEach(el => {
+        const key = el.getAttribute('data-key');
+        if (translations[lang][key]) el.textContent = translations[lang][key];
+      });
+
+      document.querySelectorAll('.lang-option').forEach(opt => opt.classList.remove('active'));
+      const toActivate = document.querySelector(`.lang-option[onclick*="changeLang('${lang}'"]`);
+      toActivate && toActivate.classList.add('active');
+    }
+
+    function changeLang(lang, ev) {
+      if (ev && ev.preventDefault) ev.preventDefault();
+      applyLang(lang);
+      toggleLang();
+    }
+
+    function toggleLang() { document.getElementById('langDropdown').classList.toggle('active'); }
+
+    function openModal() { document.getElementById('loginModal').classList.add('active'); }
+    function closeModal() { document.getElementById('loginModal').classList.remove('active'); clearErrors(); }
+
+    function clearErrors() {
+      ['emailError','passwordError','loginError','loginSuccess'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.textContent = '';
+      });
+    }
+
+    function validateEmailFormat(email) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      clearErrors();
+
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const submitBtn = document.getElementById('submitBtn');
+
+      if (!email || !password) {
+        document.getElementById('loginError').textContent = currentLang === 'ar' ? 'يرجى تعبئة جميع الحقول' : (currentLang === 'fr' ? 'Veuillez remplir tous les champs' : (currentLang === 'es' ? 'Por favor, complete todos los campos' : 'Please fill in all fields'));
+        return;
+      }
+      if (!validateEmailFormat(email)) {
+        document.getElementById('emailError').textContent = currentLang === 'ar' ? 'صيغة بريد إلكتروني غير صحيحة' : (currentLang === 'fr' ? 'Format d\'email invalide' : (currentLang === 'es' ? 'Formato de correo electrónico inválido' : 'Invalid email format'));
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = currentLang === 'ar' ? 'جاري تسجيل الدخول...' : (currentLang === 'fr' ? 'Connexion en cours...' : (currentLang === 'es' ? 'Iniciando sesión...' : 'Logging in...'));
+
+      try {
+        const protocol = window.location.protocol;
+        const host = window.location.host;
+        const apiUrl = `${protocol}//${host}/api/v1/auth/login`;
+
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
         });
 
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.lang-selector')) {
-                document.getElementById('langDropdown').classList.remove('active');
-            }
-        });
+        const data = await response.json().catch(() => ({}));
 
-        // Close modal when clicking outside
-        document.getElementById('loginModal').addEventListener('click', (e) => {
-            if (e.target.id === 'loginModal') {
-                closeModal();
-            }
-        });
-    </script>
+        if (response.ok) {
+          if (data.token) {
+            localStorage.setItem('authToken', data.token);
+          }
+          document.getElementById('loginSuccess').textContent = currentLang === 'ar' ? 'تم تسجيل الدخول بنجاح! سيتم تحويلك...' : (currentLang === 'fr' ? 'Connexion réussie! Redirection...' : (currentLang === 'es' ? '¡Inicio de sesión exitoso! Redirigiendo...' : 'Login successful! Redirecting...'));
+
+          const redirect = data.redirectUrl || '/dashboard/joe';
+          setTimeout(() => { window.location.href = redirect; }, 1100);
+        } else {
+          const msg = data?.message || (currentLang === 'ar' ? 'فشل تسجيل الدخول. تحقق من بياناتك.' : (currentLang === 'fr' ? 'Échec de la connexion. Vérifiez vos identifiants.' : (currentLang === 'es' ? 'Error de inicio de sesión. Verifique sus credenciales.' : 'Login failed. Please check your credentials.')));
+          document.getElementById('loginError').textContent = msg;
+        }
+      } catch (err) {
+        console.error('Login error:', err);
+        document.getElementById('loginError').textContent = currentLang === 'ar' ? 'خطأ في الاتصال. حاول مرة أخرى.' : (currentLang === 'fr' ? 'Erreur de connexion. Réessayez.' : (currentLang === 'es' ? 'Error de conexión. Intente de nuevo.' : 'Connection error. Please try again.'));
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = translations[currentLang]?.login || 'Login';
+      }
+    }
+
+    // Global interactions
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.lang-selector')) {
+        document.getElementById('langDropdown').classList.remove('active');
+      }
+    });
+
+    window.addEventListener('scroll', () => {
+      document.getElementById('header').classList.toggle('scrolled', window.scrollY > 50);
+    });
+
+    document.getElementById('loginModal')?.addEventListener('click', (e) => {
+      if (e.target.id === 'loginModal') closeModal();
+    });
+
+    // Initialize
+    document.getElementById('year').textContent = new Date().getFullYear();
+    applyLang(currentLang);
+  </script>
 </body>
 </html>
