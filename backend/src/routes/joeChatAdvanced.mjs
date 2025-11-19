@@ -1,51 +1,70 @@
 import express from 'express';
-import JoeAdvancedEngine from '../lib/joeAdvancedEngine.mjs';
-
-const router = express.Router();
+import { processMessage } from '../lib/joeAdvancedEngine.mjs';
+import { ROLES } from '../../shared/roles.mjs';
 
 /**
- * JOE Chat Advanced - مع Function Calling
- * نفس قدرات Manus AI
+ * JOE Chat Advanced Router Factory
+ * Requires authentication middleware
  */
-router.post('/', async (req, res) => {
-  try {
-    const { message, context = [], aiEngine = 'openai' } = req.body;
-    const userId = req.user ? req.user._id.toString() : 'anonymous';
+export default function joeChatAdvancedRouter(initMongo, requireRole) {
+  const router = express.Router();
 
-    if (!message) {
-      return res.json({ ok: false, error: 'Message required' });
-    }
+  /**
+   * JOE Chat Advanced - مع Function Calling
+   * نفس قدرات Manus AI
+   */
+  router.post('/', requireRole(ROLES.USER), async (req, res) => {
+    try {
+      const { message, context = [], aiEngine = 'openai' } = req.body;
+      const userId = req.user ? req.user._id.toString() : 'anonymous';
 
-    console.log('🤖 JOE Advanced processing:', message);
+      if (!message) {
+        return res.json({ ok: false, error: 'Message required' });
+      }
 
-    // استخدام المحرك النهائي مع جميع القدرات
-    const joeAdvancedEngine = new JoeAdvancedEngine();
-    const result = await joeAdvancedEngine.processMessageManus(message, context);
+      console.log('🤖 JOE Advanced processing:', message);
 
-    if (result.success) {
-      res.json({
-        ok: true,
-        response: result.response,
-        toolsUsed: result.toolsUsed || [],
-        aiEngine: 'openai-advanced',
-        model: 'gpt-4o-mini'
-      });
-    } else {
-      res.json({
-        ok: false,
-        error: result.error,
-        response: result.response
-      });
-    }
+      // استخدام المحرك النهائي مع جميع القدرات
+      let result;
+      try {
+        result = await processMessage(userId, message, context);
+      } catch (e) {
+        console.error('❌ Error during processMessage:', e);
+        return res.json({ 
+          ok: false, 
+          error: e.message,
+          response: 'عذراً، حدث خطأ داخلي أثناء معالجة رسالتك. الرجاء التحقق من إعدادات API Keys.'
+        });
+      }
 
-  } catch (error) {
-    console.error('❌ JOE Advanced error:', error);
+      if (result && result.response) {
+        res.json({
+          ok: true,
+          response: result.response,
+          toolsUsed: result.toolsUsed || [],
+          requestType: result.requestType,
+          complexity: result.complexity,
+          stats: result.stats,
+          aiEngine: 'openai-advanced',
+          model: 'gpt-4o'
+        });
+      } else {
+        res.json({
+          ok: false,
+          error: 'No response generated',
+          response: 'عذراً، لم أتمكن من معالجة طلبك.'
+        });
+      }
+
+    } catch (error) {
+      console.error('❌ JOE Advanced error:', error);
       res.json({ 
         ok: false, 
         error: error.message,
-        response: 'عذراً، حدث خطأ أثناء معالجة رسالتك.'
+        response: 'عذراً، حدث خطأ أثناء معالجة رسالتك. الرجاء المحاولة مرة أخرى.'
       });
-  }
-});
+    }
+  });
 
-export default router;
+  return router;
+}
