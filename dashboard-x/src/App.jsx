@@ -13,9 +13,6 @@ import SelfDesign from './pages/SelfDesign';
 import UniversalStoreIntegration from './pages/UniversalStoreIntegration';
 import PageBuilder from './pages/PageBuilder';
 import Joe from './pages/Joe';
-import JoeTest from './pages/Joe-test';
-import JoeSimple from './pages/Joe-simple';
-import JoeV2 from './pages/JoeV2';
 import SuperAdminPanel from './pages/SuperAdminPanel';
 import MonitoringPage from './pages/MonitoringPage';
 
