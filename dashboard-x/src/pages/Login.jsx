@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { useSessionToken } from '../hooks/useSessionToken';
-import apiClient from '../api/client';
+import apiClient from '../lib/api';
 
 export default function Login() {
   const [emailOrPhone, setEmailOrPhone] = useState('');
@@ -113,7 +113,7 @@ export default function Login() {
     
     try {
       // استدعاء API للمصادقة
-      const response = await apiClient.post('/api/v1/auth/login', {
+      const response = await apiClient.post('/v1/auth/login', {
         emailOrPhone: emailOrPhone,
         password: password
       });
@@ -145,7 +145,7 @@ export default function Login() {
   // معالج تسجيل الدخول بجوجل
   const handleGoogleLogin = () => {
     // توجيه إلى endpoint Google OAuth في الواجهة الخلفية
-    window.location.href = `${apiClient.defaults.baseURL}/api/v1/auth/google`;
+    window.location.href = `${apiClient.defaults.baseURL}/v1/auth/google`;
   };
 
   return (
