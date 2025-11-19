@@ -44,7 +44,7 @@ function App() {
           <Route path="store-integration" element={<UniversalStoreIntegration />} />
           <Route path="page-builder" element={<PageBuilder />} />
           <Route path="super-admin" element={<SuperAdminPanel />} />
-          <Route path="joe-v2" element={<JoeV2 />} />
+
           <Route path="monitoring" element={<MonitoringPage />} />
         </Route>
 
