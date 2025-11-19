@@ -43,9 +43,14 @@ import { autoUpdateTools } from '../tools/autoUpdateTools.mjs';
 import MANUS_STYLE_PROMPT from '../prompts/manusStylePrompt.mjs';
 
 // ✅ إعداد OpenAI
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+let openai;
+if (process.env.OPENAI_API_KEY) {
+  openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
+  });
+} else {
+  console.warn('⚠️ OPENAI_API_KEY is missing. Joe AI will be limited.');
+}
 
 // =========================
 // 🎯 نظام الأحداث المتقدم

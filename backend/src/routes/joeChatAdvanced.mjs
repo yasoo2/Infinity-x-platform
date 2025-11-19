@@ -19,7 +19,17 @@ router.post('/', async (req, res) => {
     console.log('🤖 JOE Advanced processing:', message);
 
     // استخدام المحرك النهائي مع جميع القدرات
-    const result = await processMessage(userId, message, context);
+    let result;
+    try {
+      result = await processMessage(userId, message, context);
+    } catch (e) {
+      console.error('❌ Error during processMessage:', e);
+      return res.json({ 
+        ok: false, 
+        error: e.message,
+        response: 'عذراً، حدث خطأ داخلي أثناء معالجة رسالتك. الرجاء التحقق من إعدادات API Keys.'
+      });
+    }
 
     if (result && result.response) {
       res.json({
