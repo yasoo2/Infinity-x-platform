@@ -1,0 +1,9 @@
+# Serve the landing page on root
+/ /index.html 200
+
+# Serve dashboard on /dashboard route
+/dashboard/* /dashboard/index.html 200
+
+# API and other routes pass through
+/api/* /api/:splat 200
+/ws/* /ws/:splat 200
