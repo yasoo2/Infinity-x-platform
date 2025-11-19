@@ -10,11 +10,11 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [language, setLanguage] = useState('en'); // Language toggle
+  const [language, setLanguage] = useState(localStorage.getItem('lang') || 'en'); // Language toggle
   const { saveToken } = useSessionToken();
   const navigate = useNavigate();
 
-  // Translations
+  // Comprehensive Translations - English, Arabic, French, Spanish
   const translations = {
     en: {
       emailLabel: 'Email or Phone Number',
@@ -55,6 +55,46 @@ export default function Login() {
       serverError: 'خطأ في الخادم. يرجى المحاولة لاحقاً.',
       connectionError: 'فشل تسجيل الدخول. يرجى التحقق من الاتصال.',
       or: 'أو'
+    },
+    fr: {
+      emailLabel: 'Email ou Numéro de Téléphone',
+      emailPlaceholder: 'example@email.com ou +966501234567',
+      passwordLabel: 'Mot de Passe',
+      passwordPlaceholder: 'Entrez votre mot de passe',
+      loginButton: 'Se Connecter au Tableau de Bord',
+      loggingIn: 'Connexion en cours...',
+      googleButton: 'Se connecter avec Google',
+      noAccount: "Vous n'avez pas de compte? ",
+      signup: 'En créer un',
+      copyright: 'InfinityX Platform © 2025',
+      poweredBy: 'Powered by JOEngine',
+      dashboard: 'Centre de Commande',
+      emptyError: 'Veuillez entrer l\'email/téléphone et le mot de passe',
+      loginFailed: 'Échec de la connexion. Veuillez réessayer.',
+      badCredentials: 'Email/téléphone ou mot de passe invalide',
+      serverError: 'Erreur du serveur. Veuillez réessayer plus tard.',
+      connectionError: 'Échec de la connexion. Vérifiez votre internet.',
+      or: 'ou'
+    },
+    es: {
+      emailLabel: 'Correo Electrónico o Número de Teléfono',
+      emailPlaceholder: 'example@email.com o +966501234567',
+      passwordLabel: 'Contraseña',
+      passwordPlaceholder: 'Ingrese su contraseña',
+      loginButton: 'Iniciar Sesión en el Panel',
+      loggingIn: 'Iniciando sesión...',
+      googleButton: 'Iniciar sesión con Google',
+      noAccount: '¿No tienes cuenta? ',
+      signup: 'Crea una',
+      copyright: 'InfinityX Platform © 2025',
+      poweredBy: 'Powered by JOEngine',
+      dashboard: 'Centro de Control',
+      emptyError: 'Ingrese correo/teléfono y contraseña',
+      loginFailed: 'Error de inicio de sesión. Intente de nuevo.',
+      badCredentials: 'Correo/teléfono o contraseña inválidos',
+      serverError: 'Error del servidor. Intente más tarde.',
+      connectionError: 'Fallo de conexión. Verifique su internet.',
+      or: 'o'
     }
   };
 
@@ -128,12 +168,24 @@ export default function Login() {
             <h2 className="text-2xl font-bold text-white">
               {language === 'en' ? 'Sign In' : 'تسجيل الدخول'}
             </h2>
-            <button
-              onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}
-              className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded text-sm font-medium transition-colors"
-            >
-              {language === 'en' ? 'العربية' : 'English'}
-            </button>
+            <div className="flex gap-2">
+              {['en', 'ar', 'fr', 'es'].map((lang) => (
+                <button
+                  key={lang}
+                  onClick={() => {
+                    setLanguage(lang);
+                    localStorage.setItem('lang', lang);
+                  }}
+                  className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                    language === lang
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-slate-700 hover:bg-slate-600 text-white'
+                  }`}
+                >
+                  {lang.toUpperCase()}
+                </button>
+              ))}
+            </div>
           </div>
 
           {error && (
