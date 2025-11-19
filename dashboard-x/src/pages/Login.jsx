@@ -10,15 +10,62 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [language, setLanguage] = useState('en'); // Language toggle
   const { saveToken } = useSessionToken();
   const navigate = useNavigate();
+
+  // Translations
+  const translations = {
+    en: {
+      emailLabel: 'Email or Phone Number',
+      emailPlaceholder: 'example@email.com or +966501234567',
+      passwordLabel: 'Password',
+      passwordPlaceholder: 'Enter your password',
+      loginButton: 'Sign In to Dashboard',
+      loggingIn: 'Signing in...',
+      googleButton: 'Sign in with Google',
+      noAccount: "Don't have an account? ",
+      signup: 'Create one',
+      copyright: 'InfinityX Platform © 2025',
+      poweredBy: 'Powered by JOEngine',
+      dashboard: 'Command Center',
+      emptyError: 'Please enter email/phone and password',
+      loginFailed: 'Login failed. Please try again.',
+      badCredentials: 'Invalid email/phone or password',
+      serverError: 'Server error. Please try later.',
+      connectionError: 'Connection failed. Please check your internet.',
+      or: 'or'
+    },
+    ar: {
+      emailLabel: 'البريد الإلكتروني أو رقم الهاتف',
+      emailPlaceholder: 'example@email.com أو +966501234567',
+      passwordLabel: 'كلمة المرور',
+      passwordPlaceholder: 'أدخل كلمة المرور',
+      loginButton: 'الدخول إلى لوحة التحكم',
+      loggingIn: 'جاري تسجيل الدخول...',
+      googleButton: 'تسجيل الدخول باستخدام Google',
+      noAccount: 'ليس لديك حساب؟ ',
+      signup: 'إنشاء حساب جديد',
+      copyright: 'InfinityX Platform © 2025',
+      poweredBy: 'Powered by JOEngine',
+      dashboard: 'لوحة التحكم - مركز القيادة',
+      emptyError: 'يرجى إدخال البريد الإلكتروني/الهاتف وكلمة المرور',
+      loginFailed: 'فشل تسجيل الدخول. يرجى المحاولة مرة أخرى.',
+      badCredentials: 'البريد الإلكتروني/الهاتف أو كلمة المرور غير صحيحة',
+      serverError: 'خطأ في الخادم. يرجى المحاولة لاحقاً.',
+      connectionError: 'فشل تسجيل الدخول. يرجى التحقق من الاتصال.',
+      or: 'أو'
+    }
+  };
+
+  const t = translations[language];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     
     if (!emailOrPhone.trim() || !password.trim()) {
-      setError('يرجى إدخال البريد الإلكتروني/الهاتف وكلمة المرور');
+      setError(t.emptyError);
       return;
     }
     
@@ -38,17 +85,17 @@ export default function Login() {
         // التوجيه إلى Dashboard
         navigate('/overview');
       } else {
-        setError('فشل تسجيل الدخول. يرجى المحاولة مرة أخرى.');
+        setError(t.loginFailed);
       }
     } catch (err) {
       console.error('Login error:', err);
       
       if (err.response?.data?.error === 'BAD_CREDENTIALS') {
-        setError('البريد الإلكتروني/الهاتف أو كلمة المرور غير صحيحة');
+        setError(t.badCredentials);
       } else if (err.response?.status === 500) {
-        setError('خطأ في الخادم. يرجى المحاولة لاحقاً.');
+        setError(t.serverError);
       } else {
-        setError('فشل تسجيل الدخول. يرجى التحقق من الاتصال.');
+        setError(t.connectionError);
       }
     } finally {
       setLoading(false);
@@ -62,7 +109,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 px-4 py-12">
+    <div className={`min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 px-4 py-12 ${language === 'ar' ? 'rtl' : 'ltr'}`} dir={language === 'ar' ? 'rtl' : 'ltr'}>
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
           <h1 className="text-5xl font-bold mb-3">
@@ -73,13 +120,21 @@ export default function Login() {
               X
             </span>
           </h1>
-          <p className="text-slate-400 text-lg">لوحة التحكم - مركز القيادة</p>
+          <p className="text-slate-400 text-lg">{t.dashboard}</p>
         </div>
 
         <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl p-8">
-          <h2 className="text-2xl font-bold mb-6 text-center text-white">
-            تسجيل الدخول
-          </h2>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-white">
+              {language === 'en' ? 'Sign In' : 'تسجيل الدخول'}
+            </h2>
+            <button
+              onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}
+              className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded text-sm font-medium transition-colors"
+            >
+              {language === 'en' ? 'العربية' : 'English'}
+            </button>
+          </div>
 
           {error && (
             <div className="mb-4 p-4 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm flex items-start gap-2">
@@ -92,14 +147,14 @@ export default function Login() {
             {/* Email or Phone Field */}
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
-                البريد الإلكتروني أو رقم الهاتف
+                {t.emailLabel}
               </label>
               <input
                 type="text"
                 value={emailOrPhone}
                 onChange={(e) => setEmailOrPhone(e.target.value)}
                 className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                placeholder="example@email.com أو +966501234567"
+                placeholder={t.emailPlaceholder}
                 required
                 disabled={loading}
               />
@@ -108,7 +163,7 @@ export default function Login() {
             {/* Password Field with Toggle */}
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
-                كلمة المرور
+                {t.passwordLabel}
               </label>
               <div className="relative">
                 <input
@@ -116,7 +171,7 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all pr-12"
-                  placeholder="أدخل كلمة المرور"
+                  placeholder={t.passwordPlaceholder}
                   required
                   disabled={loading}
                 />
@@ -143,10 +198,10 @@ export default function Login() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
-                  جاري تسجيل الدخول...
+                  {t.loggingIn}
                 </span>
               ) : (
-                'الدخول إلى لوحة التحكم'
+                t.loginButton
               )}
             </button>
           </form>
@@ -157,7 +212,7 @@ export default function Login() {
               <div className="w-full border-t border-slate-600"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-slate-800/50 text-slate-400">أو</span>
+              <span className="px-4 bg-slate-800/50 text-slate-400">{t.or}</span>
             </div>
           </div>
 
@@ -174,21 +229,21 @@ export default function Login() {
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
             </svg>
-            تسجيل الدخول باستخدام Google
+            {t.googleButton}
           </button>
 
           {/* Signup Link */}
           <div className="mt-6 text-center text-sm text-slate-400">
-            ليس لديك حساب؟{' '}
+            {t.noAccount}
             <Link to="/signup" className="text-blue-400 hover:text-blue-300 font-semibold transition-colors">
-              إنشاء حساب جديد
+              {t.signup}
             </Link>
           </div>
         </div>
 
         <div className="mt-6 text-center text-xs text-slate-500">
-          <p>InfinityX Platform © 2025</p>
-          <p className="mt-1">Powered by JOEngine</p>
+          <p>{t.copyright}</p>
+          <p className="mt-1">{t.poweredBy}</p>
         </div>
       </div>
     </div>
