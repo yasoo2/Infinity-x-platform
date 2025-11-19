@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import RequireAuth from './components/RequireAuth';
 import DashboardLayout from './components/DashboardLayout';
-import Home from './pages/Home';
+import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Overview from './pages/Overview';
@@ -21,12 +21,13 @@ function App() {
     <BrowserRouter>
       <Routes>
         {/* Public Routes */}
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         
-        {/* Protected Dashboard Routes - All under root */}
+        {/* Protected Dashboard Routes */}
         <Route
+          path="/dashboard"
           element={
             <RequireAuth>
               <DashboardLayout />
@@ -43,6 +44,7 @@ function App() {
           <Route path="store-integration" element={<UniversalStoreIntegration />} />
           <Route path="page-builder" element={<PageBuilder />} />
           <Route path="super-admin" element={<SuperAdminPanel />} />
+          <Route path="joe-v2" element={<JoeV2 />} />
           <Route path="monitoring" element={<MonitoringPage />} />
         </Route>
 
