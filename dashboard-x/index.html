@@ -1,23 +1,10 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>XeliteSolutions - لوحة التحكم</title>
-    <script>
-      // فحص إذا كان هناك توكن في URL (من Google OAuth)
-      const urlParams = new URLSearchParams(window.location.search);
-      const tokenFromUrl = urlParams.get('token');
-      const fromGoogle = urlParams.get('from') === 'google';
-      
-      if (tokenFromUrl && fromGoogle) {
-        // حفظ التوكن في localStorage
-        localStorage.setItem('sessionToken', tokenFromUrl);
-        // إزالة التوكن من URL وتوجيه إلى dashboard
-        window.location.href = '/overview';
-      }
-    </script>
+    <title>XeliteSolutions - AI Platform</title>
   </head>
   <body>
     <div id="root"></div>

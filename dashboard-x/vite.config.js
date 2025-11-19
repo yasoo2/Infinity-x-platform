@@ -21,17 +21,12 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  base: '//',
+  base: '/',
   build: {
     outDir: 'dist',
     sourcemap: false,
     minify: 'terser',
-    rollupOptions: {
-      input: {
-        main: path.resolve(__dirname, 'index.html'),
-        dashboard: path.resolve(__dirname, 'dashboard.html'),
-      },
-    },
+
     terserOptions: {
       compress: {
         drop_console: true,
