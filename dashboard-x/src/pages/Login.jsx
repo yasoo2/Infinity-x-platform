@@ -118,9 +118,9 @@ export default function Login() {
         password: password
       });
       
-      if (response.data.ok && response.data.sessionToken) {
+      if (response.data.success && response.data.token) {
         // حفظ الـ token
-        saveToken(response.data.sessionToken);
+        saveToken(response.data.token);
         
         // التوجيه إلى Dashboard
         navigate('/overview');

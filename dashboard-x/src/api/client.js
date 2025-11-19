@@ -1,7 +1,7 @@
   import axios from 'axios';
 
   // Base URL normalization
-  const envBase = import.meta.env?.VITE_API_BASE_URL || 'https://infinity-x-platform.onrender.com';
+  const envBase = import.meta.env?.VITE_API_BASE_URL || 'https://api.xelitesolutions.com';
   const BASE_URL = envBase.replace(/\/+$/, ''); // remove trailing slash
 
   // Helper to detect FormData

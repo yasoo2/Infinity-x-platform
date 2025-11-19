@@ -637,7 +637,7 @@
         const data = await response.json();
         if (data.success && data.token) {
           localStorage.setItem('sessionToken', data.token);
-          window.location.href = '/dashboard/joe';
+          window.location.href = '/dashboard/overview';
         } else {
           document.getElementById('login-error').textContent = 'Invalid credentials. Please try again.';
         }
