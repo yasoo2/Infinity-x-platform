@@ -2,7 +2,7 @@ import { ToolsSystem } from './tools/ToolsSystem.mjs';
 import dotenv from 'dotenv';
 
 // Load environment variables from .env file
-dotenv.config({ path: './joengine-agi/.env' });
+dotenv.config({ path: './.env' });
 
 /**
  * AgiCore - The central intelligence of the JOEngine AGI.

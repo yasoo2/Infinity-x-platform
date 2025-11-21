@@ -1,15 +1,15 @@
 import express from 'express';
 import { Octokit } from '@octokit/rest';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { CodeModificationEngine } from '../../../joengine-agi/engines/CodeModificationEngine.mjs'; // استيراد المحرك الجديد
-import { ReasoningEngine } from '../../../joengine-agi/engines/ReasoningEngine.mjs'; // استيراد محرك الاستدلال
+// import { CodeModificationEngine } from '../../../joengine-agi/engines/CodeModificationEngine.mjs'; // استيراد المحرك الجديد
+// import { ReasoningEngine } from '../../../joengine-agi/engines/ReasoningEngine.mjs'; // استيراد محرك الاستدلال
 
 const router = express.Router();
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // تهيئة محرك الاستدلال ومحرك تعديل الكود
-const reasoningEngine = new ReasoningEngine({ openaiApiKey: process.env.OPENAI_API_KEY });
-const codeModEngine = reasoningEngine.codeModEngine;
+// const reasoningEngine = new ReasoningEngine({ openaiApiKey: process.env.OPENAI_API_KEY });
+// const codeModEngine = reasoningEngine.codeModEngine;
 
 // Self-analyze: Analyze own codebase
 router.post('/analyze-self', async (req, res) => {
@@ -110,13 +110,13 @@ router.post('/update-self', async (req, res) => {
     // 1. تحليل الهدف وتوليد خطة التعديل الآمنة
     const modificationGoal = `Implement the following self-improvement: ${improvement.title} - ${improvement.description}. Implementation details: ${improvement.implementation}`;
     
-    const planResult = await codeModEngine.executeSmartModification(filePath, fileContent, modificationGoal);
+    // const planResult = await codeModEngine.executeSmartModification(filePath, fileContent, modificationGoal);
 
-    if (!planResult.success) {
-      return res.json({ ok: false, error: `Failed to generate modification plan: ${planResult.message}` });
-    }
+    // if (!planResult.success) {
+    //   return res.json({ ok: false, error: `Failed to generate modification plan: ${planResult.message}` });
+    // }
 
-    const plan = planResult.plan;
+    // const plan = planResult.plan;
     
     // 2. تطبيق التعديلات محليًا (للتأكد من عدم وجود أخطاء في التعديل)
     // ملاحظة: في بيئة الإنتاج، يجب أن يتم هذا في بيئة معزولة أو فرع جديد

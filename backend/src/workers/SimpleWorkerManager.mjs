@@ -3,7 +3,7 @@
 
 import { ObjectId } from 'mongodb';
 import { initMongo, getDB } from '../db.mjs';
-import { AgiCore } from '../../joengine-agi/AgiCore.mjs';
+import { AgiCore } from '../../../joengine-agi/AgiCore.mjs';
 
 export class SimpleWorkerManager {
   constructor(config = {}) {

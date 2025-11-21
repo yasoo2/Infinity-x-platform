@@ -117,4 +117,4 @@ class VectorDBTool extends BaseTool {
     }
 }
 
-export default VectorDBTool;
+export { VectorDBTool };

@@ -4,6 +4,10 @@ import { ObjectId } from 'mongodb';
 export function joeRouter(initMongo, redis) {
   const router = express.Router();
 
+  router.get('/ping', (req, res) => {
+    res.send('pong from joeRouter');
+  });
+
   router.post('/command', async (req, res) => {
     try {
       const db = await initMongo();
