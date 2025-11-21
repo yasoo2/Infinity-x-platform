@@ -1,255 +1,5 @@
-/**
- * JOEngine AGI - Main Entry Point
- * 
- * نظام ذكاء اصطناعي عام (AGI) متقدم
- * قادر على حل أي مشكلة، تطوير نفسه، وبناء الأنظمة بشكل مستقل
- */
-
-import dotenv from 'dotenv';
+import { AgiCore } from './AgiCore.mjs';
 import chalk from 'chalk';
-import { ReasoningEngine } from './engines/ReasoningEngine.mjs';
-import { MemorySystem } from './core/MemorySystem.mjs';
-import { AgentLoop } from './core/AgentLoop.mjs';
-import { ToolsSystem } from './tools/ToolsSystem.mjs';
-import { BrowserTool } from './tools/BrowserTool.mjs';
-import { CodeTool } from './tools/CodeTool.mjs';
-import { FileTool } from './tools/FileTool.mjs';
-import { SearchTool } from './tools/SearchTool.mjs';
-import { ShellTool } from './tools/ShellTool.mjs';
-import { APITool } from './tools/APITool.mjs';
-import { GitHubTool } from './tools/GitHubTool.mjs';
-import { PlannerTool } from './tools/PlannerTool.mjs';
-import { DatabaseTool } from './tools/DatabaseTool.mjs';
-import { DeployTool } from './tools/DeployTool.mjs';
-import { createApiServer } from './server.mjs';
-
-// تحميل متغيرات البيئة
-dotenv.config();
-
-/**
- * JOEngine AGI Class
- */
-class JOEngine {
-  constructor(config = {}) {
-    this.config = {
-      openaiApiKey: process.env.OPENAI_API_KEY || 'dummy-key',
-      model: process.env.OPENAI_MODEL || 'gpt-4-turbo-preview',
-      mongoUri: process.env.MONGO_URI || 'mongodb://localhost:27017',
-      port: Number(process.env.JOE_PORT || 3000), // يمكن تغيير البورت عن طريق env
-      // تحكم في الـ demo task واللوج
-      enableDemoTask: process.env.JOE_ENABLE_DEMO_TASK === 'true',
-      enableStatusLogs: process.env.JOE_ENABLE_STATUS_LOGS !== 'false',
-      statusIntervalMs: Number(process.env.JOE_STATUS_INTERVAL_MS || 10000),
-      ...config
-    };
-
-    // التحقق من المتطلبات
-    if (!this.config.openaiApiKey) {
-      throw new Error('OPENAI_API_KEY is required');
-    }
-
-    const keyPrefix = this.config.openaiApiKey.substring(0, 5);
-    console.log(chalk.yellow(`🔑 OPENAI_API_KEY loaded. Prefix: ${keyPrefix}...`));
-
-    console.log(chalk.cyan.bold('\n🚀 Initializing JOEngine AGI...\n'));
-
-    // إنشاء المكونات الأساسية
-    this.memorySystem = new MemorySystem(); // إضافة نظام الذاكرة
-    this.reasoningEngine = new ReasoningEngine(this.config, this.memorySystem); // تمرير الذاكرة إلى المحرك
-    this.toolsSystem = new ToolsSystem();
-    this.agentLoop = new AgentLoop(this.reasoningEngine, this.toolsSystem);
-
-    // تسجيل الأدوات
-    this.registerTools();
-
-    // إعداد معالجات الأحداث
-    this.setupEventHandlers();
-
-    console.log(chalk.green('✅ JOEngine AGI initialized successfully!\n'));
-  }
-
-  /**
-   * تسجيل جميع الأدوات
-   */
-  registerTools() {
-    console.log(chalk.yellow('📦 Registering tools...'));
-
-    // Browser Tool
-    const browserTool = new BrowserTool();
-    this.toolsSystem.registerTool('browser', browserTool);
-
-    // Code Tool
-    const codeTool = new CodeTool();
-    this.toolsSystem.registerTool('code', codeTool);
-
-    // File Tool
-    const fileTool = new FileTool();
-    this.toolsSystem.registerTool('file', fileTool);
-
-    // Search Tool
-    const searchTool = new SearchTool();
-    this.toolsSystem.registerTool('search', searchTool);
-
-    // Shell Tool
-    const shellTool = new ShellTool();
-    this.toolsSystem.registerTool('shell', shellTool);
-
-    // API Tool
-    const apiTool = new APITool();
-    this.toolsSystem.registerTool('api', apiTool);
-
-    // GitHub Tool
-    const githubTool = new GitHubTool();
-    this.toolsSystem.registerTool('github', githubTool);
-
-    // Planner Tool (الأداة الجديدة)
-    const plannerTool = new PlannerTool();
-    this.toolsSystem.registerTool('planner', plannerTool);
-
-    // Database Tool
-    const databaseTool = new DatabaseTool();
-    this.toolsSystem.registerTool('database', databaseTool);
-
-    // Deploy Tool
-    const deployTool = new DeployTool();
-    this.toolsSystem.registerTool('deploy', deployTool);
-
-    console.log(chalk.green(`✅ ${this.toolsSystem.getAllTools().length} tools registered\n`));
-  }
-
-  /**
-   * إعداد معالجات الأحداث
-   */
-  setupEventHandlers() {
-    // Agent Loop Events
-    this.agentLoop.on('started', () => {
-      console.log(chalk.green.bold('▶️  Agent Loop started'));
-    });
-
-    this.agentLoop.on('stopped', () => {
-      console.log(chalk.yellow.bold('⏸️  Agent Loop stopped'));
-    });
-
-    this.agentLoop.on('taskAdded', (task) => {
-      console.log(chalk.blue(`\n📝 Task added: ${task.id}`));
-      console.log(chalk.gray(`   Goal: ${task.goal}`));
-    });
-
-    this.agentLoop.on('taskStarted', (task) => {
-      console.log(chalk.cyan.bold(`\n▶️  Task started: ${task.id}`));
-    });
-
-    this.agentLoop.on('taskCompleted', (task) => {
-      console.log(chalk.green.bold(`\n✅ Task completed: ${task.id}`));
-      console.log(chalk.gray(`   Duration: ${(task.duration / 1000).toFixed(2)}s`));
-    });
-
-    this.agentLoop.on('taskFailed', (task) => {
-      console.log(chalk.red.bold(`\n❌ Task failed: ${task.id}`));
-      console.log(chalk.gray(`   Error: ${task.error}`));
-    });
-
-    this.agentLoop.on('subtaskCompleted', ({ subtask }) => {
-      console.log(chalk.green(`   ✓ Subtask ${subtask.id}: ${subtask.title}`));
-    });
-
-    this.agentLoop.on('error', (error) => {
-      console.error(chalk.red.bold('\n❌ Agent Loop error:'), error.message);
-    });
-  }
-
-  /**
-   * بدء JOEngine
-   */
-  async start() {
-    console.log(chalk.cyan.bold('🚀 Starting JOEngine AGI...\n'));
-    
-    // بدء Agent Loop
-    await this.agentLoop.start();
-
-    // تشغيل خادم API
-    const apiServer = createApiServer(this);
-    this.server = apiServer.listen(this.config.port, () => {
-      console.log(chalk.green.bold(`✅ JOEngine AGI is running on port ${this.config.port}!`));
-      console.log(chalk.gray('Waiting for tasks...\n'));
-    });
-  }
-
-  /**
-   * إيقاف JOEngine
-   */
-  async stop() {
-    console.log(chalk.yellow.bold('\n🛑 Stopping JOEngine AGI...\n'));
-    
-    // إيقاف Agent Loop
-    await this.agentLoop.stop();
-
-    // إغلاق خادم API
-    if (this.server) {
-      this.server.close();
-    }
-
-    // إغلاق الأدوات
-    const browserTool = this.toolsSystem.getTool('browser');
-    if (browserTool) {
-      await browserTool.close();
-    }
-
-    console.log(chalk.green.bold('✅ JOEngine AGI stopped\n'));
-  }
-
-  /**
-   * إضافة مهمة جديدة
-   */
-  async addTask(goal, context = {}) {
-    return await this.agentLoop.addTask(goal, context);
-  }
-
-  /**
-   * الحصول على حالة JOEngine
-   */
-  getStatus() {
-    return {
-      agentLoop: this.agentLoop.getStatus(),
-      tools: this.toolsSystem.getStats(),
-      memory: {
-        shortTerm: this.memorySystem.shortTermMemory.length,
-        longTerm: this.memorySystem.longTermMemory.length,
-        // يمكن إضافة المزيد من الإحصائيات هنا
-      }
-    };
-  }
-
-  /**
-   * عرض الحالة
-   */
-  printStatus() {
-    const status = this.getStatus();
-
-    console.log(chalk.cyan.bold('\n📊 JOEngine Status:\n'));
-    
-    console.log(chalk.yellow('Agent Loop:'));
-    console.log(chalk.gray(`  Running: ${status.agentLoop.running}`));
-    console.log(chalk.gray(`  Queued Tasks: ${status.agentLoop.queuedTasks}`));
-    console.log(chalk.gray(`  Completed Tasks: ${status.agentLoop.completedTasks}`));
-    console.log(chalk.gray(`  Failed Tasks: ${status.agentLoop.failedTasks}`));
-    console.log(chalk.gray(`  Success Rate: ${status.agentLoop.successRate.toFixed(1)}%`));
-
-    console.log(chalk.yellow('\nMemory:'));
-    console.log(chalk.gray(`  Short-term: ${status.memory.shortTerm} items`));
-    console.log(chalk.gray(`  Long-term: ${status.memory.longTerm} experiences`));
-
-    console.log(chalk.yellow('\nTools:'));
-    for (const [name, stats] of Object.entries(status.tools)) {
-      console.log(chalk.gray(`  ${name}:`));
-      console.log(chalk.gray(`    Calls: ${stats.totalCalls}`));
-      console.log(chalk.gray(`    Success Rate: ${stats.successRate.toFixed(1)}%`));
-      console.log(chalk.gray(`    Avg Duration: ${stats.avgDuration.toFixed(0)}ms`));
-    }
-
-    console.log();
-  }
-}
 
 /**
  * Main Function
@@ -265,50 +15,39 @@ async function main() {
 ╚═══════════════════════════════════════════════════════════╝
   `));
 
-  // إنشاء JOEngine
-  const joengine = new JOEngine();
+  // Create and initialize AgiCore
+  const agiCore = new AgiCore();
+  await agiCore.initialize();
 
-  // معالجة إشارات الإيقاف
+  // Handle shutdown signals
   process.on('SIGINT', async () => {
     console.log(chalk.yellow('\n\n⚠️  Received SIGINT, shutting down gracefully...'));
-    await joengine.stop();
+    // You might want to add a graceful shutdown method to AgiCore
     process.exit(0);
   });
 
   process.on('SIGTERM', async () => {
     console.log(chalk.yellow('\n\n⚠️  Received SIGTERM, shutting down gracefully...'));
-    await joengine.stop();
+    // You might want to add a graceful shutdown method to AgiCore
     process.exit(0);
   });
 
-  // بدء JOEngine
-  await joengine.start();
+  // Example of generating and executing a plan
+  console.log(chalk.cyan.bold('\n🚀 Starting example task...'));
 
-  // ✅ عدم إضافة demo task افتراضيًا
-  if (joengine.config.enableDemoTask) {
-    console.log(chalk.cyan.bold('📝 Adding demo task...\n'));
-    await joengine.addTask(
-      'Search Google for "latest AI news" and summarize the top 3 results',
-      { source: 'demo' }
-    );
+  const task = 'Write a javascript file that prints "hello world" to the console.';
+  const plan = await agiCore.generatePlan(task);
+
+  if (plan && plan.length > 0) {
+    await agiCore.executePlan(plan);
+    console.log(chalk.green.bold('\n✅ Example task finished.'));
   } else {
-    console.log(chalk.gray('📝 Demo task is disabled (JOE_ENABLE_DEMO_TASK != "true")'));
-  }
-
-  // عرض الحالة بشكل دوري (يمكن تعطيله)
-  if (joengine.config.enableStatusLogs) {
-    setInterval(() => {
-      joengine.printStatus();
-    }, joengine.config.statusIntervalMs);
+    console.log(chalk.yellow.bold('\n⚠️  Could not generate a plan for the task.'));
   }
 }
 
-// تشغيل البرنامج
-if (import.meta.url === `file://${process.argv[1]}`) {
-  main().catch(error => {
-    console.error(chalk.red.bold('\n❌ Fatal error:'), error);
-    process.exit(1);
-  });
-}
-
-export default JOEngine;
+// Run the main function
+main().catch(error => {
+  console.error(chalk.red.bold('\n❌ Fatal error:'), error);
+  process.exit(1);
+});

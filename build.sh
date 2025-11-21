@@ -7,13 +7,13 @@ echo "🚀 Starting build process for Infinity-X Platform..."
 
 # Step 1: Install root dependencies (for shared packages)
 echo "📦 Installing root dependencies..."
-pnpm install
+npm install
 
 # Step 2: Build Frontend (dashboard-x)
 echo "📦 Building frontend (dashboard-x)..."
 cd dashboard-x
-pnpm install
-pnpm build
+npm install
+npm run build
 cd ..
 
 # Step 3: Final check for backend dependencies (already installed in step 1)

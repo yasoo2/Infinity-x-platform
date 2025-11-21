@@ -8,6 +8,7 @@
  * - النقر على العناصر
  * - استخراج البيانات
  * - أخذ لقطات شاشة
+ * - التمرير (Scroll)
  */
 
 import { chromium } from 'playwright';
@@ -22,7 +23,7 @@ export class BrowserTool extends BaseTool {
         action: {
           type: 'string',
           required: true,
-          enum: ['navigate', 'click', 'type', 'extract', 'screenshot'],
+          enum: ['navigate', 'click', 'type', 'extract', 'screenshot', 'scroll'],
           description: 'Action to perform'
         },
         url: {
@@ -44,6 +45,17 @@ export class BrowserTool extends BaseTool {
           type: 'number',
           required: false,
           description: 'Time to wait in milliseconds'
+        },
+        direction: {
+            type: 'string',
+            required: false,
+            enum: ['up', 'down'],
+            description: 'Scroll direction (up or down) - required for scroll action'
+        },
+        pixels: {
+            type: 'number',
+            required: false,
+            description: 'Pixels to scroll (default: 500) - for scroll action'
         }
       }
     );
@@ -80,7 +92,6 @@ export class BrowserTool extends BaseTool {
    * تنفيذ الأداة
    */
   async execute(params) {
-    this.validateParams(params);
     await this.initialize();
 
     const { action } = params;
@@ -100,6 +111,9 @@ export class BrowserTool extends BaseTool {
       
       case 'screenshot':
         return await this.screenshot(params);
+      
+      case 'scroll':
+        return await this.scroll(params);
       
       default:
         throw new Error(`Unknown action: ${action}`);
@@ -252,6 +266,20 @@ export class BrowserTool extends BaseTool {
       success: true,
       filename
     };
+  }
+
+  /**
+   * التمرير (Scroll)
+   */
+  async scroll(params) {
+      const { direction, pixels = 500 } = params;
+      console.log(`↕️ Scrolling ${direction} by ${pixels}px...`);
+
+      await this.page.evaluate(({ dir, pix }) => {
+          window.scrollBy(0, dir === 'down' ? pix : -pix);
+      }, { dir: direction, pix: pixels });
+
+      return { success: true, direction, pixels };
   }
 
   /**

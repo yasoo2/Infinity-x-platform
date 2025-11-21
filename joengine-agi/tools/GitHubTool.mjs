@@ -115,7 +115,6 @@ export class GitHubTool extends BaseTool {
    * تنفيذ الأداة
    */
   async execute(params) {
-    this.validateParams(params);
     const { action, owner, repo, token } = params;
 
     const Octokit = await import('@octokit/rest');

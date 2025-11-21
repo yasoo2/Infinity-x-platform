@@ -10,6 +10,9 @@
 
 import EventEmitter from 'events';
 import GitHubTool from '../tools/GitHubTool.mjs';
+import DatabaseTool from '../tools/DatabaseTool.mjs';
+import DeployTool from '../tools/DeployTool.mjs';
+import { VectorDBTool } from '../tools/VectorDBTool.mjs'; // Import VectorDBTool
 import { v4 as uuidv4 } from 'uuid';
 
 export class AgentLoop extends EventEmitter {
@@ -17,9 +20,14 @@ export class AgentLoop extends EventEmitter {
     super();
     
     this.reasoningEngine = reasoningEngine;
-    this.githubTool = new GitHubTool(reasoningEngine.config);
-    this.config = reasoningEngine.config;
     this.toolsSystem = toolsSystem;
+    this.config = reasoningEngine.config;
+
+    // Instantiate tools
+    this.githubTool = new GitHubTool(this.config);
+    this.databaseTool = new DatabaseTool(this.config);
+    this.deployTool = new DeployTool(this.config);
+    this.vectorDbTool = new VectorDBTool(this.config); // Instantiate VectorDBTool
     
     this.state = {
       running: false,
@@ -29,69 +37,48 @@ export class AgentLoop extends EventEmitter {
       failedTasks: []
     };
     
-    this.config = {
+    this.loopConfig = {
       maxRetries: 3,
       retryDelay: 5000,
-      maxConcurrentTasks: 5  // سنزيدها لاحقاً
+      maxConcurrentTasks: 5
     };
   }
 
-  /**
-   * بدء Agent Loop
-   */
   async start() {
     if (this.state.running) {
       console.log('⚠️  Agent Loop is already running');
       return;
     }
-
     console.log('🚀 Starting JOEngine Agent Loop...');
     this.state.running = true;
     this.emit('started');
-
-    // بدء حلقة التنفيذ الرئيسية
     this.mainLoop();
   }
 
-  /**
-   * إيقاف Agent Loop
-   */
   async stop() {
     console.log('🛑 Stopping JOEngine Agent Loop...');
     this.state.running = false;
     this.emit('stopped');
   }
 
-  /**
-   * الحلقة الرئيسية للتنفيذ
-   */
   async mainLoop() {
     while (this.state.running) {
       try {
-        // إذا كان هناك مهام في الانتظار
-        if (this.state.taskQueue.length > 0 && this.state.runningTasks.length < this.config.maxConcurrentTasks) {
+        if (this.state.taskQueue.length > 0 && this.state.runningTasks.length < this.loopConfig.maxConcurrentTasks) {
           const task = this.state.taskQueue.shift();
-          // تنفيذ المهمة بشكل غير متزامن (لا ننتظرها)
           this.executeTask(task).catch(error => {
             console.error(`❌ Error during async task execution for ${task.id}:`, error);
           });
         }
-
-        // انتظار قصير قبل التكرار
         await this.sleep(1000);
       } catch (error) {
         console.error('❌ Main loop error:', error);
         this.emit('error', error);
-        
-        // انتظار أطول في حالة الخطأ
         await this.sleep(5000);
       }
     }
   }
 
-  /**
-   * إضافة مهمة جديدة
-   */
   async addTask(goal, context = {}) {
     const task = {
       id: uuidv4(),
@@ -101,266 +88,132 @@ export class AgentLoop extends EventEmitter {
       createdAt: new Date(),
       retries: 0
     };
-
-    console.log(`\n📝 New task added: ${task.id}`);
-    console.log(`Goal: ${goal}`);
-
+    console.log(`\n📝 New task added: ${task.id} | Goal: ${goal}`);
     this.state.taskQueue.push(task);
     this.emit('taskAdded', task);
-
     return task.id;
   }
 
-  /**
-   * تنفيذ مهمة
-   */
   async executeTask(task) {
     console.log(`\n▶️  Executing task: ${task.id}`);
-    console.log(`Goal: ${task.goal}`);
-
     this.state.runningTasks.push(task);
     task.status = 'running';
-    task.startedAt = new Date();
     this.emit('taskStarted', task);
 
     try {
-      // المرحلة 1: التحليل والتخطيط
       console.log('\n📊 Phase 1: Analysis & Planning');
       const plan = await this.reasoningEngine.analyzeGoal(task.goal, task.context);
       task.plan = plan;
 
-      // المرحلة 2: التنفيذ
       console.log('\n⚙️  Phase 2: Execution');
       const results = await this.executePlan(plan, task);
       task.results = results;
 
-	      // المرحلة 3: التحقق من النجاح والتقييم الذاتي
-	      console.log('\n✅ Phase 3: Verification & Self-Correction');
-	      let success = await this.verifySuccess(plan, results);
-	
-	      if (!success && task.retries < this.config.maxRetries) {
-	        console.log('\n🔄 Verification failed. Attempting self-correction...');
-	        const correctionPlan = await this.reasoningEngine.selfCorrect(task, plan, results);
-	        
-	        if (correctionPlan && correctionPlan.subtasks && correctionPlan.subtasks.length > 0) {
-	          console.log(`\n✨ Applying self-correction plan with ${correctionPlan.subtasks.length} steps.`);
-	          // دمج الخطة التصحيحية في الخطة الأصلية
-	          plan.subtasks.push(...correctionPlan.subtasks);
-	          // إعادة تنفيذ الخطة (أو جزء منها)
-	          const correctionResults = await this.executePlan(correctionPlan, task);
-	          results.push(...correctionResults);
-	          // إعادة التحقق بعد التصحيح
-	          success = await this.verifySuccess(plan, results);
-	        }
-	      }
-	
-	      if (success) {
-	        // نجحت المهمة
-        task.status = 'completed';
-        task.completedAt = new Date();
-        task.duration = task.completedAt - task.startedAt;
+      console.log('\n✅ Phase 3: Verification & Self-Correction');
+      let success = await this.verifySuccess(plan, results);
 
-        // **التحسين: الحفظ التلقائي على GitHub**
-        if (this.config.githubToken) {
-          console.log('\n🐙 Auto-committing changes to GitHub...');
-          try {
-            const commitMessage = `JOE AGI: Task ${task.id} completed successfully. Goal: ${task.goal}`;
-            const githubResult = await this.githubTool.execute({
-              action: 'commit_and_push',
-              repo: this.config.repo,
-              owner: this.config.owner,
-              token: this.config.githubToken,
-              commit_message: commitMessage,
-              author_name: 'JOE AGI',
-              author_email: 'joe@xelitesolutions.com',
-              branch_name: 'main' // Assuming main branch
-            });
-            console.log(`✅ GitHub Auto-Commit Result: ${JSON.stringify(githubResult)}`);
-          } catch (githubError) {
-            console.error('❌ GitHub Auto-Commit Failed:', githubError.message);
-          }
+      if (!success && task.retries < this.loopConfig.maxRetries) {
+        console.log('\n🔄 Verification failed. Attempting self-correction...');
+        const correctionPlan = await this.reasoningEngine.selfCorrect(task, plan, results);
+        if (correctionPlan && correctionPlan.subtasks && correctionPlan.subtasks.length > 0) {
+          console.log(`✨ Applying self-correction plan.`);
+          const correctionResults = await this.executePlan(correctionPlan, task);
+          results.push(...correctionResults);
+          success = await this.verifySuccess(plan, [...results, ...correctionResults]);
         }
-
-        this.state.completedTasks.push(task);
-        this.emit('taskCompleted', task);
-
-        console.log(`\n🎉 Task completed successfully!`);
-        console.log(`Duration: ${(task.duration / 1000).toFixed(2)}s`);
-
-        // التعلم من النجاح
-        await this.reasoningEngine.learnFromExperience(task, results, true);
-      } else {
-        throw new Error('Task verification failed');
       }
 
+      if (success) {
+        await this.completeTask(task, results);
+      } else {
+        throw new Error('Task verification failed after all retries and corrections.');
+      }
     } catch (error) {
-      console.error(`\n❌ Task execution failed:`, error.message);
-
-      // محاولة إعادة التنفيذ
-      if (task.retries < this.config.maxRetries) {
-        task.retries++;
-        task.status = 'retrying';
-
-        console.log(`\n🔄 Retrying task (attempt ${task.retries}/${this.config.maxRetries})...`);
-
-        // التعلم من الفشل
-        const learning = await this.reasoningEngine.learnFromExperience(
-          task,
-          { error: error.message },
-          false
-        );
-
-        // إذا كان هناك نهج بديل، استخدمه
-        if (learning && learning.shouldRetry && learning.alternativeApproach) {
-          task.context.alternativeApproach = learning.alternativeApproach;
-        }
-
-        // إعادة المهمة للقائمة
-        await this.sleep(this.config.retryDelay);
-        this.state.taskQueue.unshift(task);
-      } else {
-        // فشلت المهمة نهائياً
-        task.status = 'failed';
-        task.error = error.message;
-        task.failedAt = new Date();
-
-        this.state.failedTasks.push(task);
-        this.emit('taskFailed', task);
-
-        console.log(`\n💔 Task failed after ${this.config.maxRetries} retries`);
-      }
+      await this.handleTaskFailure(task, error);
     } finally {
       this.state.runningTasks = this.state.runningTasks.filter(t => t.id !== task.id);
     }
   }
 
-  /**
-   * تنفيذ خطة كاملة
-   */
   async executePlan(plan, task) {
     const results = [];
-
-    for (let i = 0; i < plan.subtasks.length; i++) {
-      const subtask = plan.subtasks[i];
-      
-      console.log(`\n📌 Subtask ${i + 1}/${plan.subtasks.length}: ${subtask.title}`);
-      console.log(`Tool: ${subtask.tool}`);
-      console.log(`Reasoning: ${subtask.reasoning}`);
-
+    for (const subtask of plan.subtasks) {
+      console.log(`\n📌 Subtask: ${subtask.title} | Tool: ${subtask.tool}`);
       try {
-        // تنفيذ الـ subtask باستخدام الأداة المناسبة
         const result = await this.executeSubtask(subtask, task);
-        results.push({
-          subtask: subtask.id,
-          success: true,
-          result
-        });
-
+        results.push({ subtask: subtask.id, success: true, result });
         console.log(`✅ Subtask ${subtask.id} completed`);
         this.emit('subtaskCompleted', { task, subtask, result });
-
       } catch (error) {
         console.error(`❌ Subtask ${subtask.id} failed:`, error.message);
-        
-        // إذا كانت المهمة الفرعية حرجة، نفشل الخطة كاملة
-        if (subtask.critical !== false) {
-          throw error;
-        }
-
-        results.push({
-          subtask: subtask.id,
-          success: false,
-          error: error.message
-        });
+        results.push({ subtask: subtask.id, success: false, error: error.message });
+        if (subtask.critical !== false) throw error;
       }
     }
-
     return results;
   }
 
-  /**
-   * تنفيذ مهمة فرعية واحدة
-   */
   async executeSubtask(subtask, task) {
-    const tool = this.toolsSystem.getTool(subtask.tool);
-    
-    if (!tool) {
-      throw new Error(`Tool '${subtask.tool}' not found`);
+    const toolName = subtask.tool;
+    const params = subtask.params || {};
+    const action = params.action;
+
+    // --== TOOL ROUTING ==--
+    switch (toolName) {
+        case 'database':
+            return await this.databaseTool[action](params);
+        case 'deploy':
+            return await this.deployTool[action](params);
+        case 'github':
+            return await this.githubTool[action](params);
+        case 'memory': // Added memory tool routing
+            return await this.vectorDbTool.findRelevant(params.query, params.topK);
+        default:
+            const tool = this.toolsSystem.getTool(toolName);
+            if (!tool) throw new Error(`Tool '${toolName}' not found`);
+            return await tool.execute(params);
     }
+  }
 
-    // استخراج المعاملات من وصف المهمة الفرعية
-    const params = await this.extractParams(subtask, task);
-
-    // التحقق من الاستخدام الفوري لأداة البحث (match)\n    // هذا يحاكي سلوك Manus AI في البحث السريع عن الكود
-    // هذا يحاكي سلوك Manus AI في البحث السريع عن الكود
-    if (subtask.tool === 'code' && params.action === 'search') {
-      // تنفيذ البحث مباشرة دون الحاجة إلى تخطيط إضافي من LLM
-      return await tool.execute(params);
+  async verifySuccess(plan, results) {
+    const allSubtasksSucceeded = results.every(r => r.success);
+    if (!allSubtasksSucceeded) {
+        console.log('[Verification] Failed: Not all subtasks were successful.');
+        return false;
     }
-
-    // تنفيذ الأداة
-    return await tool.execute(params);
+    // Placeholder for more advanced LLM-based verification
+    console.log('[Verification] Passed: All subtasks successful.');
+    return true;
   }
 
-  /**
-   * استخراج معاملات الأداة من وصف المهمة
-   */
-  async extractParams(subtask, task) {
-    // هنا يمكننا استخدام LLM لاستخراج المعاملات بذكاء
-    // لكن الآن سنستخدم طريقة بسيطة
-    
-    // يجب أن تكون المعاملات هي subtask.params فقط، حيث أن description و context
-    // هي بيانات وصفية وليست معاملات للأداة نفسها.
-    // الأداة تتوقع المعاملات المحددة في schema مثل 'action', 'url', إلخ.
-    
-    // إذا كانت subtask.params غير موجودة، نستخدم كائن فارغ
-    return subtask.params || {};
+  async completeTask(task, results) {
+    task.status = 'completed';
+    task.completedAt = new Date();
+    this.state.completedTasks.push(task);
+    this.emit('taskCompleted', { task, results });
+    console.log(`\n🎉 Task ${task.id} completed successfully!`);
+    await this.reasoningEngine.learnFromExperience(task, results, true);
   }
 
-  /**
-   * التحقق من نجاح المهمة
-   */
-	  async verifySuccess(plan, results) {
-	    // التحقق البسيط: كل المهام الفرعية نجحت
-	    const allSuccessful = results.every(r => r.success);
-	    
-	    if (!allSuccessful) {
-	      return false;
-	    }
-	
-	    // التحقق الذكي: استخدام LLM للتأكد من أن النتائج تحقق معايير النجاح
-	    // يمكن إضافة استدعاء لـ ReasoningEngine هنا
-	
-	    return true;
-	  }
+  async handleTaskFailure(task, error) {
+    console.error(`\n❌ Task ${task.id} failed:`, error.message);
+    await this.reasoningEngine.learnFromExperience(task, [{ success: false, error: error.message }], false);
 
-  /**
-   * الحصول على حالة Agent Loop
-   */
-  getStatus() {
-    return {
-      running: this.state.running,
-      runningTasks: this.state.runningTasks,
-      queuedTasks: this.state.taskQueue.length,
-      completedTasks: this.state.completedTasks.length,
-      failedTasks: this.state.failedTasks.length,
-      successRate: this.calculateSuccessRate()
-    };
+    if (task.retries < this.loopConfig.maxRetries) {
+        task.retries++;
+        task.status = 'queued'; // Re-queue for another attempt
+        console.log(`\n🔄 Retrying task (attempt ${task.retries}/${this.loopConfig.maxRetries})...`);
+        await this.sleep(this.loopConfig.retryDelay);
+        this.state.taskQueue.unshift(task);
+    } else {
+        task.status = 'failed';
+        task.error = error.message;
+        this.state.failedTasks.push(task);
+        this.emit('taskFailed', { task, error });
+        console.log(`\n💔 Task failed after ${this.loopConfig.maxRetries} retries.`);
+    }
   }
 
-  /**
-   * حساب معدل النجاح
-   */
-  calculateSuccessRate() {
-    const total = this.state.completedTasks.length + this.state.failedTasks.length;
-    if (total === 0) return 0;
-    
-    return (this.state.completedTasks.length / total) * 100;
-  }
-
-  /**
-   * انتظار لفترة محددة
-   */
   sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
   }

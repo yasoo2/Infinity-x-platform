@@ -12,12 +12,19 @@ import OpenAI from 'openai';
 import { CodeModificationEngine } from './CodeModificationEngine.mjs';
 import { SmartPageBuilder } from './SmartPageBuilder.mjs';
 import GitHubTool from '../tools/GitHubTool.mjs';
+import DatabaseTool from '../tools/DatabaseTool.mjs';
+import DeployTool from '../tools/DeployTool.mjs';
+import { VectorDBTool } from '../tools/VectorDBTool.mjs';
 
 export class ReasoningEngine {
   // تهيئة المحركات الجديدة
   codeModEngine;
   githubTool;
   pageBuilder;
+  databaseTool;
+  deployTool;
+  vectorDbTool;
+
   constructor(config) {
     this.config = config;
     this.config.githubToken = config.githubToken;
@@ -26,121 +33,64 @@ export class ReasoningEngine {
     this.openai = new OpenAI({
       apiKey: config.openaiApiKey || process.env.OPENAI_API_KEY
     });
-    // تحديث النموذج الافتراضي بناءً على طلب المستخدم
-    this.config.model = 'gpt-4o'; // Upgraded to gpt-4o for more advanced reasoning and planning
-    
-    // تهيئة المحركات الجديدة
+    this.config.model = 'gpt-4o';
+
+    // تهيئة المحركات والأدوات
     this.codeModEngine = new CodeModificationEngine(config);
     this.pageBuilder = new SmartPageBuilder(config);
     this.githubTool = new GitHubTool(config);
+    this.databaseTool = new DatabaseTool(config);
+    this.deployTool = new DeployTool(config);
+    this.vectorDbTool = new VectorDBTool(config);
     
     this.memory = {
-      shortTerm: [],  // الذاكرة قصيرة المدى (المحادثة الحالية)
-      longTerm: [],   // الذاكرة طويلة المدى (التجارب السابقة)
-      plans: [],       // الخطط المُنشأة
-      workingMemory: {} // ذاكرة العمل لتخزين السياق الحالي للمهمة
+      shortTerm: [],
+      plans: [],
+      workingMemory: {}
     };
     
     this.systemPrompt = this.buildSystemPrompt();
   }
 
-  /**
-   * بناء System Prompt لـ JOEngine
-   */
   buildSystemPrompt() {
     return `You are JOEngine, an advanced Artificial General Intelligence (AGI) system.
 
 Your capabilities:
-- Solve any problem, no matter how complex
-- Break down complex goals into actionable subtasks
-- Use available tools to accomplish tasks
-- Learn from experiences and improve yourself
-- Build and deploy complete systems autonomously
-- Browse the web and gather information
-- Modify and improve existing systems
-- Develop yourself using modern software engineering practices
-- **CRITICAL RULE:** All code modifications MUST be planned and executed safely using the Code Modification Engine to prevent system corruption.
-- **CRITICAL RULE:** All page designs and updates MUST be handled by the Smart Page Builder Engine.
+- Solve any problem, no matter how complex.
+- Learn from experiences and consult your long-term memory to improve plans.
+- Build and deploy complete systems autonomously.
+- **CRITICAL RULE:** All code modifications MUST be planned and executed safely using the Code Modification Engine.
 
 Your tools:
-- browser: Browse web pages, analyze content, fill forms. Actions: navigate, click, type, extract, screenshot. MUST include 'action' parameter. (Note: The correct action for extracting content is 'extract', not 'extract_text')
-- planner: Analyzes a complex task and breaks it down into a sequence of logical, actionable steps.
-- code: Write, edit, execute, analyze, and search code (Python, JavaScript, etc.). Actions: write (requires 'code' and 'file_path'), edit, execute, analyze, search.
-- file: Read, write, delete, and list files and directories
-- search: Search the internet for up-to-date information
-- shell: Execute system shell commands (e.g., ls, mkdir, npm install)
-- api: Call any external API
-- github: Interact with GitHub repositories (create issues, pull requests, branches)
-- database: Connect to any database (SQL, NoSQL)
-- deploy: Deploy projects to cloud platforms
-
-Your reasoning process:
-1. ANALYZE: Understand the goal deeply
-2. DECOMPOSE: Break it into hierarchical subtasks
-3. PLAN: Create a step-by-step execution plan
-4. EXECUTE: Use tools to accomplish each step
-5. OBSERVE: Analyze results and learn
-6. ADAPT: Adjust plan if needed
-7. COMPLETE: Deliver final result
-
-Always think step-by-step using Chain of Thought (CoT).
-Always explain your reasoning before taking action.
-Always learn from failures and try alternative approaches.
-
-You are autonomous, intelligent, and capable of solving ANY problem.`;
+- browser: Browse web pages, analyze content, fill forms. Actions: navigate, click, type, extract.
+- code: Write, edit, execute, analyze, and search code. Actions: write, edit, execute, analyze, search.
+- file: Read, write, delete, and list files.
+- search: Search the internet for up-to-date information.
+- shell: Execute system shell commands.
+- github: Interact with GitHub repositories.
+- database: Connect to databases (SQL, NoSQL). Actions: connect, query.
+- deploy: Deploy projects to cloud platforms. Actions: deploy.
+- memory: Search your long-term memory for relevant past experiences. Action: search(query).`;
   }
 
-  /**
-   * تحليل هدف وإنشاء خطة تنفيذ
-   */
   async analyzeGoal(goal, context = {}) {
     console.log(`\n🧠 Reasoning Engine: Analyzing goal...`);
     console.log(`Goal: ${goal}`);
 
-    // تحديث ذاكرة العمل (Working Memory)
     this.memory.workingMemory = { goal, context, timestamp: new Date() };
 
-    // **التحسين: تجاوز التخطيط المعقد للمهام البسيطة (مثل البحث عن الكود)**
-    // تمكين البحث السريع في الكود (Manus-like quick code search)
-    // هذا هو التحسين المطلوب لزيادة كفاءة تحديد الملفات
-    if (goal.toLowerCase().includes('search') || goal.toLowerCase().includes('find') || goal.toLowerCase().includes('glob') || goal.toLowerCase().includes('grep')) {
-      const isCodeSearch = goal.toLowerCase().includes('code') || goal.toLowerCase().includes('file') || goal.toLowerCase().includes('glob') || goal.toLowerCase().includes('grep');
-      
-      if (isCodeSearch) {
-        console.log('⚡️ Bypassing complex planning for quick code search...');
-        
-        // محاولة استخراج regex من الهدف
-        const regexMatch = goal.match(/"(.*?)"/); // البحث عن regex بين علامتي اقتباس
-        const regex = regexMatch ? regexMatch[1] : goal.split(' ').slice(-1)[0]; // استخدام الكلمة الأخيرة كـ regex افتراضي
-        
-        // محاولة استخراج النطاق
-        const scopeMatch = goal.match(/scope: (.*?)(?:\s|$)/); // البحث عن النطاق
-        const scope = scopeMatch ? scopeMatch[1] : '**/*'; // استخدام **/* كنطاق افتراضي
-        
-        return {
-          analysis: `The goal is a simple code search. Bypassing complex planning to execute a direct search using the enhanced CodeTool.`,
-          complexity: 'low',
-          estimatedTime: '0.5 min',
-          subtasks: [{
-            id: 1,
-            title: `Execute quick code search for: ${goal}`,
-            tool: 'code',
-            reasoning: 'Direct execution of a simple search task for speed and efficiency.',
-            params: {
-              action: 'search',
-              scope: scope,
-              regex: regex,
-              searchType: 'grep' // استخدام grep للبحث عن المحتوى
-              // هنا يمكن إضافة منطق البحث المتقدم في الكود (Code Search Tool)
-              // هذا هو التحسين المطلوب لزيادة كفاءة تحديد الملفات
-            }
-          }],
-          risks: [],
-          successCriteria: ['Search results are returned.']
-        };
-      }
+    // --== MEMORY ENHANCEMENT ==--
+    console.log('Consulting long-term memory for relevant experiences...');
+    const relevantMemories = await this.vectorDbTool.findRelevant(goal, 3);
+    let memoryContext = 'No relevant memories found.';
+    if (relevantMemories && relevantMemories.length > 0) {
+        memoryContext = `Here are some relevant memories from past tasks:\n` +
+            relevantMemories.map(mem =>
+                `- Goal: ${mem.metadata.goal}\n  - Outcome: ${mem.metadata.success ? 'Success' : 'Failure'}\n  - Summary: ${mem.text}`
+            ).join('\n\n');
+        console.log(`Found ${relevantMemories.length} relevant memories.`);
     }
-    // **نهاية التحسين**
+    // --== END MEMORY ENHANCEMENT ==--
 
     const messages = [
       { role: 'system', content: this.systemPrompt },
@@ -149,32 +99,9 @@ You are autonomous, intelligent, and capable of solving ANY problem.`;
         role: 'user',
         content: `Goal: ${goal}
 
-Context: ${JSON.stringify(context, null, 2)}
+Initial Context: ${JSON.stringify(context, null, 2)}
 
-Please analyze this goal and create a detailed execution plan.
-
-Your response MUST be in JSON format:
-{
-  "analysis": "Your deep analysis of the goal",
-  "complexity": "low|medium|high|very_high",
-  "estimatedTime": "estimated time in minutes",
-  "subtasks": [
-    {
-      "id": 1,
-      "title": "Subtask title",
-      "description": "Detailed description",
-      "tool": "tool_name",
-      "dependencies": [],
-      "reasoning": "Why this subtask is needed",
-      "params": {
-        "action": "required_action",
-        "other_param": "value"
-      }
-    }
-  ],
-  "risks": ["potential risk 1", "potential risk 2"],
-  "successCriteria": ["criterion 1", "criterion 2"]
-}`
+Long-term Memory Context:\n${memoryContext}\n\nPlease analyze this goal, taking into account the provided context and memories, and create a detailed execution plan in JSON format.`
       }
     ];
 
@@ -188,24 +115,13 @@ Your response MUST be in JSON format:
 
       const plan = JSON.parse(response.choices[0].message.content);
       
-      // حفظ الخطة في الذاكرة
-      this.memory.plans.push({
-        goal,
-        plan,
-        createdAt: new Date(),
-        status: 'pending'
-      });
-
-      // تحديث الذاكرة قصيرة المدى
+      this.memory.plans.push({ goal, plan, createdAt: new Date(), status: 'pending' });
       this.memory.shortTerm.push(
         { role: 'user', content: `Goal: ${goal}` },
         { role: 'assistant', content: JSON.stringify(plan) }
       );
 
       console.log(`✅ Plan created with ${plan.subtasks.length} subtasks`);
-      console.log(`Complexity: ${plan.complexity}`);
-      console.log(`Estimated time: ${plan.estimatedTime}`);
-
       return plan;
     } catch (error) {
       console.error('❌ Reasoning Engine error:', error.message);
@@ -213,146 +129,51 @@ Your response MUST be in JSON format:
     }
   }
 
-  /**
-   * اتخاذ قرار بناءً على الملاحظات
-   */
-  async makeDecision(situation, options) {
-    console.log(`\n🤔 Making decision...`);
-
-    const messages = [
-      { role: 'system', content: this.systemPrompt },
-      {
-        role: 'user',
-        content: `Situation: ${situation}
-
-Available options:
-${options.map((opt, i) => `${i + 1}. ${opt}`).join('\n')}
-
-Please analyze the situation and choose the best option.
-
-Response format (JSON):
-{
-  "analysis": "Your analysis",
-  "chosenOption": 1,
-  "reasoning": "Why you chose this option",
-  "confidence": 0.95
-}`
-      }
-    ];
-
-    try {
-      const response = await this.openai.chat.completions.create({
-        model: this.config.model,
-        messages,
-        temperature: 0.3,
-        response_format: { type: 'json_object' }
-      });
-
-      const decision = JSON.parse(response.choices[0].message.content);
-      console.log(`✅ Decision: Option ${decision.chosenOption}`);
-      console.log(`Confidence: ${(decision.confidence * 100).toFixed(1)}%`);
-
-      return decision;
-    } catch (error) {
-      console.error('❌ Decision making error:', error.message);
-      throw error;
-    }
-  }
-
-  /**
-   * التعلم من نتيجة مهمة
-   */
-  async learnFromExperience(task, result, success) {
+  async learnFromExperience(task, results, success) {
     console.log(`\n📚 Learning from experience...`);
 
-    // 1. تحديث الذاكرة طويلة المدى (Long-Term Memory)
-    const experience = {
-      taskId: task.id,
-      goal: task.goal,
-      success: success,
-      timestamp: new Date(),
-      summary: `Task ${task.id} ${success ? 'succeeded' : 'failed'}. Goal: ${task.goal}`,
-      // يمكن استخدام LLM لتلخيص النتائج
+    // --== MEMORY ENHANCEMENT ==--
+    const outcome = success ? 'succeeded' : 'failed';
+    const resultSummary = results.map(r => 
+        `Subtask ${r.subtask}: ${r.success ? 'Completed' : 'Failed'}. Result: ${JSON.stringify(r.result || r.error)}`
+    ).join('\n');
+
+    const experienceSummary = `The task with the goal \"${task.goal}\" ${outcome}.\nPlan: ${JSON.stringify(task.plan.subtasks, null, 2)}\nResults:\n${resultSummary}`;
+
+    const metadata = {
+        taskId: task.id,
+        goal: task.goal,
+        success: success,
+        timestamp: new Date(),
     };
 
-    // إضافة التجربة إلى الذاكرة طويلة المدى
-    this.memory.longTerm.push(experience);
+    await this.vectorDbTool.add(experienceSummary, metadata);
+    console.log(`[ReasoningEngine] Experience stored in long-term memory.`);
+    // --== END MEMORY ENHANCEMENT ==--
 
-    // الحفاظ على حجم الذاكرة طويلة المدى
-    if (this.memory.longTerm.length > 100) {
-      this.memory.longTerm.shift();
-    }
-
-    // 2. تحديث الذاكرة قصيرة المدى (Short-Term Memory)
-    // يمكن استخدام LLM لتلخيص المهمة الناجحة وإضافتها كـ "درس مستفاد"
-    if (success) {
-      const lesson = {
-        role: 'system',
-        content: `LESSON LEARNED: Task "${task.goal}" was successfully completed. The key to success was: [LLM will summarize the key steps and tools used].`
-      };
-      this.memory.shortTerm.push(lesson);
-      // الحفاظ على حجم الذاكرة قصيرة المدى
-      if (this.memory.shortTerm.length > 10) {
-        this.memory.shortTerm.shift();
-      }
-    }
-
-    // 3. تحليل الفشل واقتراح نهج بديل
     if (!success) {
       console.log('🧠 Analyzing failure for alternative approach...');
-      const analysis = await this.analyzeFailure(task, result);
-      return analysis;
+      return await this.analyzeFailure(task, results);
     }
 
     return null;
   }
 
-  /**
-   * تحليل الفشل واقتراح نهج بديل
-   */
   async analyzeFailure(task, result) {
     console.log(`\n🧠 Analyzing failure for alternative approach...`);
 
+    // Search for similar failures
+    const relevantMemories = await this.vectorDbTool.findRelevant(`Failure analysis for: ${task.goal}`, 2);
+
     const messages = [
-      { role: 'system', content: this.systemPrompt },
-      ...this.memory.shortTerm,
-      {
-        role: 'user',
-        content: `Task Goal: ${task.goal}
-Task Context: ${JSON.stringify(task.context, null, 2)}
-Failed Plan: ${JSON.stringify(task.plan, null, 2)}
-Failure Result: ${JSON.stringify(result, null, 2)}
-
-Analyze the failure and propose a self-correction plan.
-
-Your response MUST be in JSON format:
-{
-  "analysis": "Your analysis of why the task failed",
-  "shouldRetry": true,
-  "alternativeApproach": "A brief description of the new approach",
-  "correctionPlan": {
-    "analysis": "Analysis for the correction plan",
-    "complexity": "low|medium|high|very_high",
-    "estimatedTime": "estimated time in minutes",
-    "subtasks": [
-      {
-        "id": 1,
-        "title": "Correction subtask title",
-        "description": "Detailed description",
-        "tool": "tool_name",
-        "dependencies": [],
-        "reasoning": "Why this correction subtask is needed",
-        "params": {
-          "action": "required_action",
-          "other_param": "value"
+        { role: 'system', content: this.systemPrompt },
+        ...this.memory.shortTerm,
+        {
+            role: 'user',
+            content: `Task Goal: ${task.goal}\nFailed Plan: ${JSON.stringify(task.plan, null, 2)}\nFailure Result: ${JSON.stringify(result, null, 2)}\n
+Relevant past failures:\n${JSON.stringify(relevantMemories, null, 2)}\n
+Analyze the failure and propose a self-correction plan in JSON format.`
         }
-      }
-    ],
-    "risks": ["potential risk 1", "potential risk 2"],
-    "successCriteria": ["criterion 1", "criterion 2"]
-  }
-}`
-      }
     ];
 
     try {
@@ -363,74 +184,16 @@ Your response MUST be in JSON format:
         response_format: { type: 'json_object' }
       });
 
-      const analysis = JSON.parse(response.choices[0].message.content);
-      return analysis;
+      return JSON.parse(response.choices[0].message.content);
     } catch (error) {
       console.error('❌ Failure analysis error:', error.message);
-      return {
-        shouldRetry: false,
-        alternativeApproach: 'Could not analyze failure due to an internal error.'
-      };
+      return { shouldRetry: false, alternativeApproach: 'Could not analyze failure.' };
     }
   }
 
-  /**
-   * إنشاء خطة تصحيح ذاتي
-   */
   async selfCorrect(task, plan, results) {
     console.log(`\n🧠 Generating self-correction plan...`);
-
-    const messages = [
-      { role: 'system', content: this.systemPrompt },
-      ...this.memory.shortTerm,
-      {
-        role: 'user',
-        content: `Task Goal: ${task.goal}
-Task Context: ${JSON.stringify(task.context, null, 2)}
-Failed Plan: ${JSON.stringify(plan, null, 2)}
-Execution Results: ${JSON.stringify(results, null, 2)}
-
-The task failed verification. Generate a new, short plan to correct the failure and continue the task.
-
-Your response MUST be in JSON format:
-{
-  "analysis": "Your analysis of why the task failed verification",
-  "complexity": "low|medium|high|very_high",
-  "estimatedTime": "estimated time in minutes",
-  "subtasks": [
-    {
-      "id": 1,
-      "title": "Correction subtask title",
-      "description": "Detailed description",
-      "tool": "tool_name",
-      "dependencies": [],
-      "reasoning": "Why this correction subtask is needed",
-      "params": {
-        "action": "required_action",
-        "other_param": "value"
-      }
-    }
-  ],
-  "risks": ["potential risk 1", "potential risk 2"],
-  "successCriteria": ["criterion 1", "criterion 2"]
-}`
-      }
-    ];
-
-    try {
-      const response = await this.openai.chat.completions.create({
-        model: this.config.model,
-        messages,
-        temperature: 0.7,
-        response_format: { type: 'json_object' }
-      });
-
-      const correctionPlan = JSON.parse(response.choices[0].message.content);
-      return correctionPlan;
-    } catch (error) {
-      console.error('❌ Self-correction plan generation error:', error.message);
-      return null;
-    }
+    return await this.analyzeFailure(task, results); // Re-use failure analysis logic
   }
 }
 

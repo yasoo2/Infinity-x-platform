@@ -1,48 +1,32 @@
+import { BaseTool } from './ToolsSystem.mjs';
+
 /**
- * Deploy Tool - أداة النشر التلقائي
- * 
- * تسمح لـ JOEngine AGI بنشر المشاريع على منصات سحابية مختلفة.
+ * DeployTool - A tool for deploying projects.
+ *
+ * TODO:
+ * - Integrate with different platforms (Render, Vercel, Netlify)
+ * - Automate the deployment process
+ * - Manage environments (development, staging, production)
  */
-
-import { Tool } from './Tool.mjs';
-
-export class DeployTool extends Tool {
-  constructor() {
-    super('deploy', 'Deploys projects to cloud platforms (e.g., Vercel, Netlify, Render).');
-  }
-
-  /**
-   * نشر مشروع
-   * @param {string} projectPath - مسار المشروع المحلي
-   * @param {string} platform - منصة النشر (e.g., 'vercel', 'netlify', 'render')
-   * @param {object} config - إعدادات النشر الخاصة بالمنصة
-   * @returns {Promise<object>} - نتيجة النشر
-   */
-  async execute(projectPath, platform, config = {}) {
-    // هذا تطبيق وهمي (Mock Implementation)
-    console.log(`[DeployTool] Attempting to deploy project at ${projectPath} to ${platform}...`);
-
-    // محاكاة عملية النشر
-    await new Promise(resolve => setTimeout(resolve, 5000)); // انتظار 5 ثواني
-
-    const success = Math.random() > 0.1; // 90% نسبة نجاح وهمية
-
-    if (success) {
-      const deploymentUrl = `https://${platform}-${Math.random().toString(36).substring(2, 7)}.app`;
-      return {
-        success: true,
-        url: deploymentUrl,
-        platform,
-        message: `Deployment to ${platform} successful. URL: ${deploymentUrl}`
-      };
-    } else {
-      return {
-        success: false,
-        error: `Deployment to ${platform} failed due to a mock configuration error.`,
-        message: 'Deployment failed. Check platform logs for details.'
-      };
+class DeployTool extends BaseTool {
+    constructor() {
+        super(
+            'deploy',
+            'Deploys a project to a specified platform.',
+            {
+                platform: { type: 'string', required: true, description: "The deployment platform (e.g., 'Render', 'Vercel', 'Netlify')." },
+                settings: { type: 'object', required: true, description: "Platform-specific deployment settings." }
+            }
+        );
     }
-  }
+
+    async execute(params) {
+        const { platform, settings } = params;
+        console.log(`[DeployTool] Deploying to ${platform}...`);
+        // TODO: Implement deployment logic for different platforms
+        console.log('[DeployTool] Deployment settings:', settings);
+        return { success: true, url: `https://example.com/deployed-project` };
+    }
 }
 
-// export default DeployTool;
+export default DeployTool;

@@ -1,53 +1,72 @@
 import { BaseTool } from './ToolsSystem.mjs';
 
 /**
- * Planner Tool - أداة التخطيط الذكي لـ JOEngine AGI
- * 
- * المسؤوليات:
- * - تحليل مهمة معقدة وتقسيمها إلى خطوات منطقية.
- * - تحديد الأدوات المطلوبة لكل خطوة.
- * - إرجاع خطة عمل منظمة.
+ * Planner Tool - The strategic brain of JOEngine AGI.
+ *
+ * Responsibilities:
+ * - Deconstructs complex tasks into logical, actionable steps.
+ * - Selects the most appropriate tools for each step.
+ * - Generates a structured, executable plan.
  */
 export class PlannerTool extends BaseTool {
   constructor() {
     super(
-      'PlannerTool',
-      'Analyzes a complex task and breaks it down into a sequence of logical, actionable steps, identifying the necessary tools for each step.',
+      'planner',
+      'Analyzes a complex task and creates a step-by-step execution plan using available tools.',
       {
         task: {
           type: 'string',
           required: true,
-          description: 'The complex task description to be planned.'
+          description: 'The complex task to be planned.'
+        },
+        context: {
+          type: 'string',
+          required: false,
+          description: 'Optional context about the current state or environment.'
         }
       }
     );
-    this.examples = [
-      {
-        input: { task: 'Develop a new feature for the website and deploy it.' },
-        output: '1. Use SearchTool to research the feature requirements. 2. Use CodeTool to write the code. 3. Use FileTool to save the files. 4. Use GitHubTool to commit and push the changes.'
-      }
-    ];
   }
 
   /**
-   * تنفيذ التخطيط
+   * Generates a plan for a given task.
    */
-  async execute({ task }) {
-    this.validateParams({ task });
+  async execute({ task, context }) {
+    console.log(`🧠 Planning task: "${task}"`);
 
-    // في بيئة AGI حقيقية، سيتم استخدام نموذج لغة كبير (LLM) هنا لإنشاء الخطة.
-    // لغرض المحاكاة والتطوير، سنقوم بإنشاء خطة بسيطة.
+    const lowerCaseTask = task.toLowerCase();
+    let plan = [];
+
+    // This is a simplified, rule-based planner. 
+    // A real implementation would use an LLM to generate the plan.
+    if ((lowerCaseTask.includes('write') && lowerCaseTask.includes('file')) || lowerCaseTask.includes('create a file')) {
+        plan = [
+            {
+                tool: 'file',
+                action: 'write',
+                params: {
+                    path: 'hello_world.js',
+                    content: 'console.log("hello world");'
+                }
+            }
+        ];
+    } else if (lowerCaseTask.includes('browse') || lowerCaseTask.includes('go to')) {
+        plan = [
+            {
+                tool: 'browser',
+                action: 'navigate',
+                params: {
+                    url: 'https://google.com'
+                }
+            }
+        ];
+    }
+
+    console.log(`📄 Generated Plan:`, plan);
     
-    const plan = [
-      `Analyze the task: "${task}"`,
-      'Identify the required tools and sub-steps.',
-      'Generate a step-by-step execution plan in a numbered list format.',
-      'Return the final plan.'
-    ];
-
     return {
       success: true,
-      plan: plan.join(' -> ')
+      plan: plan,
     };
   }
 }

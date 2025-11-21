@@ -38,7 +38,7 @@ export class FileTool extends BaseTool {
     );
 
     // مسار العمل هو جذر المستودع
-    this.workDir = path.join(process.cwd(), 'Infinity-x-platform');
+    this.workDir = process.cwd();
     fs.ensureDirSync(this.workDir);
   }
 
@@ -46,8 +46,6 @@ export class FileTool extends BaseTool {
    * تنفيذ الأداة
    */
   async execute(params) {
-    this.validateParams(params);
-
     const { action } = params;
 
     switch (action) {

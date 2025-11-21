@@ -1,6 +1,6 @@
 /**
  * Enhanced Worker - معالج المهام المحسّن
- * يستخدم AI Engine لتوليد المشاريع الفعلية
+ * يستخدم AI Engine لتوليد المشاريع الفعلية ويوجه المهام للـ AGI
  */
 
 import dotenv from 'dotenv';
@@ -9,6 +9,9 @@ import Redis from 'ioredis';
 import { buildWebsite, buildWebApp, buildEcommerce } from './lib/projectGenerator.mjs';
 import { classifyCommand } from './lib/aiEngine.mjs';
 import { deployToCloudflare } from './lib/cloudflareDeployer.mjs';
+
+// AGI Engine Integration
+import { AgentLoop } from '../joengine-agi/core/AgentLoop.mjs';
 
 dotenv.config();
 
@@ -21,17 +24,23 @@ function sleep(ms) {
 }
 
 async function withDb(fn) {
-  await mongoClient.connect();
+  if (!mongoClient.topology || !mongoClient.topology.isConnected()) {
+    await mongoClient.connect();
+  }
   const db = mongoClient.db(DB_NAME);
   return fn(db);
 }
 
 async function logActivity(db, action, detail) {
-  await db.collection('joe_activity').insertOne({
-    ts: new Date(),
-    action,
-    detail
-  });
+  try {
+    await db.collection('joe_activity').insertOne({
+      ts: new Date(),
+      action,
+      detail
+    });
+  } catch (e) {
+    console.error("Failed to log activity", e);
+  }
 }
 
 /**
@@ -40,183 +49,109 @@ async function logActivity(db, action, detail) {
 async function handleFactoryJob(db, job) {
   try {
     console.log(`[Worker] Processing factory job: ${job._id}`);
-    
-    // تحديث الحالة إلى WORKING
-    await db.collection('factory_jobs').updateOne(
-      { _id: job._id },
-      { 
-        $set: { 
-          status: 'WORKING', 
-          startedAt: new Date(),
-          progress: 10
-        } 
-      }
-    );
-    
+    await db.collection('factory_jobs').updateOne({ _id: job._id }, { $set: { status: 'WORKING', startedAt: new Date(), progress: 10 } });
     await logActivity(db, 'FACTORY_JOB_STARTED', `Building ${job.projectType}: ${job.shortDescription}`);
-    
+
     const projectId = job._id.toString();
     let result;
-    
-    // بناء المشروع حسب النوع
+
     switch (job.projectType.toLowerCase()) {
       case 'website':
       case 'landing-page':
       case 'portfolio':
-        await db.collection('factory_jobs').updateOne(
-          { _id: job._id },
-          { $set: { progress: 30, currentStep: 'Generating website code...' } }
-        );
-        
-        result = await buildWebsite(projectId, job.shortDescription, {
-          title: job.title || 'My Website',
-          style: job.style || 'modern'
-        });
+        await db.collection('factory_jobs').updateOne({ _id: job._id }, { $set: { progress: 30, currentStep: 'Generating website code...' } });
+        result = await buildWebsite(projectId, job.shortDescription, { title: job.title || 'My Website', style: job.style || 'modern' });
         break;
-        
       case 'webapp':
       case 'app':
       case 'application':
-        await db.collection('factory_jobs').updateOne(
-          { _id: job._id },
-          { $set: { progress: 30, currentStep: 'Generating web app code...' } }
-        );
-        
-        result = await buildWebApp(projectId, job.shortDescription, {
-          title: job.title || 'My Web App',
-          features: job.features || []
-        });
+        await db.collection('factory_jobs').updateOne({ _id: job._id }, { $set: { progress: 30, currentStep: 'Generating web app code...' } });
+        result = await buildWebApp(projectId, job.shortDescription, { title: job.title || 'My Web App', features: job.features || [] });
         break;
-        
       case 'ecommerce':
       case 'store':
       case 'shop':
-        await db.collection('factory_jobs').updateOne(
-          { _id: job._id },
-          { $set: { progress: 30, currentStep: 'Generating e-commerce store...' } }
-        );
-        
-        result = await buildEcommerce(projectId, job.shortDescription, {
-          title: job.title || 'My Store',
-          products: job.products || []
-        });
+        await db.collection('factory_jobs').updateOne({ _id: job._id }, { $set: { progress: 30, currentStep: 'Generating e-commerce store...' } });
+        result = await buildEcommerce(projectId, job.shortDescription, { title: job.title || 'My Store', products: job.products || [] });
         break;
-        
       default:
         throw new Error(`Unknown project type: ${job.projectType}`);
     }
-    
-    // حفظ معلومات المشروع
-    await db.collection('factory_jobs').updateOne(
-      { _id: job._id },
-      { 
-        $set: { 
-          progress: 60,
-          currentStep: 'Project generated successfully',
-          projectPath: result.projectPath,
-          files: result.files
-        } 
-      }
-    );
-    
+
+    await db.collection('factory_jobs').updateOne({ _id: job._id }, { $set: { progress: 60, currentStep: 'Project generated successfully', projectPath: result.projectPath, files: result.files } });
     await logActivity(db, 'PROJECT_GENERATED', `Files: ${result.files.join(', ')}`);
-    
-    // النشر على Cloudflare
+
     if (process.env.CLOUDFLARE_API_TOKEN) {
-      await db.collection('factory_jobs').updateOne(
-        { _id: job._id },
-        { $set: { progress: 70, currentStep: 'Deploying to Cloudflare...' } }
-      );
-      
-      const deployResult = await deployToCloudflare(
-        projectId,
-        result.projectPath,
-        job.title || job.projectType
-      );
-      
+      await db.collection('factory_jobs').updateOne({ _id: job._id }, { $set: { progress: 70, currentStep: 'Deploying to Cloudflare...' } });
+      const deployResult = await deployToCloudflare(projectId, result.projectPath, job.title || job.projectType);
       if (deployResult.success) {
-        await db.collection('factory_jobs').updateOne(
-          { _id: job._id },
-          { 
-            $set: { 
-              deploymentUrl: deployResult.url,
-              deploymentName: deployResult.deploymentName,
-              progress: 90
-            } 
-          }
-        );
-        
+        await db.collection('factory_jobs').updateOne({ _id: job._id }, { $set: { deploymentUrl: deployResult.url, deploymentName: deployResult.deploymentName, progress: 90 } });
         await logActivity(db, 'PROJECT_DEPLOYED', `URL: ${deployResult.url}`);
       } else {
         console.warn('[Worker] Deployment failed:', deployResult.error);
         await logActivity(db, 'DEPLOYMENT_FAILED', deployResult.error);
       }
     }
-    
-    // تحديث الحالة إلى DONE
-    await db.collection('factory_jobs').updateOne(
-      { _id: job._id },
-      { 
-        $set: { 
-          status: 'DONE',
-          progress: 100,
-          currentStep: 'Completed',
-          finishedAt: new Date()
-        } 
-      }
-    );
-    
+
+    await db.collection('factory_jobs').updateOne({ _id: job._id }, { $set: { status: 'DONE', progress: 100, currentStep: 'Completed', finishedAt: new Date() } });
     await logActivity(db, 'FACTORY_JOB_COMPLETED', `Project ${projectId} completed successfully`);
-    
     console.log(`[Worker] Factory job completed: ${job._id}`);
-    
   } catch (error) {
     console.error(`[Worker] Factory job failed:`, error);
-    
-    await db.collection('factory_jobs').updateOne(
-      { _id: job._id },
-      { 
-        $set: { 
-          status: 'FAILED',
-          error: error.message,
-          finishedAt: new Date()
-        } 
-      }
-    );
-    
-    await logActivity(db, 'FACTORY_JOB_FAILED', `Error: ${error.message}`);
+    await withDb(async db => {
+        await db.collection('factory_jobs').updateOne({ _id: job._id }, { $set: { status: 'FAILED', error: error.message, finishedAt: new Date() } });
+        await logActivity(db, 'FACTORY_JOB_FAILED', `Error: ${error.message}`);
+    });
   }
 }
+
+/**
+ * معالجة مهمة AGI عامة
+ */
+async function handleAgiJob(db, job) {
+    try {
+        console.log(`[Worker] Processing AGI job: ${job._id}`);
+        await db.collection('agi_jobs').updateOne({ _id: job._id }, { $set: { status: 'WORKING', startedAt: new Date() } });
+        await logActivity(db, 'AGI_JOB_STARTED', `Executing goal: ${job.goal}`);
+
+        // Configure AGI Engine
+        const agiConfig = {
+            openaiApiKey: process.env.OPENAI_API_KEY,
+            githubToken: process.env.GITHUB_TOKEN,
+            db: db, // Pass the db connection
+        };
+
+        const agent = new AgentLoop(agiConfig);
+        const result = await agent.run(job.goal);
+
+        await db.collection('agi_jobs').updateOne({ _id: job._id }, { $set: { status: 'DONE', finishedAt: new Date(), result: result } });
+        await logActivity(db, 'AGI_JOB_COMPLETED', `Goal: ${job.goal} finished.`);
+        console.log(`[Worker] AGI job completed: ${job._id}`);
+
+    } catch (error) {
+        console.error(`[Worker] AGI job failed:`, error);
+        await withDb(async db => {
+            await db.collection('agi_jobs').updateOne({ _id: job._id }, { $set: { status: 'FAILED', error: error.message, finishedAt: new Date() } });
+            await logActivity(db, 'AGI_JOB_FAILED', `Error: ${error.message}`);
+        });
+    }
+}
+
 
 /**
  * معالجة أمر من المستخدم
  */
 async function handleCommand(db, cmd) {
   try {
-    await db.collection('joe_commands').updateOne(
-      { _id: cmd._id },
-      { $set: { status: 'WORKING', startedAt: new Date() } }
-    );
-
+    await db.collection('joe_commands').updateOne({ _id: cmd._id }, { $set: { status: 'WORKING', startedAt: new Date() } });
     await logActivity(db, 'COMMAND_PROCESSING', cmd.commandText);
 
-    // هنا يمكن إضافة معالجة ذكية للأوامر
-    // مثل: "create a landing page for my coffee shop"
-    // يتم تحويله تلقائياً إلى factory job
-    
-    // استخدام AI Engine لتصنيف الأمر وتحديد نوع المشروع
-    const { intent, projectType, description } = await aiEngine.classifyCommand(cmd.commandText);
+    const { intent, projectType, description } = await classifyCommand(cmd.commandText);
 
     if (intent === 'CREATE_PROJECT') {
-      // إنشاء factory job تلقائياً
       let type = projectType || 'website';
+      if (!['website', 'webapp', 'ecommerce'].includes(type)) type = 'website';
       
-      // Fallback for unknown types
-      if (!['website', 'webapp', 'ecommerce'].includes(type)) {
-        type = 'website';
-      }
-
-      // Use the description from the AI classification for better context
       const shortDescription = description || cmd.commandText;
       
       await db.collection('factory_jobs').insertOne({
@@ -227,24 +162,25 @@ async function handleCommand(db, cmd) {
         status: 'QUEUED',
         source: 'command'
       });
-      
       await logActivity(db, 'AUTO_CREATED_JOB', `From command: ${cmd.commandText}`);
+    } else {
+      // **ENHANCEMENT**: Treat any other intent as a general AGI task
+      await db.collection('agi_jobs').insertOne({
+        createdAt: new Date(),
+        sessionToken: cmd.sessionToken,
+        goal: cmd.commandText, // The full command is the goal
+        status: 'QUEUED',
+        source: 'command'
+      });
+      await logActivity(db, 'AGI_TASK_QUEUED', `From command: ${cmd.commandText}`);
     }
 
-    await db.collection('joe_commands').updateOne(
-      { _id: cmd._id },
-      { $set: { status: 'DONE', finishedAt: new Date() } }
-    );
-
+    await db.collection('joe_commands').updateOne({ _id: cmd._id }, { $set: { status: 'DONE', finishedAt: new Date() } });
     await logActivity(db, 'COMMAND_COMPLETED', cmd.commandText);
     
   } catch (error) {
     console.error('[Worker] Command failed:', error);
-    
-    await db.collection('joe_commands').updateOne(
-      { _id: cmd._id },
-      { $set: { status: 'FAILED', error: error.message, finishedAt: new Date() } }
-    );
+    await db.collection('joe_commands').updateOne({ _id: cmd._id }, { $set: { status: 'FAILED', error: error.message, finishedAt: new Date() } });
   }
 }
 
@@ -257,22 +193,20 @@ async function mainLoop() {
   while (true) {
     try {
       await withDb(async db => {
-        // معالجة factory jobs
-        const jobs = await db.collection('factory_jobs')
-          .find({ status: 'QUEUED' })
-          .limit(1) // معالجة واحدة في كل مرة لتجنب استهلاك الموارد
-          .toArray();
-          
-        for (const job of jobs) {
-          await handleFactoryJob(db, job);
+        // Process one factory job
+        const factoryJob = await db.collection('factory_jobs').findOne({ status: 'QUEUED' });
+        if (factoryJob) {
+          await handleFactoryJob(db, factoryJob);
         }
 
-        // معالجة الأوامر
-        const commands = await db.collection('joe_commands')
-          .find({ status: 'QUEUED' })
-          .limit(3)
-          .toArray();
-          
+        // Process one AGI job
+        const agiJob = await db.collection('agi_jobs').findOne({ status: 'QUEUED' });
+        if (agiJob) {
+            await handleAgiJob(db, agiJob);
+        }
+
+        // Process commands
+        const commands = await db.collection('joe_commands').find({ status: 'QUEUED' }).limit(3).toArray();
         for (const cmd of commands) {
           await handleCommand(db, cmd);
         }
@@ -281,12 +215,13 @@ async function mainLoop() {
       console.error('[Worker] Loop error:', err);
     }
 
-    await sleep(5000); // انتظار 5 ثوان بين كل دورة
+    await sleep(5000); // 5-second interval
   }
 }
 
-// بدء Worker
+// Start Worker
 mainLoop().catch(err => {
   console.error('[Worker] Fatal error:', err);
+  mongoClient.close();
   process.exit(1);
 });

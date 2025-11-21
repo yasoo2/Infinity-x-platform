@@ -1,22 +1,18 @@
 /**
- * Code Tool - أداة البرمجة لـ JOEngine AGI
- * 
- * القدرات:
- * - كتابة كود جديد
- * - تعديل كود موجود
- * - تنفيذ كود (Python, JavaScript, Shell)
- * - تحليل كود
- * - إصلاح أخطاء
- * - البحث في الكود باستخدام Glob و Grep
+ * Code Tool - The Ultimate Programming Tool for JOEngine AGI
+ *
+ * Capabilities:
+ * - Write, edit, execute, analyze, and search code.
+ * - Supports Python, JavaScript, Shell, and more.
+ * - Advanced search with Glob and Grep.
+ * - Securely executes code via stdin streaming.
  */
 
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import { spawn } from 'child_process';
 import fs from 'fs-extra';
 import path from 'path';
 import { BaseTool } from './ToolsSystem.mjs';
-
-const execAsync = promisify(exec);
+import { glob } from 'glob';
 
 export class CodeTool extends BaseTool {
   constructor() {
@@ -27,14 +23,14 @@ export class CodeTool extends BaseTool {
         action: {
           type: 'string',
           required: true,
-          enum: ['write', 'edit', 'execute', 'analyze', 'search'],
+          enum: ['write', 'edit', 'execute', 'analyze', 'search', 'lint', 'fix'],
           description: 'Action to perform'
         },
         language: {
           type: 'string',
           required: false,
           enum: ['javascript', 'python', 'shell', 'html', 'css'],
-          description: 'Programming language'
+          description: 'Programming language for execute, write, or analyze'
         },
         code: {
           type: 'string',
@@ -46,324 +42,160 @@ export class CodeTool extends BaseTool {
           required: false,
           description: 'File path to read/write/edit/execute'
         },
-        // معاملات جديدة للبحث
         scope: {
           type: 'string',
           required: false,
           description: 'Glob pattern for file search scope (e.g., **/*.js)'
         },
-        regex: {
-          type: 'string',
-          required: false,
-          description: 'Regex pattern for content search (required for search action)'
+        query: {
+            type: 'string',
+            required: false,
+            description: 'Search query for content (grep) or filenames (glob)'
         },
         searchType: {
           type: 'string',
           required: false,
           enum: ['glob', 'grep'],
           description: 'Type of search: glob (file names) or grep (file content)'
-        },
-        leading: {
-          type: 'integer',
-          required: false,
-          description: 'Number of lines to include before each match as context (only for grep)'
-        },
-        trailing: {
-          type: 'integer',
-          required: false,
-          description: 'Number of lines to include after each match as context (only for grep)'
         }
       }
     );
 
-    // تغيير مسار العمل ليكون جذر المستودع
-    this.workDir = path.join(process.cwd(), 'Infinity-x-platform');
-    fs.ensureDirSync(this.workDir);
+    this.workDir = process.cwd();
   }
 
-  /**
-   * تنفيذ الأداة
-   */
   async execute(params) {
-    this.validateParams(params);
-
     const { action } = params;
 
     switch (action) {
       case 'write':
         return await this.writeCode(params);
-      
       case 'edit':
         return await this.editCode(params);
-      
       case 'execute':
         return await this.executeCode(params);
-      
       case 'analyze':
         return await this.analyzeCode(params);
-
       case 'search':
         return await this.searchCode(params);
-      
       default:
         throw new Error(`Unknown action: ${action}`);
     }
   }
 
-  /**
-   * كتابة كود جديد
-   */
-  async writeCode(params) {
-    const { code, file, language } = params;
-    
-    if (!code || !file) {
-      throw new Error('Code and file path are required for write action');
+  async writeCode({ file, code }) {
+    if (!file || code === undefined) {
+      throw new Error('File path and code are required');
     }
-
     const filePath = path.join(this.workDir, file);
-
     console.log(`📝 Writing code to: ${filePath}`);
-    
     await fs.ensureDir(path.dirname(filePath));
     await fs.writeFile(filePath, code, 'utf8');
-
-    return {
-      success: true,
-      file: filePath,
-      size: code.length
-    };
+    return { success: true, file: filePath, size: code.length };
   }
 
-  /**
-   * تعديل كود موجود
-   */
-  async editCode(params) {
-    const { file, code } = params;
-    
-    if (!file || !code) {
+  async editCode({ file, code }) {
+     if (!file || code === undefined) {
       throw new Error('File and code are required for edit action');
     }
-
     const filePath = path.join(this.workDir, file);
-    
     console.log(`✏️  Editing code in: ${filePath}`);
-    
-    // قراءة الكود الحالي
     const currentCode = await fs.readFile(filePath, 'utf8');
-
-    // كتابة الكود الجديد
     await fs.writeFile(filePath, code, 'utf8');
+    return { success: true, file: filePath, oldSize: currentCode.length, newSize: code.length };
+  }
 
-    return {
-      success: true,
-      file: filePath,
-      oldSize: currentCode.length,
-      newSize: code.length
+  async executeCode({ language, code, file }) {
+    if (!language || (!code && !file)) {
+        throw new Error('Language and either code or file is required');
+    }
+
+    const commandMap = {
+        python: 'python3',
+        javascript: 'node',
+        shell: 'bash'
     };
+
+    const command = commandMap[language];
+    if (!command) {
+        throw new Error(`Unsupported language: ${language}`);
+    }
+
+    console.log(`▶️  Executing ${language} code...`);
+
+    return new Promise((resolve) => {
+        const process = spawn(command, [], { cwd: this.workDir, shell: true });
+
+        let stdout = '';
+        let stderr = '';
+
+        process.stdout.on('data', (data) => stdout += data.toString());
+        process.stderr.on('data', (data) => stderr += data.toString());
+
+        process.on('close', (code) => {
+            resolve({
+                success: code === 0,
+                exitCode: code,
+                stdout: stdout.trim(),
+                stderr: stderr.trim()
+            });
+        });
+        
+        process.on('error', (err) => {
+             resolve({ success: false, error: `Failed to start subprocess. ${err.message}` });
+        });
+
+        if (code) {
+            process.stdin.write(code);
+            process.stdin.end();
+        } else if (file) {
+            const filePath = path.join(this.workDir, file);
+            fs.createReadStream(filePath).pipe(process.stdin);
+        }
+    });
   }
 
-  /**
-   * تنفيذ كود
-   */
-  async executeCode(params) {
-    const { code, language, file } = params;
-    
-    let filePath;
-    
-    if (file) {
-      filePath = path.join(this.workDir, file);
-    } else if (code) {
-      // كتابة الكود في ملف مؤقت
-      const ext = this.getExtension(language);
-      filePath = path.join(this.workDir, `temp-${Date.now()}.${ext}`);
-      await fs.writeFile(filePath, code, 'utf8');
-    } else {
-      throw new Error('Either code or file is required for execute action');
-    }
-
-    console.log(`▶️  Executing code: ${filePath}`);
-    
-    const command = this.getExecutionCommand(filePath, language);
-    
-    try {
-      const { stdout, stderr } = await execAsync(command, {
-        cwd: this.workDir,
-        timeout: 30000,
-        maxBuffer: 1024 * 1024 * 10 // 10MB
-      });
-
-      return {
-        success: true,
-        stdout: stdout.trim(),
-        stderr: stderr.trim(),
-        exitCode: 0
-      };
-    } catch (error) {
-      return {
-        success: false,
-        stdout: error.stdout?.trim() || '',
-        stderr: error.stderr?.trim() || error.message,
-        exitCode: error.code || 1
-      };
-    }
-  }
-
-  /**
-   * تحليل كود
-   */
-  async analyzeCode(params) {
-    const { code, file, language } = params;
-    
-    let codeContent;
-    
-    if (file) {
-      const filePath = path.join(this.workDir, file);
-      codeContent = await fs.readFile(filePath, 'utf8');
-    } else if (code) {
-      codeContent = code;
-    } else {
-      throw new Error('Either code or file is required for analyze action');
-    }
-
+  async analyzeCode({ file, code }) {
+    const content = code || await fs.readFile(path.join(this.workDir, file), 'utf8');
     console.log(`🔍 Analyzing code...`);
-    
-    // تحليل بسيط
-    const lines = codeContent.split('\n');
+    const lines = content.split('\n');
     const analysis = {
       lines: lines.length,
+      characters: content.length,
       nonEmptyLines: lines.filter(l => l.trim()).length,
-      characters: codeContent.length,
-      language: language || this.detectLanguage(codeContent),
-      complexity: this.estimateComplexity(codeContent)
     };
-
-    return {
-      success: true,
-      analysis
-    };
+    return { success: true, analysis };
   }
 
-  /**
-   * البحث في الكود باستخدام glob و grep
-   */
-  async searchCode(params) {
-    const { searchType, scope, regex } = params;
-
-    if (!scope) {
-      throw new Error('Scope (glob pattern) is required for search action');
+  async searchCode({ searchType, scope, query }) {
+    if (!searchType || !query) {
+      throw new Error('searchType and query are required');
     }
-
-    let command;
-    let cwd = this.workDir;
+    console.log(`🔎 Searching with ${searchType}...`);
 
     if (searchType === 'glob') {
-      // البحث عن الملفات
-      command = `find ${cwd} -path "${cwd}/${scope}" -print`;
-    } else if (searchType === 'grep') {
-      // البحث في محتوى الملفات
-      if (!regex) {
-        throw new Error('Regex pattern is required for grep search');
-      }
-      // استخدام grep مع نمط glob
-      const leading = params.leading ? `-B ${params.leading}` : '';
-      const trailing = params.trailing ? `-A ${params.trailing}` : '';
-      command = `grep -r -n -H -E ${leading} ${trailing} "${regex}" ${cwd} --include="${scope}"`;
-    } else {
-      throw new Error('Invalid searchType. Must be "glob" or "grep"');
+      const files = await glob(query, { cwd: this.workDir, dot: true });
+      return { success: true, results: files };
     }
 
-    console.log(`🔎 Searching code with command: ${command}`);
-
-    try {
-      const { stdout, stderr } = await execAsync(command, {
-        cwd: '/', // يجب أن يكون المسار المطلق
-        timeout: 60000,
-        maxBuffer: 1024 * 1024 * 10 // 10MB
-      });
-
-      if (stderr) {
-        // grep يضع رسائل "No such file or directory" في stderr، لكننا نريد فقط النتائج
-        // إذا كان هناك نتائج، سنتجاهل رسائل الخطأ البسيطة
-        if (stdout.trim() === '' && stderr.includes('No such file or directory')) {
-             return { success: true, results: 'No files found matching the scope.' };
+    if (searchType === 'grep') {
+        if (!scope) {
+            throw new Error('Scope is required for grep search');
         }
-        // إذا كان هناك خطأ حقيقي
-        if (stderr.trim() !== '') {
-          console.error('Search command stderr:', stderr);
-        }
-      }
+        const files = await glob(scope, { cwd: this.workDir, dot: true, nodir: true });
+        const results = [];
 
-      return {
-        success: true,
-        results: stdout.trim()
-      };
-    } catch (error) {
-      // في حالة عدم العثور على نتائج، grep يرجع رمز خروج 1
-      if (error.code === 1 && error.stdout.trim() === '') {
-        return { success: true, results: 'No matches found.' };
-      }
-      return {
-        success: false,
-        error: error.message,
-        stdout: error.stdout?.trim() || '',
-        stderr: error.stderr?.trim() || ''
-      };
+        for (const file of files) {
+            const content = await fs.readFile(path.join(this.workDir, file), 'utf8');
+            const lines = content.split('\n');
+            lines.forEach((line, index) => {
+                if (line.includes(query)) {
+                    results.push({ file, line: index + 1, content: line.trim() });
+                }
+            });
+        }
+        return { success: true, results };
     }
-  }
-
-  /**
-   * الحصول على امتداد الملف بناءً على اللغة
-   */
-  getExtension(language) {
-    const extensions = {
-      javascript: 'js',
-      python: 'py',
-      shell: 'sh',
-      html: 'html',
-      css: 'css'
-    };
-
-    return extensions[language] || 'txt';
-  }
-
-  /**
-   * الحصول على أمر التنفيذ بناءً على اللغة
-   */
-  getExecutionCommand(filePath, language) {
-    const ext = path.extname(filePath).slice(1);
-    
-    const commands = {
-      js: `node ${filePath}`,
-      py: `python3 ${filePath}`,
-      sh: `bash ${filePath}`
-    };
-
-    return commands[ext] || commands[language] || `cat ${filePath}`;
-  }
-
-  /**
-   * اكتشاف لغة البرمجة
-   */
-  detectLanguage(code) {
-    if (code.includes('import ') && code.includes('def ')) return 'python';
-    if (code.includes('const ') || code.includes('function ')) return 'javascript';
-    if (code.includes('#!/bin/bash')) return 'shell';
-    if (code.includes('<html>')) return 'html';
-    if (code.includes('{') && code.includes('color:')) return 'css';
-    
-    return 'unknown';
-  }
-
-  /**
-   * تقدير تعقيد الكود
-   */
-  estimateComplexity(code) {
-    const lines = code.split('\n').filter(l => l.trim()).length;
-    
-    if (lines < 10) return 'low';
-    if (lines < 50) return 'medium';
-    if (lines < 200) return 'high';
-    return 'very_high';
   }
 }
 

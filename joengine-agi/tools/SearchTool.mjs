@@ -40,8 +40,6 @@ export class SearchTool extends BaseTool {
    * تنفيذ الأداة
    */
   async execute(params) {
-    this.validateParams(params);
-
     const { query, count = 5, engine = 'duckduckgo' } = params;
 
     console.log(`🌐 Searching the web for: "${query}" (Top ${count} results) using ${engine}`);

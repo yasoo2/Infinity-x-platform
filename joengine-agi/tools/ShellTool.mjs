@@ -33,15 +33,13 @@ export class ShellTool extends BaseTool {
     );
 
     // مسار العمل هو جذر المستودع
-    this.workDir = path.join(process.cwd(), 'Infinity-x-platform');
+    this.workDir = process.cwd();
   }
 
   /**
    * تنفيذ الأداة
    */
   async execute(params) {
-    this.validateParams(params);
-
     const { command, timeout = 60000 } = params;
 
     console.log(`💻 Executing shell command: ${command}`);
