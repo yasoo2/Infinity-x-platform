@@ -1,0 +1,61 @@
+  <!-- X — Tri Minimal (Black & Quiet Silver) -->
+  <div class="logo-icon x-tri-min" aria-label="X Logo — Minimal Triangles" role="img">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="56" height="56" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <!-- Quiet silver (subtle, professional) -->
+        <linearGradient id="sv_quiet" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#F2F4F6"/>
+          <stop offset="50%" stop-color="#D5DAE0"/>
+          <stop offset="100%" stop-color="#BFC6CE"/>
+        </linearGradient>
+        <!-- Deep black (solid) -->
+        <linearGradient id="bk_deep" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#0B0F14"/>
+          <stop offset="100%" stop-color="#1A1F27"/>
+        </linearGradient>
+        <!-- Hairline separator for crisp edges -->
+        <linearGradient id="hair" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#111827"/>
+          <stop offset="100%" stop-color="#374151"/>
+        </linearGradient>
+        <style>
+          .facet { stroke: url(#hair); stroke-width: 0.6; }
+        </style>
+      </defs>
+
+      <!-- Minimal X made of closed triangles + center diamond -->
+      <!-- Upper-left triangle (black) -->
+      <path class="facet" d="M48 56 L112 56 L128 96 Z" fill="url(#bk_deep)"/>
+      <!-- Upper-right triangle (silver) -->
+      <path class="facet" d="M208 56 L144 56 L128 96 Z" fill="url(#sv_quiet)"/>
+      <!-- Lower-left triangle (silver) -->
+      <path class="facet" d="M48 200 L112 200 L128 160 Z" fill="url(#sv_quiet)"/>
+      <!-- Lower-right triangle (black) -->
+      <path class="facet" d="M208 200 L144 200 L128 160 Z" fill="url(#bk_deep)"/>
+      <!-- Center diamond (small, neutral) -->
+      <path class="facet" d="M128 112 L144 128 L128 144 L112 128 Z" fill="url(#sv_quiet)"/>
+
+    </svg>
+  </div>
+
+  <style>
+    .logo-icon.x-tri-min svg { width: 56px; height: 56px; display: block; }
+    .logo-icon.x-tri-min { transition: transform .2s ease; }
+    .logo-icon.x-tri-min:hover { transform: translateY(-1px); }
+
+    /* Sizes */
+    .logo-icon.x-tri-min.size-48 svg { width: 48px; height: 48px; }
+    .logo-icon.x-tri-min.size-64 svg { width: 64px; height: 64px; }
+
+    /* Strict mono: convert to pure black/white (no gradients) */
+    .logo-icon.x-tri-min.mono svg linearGradient { display: none; }
+    .logo-icon.x-tri-min.mono svg path:nth-of-type(1),
+    .logo-icon.x-tri-min.mono svg path:nth-of-type(4) { fill: #111111 !important; }
+    .logo-icon.x-tri-min.mono svg path:nth-of-type(2),
+    .logo-icon.x-tri-min.mono svg path:nth-of-type(3),
+    .logo-icon.x-tri-min.mono svg path:nth-of-type(5) { fill: #E5E7EB !important; }
+    .logo-icon.x-tri-min.mono svg .facet { stroke: #222 !important; }
+
+    /* Print */
+    @media print { .logo-icon.x-tri-min svg .facet { stroke: #111; } }
+  </style>
