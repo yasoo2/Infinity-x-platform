@@ -1,20 +1,28 @@
 #!/bin/bash
+set -e
 
-# Build script for Infinity-X Platform
-# This script builds both the frontend (dashboard-x) and installs all dependencies
+echo "Starting build process..."
 
-echo "🚀 Starting build process for Infinity-X Platform..."
-
-# Step 1: Install root dependencies (for shared packages)
-echo "📦 Installing root dependencies..."
+# Install root dependencies
 npm install
 
-# Step 2: Build Frontend (dashboard-x)
-echo "📦 Building frontend (dashboard-x)..."
+# Install and build dashboard-x (frontend)
+echo "Building dashboard-x..."
 cd dashboard-x
 npm install
 npm run build
 cd ..
 
-# Step 3: Final check for backend dependencies (already installed in step 1)
-echo "✅ Build process completed successfully!"
+# Install backend dependencies
+echo "Installing backend dependencies..."
+cd backend
+npm install
+cd ..
+
+# Install worker dependencies
+echo "Installing worker dependencies..."
+cd worker
+npm install
+cd ..
+
+echo "Build complete!"
