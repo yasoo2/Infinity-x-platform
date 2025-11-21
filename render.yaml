@@ -6,7 +6,7 @@ services:
     name: infinity-x-backend
     env: node
     rootDir: backend
-    buildCommand: npm install
+    buildCommand: npm install -g pnpm && pnpm install
     startCommand: node server.mjs
     plan: starter
     autoDeploy: true
@@ -26,7 +26,7 @@ services:
     name: joengine-agi
     env: node
     rootDir: joengine-agi
-    buildCommand: npm install
+    buildCommand: npm install -g pnpm && pnpm install
     startCommand: node index.mjs
     plan: starter
     autoDeploy: true
@@ -46,7 +46,7 @@ services:
     name: joe-worker
     env: node
     rootDir: worker
-    buildCommand: npm install
+    buildCommand: npm install -g pnpm && pnpm install
     startCommand: node worker-enhanced.mjs
     plan: starter
     autoDeploy: true
