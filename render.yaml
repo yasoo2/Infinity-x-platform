@@ -12,6 +12,7 @@ services:
     autoDeploy: true
     envVars:
       - key: NODE_VERSION
+        value: "22"
       - key: PORT
         value: 10000
       - key: MONGO_URI
@@ -32,6 +33,7 @@ services:
     autoDeploy: true
     envVars:
       - key: NODE_VERSION
+        value: "22"
       - key: PORT
         value: 3000 # Separate port for AGI
       - key: OPENAI_API_KEY
@@ -52,6 +54,7 @@ services:
     autoDeploy: true
     envVars:
       - key: NODE_VERSION
+        value: "22"
       - key: OPENAI_API_KEY
         sync: true
       - key: MONGO_URI

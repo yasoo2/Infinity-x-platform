@@ -9,7 +9,7 @@
     "dev": "concurrently \"npm:dev:backend\" \"npm:dev:frontend\"",
     "dev:backend": "nodemon backend/server.mjs",
     "dev:frontend": "cd dashboard-x && npm run dev",
-    "postinstall": "npm install --prefix backend && npm install --prefix dashboard-x && npm install --prefix worker",
+    "postinstall": "pnpm install --prefix backend && pnpm install --prefix dashboard-x && pnpm install --prefix worker",
     "build": "./build.sh",
     "test": "jest"
   },
