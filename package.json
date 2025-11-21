@@ -5,6 +5,7 @@
   "description": "Advanced AI Platform with Sandbox, Planning, Scheduling, and Security Systems",
   "type": "module",
   "scripts": {
+    "preinstall": "pnpm install --no-frozen-lockfile",
     "start": "node backend/server.mjs",
     "dev": "concurrently \"npm:dev:backend\" \"npm:dev:frontend\"",
     "dev:backend": "nodemon backend/server.mjs",
