@@ -1,7 +1,14 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
+@theme {
+  --color-primary: #2563EB;
+  --color-accent: #0EA5E9;
+  --color-dark: #0F172A;
+  
+  --animate-fade-in: fadeIn 0.35s ease-out;
+}
+
+/* CSS Variables for direct usage */
 :root {
   --primary: #2563EB;
   --accent: #0EA5E9;
