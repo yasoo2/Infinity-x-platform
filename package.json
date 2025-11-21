@@ -9,7 +9,7 @@
     "dev": "concurrently \"npm:dev:backend\" \"npm:dev:frontend\"",
     "dev:backend": "nodemon backend/server.mjs",
     "dev:frontend": "cd dashboard-x && npm run dev",
-    "postinstall": "npx pnpm install --prefix backend && npx pnpm install --prefix dashboard-x && npx pnpm install --prefix worker",
+    "postinstall": "npx pnpm install --prefix backend --no-frozen-lockfile && npx pnpm install --prefix dashboard-x --no-frozen-lockfile && npx pnpm install --prefix worker --no-frozen-lockfile",
     "build": "./build.sh",
     "test": "jest"
   },
