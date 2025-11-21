@@ -6,8 +6,13 @@
   "type": "module",
   "scripts": {
     "start": "node backend/server.mjs",
-    "dev": "cd backend && npm run dev",
-    "build": "./build.sh"  },
+    "dev": "concurrently \"npm:dev:backend\" \"npm:dev:frontend\"",
+    "dev:backend": "nodemon backend/server.mjs",
+    "dev:frontend": "cd dashboard-x && npm run dev",
+    "postinstall": "npm install --prefix backend && npm install --prefix dashboard-x && npm install --prefix worker",
+    "build": "./build.sh",
+    "test": "jest"
+  },
   "engines": {
     "node": ">=22.0.0",
     "npm": ">=10.0.0"
