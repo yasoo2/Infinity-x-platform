@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { useLocation } from 'wouter';
+import { useNavigate } from 'react-router-dom';
 import '../styles/home.css';
 
 export default function Home() {
-  const [, setLocation] = useLocation();
+  const navigate = useNavigate();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [language, setLanguage] = useState('en');
   const [email, setEmail] = useState('');
@@ -90,8 +90,9 @@ export default function Home() {
 
       if (response.ok && data.token) {
         localStorage.setItem('authToken', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
         setShowLoginModal(false);
-        setLocation('/joe');
+        navigate('/joe');
       } else {
         setError(data.message || 'Login failed. Please try again.');
       }
