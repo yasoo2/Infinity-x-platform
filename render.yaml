@@ -6,7 +6,7 @@ services:
     name: infinity-x-backend
     env: node
     rootDir: backend
-    buildCommand: npm install -g pnpm && pnpm install
+    buildCommand: npm install -g pnpm && pnpm install --no-frozen-lockfile
     startCommand: node server.mjs
     plan: starter
     autoDeploy: true
@@ -26,7 +26,7 @@ services:
     name: joengine-agi
     env: node
     rootDir: joengine-agi
-    buildCommand: npm install -g pnpm && pnpm install
+    buildCommand: npm install -g pnpm && pnpm install --no-frozen-lockfile
     startCommand: node index.mjs
     plan: starter
     autoDeploy: true
@@ -35,7 +35,7 @@ services:
       - key: PORT
         value: 3000 # Separate port for AGI
       - key: OPENAI_API_KEY
-        sync: true # يشير إلى أن هذا المتغير يجب أن تتم مزامنته من إعدادات Render السرية
+        sync: true
       - key: MONGO_URI
         sync: false
       - key: REDIS_URL
@@ -46,17 +46,15 @@ services:
     name: joe-worker
     env: node
     rootDir: worker
-    buildCommand: npm install -g pnpm && pnpm install
+    buildCommand: npm install -g pnpm && pnpm install --no-frozen-lockfile
     startCommand: node worker-enhanced.mjs
     plan: starter
     autoDeploy: true
     envVars:
       - key: NODE_VERSION
       - key: OPENAI_API_KEY
-        sync: true # يشير إلى أن هذا المتغير يجب أن تتم مزامنته من إعدادات Render السرية
+        sync: true
       - key: MONGO_URI
         sync: false
       - key: REDIS_URL
-        sync: false
-      - key: OPENAI_API_KEY
         sync: false
