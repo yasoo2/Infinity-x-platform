@@ -4,25 +4,15 @@ set -e
 echo "Starting build process..."
 
 # Install root dependencies
+# This triggers the 'postinstall' script in package.json which installs 
+# backend, dashboard-x, and worker dependencies using pnpm
 npm install
 
-# Install and build dashboard-x (frontend)
+# Build dashboard-x (frontend)
 echo "Building dashboard-x..."
 cd dashboard-x
-npm install
+# We can use npm run build here, it will use the vite binary installed by pnpm
 npm run build
-cd ..
-
-# Install backend dependencies
-echo "Installing backend dependencies..."
-cd backend
-npm install
-cd ..
-
-# Install worker dependencies
-echo "Installing worker dependencies..."
-cd worker
-npm install
 cd ..
 
 echo "Build complete!"
