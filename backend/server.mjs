@@ -4,10 +4,12 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+// Define __dirname for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 // Only load .env file in non-production environments
 if (process.env.NODE_ENV !== 'production') {
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = path.dirname(__filename);
     const envPath = path.resolve(__dirname, '.env');
     const result = dotenv.config({ path: envPath });
 
@@ -28,7 +30,6 @@ import fs from 'fs';
 import { WebSocketServer } from 'ws';
 
 // --- Core Components ---
-// Adjusted for new location
 import { initMongo, closeMongoConnection } from './src/core/database.mjs';
 import { setupAuth, requireRole, optionalAuth } from './src/middleware/auth.mjs';
 import liveStreamWebSocket from './src/services/liveStreamWebSocket.mjs';
