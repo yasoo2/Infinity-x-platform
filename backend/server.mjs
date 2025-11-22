@@ -1,16 +1,21 @@
+
 // --- Pre-load environment variables ---
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-// Adjusted for the new file location in backend/
-const envPath = path.resolve(__dirname, '.env');
-const result = dotenv.config({ path: envPath });
+// Only load .env file in non-production environments
+if (process.env.NODE_ENV !== 'production') {
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const envPath = path.resolve(__dirname, '.env');
+    const result = dotenv.config({ path: envPath });
 
-if (result.error) {
-  console.error('[server.mjs] Error loading .env file:', result.error);
+    if (result.error) {
+      console.warn(`[server.mjs] Warning: Could not find or load .env file from ${envPath}. This is expected in some environments. Proceeding without it.`);
+    } else {
+      console.log(`[server.mjs] Loaded environment variables from ${envPath}`);
+    }
 }
 
 // --- Now, import the rest of the app ---
@@ -145,7 +150,7 @@ async function startServer() {
     });
 
     server.listen(CONFIG.PORT, '0.0.0.0', () => {
-      console.log(`Server is running on port ${CONFIG.PORT}`);
+      console.log(`✅ Server is running on http://localhost:${CONFIG.PORT}`);
     });
 
   } catch (error) {
@@ -155,7 +160,9 @@ async function startServer() {
 }
 
 async function gracefulShutdown(signal) {
+  console.log(`Received ${signal}. Shutting down gracefully...`);
   server.close(async () => {
+    console.log('HTTP server closed.');
     await closeMongoConnection();
     process.exit(0);
   });
