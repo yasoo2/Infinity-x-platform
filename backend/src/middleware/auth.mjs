@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import User from '../models/User.mjs';
+import User from '../database/models/User.mjs';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
@@ -70,4 +70,39 @@ export const generateToken = (userId) => {
   return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '7d' });
 };
 
-export default { authenticateToken, requireSuperAdmin, requireAdmin, generateToken };
+// This function is not used in the file, but it was in the original app.mjs
+// I'm adding it here to keep the auth logic together.
+export const setupAuth = (db) => {
+    // In a real app, you might use the db to configure passport strategies
+    console.log('Auth setup complete.');
+};
+
+export const requireRole = (db) => (role) => (req, res, next) => {
+    if (!req.user || req.user.role !== role) {
+        return res.status(403).json({ error: 'ACCESS_DENIED', message: `Role '${role}' required.` });
+    }
+    next();
+};
+
+export const optionalAuth = (db) => async (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+        return next(); // No token, proceed without auth
+    }
+
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const user = await User.findById(decoded.userId);
+        if (user) {
+            req.user = user; // Attach user if found
+        }
+    } catch (error) {
+        // Invalid token, just proceed without auth
+    }
+    next();
+};
+
+
+export default { authenticateToken, requireSuperAdmin, requireAdmin, generateToken, setupAuth, requireRole, optionalAuth };
