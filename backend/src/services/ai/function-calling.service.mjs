@@ -10,10 +10,10 @@ import { SmartPageBuilder } from '../../../joengine-agi/engines/SmartPageBuilder
 
 // --- REFACTORED TOOL IMPORTS ---
 // These are direct imports of functions/objects from their actual locations.
-import * as githubTools from '../tools_refactored/githubTools.mjs';
-import * as deploymentTools from '../tools_refactored/deployment.tool.mjs';
-import * as databaseTools from '../tools_refactored/mongodbTools.mjs';
-import * as memoryTools from '../tools_refactored/memoryTools.mjs';
+import * as githubTools from '../../tools_refactored/githubTools.mjs';
+import * as deploymentTools from '../../tools_refactored/deployment.tool.mjs';
+import * as databaseTools from '../../tools_refactored/mongodbTools.mjs';
+import * as memoryTools from '../../tools_refactored/memoryTools.mjs';
 
 // --- TOOL INSTANTIATION ---
 const config = {
