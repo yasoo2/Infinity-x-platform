@@ -3,8 +3,8 @@
  * نظام ذاكرة متطور مع تعلم آلي وتحليل أنماط ذكي واقتراحات استباقية
  * 
  * @module MemoryManager
- * @version 4.0.0
- * @description نظام ذاكرة قوي يتعلم من التفاعلات، يكتشف التسلسلات، ويقترح تحسينات تلقائياً
+ * @version 4.1.0
+ * @description نظام ذاكرة قوي يتعلم من التفاعلات، يكتشف التسلسلات، ويقترح تحسينات تلقائياً. Includes auto-cleanup.
  */
 
 import { getDB } from '../../core/database.mjs';
@@ -32,9 +32,9 @@ export class MemoryManager extends EventEmitter {
             longTermMemoryThreshold: options.longTermMemoryThreshold || 5, // عدد التكرارات
             cleanupInterval: options.cleanupInterval || 60 * 60 * 1000, // ساعة واحدة
             enableLearning: options.enableLearning !== false,
-            enableSequenceLearning: options.enableSequenceLearning !== false, // NEW
-            sequenceLength: options.sequenceLength || 3, // NEW: طول التسلسل المراد تحليله
-            suggestionThreshold: options.suggestionThreshold || { frequency: 5, successRate: 80 }, // NEW
+            enableSequenceLearning: options.enableSequenceLearning !== false,
+            sequenceLength: options.sequenceLength || 3,
+            suggestionThreshold: options.suggestionThreshold || { frequency: 5, successRate: 80 },
             enableCompression: options.enableCompression !== false,
             enableEncryption: options.enableEncryption || false
         };
@@ -44,7 +44,7 @@ export class MemoryManager extends EventEmitter {
             totalInteractions: 0,
             totalContexts: 0,
             totalPatterns: 0,
-            totalSequencePatterns: 0, // NEW
+            totalSequencePatterns: 0,
             cacheHits: 0,
             cacheMisses: 0,
             learningEvents: 0,
@@ -55,7 +55,38 @@ export class MemoryManager extends EventEmitter {
         // 🔄 بدء التنظيف التلقائي
         this.startAutoCleanup();
         
-        console.log('✅ Memory Manager initialized with advanced features v4.0.0');
+        console.log('✅ Memory Manager initialized with advanced features v4.1.0');
+    }
+
+    /**
+     * 🧹 [FIX] Starts the automatic cleanup process for short-term memory.
+     */
+    startAutoCleanup() {
+        console.log(`🧹 Auto-cleanup scheduled every ${this.config.cleanupInterval / 1000 / 60} minutes.`);
+        setInterval(() => this.performCleanup(), this.config.cleanupInterval);
+    }
+
+    /**
+     * 🗑️ [FIX] Performs the cleanup of expired short-term memory items.
+     */
+    performCleanup() {
+        const now = Date.now();
+        let cleanedCount = 0;
+        console.log('🗑️ Performing memory cleanup...');
+
+        for (const [userId, memoryItems] of this.shortTermMemory.entries()) {
+            const validItems = memoryItems.filter(item => (now - item.metadata.timestamp.getTime()) < this.config.shortTermMemoryTTL);
+            if (validItems.length < memoryItems.length) {
+                cleanedCount += (memoryItems.length - validItems.length);
+                this.shortTermMemory.set(userId, validItems);
+            }
+        }
+
+        if (cleanedCount > 0) {
+            this.stats.memoryCleanups++;
+            console.log(`✅ Cleanup complete. Removed ${cleanedCount} expired items.`);
+            this.emit('cleanup:complete', { cleanedCount });
+        }
     }
 
     /**
@@ -95,11 +126,9 @@ export class MemoryManager extends EventEmitter {
             this.addToConversationMemory(userId, interaction);
             this.addToShortTermMemory(userId, interaction);
             
-            // 🧠 تحديث التعلم
             if (this.config.enableLearning) {
                 await this.updateLearning(userId, interaction);
             }
-            // 🚀 NEW: تحديث تعلم التسلسلات
             if (this.config.enableSequenceLearning) {
                 await this.updateSequenceLearning(userId);
             }
@@ -124,8 +153,9 @@ export class MemoryManager extends EventEmitter {
         }
     }
     
-    // ... (all existing methods from addToConversationMemory to getContextMemory remain the same)
-    
+    // ... (rest of the methods: addToConversationMemory, addToShortTermMemory etc.)
+     addToConversationMemory(userId, interaction) { const history = this.conversations.get(userId) || []; history.push(interaction); if (history.length > this.config.maxConversationHistory) { history.shift(); } this.conversations.set(userId, history); } addToShortTermMemory(userId, interaction) { const memory = this.shortTermMemory.get(userId) || []; memory.push(interaction); this.shortTermMemory.set(userId, memory); } generateSessionId(userId) { return `sess_${userId}_${new Date().toISOString().split('T')[0]}`; } analyzeSentiment(text) { return 'neutral'; } analyzeComplexity(text) { return text.length / 10; } categorizeCommand(command) { return command.split(' ')[0]; } extractKeywords(command) { return command.split(' '); } updateAverageResponseTime(time) { this.stats.averageResponseTime = (this.stats.averageResponseTime * (this.stats.totalInteractions - 1) + time) / this.stats.totalInteractions; }
+
     /**
      * 🧠 تحديث التعلم
      */
@@ -148,31 +178,16 @@ export class MemoryManager extends EventEmitter {
         }
     }
     
-    // =================================================================
-    // 🚀 NEW: Proactive Suggestion and Sequence Learning
-    // =================================================================
-
-    /**
-     * 🔗 تحديث تعلم التسلسل
-     * @description يحلل آخر التفاعلات للمستخدم لاكتشاف تسلسلات الأوامر المتكررة.
-     */
     async updateSequenceLearning(userId) {
         const userConversations = this.conversations.get(userId) || [];
         const sequenceLength = this.config.sequenceLength;
 
-        if (userConversations.length < sequenceLength) {
-            return; // لا يوجد تسلسل كافٍ للتحليل
-        }
+        if (userConversations.length < sequenceLength) return;
 
         const sequence = userConversations.slice(-sequenceLength);
-        
-        // تحقق من أن التسلسل ناجح بالكامل
         const allSuccessful = sequence.every(i => i.result?.success !== false);
-        if (!allSuccessful) {
-            return; // تجاهل التسلسلات الفاشلة
-        }
+        if (!allSuccessful) return;
         
-        // إنشاء نمط تسلسلي
         const patternString = sequence.map(i => i.analysis.category).join('->');
         const originalCommands = sequence.map(i => i.command);
 
@@ -189,40 +204,18 @@ export class MemoryManager extends EventEmitter {
         await this.saveSequencePattern(userId, sequencePattern);
     }
     
-    /**
-     * 💾 حفظ نمط تسلسلي
-     * @description يحفظ أو يحدث نمطًا تسلسليًا في قاعدة البيانات.
-     */
     async saveSequencePattern(userId, sequencePattern) {
         try {
             const db = getDB();
             const now = new Date();
             
             const result = await db.collection('joe_sequence_patterns').findOneAndUpdate(
-                {
-                    userId,
-                    'pattern.type': sequencePattern.type,
-                    'pattern.pattern': sequencePattern.pattern
-                },
+                { userId, 'pattern.type': sequencePattern.type, 'pattern.pattern': sequencePattern.pattern },
                 {
                     $inc: { 'pattern.frequency': 1 },
                     $set: { 'pattern.lastUsed': now },
-                    $push: {
-                        'pattern.history': {
-                            $each: [{ timestamp: now, success: sequencePattern.success, commands: sequencePattern.metadata.originalCommands }],
-                            $slice: -50
-                        }
-                    },
-                    $setOnInsert: {
-                        userId,
-                        pattern: {
-                            type: sequencePattern.type,
-                            pattern: sequencePattern.pattern,
-                            firstSeen: now,
-                            createdAt: now,
-                            frequency: 1,
-                        }
-                    }
+                    $push: { 'pattern.history': { $each: [{ timestamp: now, success: sequencePattern.success, commands: sequencePattern.metadata.originalCommands }], $slice: -50 } },
+                    $setOnInsert: { userId, pattern: { type: sequencePattern.type, pattern: sequencePattern.pattern, firstSeen: now, createdAt: now, frequency: 1 } }
                 },
                 { upsert: true, returnDocument: 'after' }
             );
@@ -230,11 +223,8 @@ export class MemoryManager extends EventEmitter {
             if (result.value) {
                 const history = result.value.pattern.history || [];
                 const successRate = this.calculatePatternSuccessRate(history);
-                await db.collection('joe_sequence_patterns').updateOne(
-                    { _id: result.value._id },
-                    { $set: { 'pattern.successRate': successRate } }
-                );
-                this.stats.totalSequencePatterns = (await db.collection('joe_sequence_patterns').countDocuments({userId})); // Update stats
+                await db.collection('joe_sequence_patterns').updateOne({ _id: result.value._id }, { $set: { 'pattern.successRate': successRate } });
+                this.stats.totalSequencePatterns = (await db.collection('joe_sequence_patterns').countDocuments({userId}));
                 console.log(`🔗 Sequence pattern updated: ${sequencePattern.pattern} for user ${userId}`);
             }
 
@@ -244,22 +234,13 @@ export class MemoryManager extends EventEmitter {
         }
     }
 
-    /**
-     * 💡 الحصول على اقتراحات استباقية
-     * @description يولد اقتراحات بناءً على الأنماط والتسلسلات المكتشفة.
-     * @returns {Promise<Array<object>>} - مصفوفة من كائنات الاقتراحات.
-     */
     async getProactiveSuggestions(userId) {
         try {
             const db = getDB();
             const suggestions = [];
             
             const sequencePatterns = await db.collection('joe_sequence_patterns')
-                .find({ 
-                    userId,
-                    'pattern.frequency': { $gte: this.config.suggestionThreshold.frequency },
-                    'pattern.successRate': { $gte: this.config.suggestionThreshold.successRate }
-                })
+                .find({ userId, 'pattern.frequency': { $gte: this.config.suggestionThreshold.frequency }, 'pattern.successRate': { $gte: this.config.suggestionThreshold.successRate } })
                 .sort({ 'pattern.frequency': -1 })
                 .limit(10)
                 .toArray();
@@ -276,11 +257,7 @@ export class MemoryManager extends EventEmitter {
                         suggestedName: `${p.pattern.pattern.split('->')[0]}_all`,
                         commandToCreate: commands.join(' && '),
                     },
-                    patternInfo: {
-                        pattern: p.pattern.pattern,
-                        frequency: p.pattern.frequency,
-                        successRate: p.pattern.successRate
-                    }
+                    patternInfo: { pattern: p.pattern.pattern, frequency: p.pattern.frequency, successRate: p.pattern.successRate }
                 };
                 suggestions.push(suggestion);
             }
@@ -298,62 +275,30 @@ export class MemoryManager extends EventEmitter {
         }
     }
 
-    // ... (The rest of the file from extractPatterns onwards, with 'calculatePatternSuccessRate' being reused for sequences)
-    
-    /**
-     * 🔍 استخراج الأنماط
-     */
     extractPatterns(interaction) {
         const patterns = [];
-        
-        // 1️⃣ نمط الأمر
         const commandPattern = this.extractCommandPattern(interaction.command);
         patterns.push({
             type: 'command_pattern',
             pattern: commandPattern,
             frequency: 1,
             success: interaction.result?.success !== false,
-            metadata: {
-                originalCommand: interaction.command,
-                category: interaction.analysis.category,
-                complexity: interaction.analysis.complexity
-            }
+            metadata: { originalCommand: interaction.command, category: interaction.analysis.category, complexity: interaction.analysis.complexity }
         });
-
-        // ... (rest of the patterns, service, intent, time, keyword)
-
         return patterns;
     }
 
-    /**
-     * 🔤 استخراج نمط الأمر
-     */
     extractCommandPattern(command) {
-        return command
-            .toLowerCase()
-            .replace(/\\d+/g, 'N')
-            .replace(/[a-z]+/g, 'W')
-            .replace(/[\\u0600-\\u06FF]+/g, 'A')
-            .replace(/\\s+/g, ' ')
-            .trim();
+        return command.toLowerCase().replace(/\d+/g, 'N').replace(/[a-z]+/g, 'W').replace(/[\u0600-\u06FF]+/g, 'A').replace(/\s+/g, ' ').trim();
     }
 
-    // ... (all other existing methods like extractTimePattern, savePattern, etc., until the end of the file)
-    
-    /**
-     * 📊 حساب معدل نجاح النمط
-     */
     calculatePatternSuccessRate(history) {
         if (!history || history.length === 0) return 0;
-        
         const successCount = history.filter(h => h.success).length;
         return (successCount / history.length) * 100;
     }
-    
-    // ... (The rest of the file continues here)
 }
 
-// 🎯 تصدير مثيل واحد
 export const memoryManager = new MemoryManager();
 
 export default MemoryManager;
