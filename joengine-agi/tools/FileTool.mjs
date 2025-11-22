@@ -1,79 +1,77 @@
-/**
- * File Tool - أداة نظام الملفات لـ JOEngine AGI
- * 
- * القدرات:
- * - قراءة محتوى الملفات
- * - كتابة محتوى الملفات (إنشاء أو استبدال)
- * - حذف الملفات
- * - سرد محتويات المجلدات
- */
-
 import fs from 'fs-extra';
 import path from 'path';
-import { BaseTool } from './ToolsSystem.mjs';
+import { BaseTool } from './Tool.mjs';
 
+/**
+ * @class FileTool
+ * @description A tool for interacting with the file system. It allows reading, writing,
+ * deleting, and listing files and directories within a specified working directory.
+ */
 export class FileTool extends BaseTool {
-  constructor() {
-    super(
-      'file',
-      'Read, write, delete, and list files and directories',
-      {
-        action: {
-          type: 'string',
-          required: true,
-          enum: ['read', 'write', 'delete', 'list'],
-          description: 'Action to perform'
-        },
-        path: {
-          type: 'string',
-          required: true,
-          description: 'Path to the file or directory (relative to project root)'
-        },
-        content: {
-          type: 'string',
-          required: false,
-          description: 'Content to write to the file (required for write action)'
-        }
-      }
-    );
+  name = 'file_tool';
+  description = 'Provides capabilities to read, write, delete, and list files and directories. All paths are relative to the project root.';
 
-    // مسار العمل هو جذر المستودع
+  parameters = {
+    action: {
+      type: 'string',
+      description: 'The operation to perform.',
+      required: true,
+      enum: ['read', 'write', 'delete', 'list'],
+    },
+    path: {
+      type: 'string',
+      description: 'The relative path to the file or directory.',
+      required: true,
+    },
+    content: {
+      type: 'string',
+      description: 'The content to write to the file. Required only for the \'write\' action.',
+      required: false,
+    },
+  };
+
+  constructor() {
+    super();
+    // The working directory is the root of the repository.
     this.workDir = process.cwd();
     fs.ensureDirSync(this.workDir);
   }
 
   /**
-   * تنفيذ الأداة
+   * Executes the main tool action by dispatching to the appropriate private method.
+   * @param {object} params - The parameters for the tool execution.
+   * @returns {Promise<object>} The result of the file operation.
    */
   async execute(params) {
+    const validation = this.validate(params);
+    if (!validation.isValid) {
+      return { success: false, error: validation.message };
+    }
+
     const { action } = params;
 
     switch (action) {
       case 'read':
-        return await this.readFile(params);
-      
+        return this._readFile(params.path);
       case 'write':
-        return await this.writeFile(params);
-      
+        return this._writeFile(params.path, params.content);
       case 'delete':
-        return await this.deletePath(params);
-      
+        return this._deletePath(params.path);
       case 'list':
-        return await this.listDir(params);
-      
+        return this._listDirectory(params.path);
       default:
-        throw new Error(`Unknown action: ${action}`);
+        // This case should ideally not be reached due to enum validation
+        return { success: false, error: `Unknown action: ${action}` };
     }
   }
 
   /**
-   * قراءة محتوى ملف
+   * Reads the content of a file.
+   * @private
    */
-  async readFile(params) {
-    const { path: relativePath } = params;
+  async _readFile(relativePath) {
     const absolutePath = path.join(this.workDir, relativePath);
-
-    console.log(`📖 Reading file: ${absolutePath}`);
+    console.log(`Reading file: ${absolutePath}`);
 
     try {
       const content = await fs.readFile(absolutePath, 'utf8');
@@ -81,29 +79,27 @@ export class FileTool extends BaseTool {
         success: true,
         path: relativePath,
         content: content,
-        size: content.length
+        size: content.length,
       };
     } catch (error) {
       return {
         success: false,
-        error: `Failed to read file: ${error.message}`
+        error: `Failed to read file: ${error.message}`,
       };
     }
   }
 
   /**
-   * كتابة محتوى في ملف (إنشاء أو استبدال)
+   * Writes content to a file, creating it or overwriting it.
+   * @private
    */
-  async writeFile(params) {
-    const { path: relativePath, content } = params;
-
-    if (!content) {
-      return { success: false, error: 'Content is required for write action' };
+  async _writeFile(relativePath, content) {
+    if (content === undefined || content === null) {
+      return { success: false, error: "'content' parameter is required for the 'write' action." };
     }
 
     const absolutePath = path.join(this.workDir, relativePath);
-
-    console.log(`✍️ Writing file: ${absolutePath}`);
+    console.log(`Writing file: ${absolutePath}`);
 
     try {
       await fs.ensureDir(path.dirname(absolutePath));
@@ -111,70 +107,70 @@ export class FileTool extends BaseTool {
       return {
         success: true,
         path: relativePath,
-        size: content.length
+        size: content.length,
       };
     } catch (error) {
       return {
         success: false,
-        error: `Failed to write file: ${error.message}`
+        error: `Failed to write file: ${error.message}`,
       };
     }
   }
 
   /**
-   * حذف ملف أو مجلد
+   * Deletes a file or a directory recursively.
+   * @private
    */
-  async deletePath(params) {
-    const { path: relativePath } = params;
+  async _deletePath(relativePath) {
     const absolutePath = path.join(this.workDir, relativePath);
-
-    console.log(`🗑️ Deleting path: ${absolutePath}`);
+    console.log(`Deleting path: ${absolutePath}`);
 
     try {
       await fs.remove(absolutePath);
       return {
         success: true,
         path: relativePath,
-        message: 'Path deleted successfully'
+        message: 'Path deleted successfully.',
       };
     } catch (error) {
       return {
         success: false,
-        error: `Failed to delete path: ${error.message}`
+        error: `Failed to delete path: ${error.message}`,
       };
     }
   }
 
   /**
-   * سرد محتويات مجلد
+   * Lists the contents of a directory.
+   * @private
    */
-  async listDir(params) {
-    const { path: relativePath } = params;
+  async _listDirectory(relativePath) {
     const absolutePath = path.join(this.workDir, relativePath);
-
-    console.log(`📂 Listing directory: ${absolutePath}`);
+    console.log(`Listing directory: ${absolutePath}`);
 
     try {
       const items = await fs.readdir(absolutePath);
-      const details = await Promise.all(items.map(async (item) => {
-        const itemPath = path.join(absolutePath, item);
-        const stat = await fs.stat(itemPath);
-        return {
-          name: item,
-          type: stat.isDirectory() ? 'directory' : 'file',
-          size: stat.size
-        };
-      }));
+      const details = await Promise.all(
+        items.map(async (item) => {
+          const itemPath = path.join(absolutePath, item);
+          const stat = await fs.stat(itemPath);
+          return {
+            name: item,
+            type: stat.isDirectory() ? 'directory' : 'file',
+            size: stat.size,
+          };
+        })
+      );
 
       return {
         success: true,
         path: relativePath,
-        items: details
+        items: details,
       };
     } catch (error) {
       return {
         success: false,
-        error: `Failed to list directory: ${error.message}`
+        error: `Failed to list directory: ${error.message}`,
       };
     }
   }

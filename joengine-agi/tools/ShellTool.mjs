@@ -1,74 +1,80 @@
-/**
- * Shell Tool - أداة سطر الأوامر لـ JOEngine AGI
- * 
- * القدرات:
- * - تنفيذ أوامر نظام التشغيل (مثل ls, mkdir, npm install)
- * - الحصول على مخرجات الأوامر
- */
-
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import path from 'path';
-import { BaseTool } from './ToolsSystem.mjs';
+import { BaseTool } from './Tool.mjs';
 
 const execAsync = promisify(exec);
 
+/**
+ * @class ShellTool
+ * @description A tool for executing system shell commands. It allows running commands
+ * like 'ls', 'mkdir', 'npm install', etc., from the project's root directory.
+ */
 export class ShellTool extends BaseTool {
-  constructor() {
-    super(
-      'shell',
-      'Execute system shell commands (e.g., ls, mkdir, npm install)',
-      {
-        command: {
-          type: 'string',
-          required: true,
-          description: 'The shell command to execute'
-        },
-        timeout: {
-          type: 'number',
-          required: false,
-          description: 'Timeout in milliseconds (default 60000)'
-        }
-      }
-    );
+  name = 'shell_tool';
+  description = 'Executes system shell commands within the project root directory. Use with caution.';
 
-    // مسار العمل هو جذر المستودع
+  parameters = {
+    command: {
+      type: 'string',
+      description: 'The shell command to execute.',
+      required: true,
+    },
+    timeout: {
+      type: 'number',
+      description: 'Timeout in milliseconds for the command execution (default: 60000).',
+      required: false,
+    },
+  };
+
+  constructor() {
+    super();
+    // The working directory is the root of the repository.
     this.workDir = process.cwd();
   }
 
   /**
-   * تنفيذ الأداة
+   * Executes the given shell command.
+   * @param {object} params - The parameters for the tool execution.
+   * @returns {Promise<object>} The result, including stdout and stderr.
    */
   async execute(params) {
+    const validation = this.validate(params);
+    if (!validation.isValid) {
+      return { success: false, error: validation.message };
+    }
+
     const { command, timeout = 60000 } = params;
 
-    console.log(`💻 Executing shell command: ${command}`);
+    console.log(`Executing shell command: \"${command}\"`);
 
     try {
       const { stdout, stderr } = await execAsync(command, {
         cwd: this.workDir,
         timeout: timeout,
-        maxBuffer: 1024 * 1024 * 10 // 10MB
+        maxBuffer: 10 * 1024 * 1024, // 10MB
       });
 
       if (stderr) {
-        // إذا كان هناك خطأ في الإخراج القياسي للخطأ، فسنعتبره تحذيرًا وليس فشلًا
-        console.warn(`Shell command stderr (Warning): ${stderr.trim()}`);
+        // Many tools write to stderr for warnings or progress.
+        // We'll log it but not treat it as a failure.
+        console.warn(`Shell command produced output on stderr: ${stderr.trim()}`);
       }
 
       return {
         success: true,
         command: command,
         stdout: stdout.trim(),
-        stderr: stderr.trim()
+        stderr: stderr.trim(),
       };
     } catch (error) {
+      // This 'catch' block handles actual execution failures (e.g., command not found, non-zero exit code).
+      console.error(`Shell command failed: \"${command}\"`, error);
       return {
         success: false,
         command: command,
-        error: error.message,
+        error: `Command failed with exit code ${error.code}. Message: ${error.message}`,
         stdout: error.stdout?.trim() || '',
-        stderr: error.stderr?.trim() || ''
+        stderr: error.stderr?.trim() || '',
       };
     }
   }

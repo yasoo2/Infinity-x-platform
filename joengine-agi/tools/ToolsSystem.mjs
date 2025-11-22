@@ -1,56 +1,52 @@
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-export class BaseTool {
-  constructor(name, description, parameters = {}) {
-    this.name = name;
-    this.description = description;
-    this.parameters = parameters;
-  }
-  async execute(params) {
-    throw new Error('execute() must be implemented by subclass');
-  }
-}
+import { BaseTool } from './Tool.mjs';
+import { FileTool } from './FileTool.mjs';
+import { ShellTool } from './ShellTool.mjs';
+import { SearchTool } from './SearchTool.mjs';
+import { DeployTool } from './DeployTool.mjs';
+import { CodeTool } from './CodeTool.mjs';
+import { PlannerTool } from './PlannerTool.mjs';
+import { GitHubTool } from './GitHubTool.mjs';
+import { APITool } from './APITool.mjs';
+import { BrowserTool } from './BrowserTool.mjs';
+import { DatabaseTool } from './DatabaseTool.mjs';
+import { VectorDBTool } from './VectorDBTool.mjs';
 
 class ToolsSystem {
   constructor() {
     this.tools = new Map();
+    this.initialize();
   }
 
-  async initialize() {
-    console.log('🛠️  Initializing ToolsSystem...');
-    const toolFiles = await fs.readdir(__dirname);
+  initialize() {
+    console.log('Initializing ToolsSystem...');
+    
+    // Manually register all tools
+    this.registerTool(new FileTool());
+    this.registerTool(new ShellTool());
+    this.registerTool(new SearchTool());
+    this.registerTool(new DeployTool());
+    this.registerTool(new CodeTool());
+    this.registerTool(new PlannerTool());
+    this.registerTool(new GitHubTool());
+    this.registerTool(new APITool());
+    this.registerTool(new BrowserTool());
+    this.registerTool(new DatabaseTool());
+    this.registerTool(new VectorDBTool());
 
-    for (const file of toolFiles) {
-      if (file.endsWith('.mjs') && file !== 'ToolsSystem.mjs' && file !== 'Tool.mjs') {
-        console.log(`  -> Importing tool file: ${file}`);
-        try {
-          const toolModule = await import(`./${file}`);
-          const ToolClass = toolModule.default;
-          if (ToolClass && typeof ToolClass === 'function') {
-            const toolInstance = new ToolClass();
-            this.registerTool(toolInstance.name, toolInstance);
-          } else {
-             console.warn(`  -> ⚠️  Could not find default export or default export is not a class in ${file}`);
-          }
-        } catch (error) {
-          console.error(`  -> ❌ Error loading tool from ${file}:`, error);
-        }
-      }
+    console.log('ToolsSystem initialized successfully.');
+  }
+
+  registerTool(toolInstance) {
+    if (!(toolInstance instanceof BaseTool)) {
+        throw new Error(`Tool '${toolInstance.name}' must extend BaseTool`);
     }
-    console.log('✅ ToolsSystem initialized.');
-  }
 
-  registerTool(name, tool) {
+    const name = toolInstance.name;
     if (this.tools.has(name)) {
-      console.warn(`⚠️  Tool '${name}' is being overwritten.`);
+      console.warn(`Warning: Tool '${name}' is being overwritten.`);
     }
-    this.tools.set(name, tool);
-    console.log(`  -> Registered tool: ${name}`);
+    this.tools.set(name, toolInstance);
+    console.log(`- Registered tool: ${name}`);
   }
 
   getTool(name) {
@@ -58,7 +54,11 @@ class ToolsSystem {
   }
 
   getAllTools() {
-    return [...this.tools.values()].map(t => ({ name: t.name, description: t.description, parameters: t.parameters }));
+    return [...this.tools.values()].map(t => ({ 
+      name: t.name, 
+      description: t.description, 
+      parameters: t.parameters 
+    }));
   }
 
   async executeTool(name, params) {
@@ -66,9 +66,11 @@ class ToolsSystem {
     if (!tool) {
       throw new Error(`Tool '${name}' not found.`);
     }
+    // TODO: Add parameter validation here in the future
     return tool.execute(params);
   }
 }
 
-// Export the class, not an initialized instance
-export { ToolsSystem };
+// Export a single, initialized instance (Singleton Pattern)
+const toolsSystem = new ToolsSystem();
+export { toolsSystem };
