@@ -2,7 +2,7 @@
 import React, { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Float, OrbitControls, Text } from '@react-three/drei';
-import { SiJavascript, SiTypescript, SiPython, SiReact, SiNodedotjs, SiNextdotjs, SiVuedotjs, SiGooglecloud, SiAmazonaws, SiDocker, SiKubernetes } from 'react-icons/si';
+import { SiJavascript, SiTypescript, SiPython, SiReact, SiNodedotjs, SiNextdotjs, SiVuedotjs, SiGooglecloud, SiAmazon, SiDocker, SiKubernetes } from 'react-icons/si';
 
 const techIcons = [
   { icon: SiJavascript, name: 'JavaScript', color: '#F7DF1E' },
@@ -13,7 +13,7 @@ const techIcons = [
   { icon: SiNextdotjs, name: 'Next.js', color: '#000000' },
   { icon: SiVuedotjs, name: 'Vue.js', color: '#4FC08D' },
   { icon: SiGooglecloud, name: 'Google Cloud', color: '#4285F4' },
-  { icon: SiAmazonaws, name: 'AWS', color: '#232F3E' },
+  { icon: SiAmazon, name: 'AWS', color: '#232F3E' },
   { icon: SiDocker, name: 'Docker', color: '#2496ED' },
   { icon: SiKubernetes, name: 'Kubernetes', color: '#326CE5' },
 ];
