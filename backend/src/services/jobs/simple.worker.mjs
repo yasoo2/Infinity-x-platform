@@ -2,7 +2,7 @@
 // backend/src/workers/SimpleWorkerManager.mjs - نسخة متكاملة مع AgiCore
 
 import { ObjectId } from 'mongodb';
-import { initMongo, getDB } from '../db.mjs';
+import { initMongo, getDB } from '../../core/database.mjs';
 import { AgiCore } from '../../../joengine-agi/AgiCore.mjs';
 
 export class SimpleWorkerManager {

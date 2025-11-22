@@ -7,7 +7,7 @@
  * @description نظام ذاكرة قوي يتعلم من التفاعلات، يكتشف التسلسلات، ويقترح تحسينات تلقائياً
  */
 
-import { getDB } from '../db.mjs';
+import { getDB } from '../../core/database.mjs';
 import { EventEmitter } from 'events';
 
 /**
