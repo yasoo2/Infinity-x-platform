@@ -1,63 +1,28 @@
-# render.yaml - Render Configuration for Infinity-X Platform Backend
-
 services:
-  # Backend Service
+  # Service for the Backend API
   - type: web
-    name: infinity-x-backend
+    name: backend-api
     env: node
     rootDir: backend
-    buildCommand: npx pnpm install --no-frozen-lockfile
-    startCommand: node server.mjs
-    plan: starter
-    autoDeploy: true
+    plan: free
+    buildCommand: "npm install"
+    startCommand: "node server.mjs"
     envVars:
       - key: NODE_VERSION
-        value: "22"
-      - key: PORT
-        value: 10000
-      - key: MONGO_URI
+        value: 22
+      - key: DATABASE_URL
+        fromDatabase:
+          name: infinity-x-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SUPER_ADMIN_EMAIL
         sync: false
-      - key: REDIS_URL
-        sync: false
-      - key: FRONTEND_URL
-        value: https://admin.xelitesolutions.com
-
-  # JOEngine AGI Service (The Brain)
-  - type: web
-    name: joengine-agi
-    env: node
-    rootDir: joengine-agi
-    buildCommand: npx pnpm install --no-frozen-lockfile
-    startCommand: node index.mjs
-    plan: starter
-    autoDeploy: true
-    envVars:
-      - key: NODE_VERSION
-        value: "22"
-      - key: PORT
-        value: 3000 # Separate port for AGI
-      - key: OPENAI_API_KEY
-        sync: true
-      - key: MONGO_URI
-        sync: false
-      - key: REDIS_URL
+      - key: SUPER_ADMIN_PASSWORD
         sync: false
 
-  # Worker Service (The Factory)
-  - type: worker
-    name: joe-worker
-    env: node
-    rootDir: worker
-    buildCommand: npx pnpm install --no-frozen-lockfile
-    startCommand: node worker-enhanced.mjs
-    plan: starter
-    autoDeploy: true
-    envVars:
-      - key: NODE_VERSION
-        value: "22"
-      - key: OPENAI_API_KEY
-        sync: true
-      - key: MONGO_URI
-        sync: false
-      - key: REDIS_URL
-        sync: false
+  # Database for the application
+  - type: mongodb
+    name: infinity-x-db
+    plan: free
+

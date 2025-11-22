@@ -1,5 +1,5 @@
 {
-  "name": "infinity-x-platform",
+  "name": "joengine",
   "version": "2.0.0",
   "private": true,
   "description": "Advanced AI Platform with Sandbox, Planning, Scheduling, and Security Systems",
@@ -130,6 +130,6 @@
     "scheduling",
     "security"
   ],
-  "author": "xEliteSolutions",
+  "author": "JOEngine",
   "license": "MIT"
 }

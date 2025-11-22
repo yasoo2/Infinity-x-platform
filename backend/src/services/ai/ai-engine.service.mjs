@@ -5,6 +5,8 @@
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { promises as fs } from 'fs';
+import path from 'path';
 
 // ✅ التحقق من وجود API Key
 if (!process.env.GEMINI_API_KEY) {
@@ -47,6 +49,121 @@ const modelConfig = {
 const model = genAI.getGenerativeModel(modelConfig);
 
 /**
+ * 🧠 إنشاء خطة عمل ذكية
+ * @param {string} task - المهمة المعقدة المطلوبة
+ * @param {object} context - السياق الحالي (ملفات، حالة، ...إلخ)
+ * @returns {Promise<object>} - خطة عمل منظمة بصيغة JSON
+ */
+export async function createPlan(task, context = {}) {
+  console.log(`🧠 جاري التخطيط لمهمة: "${task}"`);
+
+  // 📖 قراءة ديناميكية للأدوات المتاحة
+  const toolsDir = path.join(process.cwd(), 'backend', 'src', 'tools_refactored');
+  const toolFiles = await fs.readdir(toolsDir);
+  const availableTools = toolFiles
+    .filter(file => file.endsWith('.mjs'))
+    .map(file => file.replace('.mjs', ''));
+
+  // 🎨 بناء Prompt قوي ومفصّل
+  const prompt = `
+أنت **جو (Joe)** — مخطط تقني خبير (Expert Technical Planner) ووكيل AI مستقل (Autonomous AI Agent).
+
+**🎯 المهمة الأساسية:** ${task}
+
+**📊 السياق الحالي (Context):**
+${JSON.stringify(context, null, 2)}
+
+**🛠️ الأدوات المتاحة (Available Tools):**
+${availableTools.join(', ')}
+
+**📖 تعليمات التخطيط:**
+
+1.  **فكر خطوة بخطوة:** قسّم المهمة الأساسية إلى سلسلة من الخطوات الصغيرة والمنطقية والقابلة للتنفيذ.
+2.  **اختر الأداة المناسبة:** لكل خطوة، اختر الأداة **الأنسب** من قائمة الأدوات المتاحة.
+3.  **حدد الإجراء والمعلمات:** لكل خطوة، حدد الإجراء \`action\` المطلوب من الأداة، والمعلمات \`params\` اللازمة لتنفيذه بدقة.
+4.  **اعتمد على النتائج:** يمكنك الإشارة إلى أن مدخل خطوة ما هو ناتج خطوة سابقة (e.g., "content": "result of step 1").
+5.  **التفكير النقدي:** فكر في أفضل طريقة لإنجاز المهمة. هل تحتاج إلى قراءة ملف أولاً؟ هل تحتاج للبحث عن معلومة؟ هل تحتاج لكتابة كود؟
+6.  **الخطة فقط:** يجب أن يكون الناتج خطة فقط. لا تقم بتنفيذ أي شيء بنفسك.
+
+**🚫 ممنوع:**
+- اختراع أدوات غير موجودة في القائمة.
+- ترك معلمات مطلوبة فارغة.
+- إنشاء خطط غير منطقية أو غير قابلة للتنفيذ.
+
+**📤 صيغة الرد (JSON فقط - CRITICAL):**
+يجب أن يكون الرد بصيغة JSON تحتوي على قائمة من الخطوات.
+
+\`\`\`json
+{
+  "plan": [
+    {
+      "step": 1,
+      "thought": "سأبدأ بقراءة محتوى الملف المطلوب لتحليله.",
+      "tool": "fileSystem",
+      "action": "readFile",
+      "params": {
+        "path": "path/to/file.js"
+      }
+    },
+    {
+      "step": 2,
+      "thought": "الآن بعد أن حصلت على الكود، سأستخدم أداة تحليل الكود لفهم بنيته.",
+      "tool": "code",
+      "action": "analyze",
+      "params": {
+        "language": "javascript",
+        "code": "result of step 1"
+      }
+    },
+    {
+      "step": 3,
+      "thought": "بناءً على التحليل، سأقوم بكتابة ملف جديد يحتوي على التحسينات.",
+      "tool": "fileSystem",
+      "action": "writeFile",
+      "params": {
+        "path": "path/to/new_file.js",
+        "content": "new generated code here"
+      }
+    }
+  ]
+}
+\`\`\`
+
+**ابدأ الآن في بناء الخطة للمهمة الأساسية.**
+`;
+
+  try {
+    console.log('🔄 جاري توليد الخطة مع Gemini...');
+    
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    
+    let text = response.text();
+    text = text.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim();
+    
+    const jsonMatch = text.match(/{\s*[\s\S]*}/);
+    if (!jsonMatch) {
+      throw new Error('الرد من Gemini غير صالح - لا يحتوي على JSON للخطة');
+    }
+
+    const planData = JSON.parse(jsonMatch[0]);
+
+    console.log('✅ تم إنشاء الخطة بنجاح');
+    return {
+        success: true,
+        task: task,
+        plan: planData.plan || [],
+        timestamp: new Date().toISOString()
+    };
+
+  } catch (error) {
+    console.error('❌ خطأ في إنشاء الخطة:', error);
+    throw new Error(`فشل إنشاء الخطة: ${error.message}`);
+  }
+}
+
+
+/**
  * 🛡️ تحسين كود موجود مع حماية كاملة ضد الحذف
  * @param {string} originalCode - الكود الأصلي
  * @param {string} command - الأمر المطلوب (مثال: "أضف dark mode")
@@ -66,10 +183,7 @@ export async function improveCode(originalCode, command = "حسّن الكود",
   const originalLength = originalCode.length;
   const originalLines = originalCode.split('\n').length;
 
-  console.log(`📊 معلومات الكود الأصلي:
-  - الطول: ${originalLength} حرف
-  - عدد الأسطر: ${originalLines}
-  - الأمر: ${command}`);
+  console.log(`📊 معلومات الكود الأصلي:\n  - الطول: ${originalLength} حرف\n  - عدد الأسطر: ${originalLines}\n  - الأمر: ${command}`);
 
   // 🎨 بناء Prompt محسّن ومفصّل
   const prompt = `
@@ -129,7 +243,7 @@ ${originalCode}
     text = text.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim();
     
     // 📦 استخراج JSON
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const jsonMatch = text.match(/{\s*[\s\S]*}/);
     
     if (!jsonMatch) {
       console.error('❌ فشل استخراج JSON من الرد');
@@ -147,10 +261,7 @@ ${originalCode}
     const newLines = data.content.split('\n').length;
     const sizeRatio = newLength / originalLength;
 
-    console.log(`📊 معلومات الكود الجديد:
-  - الطول: ${newLength} حرف (${(sizeRatio * 100).toFixed(1)}%)
-  - عدد الأسطر: ${newLines}
-  - الفرق: ${newLength - originalLength} حرف`);
+    console.log(`📊 معلومات الكود الجديد:\n  - الطول: ${newLength} حرف (${(sizeRatio * 100).toFixed(1)}%)\n  - عدد الأسطر: ${newLines}\n  - الفرق: ${newLength - originalLength} حرف`);
 
     // 🛡️ حماية من النقصان الكبير
     if (sizeRatio < 0.7) {
@@ -392,7 +503,7 @@ ${code}
       .replace(/```\n?/g, '')
       .trim();
     
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const jsonMatch = text.match(/{\s*[\s\S]*}/);
     return jsonMatch ? JSON.parse(jsonMatch[0]) : {};
     
   } catch (error) {
@@ -429,7 +540,7 @@ Return only the converted code in JSON format:
       .replace(/```\n?/g, '')
       .trim();
     
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const jsonMatch = text.match(/{\s*[\s\S]*}/);
     return jsonMatch ? JSON.parse(jsonMatch[0]) : {};
     
   } catch (error) {
@@ -439,6 +550,7 @@ Return only the converted code in JSON format:
 
 // 📤 تصدير جميع الدوال
 export default {
+  createPlan,
   improveCode,
   generateWebsite,
   analyzeCode,
