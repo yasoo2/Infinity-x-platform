@@ -8,13 +8,18 @@ import { AgiCore } from '../../../joengine-agi/AgiCore.mjs';
 export class SimpleWorkerManager {
   constructor(config = {}) {
     this.db = null;
-    this.agiCore = null; // سيتم تهيئة AgiCore هنا
+    this.agiCore = null; 
     this.isRunning = false;
     this.activeJobs = new Map();
-    this.maxConcurrent = config.maxConcurrent || 1; // معالجة أمر واحد في كل مرة لضمان الاستقرار
+    this.maxConcurrent = config.maxConcurrent || 1;
+    this.openaiApiKey = config.openaiApiKey; // Store the API key
     this.client = {
       close: async () => { console.log('SimpleWorkerManager client closed (mock)'); }
     };
+
+    if (!this.openaiApiKey) {
+        console.warn('⚠️ WorkerManager initialized without an OpenAI API key. AgiCore may fail.');
+    }
   }
 
   async start() {
@@ -22,14 +27,14 @@ export class SimpleWorkerManager {
       await initMongo();
       this.db = getDB();
 
-      // تهيئة AgiCore
+      // تهيئة AgiCore مع تمرير مفتاح API
       console.log('🔄 Initializing AgiCore...');
-      this.agiCore = new AgiCore();
+      this.agiCore = new AgiCore({ openaiApiKey: this.openaiApiKey }); // Pass the key
       await this.agiCore.initialize();
       console.log('✅ AgiCore Initialized');
 
       this.isRunning = true;
-      this.watchJobs(); // بدء مراقبة المهام
+      this.watchJobs();
       console.log('✅ Worker Manager started and watching for joe_commands');
     } catch (error) {
       console.error('❌ Worker Manager or AgiCore failed to start:', error.message);
@@ -40,13 +45,11 @@ export class SimpleWorkerManager {
   async stop() {
     this.isRunning = false;
     console.log('🛑 Worker Manager stopping...');
-    // يمكنك إضافة أي منطق إيقاف إضافي هنا إذا لزم الأمر
   }
 
   async watchJobs() {
     if (!this.isRunning) return;
 
-    // البحث عن مهام جديدة فقط إذا كان هناك مجال
     if (this.activeJobs.size < this.maxConcurrent) {
       try {
         const jobs = await this.db.collection('joe_commands')
@@ -63,8 +66,7 @@ export class SimpleWorkerManager {
       }
     }
     
-    // جدولة الفحص التالي
-    setTimeout(() => this.watchJobs(), 5000); // التحقق كل 5 ثوانٍ
+    setTimeout(() => this.watchJobs(), 5000);
   }
 
   async processJoeCommand(job) {
@@ -73,12 +75,9 @@ export class SimpleWorkerManager {
     this.activeJobs.set(jobId, job);
 
     try {
-      // 1. تحديث حالة المهمة إلى "WORKING"
       await this.updateJobStatus(job._id, 'WORKING', { startedAt: new Date() });
-
       const task = job.commandText;
 
-      // 2. إنشاء خطة باستخدام AgiCore
       await this.logActivity(jobId, 'PLANNING', `Generating plan for: "${task}"`);
       const plan = await this.agiCore.generatePlan(task);
 
@@ -89,25 +88,20 @@ export class SimpleWorkerManager {
       await this.updateJobData(job._id, { plan });
       await this.logActivity(jobId, 'PLAN_GENERATED', `Plan created with ${plan.length} steps.`);
 
-      // 3. تنفيذ الخطة باستخدام AgiCore
       await this.logActivity(jobId, 'EXECUTING', 'Starting plan execution...');
       await this.agiCore.executePlan(plan, async (step, result) => {
-        // تحديث النشاط بعد كل خطوة
         await this.logActivity(jobId, 'STEP_COMPLETED', `[${step.toolName}] ${step.description} -> ${result.substring(0, 100)}...`);
       });
 
-      // 4. تحديث حالة المهمة إلى "DONE"
       await this.updateJobStatus(job._id, 'DONE', { finishedAt: new Date() });
       await this.logActivity(jobId, 'COMPLETED', 'Command executed successfully.');
       console.log(`✅ Command finished: ${jobId}`);
 
     } catch (error) {
       console.error(`❌ Error processing command ${jobId}:`, error);
-      // تحديث حالة المهمة إلى "FAILED"
       await this.updateJobStatus(job._id, 'FAILED', { error: error.message });
       await this.logActivity(jobId, 'ERROR', error.message);
     } finally {
-      // إزالة المهمة من قائمة المهام النشطة
       this.activeJobs.delete(jobId);
     }
   }

@@ -1,6 +1,6 @@
 /**
- * Smart Page Builder Engine - CORRECTED & SIMPLIFIED
- * This version uses standard string concatenation to avoid all escaping issues.
+ * Smart Page Builder Engine - DIAGNOSTIC VERSION
+ * Added a debug log to inspect the environment variable at runtime.
  */
 
 import { OpenAI } from 'openai';
@@ -8,15 +8,18 @@ import { promises as fs } from 'fs';
 
 export class SmartPageBuilder {
   constructor(config) {
+    // --- DIAGNOSTIC LOG ---
+    console.log('[SmartPageBuilder] Checking OPENAI_API_KEY:', process.env.OPENAI_API_KEY);
+    
     this.config = config;
-    this.openai = new OpenAI({ apiKey: config.openaiApiKey });
+    // The next line is where the error occurs if the key is missing.
+    this.openai = new OpenAI({ apiKey: config.openaiApiKey || process.env.OPENAI_API_KEY });
     this.model = 'gpt-4o';
   }
 
   async buildPageFromDescription(description, filePath, style = 'modern') {
     console.log(`\n🎨 Building smart page: ${description}`);
 
-    // SAFE IMPLEMENTATION: Using standard string concatenation to build the prompt.
     const prompt = 'أنت **جو (Joe)** — مطور ويب محترف متخصص في إنشاء مواقع حديثة واحترافية.\n\n' +
       '**🎯 المطلوب:** إنشاء موقع ويب كامل\n\n' +
       '**📝 الوصف:** ' + description + '\n\n' +

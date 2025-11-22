@@ -6,11 +6,13 @@
 import { OpenAI } from 'openai';
 
 export class ReasoningEngine {
-    constructor(config) {
-        this.config = config;
+    constructor(config = {}) {
+        if (!config.openaiApiKey) {
+            throw new Error('OpenAI API key is required for the ReasoningEngine.');
+        }
         this.openai = new OpenAI({ apiKey: config.openaiApiKey });
-        this.model = 'gpt-4o'; // Use a powerful model for reasoning
-        this.availableTools = config.availableTools || []; // Should be loaded from a tool manager
+        this.model = 'gpt-4o'; 
+        this.availableTools = config.availableTools || []; 
     }
 
     /**
@@ -76,7 +78,7 @@ ${this.availableTools.map(tool => `- **${tool.name}**: ${tool.description}`).joi
                     { role: 'user', content: `URGENT: Create a plan for this request: \"${userRequest}\"` }
                 ],
                 response_format: { type: 'json_object' },
-                temperature: 0.1, // Low temperature for deterministic planning
+                temperature: 0.1, 
             });
 
             const planJson = response.choices[0].message.content;

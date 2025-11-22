@@ -1,12 +1,29 @@
+// --- Pre-load environment variables ---
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const envPath = path.resolve(__dirname, '..', '..', '.env');
+const result = dotenv.config({ path: envPath });
+
+// --- DIAGNOSTIC LOG ---
+console.log('[app.mjs] Loading .env from:', envPath);
+if (result.error) {
+  console.error('[app.mjs] Error loading .env file:', result.error);
+} else {
+  console.log('[app.mjs] .env file loaded. OPENAI_API_KEY:', process.env.OPENAI_API_KEY);
+}
+// ----------------------
+
+
+// --- Now, import the rest of the app ---
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import dotenv from 'dotenv';
 import http from 'http';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { WebSocketServer } from 'ws';
 
@@ -16,15 +33,11 @@ import { setupAuth, requireRole, optionalAuth } from '../middleware/auth.mjs';
 import liveStreamWebSocket from '../services/liveStreamWebSocket.mjs';
 
 // --- Services ---
-import SandboxManager from '../sandbox/SandboxManager.mjs'; // Corrected Path
+import SandboxManager from '../sandbox/SandboxManager.mjs';
 import FileProcessingService from '../services/files/file-processing.service.mjs';
 import { SimpleWorkerManager } from '../services/jobs/simple.worker.mjs';
 import JoeAdvancedService from '../services/ai/joe-advanced.service.mjs'; 
 import MemoryManager from '../services/memory/memory.service.mjs'; 
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
 
 // =========================
 // 🎯 Configuration
@@ -32,7 +45,8 @@ dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
 const CONFIG = {
   PORT: process.env.PORT || 4000,
   NODE_ENV: process.env.NODE_ENV || 'development',
-  SESSION_SECRET: process.env.SESSION_SECRET || 'dev-secret-key'
+  SESSION_SECRET: process.env.SESSION_SECRET || 'dev-secret-key',
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY
 };
 
 // =========================
@@ -40,7 +54,7 @@ const CONFIG = {
 // =========================
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocketServer({ noServer: true }); // Let the HTTP server handle upgrades
+const wss = new WebSocketServer({ noServer: true });
 
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
@@ -49,7 +63,7 @@ app.disable('x-powered-by');
 // 📦 Core Middlewares
 // =========================
 app.use(helmet());
-app.use(cors({ origin: '*', credentials: true })); // Loosened for development
+app.use(cors({ origin: '*', credentials: true }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
@@ -58,15 +72,15 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // =========================
 async function setupDependencies() {
     const db = await initMongo();
-
     const memoryManager = new MemoryManager({ db }); 
     const sandboxManager = new SandboxManager();
-    
-    // Pass dependencies to services that need them
-    const joeAdvancedService = new JoeAdvancedService({ memoryManager, sandboxManager }); 
+    const joeAdvancedService = JoeAdvancedService; 
     const fileProcessingService = new FileProcessingService({ memoryManager });
-
-    const workerManager = new SimpleWorkerManager({ maxConcurrent: 3 });
+    // Corrected: Pass the API key to the worker manager
+    const workerManager = new SimpleWorkerManager({ 
+        maxConcurrent: 3, 
+        openaiApiKey: CONFIG.OPENAI_API_KEY 
+    });
 
     console.log('✅ All services instantiated.');
 
@@ -77,7 +91,7 @@ async function setupDependencies() {
         fileProcessingService,
         joeAdvancedService,
         workerManager,
-        requireRole: requireRole(db), // Pass db to auth middleware factory
+        requireRole: requireRole(db),
         optionalAuth: optionalAuth(db),
     };
 }
@@ -120,11 +134,8 @@ async function applyRoutes(dependencies) {
 async function startServer() {
   try {
     const dependencies = await setupDependencies();
-    
     setupAuth(dependencies.db);
-
     await applyRoutes(dependencies);
-    
     await dependencies.workerManager.start();
 
     server.on('upgrade', (request, socket, head) => {
