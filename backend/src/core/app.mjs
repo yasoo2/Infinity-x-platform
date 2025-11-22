@@ -16,13 +16,11 @@ import { setupAuth, requireRole, optionalAuth } from '../middleware/auth.mjs';
 import liveStreamWebSocket from '../services/liveStreamWebSocket.mjs';
 
 // --- Services ---
-// NOTE: MemoryManager and JoeAdvancedService are instantiated in setupDependencies
-// to avoid circular dependency issues if they need the db instance.
-import SandboxManager from '../services/sandbox/SandboxManager.mjs';
+import SandboxManager from '../sandbox/SandboxManager.mjs'; // Corrected Path
 import FileProcessingService from '../services/files/file-processing.service.mjs';
 import { SimpleWorkerManager } from '../services/jobs/simple.worker.mjs';
-import JoeAdvancedService from '../services/ai/joe-advanced.service.mjs'; // Direct import
-import MemoryManager from '../services/memory/memory.service.mjs'; // Direct import
+import JoeAdvancedService from '../services/ai/joe-advanced.service.mjs'; 
+import MemoryManager from '../services/memory/memory.service.mjs'; 
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -61,14 +59,13 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 async function setupDependencies() {
     const db = await initMongo();
 
-    // Pass db to services that need it
     const memoryManager = new MemoryManager({ db }); 
-    const joeAdvancedService = new JoeAdvancedService({ memoryManager }); // Pass memory manager to AI
-
     const sandboxManager = new SandboxManager();
+    
+    // Pass dependencies to services that need them
+    const joeAdvancedService = new JoeAdvancedService({ memoryManager, sandboxManager }); 
     const fileProcessingService = new FileProcessingService({ memoryManager });
 
-    // Background job worker
     const workerManager = new SimpleWorkerManager({ maxConcurrent: 3 });
 
     console.log('✅ All services instantiated.');
@@ -106,7 +103,6 @@ async function applyRoutes(dependencies) {
              continue;
         }
 
-        // Inject the entire dependency container into the factory
         const router = routerFactory(dependencies);
         app.use(routePath, router);
         console.log(`✅ Route registered: ${routePath}`);
@@ -125,30 +121,23 @@ async function startServer() {
   try {
     const dependencies = await setupDependencies();
     
-    // Setup core authentication strategies
     setupAuth(dependencies.db);
 
-    // Load all API routes and inject dependencies
     await applyRoutes(dependencies);
     
-    // Start the background job workers
     await dependencies.workerManager.start();
 
-    // Handle WebSocket Upgrades
     server.on('upgrade', (request, socket, head) => {
-        // Hand off to the specific websocket handler
         liveStreamWebSocket.handleUpgrade(request, socket, head, (ws) => {
             liveStreamWebSocket.emit('connection', ws, request);
         });
     });
     console.log('✅ WebSocket server integrated.');
 
-    // Handle 404s
     app.use((req, res) => {
         res.status(404).json({ error: 'NOT_FOUND', message: `Route ${req.method} ${req.path} not found` });
     });
 
-    // Global error handler
     app.use((err, req, res, next) => {
         console.error('❌ Global Error:', err);
         res.status(500).json({ error: 'SERVER_ERROR', message: err.message });
@@ -168,7 +157,6 @@ async function gracefulShutdown(signal) {
   console.log(`\n🛑 Received ${signal}. Shutting down...`);
   server.close(async () => {
     await closeMongoConnection();
-    // Optionally, add workerManager.stop()
     console.log('✅ All services stopped. Server shut down gracefully.');
     process.exit(0);
   });
