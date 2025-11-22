@@ -1,6 +1,7 @@
 /**
  * 🚀 Joe Orchestrator - المنسق الرئيسي للمهام
  * هذا هو نقطة الدخول لتشغيل نظام JOEngine بشكل مستقل.
+ * يعتمد هذا الملف على متغيرات البيئة التي يتم توفيرها بواسطة بيئة التشغيل (مثل IDX).
  * 
  * كيفية الاستخدام:
  * node backend/joe.mjs
@@ -14,6 +15,13 @@ const mainTask = "قم أولاً بقراءة محتوى الملف src/service
 
 // --- التنفيذ ---
 async function main() {
+    // التحقق من أن المفتاح موجود في بيئة التشغيل
+    if (!process.env.GEMINI_API_KEY) {
+        console.error('❌ CRITICAL ERROR: The GEMINI_API_KEY environment variable is not set.');
+        console.error('Please ensure it is defined in your environment configuration (e.g., .idx/dev.nix) and that you have reloaded the workspace.');
+        return; // التوقف عن التنفيذ
+    }
+
     console.log(`🎯 Starting main task: \"${mainTask}\"`);
     console.log('--------------------------------------------------');
 
@@ -58,4 +66,5 @@ async function main() {
     }
 }
 
+// بدء العملية بأكملها
 main();
