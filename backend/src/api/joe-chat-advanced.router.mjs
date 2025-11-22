@@ -1,37 +1,36 @@
 import express from 'express';
 
-// REFACTORED: Import from the new service layer
-import { processAdvancedQuery } from '../services/joe/joe-advanced.service.mjs';
+// REFACTORED & CORRECTED: Import from the unified AI service layer
+import { processMessage } from '../services/ai/joe-advanced.service.mjs';
 
 const joeChatAdvancedRouterFactory = ({ requireRole }) => {
     const router = express.Router();
 
     /**
-     * @route POST /api/v1/joe/chat/advanced
+     * @route POST /api/v1/joe-chat-advanced
      * @description Processes a user message using the advanced Joe engine with tool-calling capabilities.
      * @access USER
-     * @body { message: string, context: Array<Object>, aiEngine?: string }
+     * @body { message: string, sessionId: string }
      */
-    router.post('/', requireRole('USER'), async (req, res) => {
+    router.post('/', requireRole('USER', true), async (req, res) => {
         try {
-            const { message, context = [] } = req.body;
+            const { message, sessionId } = req.body;
             const userId = req.user._id.toString();
 
             if (!message) {
                 return res.status(400).json({ success: false, error: 'Message is required' });
             }
-
-            console.log(`🤖 Advanced Joe processing message for user: ${userId}`);
-
-            // Call the dedicated advanced processing service
-            const result = await processAdvancedQuery({ userId, message, context });
-
-            if (result.success) {
-                res.json(result);
-            } else {
-                // If the service layer handled the error, it will provide a message
-                res.status(500).json(result);
+            
+            if (!sessionId) {
+                return res.status(400).json({ success: false, error: 'Session ID is required' });
             }
+
+            console.log(`🤖 Advanced Joe processing message for user: ${userId} in session: ${sessionId}`);
+
+            // Call the corrected service and function name
+            const result = await processMessage(userId, message, sessionId);
+
+            res.json(result);
 
         } catch (error) {
             console.error('❌ Advanced Joe Router Error:', error);

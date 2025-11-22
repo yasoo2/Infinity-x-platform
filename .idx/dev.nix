@@ -11,7 +11,7 @@
 
   # متغيرات البيئة
   env = {
-    GEMINI_API_KEY = "AIzaSyADMDXAYppP56iyDULptHtQJCWJGMal-fE"; # استبدل هذا بمفتاحك الحقيقي
+    GEMINI_API_KEY = "AIzaSyC8meZmS5U1plDU7qwaG-QcWLdfWHXA6uU";
     NPM_CONFIG_FROZEN_LOCKFILE = "false";
   };
   

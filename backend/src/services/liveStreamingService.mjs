@@ -1,5 +1,4 @@
 import { EventEmitter } from 'events';
-import { spawn } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import sharp from 'sharp';
@@ -184,7 +183,7 @@ export class LiveStreamingService extends EventEmitter {
       </svg>
     `;
 
-    return Buffer.from(svg);
+    return Buffer.from(svg, 'utf-8');
   }
 
   /**
@@ -245,7 +244,12 @@ export class LiveStreamingService extends EventEmitter {
   updateStats() {
     if (this.stats.startTime) {
       this.stats.uptime = Date.now() - this.stats.startTime;
-      this.stats.fps = (this.stats.totalFrames * 1000) / this.stats.uptime;
+      // حماية من القسمة على صفر
+      if (this.stats.uptime > 0) {
+        this.stats.fps = (this.stats.totalFrames * 1000) / this.stats.uptime;
+      } else {
+        this.stats.fps = 0;
+      }
     }
   }
 
@@ -253,11 +257,13 @@ export class LiveStreamingService extends EventEmitter {
    * تنسيق الوقت المنقضي
    */
   formatUptime(ms) {
-    const seconds = Math.floor((ms / 1000) % 60);
-    const minutes = Math.floor((ms / (1000 * 60)) % 60);
-    const hours = Math.floor((ms / (1000 * 60 * 60)) % 24);
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
 
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    const pad = (n) => n.toString().padStart(2, '0');
+    return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
   }
 
   /**
