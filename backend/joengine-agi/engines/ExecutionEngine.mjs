@@ -3,7 +3,7 @@
  * Responsible for taking a plan from a Reasoning Engine and executing it reliably.
  */
 
-import { executeFunction } from '../../backend/src/services/ai/function-calling.service.mjs';
+import { executeFunction } from '../../src/services/ai/function-calling.service.mjs';
 
 export class ExecutionEngine {
     constructor() {
