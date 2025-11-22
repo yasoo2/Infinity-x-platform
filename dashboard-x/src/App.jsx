@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import LandingPage from './components/landing/LandingPage';
 import LoginModal from './components/landing/LoginModal';
-import JoeDashboard from './components/JoeDashboard';
+import JoeComputer from './components/JoeComputer'; // <--- Import the correct component
 
 // --------- CONFIG ----------
 const ADMIN_EMAIL = "info.auraaluxury@gmail.com";
@@ -24,7 +24,7 @@ const App = () => {
   };
 
   if (isLoggedIn) {
-    return <JoeDashboard />;
+    return <JoeComputer />; // <--- Render the correct component
   }
 
   return (
