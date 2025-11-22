@@ -6,18 +6,12 @@
   packages = [
     pkgs.nodejs_22
     pkgs.pnpm
-    pkgs.nodePackages.npm
-    pkgs.nodePackages.nodemon
-    pkgs.nodePackages.concurrently
-    pkgs.nodePackages.prettier
-    pkgs.nodePackages.eslint
     pkgs.openssl
   ];
 
   # متغيرات البيئة
   env = {
     GEMINI_API_KEY = ""; # استبدل هذا بمفتاحك الحقيقي
-    # تعطيل التحقق الصارم من lockfile في بيئة التطوير لتجنب المشاكل
     NPM_CONFIG_FROZEN_LOCKFILE = "false";
   };
   
@@ -33,8 +27,8 @@
     
     # أوامر تشغيل المشروع
     workspace = {
-      # استخدام pnpm للتثبيت مع --no-frozen-lockfile لضمان التثبيت
-      onLoad = "echo 'Installing dependencies...' && pnpm install --no-frozen-lockfile";
+      # استخدام pnpm للتثبيت
+      onLoad = "pnpm install --no-frozen-lockfile";
       start = {
         command = "npm run dev";
         notification = {
