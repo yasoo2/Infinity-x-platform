@@ -12,15 +12,7 @@ export default function Overview() {
     try {
       setLoading(true);
       setError(null);
-      // Mock data since /api/v1/system/metrics doesn't exist yet
-      const data = {
-        system: {
-          usersTotal: 1,
-          activeSessions: 1,
-          redisOnline: true,
-          mongoOnline: true
-        }
-      };
+      const data = await getSystemStatus();
       setStatus(data);
       setLastUpdated(new Date());
     } catch (err) {
