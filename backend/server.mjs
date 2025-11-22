@@ -5,18 +5,13 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const envPath = path.resolve(__dirname, '..', '..', '.env');
+// Adjusted for the new file location in backend/
+const envPath = path.resolve(__dirname, '..', '.env');
 const result = dotenv.config({ path: envPath });
 
-// --- DIAGNOSTIC LOG ---
-console.log('[app.mjs] Loading .env from:', envPath);
 if (result.error) {
-  console.error('[app.mjs] Error loading .env file:', result.error);
-} else {
-  console.log('[app.mjs] .env file loaded. OPENAI_API_KEY:', process.env.OPENAI_API_KEY);
+  console.error('[server.mjs] Error loading .env file:', result.error);
 }
-// ----------------------
-
 
 // --- Now, import the rest of the app ---
 import express from 'express';
@@ -28,22 +23,23 @@ import fs from 'fs';
 import { WebSocketServer } from 'ws';
 
 // --- Core Components ---
-import { initMongo, closeMongoConnection } from './database.mjs';
-import { setupAuth, requireRole, optionalAuth } from '../middleware/auth.mjs';
-import liveStreamWebSocket from '../services/liveStreamWebSocket.mjs';
+// Adjusted for new location
+import { initMongo, closeMongoConnection } from './src/core/database.mjs';
+import { setupAuth, requireRole, optionalAuth } from './src/middleware/auth.mjs';
+import liveStreamWebSocket from './src/services/liveStreamWebSocket.mjs';
 
 // --- Services ---
-import SandboxManager from '../sandbox/SandboxManager.mjs';
-import FileProcessingService from '../services/files/file-processing.service.mjs';
-import { SimpleWorkerManager } from '../services/jobs/simple.worker.mjs';
-import JoeAdvancedService from '../services/ai/joe-advanced.service.mjs'; 
-import MemoryManager from '../services/memory/memory.service.mjs'; 
+import SandboxManager from './src/sandbox/SandboxManager.mjs';
+import FileProcessingService from './src/services/files/file-processing.service.mjs';
+import { SimpleWorkerManager } from './src/services/jobs/simple.worker.mjs';
+import JoeAdvancedService from './src/services/ai/joe-advanced.service.mjs'; 
+import MemoryManager from './src/services/memory/memory.service.mjs'; 
 
 // =========================
 // 🎯 Configuration
 // =========================
 const CONFIG = {
-  PORT: process.env.PORT || 4000,
+  PORT: process.env.PORT || 4001,
   NODE_ENV: process.env.NODE_ENV || 'development',
   SESSION_SECRET: process.env.SESSION_SECRET || 'dev-secret-key',
   OPENAI_API_KEY: process.env.OPENAI_API_KEY
@@ -76,13 +72,10 @@ async function setupDependencies() {
     const sandboxManager = new SandboxManager();
     const joeAdvancedService = JoeAdvancedService; 
     const fileProcessingService = new FileProcessingService({ memoryManager });
-    // Corrected: Pass the API key to the worker manager
     const workerManager = new SimpleWorkerManager({ 
         maxConcurrent: 3, 
         openaiApiKey: CONFIG.OPENAI_API_KEY 
     });
-
-    console.log('✅ All services instantiated.');
 
     return {
         db,
@@ -100,8 +93,7 @@ async function setupDependencies() {
 // 📁 Dynamic Route Loading
 // =========================
 async function applyRoutes(dependencies) {
-  console.log('\n🔄 Loading routes...');
-  const apiDir = path.join(__dirname, '..', 'api');
+  const apiDir = path.join(__dirname, 'src', 'api');
   const routeFiles = await fs.promises.readdir(apiDir);
 
   for (const file of routeFiles) {
@@ -119,7 +111,6 @@ async function applyRoutes(dependencies) {
 
         const router = routerFactory(dependencies);
         app.use(routePath, router);
-        console.log(`✅ Route registered: ${routePath}`);
 
       } catch (error) {
         console.error(`❌ Failed to load route ${routeName}:`, error);
@@ -143,7 +134,6 @@ async function startServer() {
             liveStreamWebSocket.emit('connection', ws, request);
         });
     });
-    console.log('✅ WebSocket server integrated.');
 
     app.use((req, res) => {
         res.status(404).json({ error: 'NOT_FOUND', message: `Route ${req.method} ${req.path} not found` });
@@ -155,7 +145,7 @@ async function startServer() {
     });
 
     server.listen(CONFIG.PORT, '0.0.0.0', () => {
-      console.log(`\n🚀 Server running at http://0.0.0.0:${CONFIG.PORT} in ${CONFIG.NODE_ENV} mode\n`);
+      console.log(`Server is running on port ${CONFIG.PORT}`);
     });
 
   } catch (error) {
@@ -165,10 +155,8 @@ async function startServer() {
 }
 
 async function gracefulShutdown(signal) {
-  console.log(`\n🛑 Received ${signal}. Shutting down...`);
   server.close(async () => {
     await closeMongoConnection();
-    console.log('✅ All services stopped. Server shut down gracefully.');
     process.exit(0);
   });
 }
