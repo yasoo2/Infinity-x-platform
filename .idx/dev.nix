@@ -1,35 +1,40 @@
-# To learn more about how to use Nix to configure your environment
-# see: https://firebase.google.com/docs/studio/customize-workspace
 { pkgs, ... }: {
-  # Which nixpkgs channel to use.
+  # قناة nixpkgs
   channel = "unstable";
 
-  # Use https://search.nixos.org/packages to find packages
+  # الباكجات المثبتة في البيئة
   packages = [
-    pkgs.nodejs_22,
-    pkgs.nodePackages.npm,
-    pkgs.nodePackages.nodemon,
-    pkgs.nodePackages.concurrently,
-    pkgs.nodePackages.prettier,
+    pkgs.nodejs_22
+    pkgs.pnpm
+    pkgs.nodePackages.npm
+    pkgs.nodePackages.nodemon
+    pkgs.nodePackages.concurrently
+    pkgs.nodePackages.prettier
     pkgs.nodePackages.eslint
+    pkgs.openssl
   ];
 
-  # Sets environment variables in the workspace
+  # متغيرات البيئة
   env = {
     GEMINI_API_KEY = ""; # استبدل هذا بمفتاحك الحقيقي
+    # تعطيل التحقق الصارم من lockfile في بيئة التطوير لتجنب المشاكل
+    NPM_CONFIG_FROZEN_LOCKFILE = "false";
   };
   
   idx = {
+    # إضافات VS Code
     extensions = [
-      "dbaeumer.vscode-eslint",
-      "esbenp.prettier-vscode",
-      "eamodio.gitlens",
-      "humao.rest-client",
+      "dbaeumer.vscode-eslint"
+      "esbenp.prettier-vscode"
+      "eamodio.gitlens"
+      "humao.rest-client"
       "mongodb.mongodb-vscode"
     ];
     
+    # أوامر تشغيل المشروع
     workspace = {
-      onLoad = "echo 'Installing dependencies...' && npm install";
+      # استخدام pnpm للتثبيت مع --no-frozen-lockfile لضمان التثبيت
+      onLoad = "echo 'Installing dependencies...' && pnpm install --no-frozen-lockfile";
       start = {
         command = "npm run dev";
         notification = {
@@ -38,13 +43,14 @@
       };
     };
 
+    # المعاينة
     previews = [
       {
         id = "frontend-dashboard";
         name = "Application Dashboard";
         port = 5173;
         manager = "web";
-        command = ["npm", "run", "dev:frontend"];
+        command = ["npm" "run" "dev:frontend"];
       }
     ];
   };
