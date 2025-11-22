@@ -12,15 +12,17 @@ import { WebSocketServer } from 'ws';
 
 // --- Core Components ---
 import { initMongo, closeMongoConnection } from './database.mjs';
-import { setupAuth, requireRole, optionalAuth } from './auth.mjs';
-import liveStreamWebSocket from '../services/streaming/liveStreamWebSocket.mjs';
+import { setupAuth, requireRole, optionalAuth } from '../middleware/auth.mjs';
+import liveStreamWebSocket from '../services/liveStreamWebSocket.mjs';
 
 // --- Services ---
-import MemoryManager from '../services/memory/memory.service.mjs';
+// NOTE: MemoryManager and JoeAdvancedService are instantiated in setupDependencies
+// to avoid circular dependency issues if they need the db instance.
 import SandboxManager from '../services/sandbox/SandboxManager.mjs';
 import FileProcessingService from '../services/files/file-processing.service.mjs';
-import JoeAdvancedService from '../services/ai/joe-advanced.service.mjs';
 import { SimpleWorkerManager } from '../services/jobs/simple.worker.mjs';
+import JoeAdvancedService from '../services/ai/joe-advanced.service.mjs'; // Direct import
+import MemoryManager from '../services/memory/memory.service.mjs'; // Direct import
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -59,12 +61,12 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 async function setupDependencies() {
     const db = await initMongo();
 
-    const memoryManager = new MemoryManager({ db });
+    // Pass db to services that need it
+    const memoryManager = new MemoryManager({ db }); 
+    const joeAdvancedService = new JoeAdvancedService({ memoryManager }); // Pass memory manager to AI
+
     const sandboxManager = new SandboxManager();
     const fileProcessingService = new FileProcessingService({ memoryManager });
-
-    // This is the unified AI engine
-    const joeAdvancedService = new JoeAdvancedService({ memoryManager, sandboxManager });
 
     // Background job worker
     const workerManager = new SimpleWorkerManager({ maxConcurrent: 3 });
