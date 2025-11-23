@@ -1,16 +1,17 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import codeAnalysisTool from '../../tools_refactored/code_analysis.tool.mjs';
 
-// A simple function to recursively get all file paths in a directory
+// Helper to get file paths, ignoring node_modules, .git, etc. and focusing on JS files
 async function getFilePaths(dirPath, fileList = []) {
     const entries = await fs.readdir(dirPath, { withFileTypes: true });
     for (const entry of entries) {
         const fullPath = path.join(dirPath, entry.name);
-        // Ignore common directories
-        if (entry.isDirectory() && !['node_modules', '.git', 'dist', 'build'].includes(entry.name)) {
+        if (entry.isDirectory() && !['node_modules', '.git', 'dist', 'build', 'docs'].includes(entry.name)) {
             await getFilePaths(fullPath, fileList);
-        } else if (entry.isFile()) {
+        } else if (entry.isFile() && (entry.name.endsWith('.js') || entry.name.endsWith('.mjs'))) {
             fileList.push(fullPath);
         }
     }
@@ -18,51 +19,107 @@ async function getFilePaths(dirPath, fileList = []) {
 }
 
 /**
- * Analyzes the codebase to identify its structure and main components.
+ * Analyzes the codebase using the real code analysis tool.
  * @param {string} projectPath - The root path of the project to analyze.
- * @returns {Promise<object>} An object containing the analysis results.
+ * @returns {Promise<object>} An object containing the detailed analysis results.
  */
 export const analyzeCodebase = async ({ projectPath }) => {
-    console.log(`[CapabilityEvolution] Starting codebase analysis at: ${projectPath}`);
+    console.log(`[CapabilityEvolution-V2] Starting REAL codebase analysis at: ${projectPath}`);
     try {
         const files = await getFilePaths(projectPath);
-        const structure = files.map(f => path.relative(projectPath, f)); // Get relative paths
+        const analysisResults = [];
 
-        const analysis = {
-            fileCount: files.length,
-            fileStructure: structure,
+        for (const file of files) {
+            console.log(`[CapabilityEvolution-V2] Analyzing: ${path.relative(projectPath, file)}`);
+            const result = await codeAnalysisTool.analyzeCode({ filePath: file });
+            if (result.success) {
+                analysisResults.push({
+                    file: path.relative(projectPath, file),
+                    metrics: result.metrics,
+                });
+            } else {
+                console.warn(`[CapabilityEvolution-V2] Skipping file ${file} due to analysis error: ${result.message}`);
+            }
+        }
+
+        const overallMetrics = {
+            totalFilesAnalyzed: analysisResults.length,
+            totalComplexity: analysisResults.reduce((sum, item) => sum + (item.metrics.complexity || 0), 0),
+            totalLines: analysisResults.reduce((sum, item) => sum + (item.metrics.lineCount || 0), 0),
         };
-        console.log(`[CapabilityEvolution] Analysis complete. Found ${analysis.fileCount} files.`);
-        return analysis;
+
+        console.log(`[CapabilityEvolution-V2] Analysis complete. Analyzed ${overallMetrics.totalFilesAnalyzed} files.`);
+        return {
+            overallMetrics,
+            detailedAnalysis: analysisResults,
+        };
 
     } catch (error) {
-        console.error('[CapabilityEvolution] Error during codebase analysis:', error);
-        throw new Error('Failed to analyze codebase.');
+        console.error('[CapabilityEvolution-V2] CRITICAL Error during codebase analysis:', error);
+        throw new Error('Failed to analyze codebase with V2 engine.');
     }
 };
 
 /**
- * Suggests improvements for the codebase based on an analysis.
- * @param {object} analysis - The analysis object from analyzeCodebase.
- * @returns {Promise<object>} An object containing suggested improvements.
+ * Suggests improvements for the codebase based on REAL analysis, acting as a Principal Engineer.
+ * @param {object} analysis - The analysis object from the new analyzeCodebase.
+ * @returns {Promise<object>} An object containing strategic, actionable improvement suggestions.
  */
 export const suggestImprovements = async ({ analysis }) => {
-    console.log('[CapabilityEvolution] Generating improvement suggestions...');
-    if (!analysis || !analysis.fileStructure) {
-        throw new Error('Invalid analysis object provided.');
+    console.log('[CapabilityEvolution-V2] Generating STRATEGIC improvement suggestions...');
+    if (!analysis || !analysis.detailedAnalysis) {
+        throw new Error('Invalid or empty analysis object provided to V2 suggestion engine.');
     }
 
-    const suggestions = [
-        "Consider adding more robust error handling in server.mjs.",
-        "Implement a more structured logging system.",
-        "The file structure looks good, but consider creating a dedicated 'utils' directory for helper functions.",
-        "Add unit tests for critical components like auth.mjs and database.mjs.",
-    ];
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    console.log('[CapabilityEvolution] Suggestions generated.');
-    return {
-        suggestions,
-    };
+    const prompt = `
+        You are an expert Principal Software Engineer reviewing a codebase analysis.
+        Your task is to identify the most critical areas for improvement to reduce technical debt and improve maintainability.
+        Focus on high-impact changes. Be specific and actionable.
+
+        Codebase Analysis Summary:
+        - Total Files Analyzed: ${analysis.overallMetrics.totalFilesAnalyzed}
+        - Total Cyclomatic Complexity: ${analysis.overallMetrics.totalComplexity}
+        - Total Lines of Code: ${analysis.overallMetrics.totalLines}
+
+        Detailed Analysis (Top 5 most complex files):
+        ${analysis.detailedAnalysis
+            .sort((a, b) => b.metrics.complexity - a.metrics.complexity)
+            .slice(0, 5)
+            .map(f => `- File: ${f.file}, Complexity: ${f.metrics.complexity}, Lines: ${f.metrics.lineCount}`)
+            .join('
+')}
+
+        Based on this data, provide a list of 3 to 5 high-priority, actionable refactoring suggestions.
+        For each suggestion, specify the file and the reason for the suggested change.
+        Format your response as a JSON object with a "suggestions" array. Each element in the array should be a string.
+
+        Example response:
+        {
+            "suggestions": [
+                "Refactor the main logic in 'src/server.mjs' (Complexity: 45) to delegate tasks to smaller, single-responsibility modules.",
+                "Create a shared utility module for the duplicate helper functions found across several services."
+            ]
+        }
+    `;
+
+    try {
+        const result = await model.generateContent(prompt);
+        const responseText = result.response.text();
+        const parsedResponse = JSON.parse(responseText);
+        
+        console.log('[CapabilityEvolution-V2] Strategic suggestions generated by AI.');
+        return parsedResponse;
+
+    } catch (error) {
+        console.error('[CapabilityEvolution-V2] AI suggestion generation failed:', error);
+        // Fallback to a default, intelligent suggestion if AI fails
+        return {
+            suggestions: [
+                `Review and potentially refactor the most complex file identified: ${analysis.detailedAnalysis[0]?.file || 'N/A'}`
+            ]
+        };
+    }
 };
