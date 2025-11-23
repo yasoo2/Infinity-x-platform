@@ -1,8 +1,8 @@
 
 import React, { useState } from 'react';
-import LandingPage from './components/landing/LandingPage';
-import LoginModal from './components/landing/LoginModal';
-import JoeOS from './components/JoeOS'; // <--- Import the new OS Interface
+import LandingPage from '../components/landing/LandingPage';
+import LoginModal from '../components/landing/LoginModal';
+import Joe from './Joe'; // <--- The correct Agent Interface
 
 // --------- CONFIG ----------
 const ADMIN_EMAIL = "info.auraaluxury@gmail.com";
@@ -23,9 +23,9 @@ const App = () => {
     }
   };
 
-  // If logged in, show the new JoeOS interface
+  // If logged in, show the main Joe Agent UI
   if (isLoggedIn) {
-    return <JoeOS />;
+    return <Joe />;
   }
 
   // Otherwise, show the landing page and login modal logic

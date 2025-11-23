@@ -1,14 +1,17 @@
-import React, { useEffect, useState } from 'react';
+
+import React, { useEffect, useState, useRef } from 'react';
+import { FiMic, FiPaperclip, FiSend } from 'react-icons/fi'; // Using react-icons for a cleaner look
 import ChatSidebar from '../components/ChatSidebar';
-import FileUpload from '../components/FileUpload';
 import { useJoeChat } from '../hooks/useJoeChat.js';
 import JoeScreen from '../components/JoeScreen.jsx';
 
 const Joe = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [aiEngine, setAiEngine] = useState('openai');
+  const [isScreenExpanded, setIsScreenExpanded] = useState(false);
+  const fileInputRef = useRef(null);
   
   const {
+    // ... (rest of useJoeChat hooks remain the same)
     userId,
     conversations,
     currentConversation,
@@ -16,356 +19,115 @@ const Joe = () => {
     isProcessing,
     progress,
     currentStep,
-    buildResult,
     canStop,
     input,
     setInput,
     isListening,
-    showTokenModal,
-    tokenType,
-    tokenValue,
-    setTokenValue,
-    tokens,
-    setTokens,
     handleConversationSelect,
     handleNewConversation,
     handleSend,
     stopProcessing,
     handleVoiceInput,
-    saveToken,
-    closeTokenModal,
     transcript,
     wsLog,
   } = useJoeChat();
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (transcript) {
       setInput(transcript);
     }
   }, [transcript, setInput]);
 
-  return (
-    <>
-    <div className="min-h-[calc(100vh-4rem)] flex flex-col md:flex-row bg-gray-950 text-white relative">
-      {/* Mobile Sidebar Toggle Button */}
-      <button
-        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        className="md:hidden fixed top-20 left-4 z-50 bg-cyan-500 hover:bg-cyan-600 text-white p-3 rounded-lg shadow-lg shadow-cyan-500/50 transition-all duration-200"
-      >
-        {isSidebarOpen ? '✕' : '☰'}
-      </button>
+  const handleFileClick = () => {
+    fileInputRef.current.click();
+  };
 
-      {/* Chat Sidebar - Responsive */}
-      <div className={`
-        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        md:translate-x-0
-        fixed md:relative
-        inset-y-0 left-0
-        z-40
-        w-72 md:w-80
-        transition-transform duration-300 ease-in-out
-        md:block
-      `}>
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target.result;
+      const fileInfo = `Attached file: ${file.name}\n\n'''\n${content}\n'''`;
+      setInput(prev => prev ? `${prev}\n${fileInfo}` : fileInfo);
+    };
+    reader.readAsText(file);
+  };
+
+  return (
+    <div className="flex h-screen bg-gray-950 text-white font-sans">
+      {/* Chat Sidebar */}
+      <div className={`transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:w-80 w-72 fixed md:relative z-40 h-full`}>
         <ChatSidebar
           userId={userId}
           conversations={conversations}
           currentConversation={currentConversation}
-          onConversationSelect={(conv) => {
-            handleConversationSelect(conv);
-            setIsSidebarOpen(false);
-          }}
-          onNewConversation={() => {
-            handleNewConversation();
-            setIsSidebarOpen(false);
-          }}
+          onConversationSelect={handleConversationSelect}
+          onNewConversation={handleNewConversation}
         />
       </div>
 
-      {/* Overlay for mobile sidebar */}
-      {isSidebarOpen && (
-        <div
-          className="md:hidden fixed inset-0 bg-black/50 z-30"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
-
-      {/* Main Chat Area - Responsive */}
-      <div className="flex-1 flex flex-col backdrop-blur-sm bg-gray-900/80 min-h-screen md:min-h-0">
-        {/* Header - Responsive */}
-        <div className="border-b border-fuchsia-500/50 p-3 sm:p-4 md:p-6 bg-gray-900/50 backdrop-blur-md shadow-xl shadow-fuchsia-900/20">
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 md:mb-2">
-            <span className="text-cyan-400 drop-shadow-[0_0_5px_rgba(0,255,255,0.8)]">xElite</span>
-            <span className="text-fuchsia-400 drop-shadow-[0_0_5px_rgba(255,0,255,0.8)]">Solutions</span>
-            <span className="text-gray-500 text-sm sm:text-base md:text-xl ml-2 md:ml-3">| AGI Platform</span>
-          </h1>
-          <p className="text-gray-400 font-light text-xs sm:text-sm md:text-base">🚀 Your intelligent assistant for building and developing projects</p>
-          
-          {/* AI Engine Selection Buttons - Responsive */}
-          <div className="mt-3 sm:mt-4 flex flex-wrap gap-2">
-            <button
-              onClick={() => setAiEngine('grok')}
-              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${
-                aiEngine === 'grok'
-                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/50'
-                  : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50'
-              }`}
-            >
-              🤖 Grok
-            </button>
-            <button
-              onClick={() => setAiEngine('gemini')}
-              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${
-                aiEngine === 'gemini'
-                  ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/50'
-                  : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50'
-              }`}
-            >
-              ✨ Gemini
-            </button>
-            <button
-              onClick={() => setAiEngine('openai')}
-              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${
-                aiEngine === 'openai'
-                  ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/50'
-                  : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50'
-              }`}
-            >
-              🧠 OpenAI
-            </button>
-          </div>
-        </div>
-
-        {/* Messages Area - Responsive */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 space-y-3 md:space-y-4 bg-transparent">
-          {messages.length === 0 && (
-            <div className="text-center text-gray-500 py-8 sm:py-10 md:py-12 bg-gray-800/20 border border-cyan-500/10 rounded-xl p-4 sm:p-6 md:p-8 shadow-inner shadow-cyan-900/30">
-              <div className="text-4xl sm:text-5xl md:text-6xl mb-3 md:mb-4 animate-pulse">🤖</div>
-              <h2 className="text-lg sm:text-xl md:text-2xl font-bold mb-2 text-cyan-400 drop-shadow-[0_0_5px_rgba(0,255,255,0.5)]">Welcome to xEliteSolutions AGI</h2>
-              <p className="text-gray-400 mb-3 md:mb-4 text-sm sm:text-base">Talk to me or type what you want!</p>
-              <div className="text-xs sm:text-sm space-y-1 sm:space-y-2 text-gray-400">
-                <p>💬 Example: "Hello Joe"</p>
-                <p>🏪 Example: "Build an e-commerce store"</p>
-                <p>🧬 Example: "Evolve yourself"</p>
-              </div>
-            </div>
-          )}
-
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col relative">
+        {/* Messages Area - takes up the remaining space */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
           {messages.map((msg, index) => (
-            <div
-              key={index}
-              className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-[90%] sm:max-w-[85%] md:max-w-[80%] rounded-lg p-3 sm:p-4 shadow-sm ${
-                  msg.type === 'user'
-                    ? 'bg-indigo-500/80 text-white shadow-lg shadow-indigo-500/30'
-                    : 'bg-gray-700/50 border border-gray-600 text-gray-200 shadow-md'
-                }`}
-              >
-                <div className="flex items-start gap-2 sm:gap-3">
-                  <div className="flex-1">
-                    <div className="font-medium mb-1 text-sm sm:text-base">
-                      {msg.type === 'user' ? 'You' : 'JOE'}
-                    </div>
-                    <div className="leading-relaxed text-sm sm:text-base break-words">
-                      {msg.content}
-                      {msg.isTyping && <span className="animate-pulse">▊</span>}
-                    </div>
-                    <div className="text-xs text-gray-400 mt-1 sm:mt-2">{msg.timestamp}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
+             <div key={index} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+               <div className={`max-w-2xl rounded-lg px-4 py-3 shadow-md ${msg.type === 'user' ? 'bg-indigo-600' : 'bg-gray-800'}`}>
+                 <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+               </div>
+             </div>
           ))}
-
-          {/* Progress Bar - Responsive */}
-          {isProcessing && progress > 0 && (
-            <div className="bg-gray-800/50 border border-fuchsia-500/50 rounded-lg p-3 sm:p-4 shadow-xl shadow-fuchsia-900/30">
-              <div className="flex justify-between text-xs sm:text-sm mb-2">
-                <span className="text-gray-400 truncate pr-2">{currentStep}</span>
-                <span className="text-cyan-400 font-bold whitespace-nowrap">{progress}%</span>
-              </div>
-              <div className="w-full bg-gray-700 rounded-full h-2 sm:h-3">
-                <div
-                  className="bg-gradient-to-r from-cyan-400 to-fuchsia-400 h-2 sm:h-3 rounded-full transition-all duration-500 shadow-lg shadow-cyan-500/50"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Build Result - Responsive */}
-          {buildResult && (
-            <div className="bg-gray-800/50 border border-green-500/50 rounded-lg p-4 sm:p-5 md:p-6 shadow-2xl shadow-green-500/20">
-              <h3 className="text-lg sm:text-xl font-bold text-green-400 mb-3 sm:mb-4 drop-shadow-[0_0_5px_rgba(0,255,0,0.5)]">🎉 Project Ready!</h3>
-              <div className="space-y-2 sm:space-y-3">
-                <div>
-                  <p className="text-xs sm:text-sm text-gray-400 mb-1">GitHub Repository:</p>
-                  <a
-                    href={buildResult.githubUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-cyan-400 hover:underline break-all text-xs sm:text-sm"
-                  >
-                    {buildResult.githubUrl} ↗
-                  </a>
-                </div>
-                {buildResult.liveUrl && (
-                  <div>
-                    <p className="text-xs sm:text-sm text-gray-400 mb-1">Live Website:</p>
-                    <a
-                      href={buildResult.liveUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-fuchsia-400 hover:underline break-all text-xs sm:text-sm"
-                    >
-                      {buildResult.liveUrl} ↗
-                    </a>
-                  </div>
-                )}
-              </div>
+           {isProcessing && (
+            <div className="w-full bg-gray-800 rounded-full h-2.5 mt-4">
+                <div className="bg-cyan-400 h-2.5 rounded-full" style={{ width: `${progress}%` }}></div>
+                <p className="text-xs text-center text-gray-400 mt-1">{currentStep}</p>
             </div>
           )}
         </div>
 
-        {/* Input Area - Responsive */}
-        <div className="border-t border-cyan-500/50 bg-gray-900/50 p-3 sm:p-4 backdrop-blur-md shadow-2xl shadow-cyan-900/20">
-          {/* File Upload - Responsive */}
-          <div className="mb-3 sm:mb-4">
-            <FileUpload onFileAnalyzed={(data) => {
-              setInput(prev => prev + `\n\nUploaded file: ${data.fileName}\n${data.content}`);
-            }} />
-          </div>
+        {/* "Manus-style" Input Area at the bottom */}
+        <div className="p-4 bg-gray-900/50 backdrop-blur-md border-t border-cyan-500/20">
+          <div className="flex items-end gap-4">
+            
+            {/* Live Screen (JoeScreen) - Small and to the left */}
+            <div 
+              className={`relative cursor-pointer transition-all duration-300 ease-in-out ${isScreenExpanded ? 'w-full h-full fixed inset-0 z-50' : 'w-48 h-28'}`}
+              onClick={() => setIsScreenExpanded(!isScreenExpanded)}
+            >
+                <JoeScreen wsLog={wsLog} isProcessing={isProcessing} progress={progress} />
+                <div className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity">
+                    <p className="text-white font-bold">{isScreenExpanded ? 'Click to Shrink' : 'Click to Expand'}</p>
+                </div>
+            </div>
 
-          {/* Input Controls - Responsive */}
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-            {/* Voice and Input Row */}
-            <div className="flex gap-2 sm:gap-3 flex-1">
-              <button
-                onClick={handleVoiceInput}
-                className={`p-2 sm:p-3 rounded-lg transition-all duration-200 ${
-                  isListening 
-                    ? 'bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/50' 
-                    : 'bg-gray-700 hover:bg-gray-600 text-gray-300 shadow-md'
-                }`}
-              >
-                {isListening ? '🎤...' : '🎤'}
-              </button>
-              
-              <input
-                type="text"
+            {/* Smart Input Box - takes up the remaining space */}
+            <div className="flex-1 flex items-center bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-cyan-500">
+              <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={(e) => {
-                  if (e.key === 'Enter' && !isProcessing && input.trim()) {
+                  if (e.key === 'Enter' && !e.shiftKey && !isProcessing && input.trim()) {
+                    e.preventDefault();
                     handleSend();
                   }
                 }}
-                placeholder="Type or speak..."
-                className="input-field flex-1 text-sm sm:text-base md:text-lg bg-white border border-gray-300 text-gray-900 placeholder-gray-500 focus:ring-cyan-500 focus:border-cyan-500 rounded-lg px-3 sm:px-4 py-2 sm:py-3"
-                disabled={isProcessing}
+                placeholder="Instruct Joe... (Shift+Enter for new line)"
+                className="flex-1 bg-transparent outline-none resize-none text-white placeholder-gray-500 pr-3"
+                rows={1}
+                style={{ maxHeight: '100px'}} // Prevents the input from growing too large
               />
+              <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
+              <button onClick={handleFileClick} className="text-gray-400 hover:text-cyan-400 p-2"><FiPaperclip /></button>
+              <button onClick={handleVoiceInput} className={`p-2 ${isListening ? 'text-red-500 animate-pulse' : 'text-gray-400 hover:text-cyan-400'}`}><FiMic /></button>
+              <button onClick={handleSend} disabled={isProcessing || !input.trim()} className="text-gray-400 hover:text-cyan-400 p-2 disabled:text-gray-600"><FiSend /></button>
             </div>
 
-            {/* Action Buttons Row */}
-            <div className="flex gap-2 sm:gap-3">
-              {canStop && (
-                <button
-                  onClick={stopProcessing}
-                  className="flex-1 sm:flex-none bg-red-500 hover:bg-red-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg transition-all duration-200 shadow-lg shadow-red-500/50 text-sm sm:text-base"
-                >
-                  ⏹️ Stop
-                </button>
-              )}
-              
-              <button
-                onClick={handleSend}
-                disabled={isProcessing || !input.trim()}
-                className="flex-1 sm:flex-none bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg transition-all duration-200 shadow-lg shadow-cyan-500/50 text-sm sm:text-base"
-              >
-                ➤ Send
-              </button>
-            </div>
           </div>
         </div>
       </div>
-
-      {/* Token Modal - Responsive */}
-      {showTokenModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white border border-fuchsia-300 rounded-lg p-4 sm:p-6 max-w-md w-full relative shadow-2xl shadow-fuchsia-200/50 max-h-[90vh] overflow-y-auto">
-            <button
-              onClick={closeTokenModal}
-              className="absolute top-2 sm:top-4 right-2 sm:right-4 text-gray-600 hover:text-cyan-600 text-2xl"
-            >
-              ×
-            </button>
-            <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 text-cyan-400">
-              {tokenType === 'github' && '🔑 GitHub Token Required'}
-              {tokenType === 'cloudflare' && '🔑 Cloudflare Token Required'}
-              {tokenType === 'render' && '🔑 Render Token Required'}
-            </h3>
-
-            {tokenType === 'github' && (
-              <>
-                <div className="mb-3 sm:mb-4">
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
-                    GitHub Username
-                  </label>
-                  <input
-                    type="text"
-                    value={tokens.githubUsername}
-                    onChange={(e) => setTokens(prev => ({ ...prev, githubUsername: e.target.value }))}
-                    className="input-field w-full bg-white border border-gray-300 text-gray-900 placeholder-gray-500 focus:ring-cyan-500 focus:border-cyan-500 text-sm sm:text-base rounded-lg px-3 py-2"
-                    placeholder="your-username"
-                  />
-                </div>
-                <div className="mb-3 sm:mb-4">
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
-                    Personal Access Token
-                  </label>
-                  <input
-                    type="password"
-                    value={tokenValue}
-                    onChange={(e) => setTokenValue(e.target.value)}
-                    className="input-field w-full bg-white border border-gray-300 text-gray-900 placeholder-gray-500 focus:ring-cyan-500 focus:border-cyan-500 text-sm sm:text-base rounded-lg px-3 py-2"
-                    placeholder="ghp_xxxxxxxxxxxx"
-                  />
-                  <p className="text-xs text-gray-500 mt-2">
-                    Get it from: <a href="https://github.com/settings/tokens" target="_blank" className="text-cyan-400 hover:underline">GitHub Settings</a>
-                  </p>
-                </div>
-              </>
-            )}
-            <div className="flex gap-2 sm:gap-3">
-              <button
-                onClick={closeTokenModal}
-                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-3 sm:px-4 py-2 rounded-lg transition-all duration-200 text-sm sm:text-base"
-              >
-                ❌ Cancel
-              </button>
-              <button
-                onClick={saveToken}
-                className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white px-3 sm:px-4 py-2 rounded-lg transition-all duration-200 shadow-lg shadow-cyan-500/50 text-sm sm:text-base"
-                disabled={!tokenValue || (tokenType === 'github' && !tokens.githubUsername)}
-              >
-                💾 Save
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
-    
-    {/* Joe's Computer Screen - Responsive (Hidden on mobile) */}
-    <div className="hidden lg:block">
-      <JoeScreen 
-        isProcessing={isProcessing} 
-        progress={progress} 
-        wsLog={wsLog}
-      />
-    </div>
-    </>
   );
 };
 
