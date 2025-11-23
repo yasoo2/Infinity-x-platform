@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import LandingPage from './components/landing/LandingPage';
 import LoginModal from './components/landing/LoginModal';
-import JoeComputer from './components/JoeComputer'; // <--- Import the correct component
+import JoeOS from './components/JoeOS'; // <--- Import the new OS Interface
 
 // --------- CONFIG ----------
 const ADMIN_EMAIL = "info.auraaluxury@gmail.com";
@@ -23,10 +23,12 @@ const App = () => {
     }
   };
 
+  // If logged in, show the new JoeOS interface
   if (isLoggedIn) {
-    return <JoeComputer />; // <--- Render the correct component
+    return <JoeOS />;
   }
 
+  // Otherwise, show the landing page and login modal logic
   return (
     <>
       <LandingPage onLoginClick={() => setIsLoginModalOpen(true)} />
