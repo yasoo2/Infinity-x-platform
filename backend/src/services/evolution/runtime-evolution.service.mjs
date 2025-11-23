@@ -1,1 +1,176 @@
-\nimport { GoogleGenerativeAI } from \'@google/generative-ai\';\nimport fs from \'fs/promises\';\nimport path from \'path\';\nimport { fileURLToPath } from \'url\';\n\n// Import existing tools\nimport { githubTools } from \'./githubTools.mjs\';\nimport { testingTools } from \'./testingTools.mjs\';\nimport { renderTools } from \'./renderTools.mjs\';\n// Import the NEW V2 capability evolution service\nimport { analyzeCodebase, suggestImprovements } from \'./capability-evolution.service.mjs\';\n\n// --- Configuration ---\nconst __filename = fileURLToPath(import.meta.url);\nconst __dirname = path.dirname(__filename);\n// Navigate up to the project root from \'backend/src/services/evolution\'\nconst projectRoot = path.resolve(__dirname, \'../../../../\'); \n\n/**\n * Self-Evolution and Orchestration Service for JOE - V2\n * This service coordinates analyzing the codebase, identifying improvements, and IMPLENTING them.\n */\nclass RuntimeEvolutionService {\n  constructor() {\n    if (!process.env.GEMINI_API_KEY) {\n      console.warn(\"[RuntimeEvolution-V2] WARNING: GEMINI_API_KEY is not set. AI features will be disabled.\");\n      this.genAI = null;\n    } else {\n      this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);\n    }\n    this.repoOwner = \'user\';\n    this.repoName = \'Infinity-x-platform\';\n    this.renderServiceId = process.env.RENDER_SERVICE_ID || \'srv-xxxxxxxxxxxx\';\n  }\n\n  /**\n   * Analyzes the current codebase using the new V2 analysis service.\n   */\n  async analyzeOwnCode() {\n    console.log(\'🔬 [V2] Analyzing own code using REAL analysis engine...\');\n    try {\n      const analysis = await analyzeCodebase({ projectPath: projectRoot });\n      console.log(\'✅ [V2] Code analysis complete.\');\n      return { success: true, analysis };\n    } catch (error) {\n      console.error(\'❌ [V2] Code analysis failed:\', error.message);\n      return { success: false, error: error.message };\n    }\n  }\n\n  /**\n   * Identifies potential improvements using the new V2 suggestion service.\n   */\n  async identifyImprovements() {\n    console.log(\'💡 [V2] Identifying STRATEGIC improvements...\');\n    try {\n      const codeAnalysisResult = await this.analyzeOwnCode();\n      if (!codeAnalysisResult.success) return codeAnalysisResult;\n\n      const suggestionsResult = await suggestImprovements({ analysis: codeAnalysisResult.analysis });\n      const diagnosticResult = await testingTools.runDiagnostic(); // Keep diagnostics\n\n      // The new suggestion service returns actionable strings directly\n      const improvements = suggestionsResult.suggestions.map(s => ({ \n        type: \'refactor\', // More specific type\n        priority: \'medium\', // Assume medium priority for now\n        description: s, // The full suggestion string\n      }));\n\n      console.log(`✅ [V2] Identified ${improvements.length} potential improvements.`);\n      return { success: true, improvements, count: improvements.length, diagnostic: diagnosticResult };\n\n    } catch (error) {\n      console.error(\'❌ [V2] Failed to identify improvements:\', error.message);\n      return { success: false, error: error.message };\n    }\n  }\n\n  /**\n   * Implements an improvement by modifying the code, inspired by GrokTool\'s safe-edit contract.\n   * @param {object} improvement - The improvement to implement, containing the description.\n   */\n  async implementImprovement(improvement) {\n    console.log(`🔧 [V2] Attempting REAL implementation for: \"${improvement.description}\"`);\n    if (!improvement || !improvement.description) {\n        return { success: false, error: \"Invalid improvement object\" };\n    }\n\n    // 1. Extract the target file path from the description\n    const filePathMatch = improvement.description.match(/in \'([^\']+)\'/);\n    if (!filePathMatch || !filePathMatch[1]) {\n        return { success: false, error: `Could not extract file path from description: \"${improvement.description}\"` };\n    }\n    const relativeFilePath = filePathMatch[1];\n    const absoluteFilePath = path.join(projectRoot, relativeFilePath);\n\n    try {\n      // 2. Read the original code\n      const originalCode = await fs.readFile(absoluteFilePath, \'utf-8\');\n\n      // 3. Use Gemini with a GrokTool-style prompt for safe, surgical editing\n      const model = this.genAI.getGenerativeModel({ model: \"gemini-pro\" });\n      const prompt = `\n        **Objective:** Execute a surgical refactoring of the provided code based on the following instruction.\n        \n        **Instruction:** ${improvement.description}\n\n        **Strict Rules (Non-negotiable):\n        1.  You will act as a surgical code modifier. You will only add or modify code to fulfill the instruction. \n        2.  You MUST NOT delete any existing code, even if it seems unused or redundant, unless the instruction explicitly says to remove something.\n        3.  The output MUST be the complete, modified code for the entire file. Do not provide only the changed snippet.\n        4.  Preserve the original code\'s structure, style, and comments as much as possible.\n        5.  Your response will be a single, raw code block, without any preamble, explanation, or markdown formatting.\n\n        **Original Code (File: ${relativeFilePath}):**\n        \`\`\`javascript\n        ${originalCode}\n        \`\`\`\n\n        **Your Modified Code:**\n      `;\n\n      console.log(`[V2] Sending surgical modification request to AI for ${relativeFilePath}...`);\n      const result = await model.generateContent(prompt);\n      let modifiedCode = result.response.text();\n\n      // Clean the response to ensure it\'s just raw code\n      modifiedCode = modifiedCode.replace(/^```(javascript)?\\n|```$/g, \'\').trim();\n\n      // 4. GrokTool-inspired safety check: prevent catastrophic deletion\n      if (modifiedCode.length < originalCode.length * 0.5) {\n        throw new Error(\'Safety check failed: Proposed change would delete over 50% of the original file. Aborting.\');\n      }\n\n      // 5. WRITE THE CHANGES TO THE ACTUAL FILE\n      await fs.writeFile(absoluteFilePath, modifiedCode, \'utf-8\');\n\n      console.log(`✅ [V2] Successfully implemented changes in ${relativeFilePath}`);\n      return { success: true, file: relativeFilePath, changesApplied: true };\n\n    } catch (error) {\n      console.error(`❌ [V2] Failed to implement improvement in ${relativeFilePath}:`, error);\n      return { success: false, error: error.message };\n    }\n  }\n\n  /**\n   * The main orchestration logic for a REAL evolution cycle.\n   */\n  async evolve() {\n    console.log(\'🚀 [V2] Starting REAL evolution cycle...\');\n    try {\n      const improvementsResult = await this.identifyImprovements();\n      if (!improvementsResult.success || improvementsResult.count === 0) {\n        console.log(\'✅ [V2] No improvements needed at this time.\');\n        return { success: true, message: \'No improvements needed\', ...improvementsResult };\n      }\n\n      const topImprovement = improvementsResult.improvements[0];\n      const implementationResult = await this.implementImprovement(topImprovement);\n      \n      if (!implementationResult.success) {\n          return { ...implementationResult, step: \'implementation\' };\n      }\n\n      // --- Future Steps in the Full Lifecycle ---\n      // TODO: Add a real Git commit step here using githubTools\n      console.log(\'📝 [V2] TODO: Add a real git commit step here.\');\n      \n      // TODO: The deployment and testing steps would follow the commit.\n      console.log(\'🚀 [V2] Triggering mock deployment on Render...\');\n      const deployResult = await renderTools.deployService({ serviceId: this.renderServiceId });\n\n      console.log(\'🧪 [V2] Running integration tests post-deployment...\');\n      const testResult = await testingTools.runIntegrationTests();\n\n      const finalMessage = `JOE has truly evolved! Implemented: \'${topImprovement.description}\'. Deployment status: ${deployResult.status}. Tests passed: ${testResult.passed}.`;\n      console.log(`✅ ${finalMessage}`);\n      \n      return {\n        success: true,\n        message: finalMessage,\n        improvement: topImprovement,\n        implementation: implementationResult,\n        deploy: deployResult,\n        testResult,\n      };\n\n    } catch (error) {\n      console.error(\'❌ [V2] Evolution cycle failed:\', error.message);\n      return { success: false, error: error.message };\n    }\n  }\n}\n\n// Export a singleton instance\nexport const runtimeEvolutionService = new RuntimeEvolutionService();\nexport default RuntimeEvolutionService;\n
+
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Import existing tools
+import { githubTools } from './githubTools.mjs';
+import { testingTools } from './testingTools.mjs';
+import { renderTools } from './renderTools.mjs';
+// Import the NEW V2 capability evolution service
+import { analyzeCodebase, suggestImprovements } from './capability-evolution.service.mjs';
+
+// --- Configuration ---
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+// Navigate up to the project root from 'backend/src/services/evolution'
+const projectRoot = path.resolve(__dirname, '../../../../'); 
+
+/**
+ * Self-Evolution and Orchestration Service for JOE - V2.1 (Patched)
+ * This service coordinates analyzing the codebase, identifying improvements, and IMPLEMENTING them.
+ */
+class RuntimeEvolutionService {
+  constructor() {
+    if (!process.env.GEMINI_API_KEY) {
+      console.warn("[RuntimeEvolution-V2.1] WARNING: GEMINI_API_KEY is not set. AI features will be disabled.");
+      this.genAI = null;
+    } else {
+      this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    }
+    this.repoOwner = 'user';
+    this.repoName = 'Infinity-x-platform';
+    this.renderServiceId = process.env.RENDER_SERVICE_ID || 'srv-xxxxxxxxxxxx';
+  }
+
+  async analyzeOwnCode() {
+    console.log('🔬 [V2.1] Analyzing own code using REAL analysis engine...');
+    try {
+      const analysis = await analyzeCodebase({ projectPath: projectRoot });
+      console.log('✅ [V2.1] Code analysis complete.');
+      return { success: true, analysis };
+    } catch (error) {
+      console.error('❌ [V2.1] Code analysis failed:', error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async identifyImprovements() {
+    console.log('💡 [V2.1] Identifying STRATEGIC improvements...');
+    try {
+      const codeAnalysisResult = await this.analyzeOwnCode();
+      if (!codeAnalysisResult.success) return codeAnalysisResult;
+
+      const suggestionsResult = await suggestImprovements({ analysis: codeAnalysisResult.analysis });
+      const diagnosticResult = await testingTools.runDiagnostic();
+
+      const improvements = suggestionsResult.suggestions.map(s => ({ 
+        type: 'refactor',
+        priority: 'medium',
+        description: s,
+      }));
+
+      console.log(`✅ [V2.1] Identified ${improvements.length} potential improvements.`);
+      return { success: true, improvements, count: improvements.length, diagnostic: diagnosticResult };
+
+    } catch (error) {
+      console.error('❌ [V2.1] Failed to identify improvements:', error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async implementImprovement(improvement) {
+    console.log(`🔧 [V2.1] Attempting REAL implementation for: \"${improvement.description}\"`);
+    if (!improvement || !improvement.description) {
+        return { success: false, error: "Invalid improvement object" };
+    }
+
+    const filePathMatch = improvement.description.match(/in '([^']+)'/);
+    if (!filePathMatch || !filePathMatch[1]) {
+        return { success: false, error: `Could not extract file path from description: \"${improvement.description}\"` };
+    }
+    const relativeFilePath = filePathMatch[1];
+    const absoluteFilePath = path.join(projectRoot, relativeFilePath);
+
+    try {
+      const originalCode = await fs.readFile(absoluteFilePath, 'utf-8');
+      const model = this.genAI.getGenerativeModel({ model: "gemini-pro" });
+      
+      const prompt = `
+        **Objective:** Execute a surgical refactoring of the provided code based on the following instruction.
+        
+        **Instruction:** ${improvement.description}
+
+        **Strict Rules (Non-negotiable):**
+        1. You will act as a surgical code modifier. You will only add or modify code to fulfill the instruction. 
+        2. You MUST NOT delete any existing code, even if it seems unused or redundant, unless the instruction explicitly says to remove something.
+        3. The output MUST be the complete, modified code for the entire file. Do not provide only the changed snippet.
+        4. Preserve the original code's structure, style, and comments as much as possible.
+        5. Your response will be a single, raw code block, without any preamble, explanation, or markdown formatting.
+
+        **Original Code (File: ${relativeFilePath}):**
+        \`\`\`javascript
+        ${originalCode}
+        \`\`\`
+
+        **Your Modified Code:**
+      `;
+
+      console.log(`[V2.1] Sending surgical modification request to AI for ${relativeFilePath}...`);
+      const result = await model.generateContent(prompt);
+      let modifiedCode = result.response.text();
+
+      // **SYNTAX FIX APPLIED HERE**
+      // Correctly remove the markdown code fences.
+      modifiedCode = modifiedCode.replace(/^\`\`\`(javascript)?\n|\`\`\`$/g, '').trim();
+
+      if (modifiedCode.length < originalCode.length * 0.5) {
+        throw new Error('Safety check failed: Proposed change would delete over 50% of the original file. Aborting.');
+      }
+
+      await fs.writeFile(absoluteFilePath, modifiedCode, 'utf-8');
+
+      console.log(`✅ [V2.1] Successfully implemented changes in ${relativeFilePath}`);
+      return { success: true, file: relativeFilePath, changesApplied: true };
+
+    } catch (error) {
+      console.error(`❌ [V2.1] Failed to implement improvement in ${relativeFilePath}:`, error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async evolve() {
+    console.log('🚀 [V2.1] Starting REAL evolution cycle (Patched)...');
+    try {
+      const improvementsResult = await this.identifyImprovements();
+      if (!improvementsResult.success || improvementsResult.count === 0) {
+        console.log('✅ [V2.1] No improvements needed at this time.');
+        return { success: true, message: 'No improvements needed', ...improvementsResult };
+      }
+
+      const topImprovement = improvementsResult.improvements[0];
+      const implementationResult = await this.implementImprovement(topImprovement);
+      
+      if (!implementationResult.success) {
+          return { ...implementationResult, step: 'implementation' };
+      }
+
+      console.log('📝 [V2.1] TODO: Add a real git commit step here.');
+      console.log('🚀 [V2.1] Triggering mock deployment on Render...');
+      const deployResult = await renderTools.deployService({ serviceId: this.renderServiceId });
+
+      console.log('🧪 [V2.1] Running integration tests post-deployment...');
+      const testResult = await testingTools.runIntegrationTests();
+
+      const finalMessage = `JOE has truly evolved! Implemented: '${topImprovement.description}'. Deployment status: ${deployResult.status}. Tests passed: ${testResult.passed}.`;
+      console.log(`✅ ${finalMessage}`);
+      
+      return {
+        success: true,
+        message: finalMessage,
+        improvement: topImprovement,
+        implementation: implementationResult,
+        deploy: deployResult,
+        testResult,
+      };
+
+    } catch (error) {
+      console.error('❌ [V2.1] Evolution cycle failed:', error.message);
+      return { success: false, error: error.message };
+    }
+  }
+}
+
+export const runtimeEvolutionService = new RuntimeEvolutionService();
+export default RuntimeEvolutionService;
