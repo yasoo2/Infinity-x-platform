@@ -40,6 +40,7 @@
     "@google/generative-ai": "^0.24.1",
     "@octokit/rest": "^20.0.2",
     "@socket.io/redis-adapter": "^8.2.1",
+    "@upstash/redis": "^1.35.6",
     "acorn": "^8.11.3",
     "acorn-walk": "^8.3.2",
     "archiver": "^6.0.1",
