@@ -15,6 +15,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"**/*.{js,mjs,json,md}\"",
+    "check:deadcode": "depcheck",
     "cli": "node src/cli/joe-cli.mjs",
     "init": "node scripts/init.js",
     "demo": "node examples/demo.js"
