@@ -1,0 +1,22 @@
+# Firebase App Hosting configuration file.
+# This file specifies how to build and run your backend service.
+# For more information, see: https://firebase.google.com/docs/app-hosting/app-hosting-yaml
+
+# Specifies the Node.js version to use. Use a recent LTS (Long Term Support) version.
+runtime: nodejs20
+
+# Defines the command to build your application. 
+# App Hosting will run this command to install dependencies before starting the server.
+build:
+  run: npm install
+
+# Defines the command to run your application.
+# This is the command that starts your Express server.
+run:
+  command: node server.mjs
+
+# Optional: Configure health checks to ensure your application is running correctly.
+# App Hosting will send requests to this path to determine the health of your instance.
+healthChecks:
+  livenessCheck:
+    path: "/"
