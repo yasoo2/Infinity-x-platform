@@ -1,0 +1,48 @@
+
+{
+  "description": "A comprehensive map of the Infinity-X/JOE AGI system architecture. This system is a self-evolving software development platform orchestrated by an AI.",
+  "services": {
+    "backend": {
+      "description": "The central nervous system. A Node.js/Express application that manages all core logic, AI reasoning, tool execution, and database interactions.",
+      "entry_point": "backend/server.mjs",
+      "critical_files": [
+        "backend/server.mjs",
+        "backend/src/tools_refactored/AdvancedToolsManager.mjs",
+        "backend/joengine-agi/engines/ReasoningEngine.mjs",
+        "backend/src/services/memory/memory.service.mjs",
+        "backend/src/services/evolution/runtime-evolution.service.mjs"
+      ]
+    },
+    "dashboard-x": {
+      "description": "The primary user interface (JOE's internal page). A React/Vite single-page application that provides the main chat/command interface for interacting with the AGI.",
+      "entry_point": "dashboard-x/src/App.jsx -> dashboard-x/src/pages/Joe.jsx",
+      "location": "dashboard-x/index.html"
+    },
+    "public-site": {
+      "description": "The external, public-facing company website. A static HTML page that serves as a landing page for new users.",
+      "entry_point": "public-site/index.html",
+      "location": "public-site/index.html"
+    },
+    "worker": {
+      "description": "A background process that polls the database for heavy computational jobs (like 'factory_jobs') and executes them outside the main request-response cycle.",
+      "entry_point": "backend/src/workers/factory.worker.mjs"
+    }
+  },
+  "complexity_analysis": {
+    "description": "Analysis of code complexity based on cyclomatic complexity metrics from the 'analyzeCode' tool. Highlights files that are powerful but potentially difficult to maintain.",
+    "high_complexity_files": [
+      {
+        "file": "backend/src/services/memory/memory.service.mjs",
+        "reason": "Extremely high complexity due to managing multiple memory layers (short-term, long-term), learning patterns, and handling proactive suggestions. This is the cognitive core."
+      },
+      {
+        "file": "backend/src/services/evolution/runtime-evolution.service.mjs",
+        "reason": "High complexity from orchestrating the entire self-evolution lifecycle, including code analysis, AI-driven implementation, safety checks, deployment, and verification."
+      },
+      {
+        "file": "backend/src/tools_refactored/code.tool.mjs",
+        "reason": "Contains a full plugin-based engine for code processing, including a custom code walker and an AST analyzer. It's a platform in itself."
+      }
+    ]
+  }
+}
