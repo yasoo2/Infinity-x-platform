@@ -1,1 +1,20 @@
-/**\n * 🚌 The Central Event Bus\n * @version 1.0.0\n * @description A simple, powerful, and centralized event emitter for the entire backend application.\n * It allows for decoupled communication between different services.\n * For example, the SandboxManager can emit an event without knowing that the RealtimeService is listening.\n */\n\nimport { EventEmitter } from 'events';\n\n// Create a single, shared instance of the event emitter.\n// This acts as the central bus for all application events.\nconst eventBus = new EventEmitter();\n\n// Increase the listener limit to support more decoupled services\neventBus.setMaxListeners(50);\n\nconsole.log('🚌 Event Bus initialized.');\n\nexport default eventBus;\n
+/**
+ * 🚌 The Central Event Bus
+ * @version 1.0.0
+ * @description A simple, powerful, and centralized event emitter for the entire backend application.
+ * It allows for decoupled communication between different services.
+ * For example, the SandboxManager can emit an event without knowing that the RealtimeService is listening.
+ */
+
+import { EventEmitter } from 'events';
+
+// Create a single, shared instance of the event emitter.
+// This acts as the central bus for all application events.
+const eventBus = new EventEmitter();
+
+// Increase the listener limit to support more decoupled services
+eventBus.setMaxListeners(50);
+
+console.log('🚌 Event Bus initialized.');
+
+export default eventBus;

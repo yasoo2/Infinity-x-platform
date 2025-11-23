@@ -8,7 +8,7 @@
  */
 
 import { createPlan } from './src/services/ai/ai-engine.service.mjs';
-import AdvancedToolsManager from './src/tools_refactored/AdvancedToolsManager.mjs';
+import AdvancedToolsManager from './src/tools_refactored/AdvancedToolsManager.js';
 
 // --- المهمة الأساسية ---
 const mainTask = "قم أولاً بقراءة محتوى الملف src/services/ai/ai-engine.service.mjs. بعد ذلك، قم بتحليل هذا المحتوى لتحديد نقاط القوة والضعف. أخيرًا، اكتب تقريرًا مفصلاً بهذه النتائج في ملف جديد اسمه analysis_report.md";
@@ -24,6 +24,8 @@ async function main() {
 
     console.log(`🎯 Starting main task: \"${mainTask}\"`);
     console.log('--------------------------------------------------');
+
+    const executor = new AdvancedToolsManager();
 
     try {
         // 1. التخطيط (Thinking & Planning)
@@ -45,7 +47,6 @@ async function main() {
 
         // 2. التنفيذ (Execution)
         console.log('🚀 Step 2: Executing the plan...');
-        const executor = new AdvancedToolsManager();
         const executionResult = await executor.executePlan(plan);
 
         console.log('--------------------------------------------------');
@@ -55,6 +56,13 @@ async function main() {
             console.log('🎉🎉🎉 Main task completed successfully! 🎉🎉🎉');
             console.log('📊 Final Summary:');
             console.log(JSON.stringify(executionResult.summary, null, 2));
+
+            // 4. ضمان الجودة (Quality Assurance - Dead Code Check)
+            console.log('--------------------------------------------------');
+            console.log('🔍 Step 4: Quality Assurance - Running Dead Code Check...');
+            await executor.tools.run_terminal_command.execute({ command: 'cd backend && npm run check:deadcode' });
+            console.log('✅ Dead code check completed.');
+
         } else {
             console.error('❌ Main task failed during execution.');
             console.error('📊 Execution Summary:');
