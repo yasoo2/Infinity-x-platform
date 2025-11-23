@@ -116,7 +116,13 @@
     "yauzl": "^3.0.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.1",
     "@types/node": "^22.10.2",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
     "husky": "^9.1.7",
     "jest": "^29.7.0",
     "lint-staged": "^15.2.11",
