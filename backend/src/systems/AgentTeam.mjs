@@ -1,126 +1,103 @@
 
+import { OpenAI } from 'openai'; // Assuming use of OpenAI for planning
+
 /**
- * 🤖 Multi-Agent System - The core team of specialized agents.
- * This system coordinates a team of expert AI agents to execute complex tasks.
- * @version 1.0.0
+ * 🤖 AgentTeam (The Planner) - CORRECTED ARCHITECTURE
+ * This class is now SOLELY responsible for creating a step-by-step plan.
+ * It does NOT execute anything.
  */
-
-// Import agent classes (will be created in subsequent steps)
-import ArchitectAgent from '../agents/ArchitectAgent.mjs';
-import DeveloperAgent from '../agents/DeveloperAgent.mjs';
-import DesignerAgent from '../agents/DesignerAgent.mjs';
-import TesterAgent from '../agents/TesterAgent.mjs';
-import SecurityAgent from '../agents/SecurityAgent.mjs';
-import DevOpsAgent from '../agents/DevOpsAgent.mjs';
-import AnalystAgent from '../agents/AnalystAgent.mjs';
-import WriterAgent from '../agents/WriterAgent.mjs';
-import ResearcherAgent from '../agents/ResearcherAgent.mjs';
-import OptimizerAgent from '../agents/OptimizerAgent.mjs';
-import CoordinatorAgent from '../agents/CoordinatorAgent.mjs';
-
 class AgentTeam {
   constructor() {
-    this.agents = {
-      architect: new ArchitectAgent(),
-      developer: new DeveloperAgent(),
-      designer: new DesignerAgent(),
-      tester: new TesterAgent(),
-      security: new SecurityAgent(),
-      devops: new DevOpsAgent(),
-      analyst: new AnalystAgent(),
-      writer: new WriterAgent(),
-      researcher: new ResearcherAgent(),
-      optimizer: new OptimizerAgent()
-    };
-    
-    this.coordinator = new CoordinatorAgent();
-    console.log('🤖 Agent Team initialized with 10 specialized agents.');
+    // Ensure you have OPENAI_API_KEY in your environment variables
+    this.llm = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    console.log('🤖 Planner (AgentTeam) Initialized.');
   }
 
   /**
-   * Executes a complex task by coordinating the agent team.
-   * @param {string} task The main task description.
-   * @param {string} userId The ID of the user requesting the task.
-   * @returns {Promise<object>} The final result of the task execution.
+   * Creates a structured plan based on user instruction and available tools.
+   * @param {string} instruction The user's plain-text goal.
+   * @param {Array<object>} availableTools The list of tools from the Executor.
+   * @param {function} streamUpdate A function to send real-time updates back to the client.
+   * @returns {Promise<object|null>} A plan object or null if planning fails.
    */
-  async executeTask(task, userId) {
-    console.log(`[AgentTeam] 🚀 Starting task: ${task}`);
-    
-    // 1. Coordinator analyzes the task
-    const analysis = await this.coordinator.analyzeTask(task);
-    console.log(`[AgentTeam] 📊 Task analysis complete. Needs: ${analysis.needs.join(', ')}`);
+  async createPlan(instruction, availableTools, streamUpdate) {
+    streamUpdate({ type: 'status', message: '🧠 Planner received instruction. Analyzing...' });
 
-    // 2. Select the required agents
-    const selectedAgents = this.selectAgents(analysis);
-    console.log(`[AgentTeam] 👨‍🏫 Selected agents: ${selectedAgents.join(', ')}`);
+    // Create a simplified list of tool names and descriptions for the prompt
+    const toolSignatures = availableTools.map(tool => 
+      `${tool.name}(${JSON.stringify(tool.parameters.properties)}): ${tool.description}`
+    ).join('\n');
 
-    // 3. Distribute the work among agents
-    const subtasks = await this.coordinator.distributeWork(task, analysis, selectedAgents);
-    console.log(`[AgentTeam] 📝 Work distributed into ${subtasks.length} subtasks.`);
+    const prompt = `
+      You are an expert AI project planner. Your job is to take a user's instruction and a list of available tools, and create a step-by-step JSON plan to accomplish the goal. 
+      
+      USER INSTRUCTION:
+      "${instruction}"
 
-    // 4. Execute subtasks in parallel
-    const results = await Promise.all(
-      subtasks.map(async (subtask) => {
-        const agent = this.agents[subtask.agent];
-        console.log(`[AgentTeam] -> Executing subtask for ${subtask.agent}...`);
-        return await agent.execute(subtask, userId);
-      })
-    );
-    console.log(`[AgentTeam] ✅ All subtasks completed.`);
+      AVAILABLE TOOLS:
+      ${toolSignatures}
 
-    // 5. Merge the results
-    const finalResult = await this.coordinator.mergeResults(task, results);
-    console.log(`[AgentTeam] 🧩 Results merged.`);
+      RULES:
+      - The output MUST be a JSON object containing a single key: "steps".
+      - The "steps" key must be an array of objects.
+      - Each object in the array represents a single step.
+      - Each step object MUST have the following keys: "step" (an integer), "thought" (a brief description of why this step is needed), "tool" (the exact name of the tool to use), and "params" (an object of parameters for the tool).
+      - If a step needs to use the output of a previous step, use the format "result of step X" as a string value for the parameter.
+      - Be logical and break down the problem into small, executable steps.
 
-    // 6. Quality Check
-    const reviewedResult = await this.qualityCheck(finalResult, userId);
-    console.log(`[AgentTeam] ⭐ Quality check score: ${reviewedResult.qualityScore}`);
+      EXAMPLE PLAN:
+      {
+        "steps": [
+          {
+            "step": 1,
+            "thought": "First, I need to create a new file to write the code into.",
+            "tool": "createFile",
+            "params": {
+              "path": "./src/index.js"
+            }
+          },
+          {
+            "step": 2,
+            "thought": "Now, I will write the basic 'Hello World' code into the file I just created.",
+            "tool": "updateFile",
+            "params": {
+              "path": "./src/index.js",
+              "content": "console.log('Hello, World!');"
+            }
+          },
+          {
+            "step": 3,
+            "thought": "Finally, I need to execute the javascript file to see the output.",
+            "tool": "executeCommand",
+            "params": {
+                "command": "node ./src/index.js"
+            }
+          }
+        ]
+      }
+    `;
 
-    return reviewedResult;
-  }
+    try {
+      streamUpdate({ type: 'thought', message: 'Planner is thinking and constructing the plan...' });
+      
+      const response = await this.llm.chat.completions.create({
+        model: "gpt-4-turbo-preview", // Or your preferred model
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+      });
 
-  /**
-   * Selects agent instances based on the task analysis.
-   * @param {object} analysis The analysis object from the Coordinator.
-   * @returns {Array<string>} A list of selected agent keys.
-   */
-  selectAgents(analysis) {
-    return analysis.needs || [];
-  }
+      const planJson = response.choices[0].message.content;
+      streamUpdate({ type: 'status', message: '✅ Plan created successfully.' });
+      
+      const plan = JSON.parse(planJson);
+      return plan;
 
-  /**
-   * Performs a quality check on the final result by having other agents review the work.
-   * @param {object} result The final result to be reviewed.
-   * @param {string} userId The user ID.
-   * @returns {Promise<object>} The result, potentially revised, with a quality score.
-   */
-  async qualityCheck(result, userId) {
-    const reviewers = Object.keys(this.agents).filter(agentKey => agentKey !== result.primaryAgent);
-    
-    const reviews = await Promise.all(
-      reviewers.map(agentKey => {
-        const agent = this.agents[agentKey];
-        if (typeof agent.review === 'function') {
-          return agent.review(result);
-        }
-        return Promise.resolve({ agent: agentKey, score: 10, issues: [] }); // Assume perfect if no review method
-      })
-    );
-
-    const totalScore = reviews.reduce((sum, r) => sum + r.score, 0);
-    const averageScore = totalScore / reviews.length;
-
-    if (averageScore < 8.0) {
-      console.warn(`[AgentTeam] ⚠️ Quality score is low (${averageScore}). Sending for revision.`);
-      // In a more advanced implementation, this would trigger a revision cycle.
-      // For now, we just flag it.
-      result.revisionNeeded = true;
+    } catch (error) {
+      console.error('[Planner] Failed to create plan:', error);
+      streamUpdate({ type: 'error', message: `Planner failed: ${error.message}` });
+      return null;
     }
-
-    result.qualityScore = averageScore;
-    result.reviews = reviews;
-    return result;
   }
 }
 
-export default new AgentTeam();
+export { AgentTeam };

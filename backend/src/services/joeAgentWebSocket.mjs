@@ -1,19 +1,18 @@
 
-import { WebSocketServer } from 'ws';
 import { AgentTeam } from '../systems/AgentTeam.mjs'; // The REAL brain of Joe
+import { AdvancedToolsManager } from '../tools_refactored/AdvancedToolsManager.mjs';
 
 /**
- * Joe's Agent WebSocket Server
- * This is the TRUE entry point for user instructions.
- * It connects the user directly to the AgentTeam, Joe's core intelligence.
+ * Joe's Agent WebSocket Server - CORRECTED ARCHITECTURE
+ * Connects user instructions to the Planner (AgentTeam) and the Executor (AdvancedToolsManager)
  */
 export class JoeAgentWebSocketServer {
   constructor(server) {
-    // Note the new, correct path: /ws/joe-agent
     this.wss = new WebSocketServer({ server, path: '/ws/joe-agent' });
-    this.agentTeam = new AgentTeam(); // Instantiate the Agent Team
+    this.planner = new AgentTeam(); 
+    this.executor = new AdvancedToolsManager();
 
-    console.log('🤖 Joe Agent WebSocket Server Initialized on /ws/joe-agent');
+    console.log('🤖 Joe Agent WebSocket Server Initialized with Planner and Executor.');
     this.setupWebSocketServer();
   }
 
@@ -21,7 +20,6 @@ export class JoeAgentWebSocketServer {
     this.wss.on('connection', (ws, req) => {
       console.log('[JoeAgent] New client connected.');
 
-      // Create a function to stream updates back to the client
       const streamUpdate = (update) => {
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify(update));
@@ -32,17 +30,25 @@ export class JoeAgentWebSocketServer {
         try {
           const data = JSON.parse(message);
 
-          // Only handle 'instruct' actions for now
           if (data.action === 'instruct' && data.message) {
             console.log(`[JoeAgent] Received instruction: "${data.message}"`);
             
-            // CRITICAL STEP: Pass the instruction AND the streaming function to the real brain
-            await this.agentTeam.handleInstruction(data.message, streamUpdate);
+            // 1. Load the tools in the executor to make them available to the planner.
+            await this.executor.loadTools();
 
-          } else if (data.action === 'stop') {
-            console.log('[JoeAgent] Stop instruction received.');
-            // TODO: Implement agent stopping logic in AgentTeam
-            streamUpdate({ type: 'status', message: 'Stopping process as requested.', final: true });
+            // 2. Get the list of available tools for the planner.
+            const availableTools = this.executor.getAvailableTools();
+
+            // 3. Pass the instruction, tools, and stream to the PLANNER.
+            const plan = await this.planner.createPlan(data.message, availableTools, streamUpdate);
+
+            // 4. If a plan is created, pass it to the EXECUTOR.
+            if (plan && plan.steps) {
+              await this.executor.executePlan(plan.steps, streamUpdate); // Pass stream for real-time execution updates
+            } else {
+              streamUpdate({ type: 'error', message: 'The planner failed to create a valid plan.' });
+            }
+
           } else {
              streamUpdate({ type: 'error', message: 'Unknown action or missing message.' });
           }
@@ -53,22 +59,10 @@ export class JoeAgentWebSocketServer {
         }
       });
 
-      ws.on('close', () => {
-        console.log('[JoeAgent] Client disconnected.');
-      });
+      ws.on('close', () => { console.log('[JoeAgent] Client disconnected.'); });
+      ws.on('error', (error) => { console.error('[JoeAgent] WebSocket error:', error); });
 
-      ws.on('error', (error) => {
-        console.error('[JoeAgent] WebSocket error:', error);
-      });
-
-      ws.send(JSON.stringify({
-        type: 'status',
-        message: 'Connected to Joe's Core Intelligence. Ready for instructions.',
-      }));
+      ws.send(JSON.stringify({ type: 'status', message: 'Connected to Joe. Planner & Executor are ready.'}));
     });
-  }
-
-  close() {
-    this.wss.close();
   }
 }
