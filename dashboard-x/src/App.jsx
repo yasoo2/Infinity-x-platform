@@ -1,6 +1,8 @@
 
 import React from 'react';
-import Joe from './Joe'; // The primary Agent Interface
+// Corrected the import path again. Build tools like Vite often handle file extensions
+// automatically, so we should import without the .jsx extension.
+import Joe from './pages/Joe'; 
 
 /**
  * App Component
