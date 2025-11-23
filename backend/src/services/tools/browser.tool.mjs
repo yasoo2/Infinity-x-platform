@@ -1,35 +1,12 @@
 
-/**
- * Hyper-Digital Explorer - A state-of-the-art tool for comprehensive web browsing, analysis, and visualization.
- * Leverages Playwright for true browser rendering and Cheerio for robust content extraction.
- * @version 2.0.0 - ToolManager Compliant
- */
-
-import { chromium } from 'playwright-core';
+import { getPageContent, getBrowser } from '../browserManager.mjs';
 import * as cheerio from 'cheerio';
-import { getBrowser } from '../services/browserManager.mjs';
 
-/**
- * Fetches the full HTML of a page after dynamic content has loaded.
- * @param {string} url The URL to visit.
- * @returns {Promise<string>} The fully rendered HTML of the page.
- */
-async function getFullPageHTML(url) {
-    const browser = await getBrowser();
-    const page = await browser.newPage({
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    });
-    try {
-        await page.goto(url, { waitUntil: 'networkidle', timeout: 25000 });
-        return await page.content();
-    } finally {
-        await page.close();
-    }
-}
 
 async function browseWebsite({ url }) {
     try {
-        const html = await getFullPageHTML(url);
+        // Use the new caching mechanism
+        const html = await getPageContent(url);
         const $ = cheerio.load(html);
 
         // Remove non-essential tags for cleaner content extraction
@@ -132,4 +109,3 @@ screenshotWebsite.metadata = {
 
 
 export default { browseWebsite, screenshotWebsite };
-

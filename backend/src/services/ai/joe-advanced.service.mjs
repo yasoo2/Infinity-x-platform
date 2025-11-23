@@ -1,170 +1,190 @@
 
 /**
- * 🚀 JOE Advanced Engine - v8.0.0 "Phoenix"
- * This engine has been completely refactored to be a lean, powerful, and dynamic orchestrator.
- * It now relies entirely on the ToolManager for dynamic tool discovery and execution,
- * removing all hardcoded tool logic and making it infinitely scalable.
+ * 🚀 JOE Advanced Engine - v9.0.0 "Gemini-Phoenix"
+ * This engine is now a multi-modal orchestrator, capable of leveraging both OpenAI and Google Gemini models.
+ * It dynamically adapts tools for the selected model and provides a unified response structure.
  *
  * @module joeAdvancedEngine
- * @version 8.0.0 - Phoenix Edition
- * @author Joe AGI (Self-Refactored)
+ * @version 9.0.0 - Gemini-Phoenix Edition
+ * @author Joe AGI (Self-Upgraded)
  */
 
 import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { EventEmitter } from 'events';
 
 // --- Core System Components ---
-import toolManager from '../tools/tool-manager.service.mjs'; // The single source of truth for tools
-import memoryManager from '../memory/memory.service.mjs'; // The advanced memory system
+import toolManager from '../tools/tool-manager.service.mjs';
+import memoryManager from '../memory/memory.service.mjs';
 import MANUS_STYLE_PROMPT from '../../prompts/manusStylePrompt.mjs';
 
-// --- OpenAI Configuration ---
+// --- Client Configuration ---
 let openai;
 if (process.env.OPENAI_API_KEY) {
   openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 } else {
-  console.warn('⚠️ OPENAI_API_KEY is missing. Joe AI functionalities will be severely limited.');
+  console.warn('⚠️ OPENAI_API_KEY is missing. OpenAI functionalities will be disabled.');
+}
+
+let genAI;
+if (process.env.GOOGLE_API_KEY) {
+  genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+} else {
+  console.warn('⚠️ GOOGLE_API_KEY is missing. Gemini functionalities will be disabled.');
 }
 
 // =========================
-// 🎯 Event System (for real-time progress tracking)
+// 🎯 Event System
 // =========================
-
 class JoeEventEmitter extends EventEmitter {
-  constructor() {
-    super();
-    this.setMaxListeners(100);
-  }
-
-  emitProgress(userId, taskId, progress, message) {
-    this.emit('progress', { type: 'progress', userId, taskId, progress, message, timestamp: new Date() });
-  }
-
-  emitError(userId, error, context) {
-    this.emit('error', { type: 'error', userId, error: error.message, stack: error.stack, context, timestamp: new Date() });
-  }
+  constructor() { super(); this.setMaxListeners(100); }
+  emitProgress(userId, taskId, progress, message) { this.emit('progress', { type: 'progress', userId, taskId, progress, message, timestamp: new Date() }); }
+  emitError(userId, error, context) { this.emit('error', { type: 'error', userId, error: error.message, stack: error.stack, context, timestamp: new Date() }); }
 }
-
 const joeEvents = new JoeEventEmitter();
+
+
+// =========================
+// 🛠️ Tool Adaptation Layer
+// =========================
+/**
+ * Converts OpenAI-formatted tools to Gemini-formatted tools.
+ * @param {Array<Object>} openAITools - The array of OpenAI tool schemas.
+ * @returns {Array<Object>} The array of Gemini function declarations.
+ */
+function adaptToolsForGemini(openAITools) {
+    return openAITools.map(tool => ({
+        name: tool.function.name,
+        description: tool.function.description,
+        parameters: tool.function.parameters
+    }));
+}
 
 
 // =========================
 // 🚀 Main Processing Function
 // =========================
-
 /**
- * Processes a user's message, orchestrating the entire AI response cycle.
+ * Processes a user's message using a dynamically selected AI model.
  * @param {string} userId - The ID of the user.
  * @param {string} message - The user's message.
  * @param {string} sessionId - The current session ID.
+ * @param {object} [options={}] - Additional options.
+ * @param {string} [options.model='gpt-4o'] - The model to use (e.g., 'gpt-4o', 'gemini-1.5-pro-latest').
  * @returns {Promise<object>} - The final response and metadata.
  */
-async function processMessage(userId, message, sessionId) {
-  const startTime = Date.now();
-  console.log(`
-🤖 JOE v8 "Phoenix" Processing: "${message.substring(0, 80)}..." for User: ${userId}`);
+async function processMessage(userId, message, sessionId, { model = 'gpt-4o' } = {}) {
+    const startTime = Date.now();
+    console.log(`\n🤖 JOE v9 \"Gemini-Phoenix\" [${model}] Processing: \"${message.substring(0, 80)}...\" for User: ${userId}`);
 
-  if (!openai) {
-    throw new Error('OpenAI API key is not configured, cannot process message.');
-  }
+    // 1. Retrieve Conversation Context
+    const conversationHistory = await memoryManager.getConversationContext(userId, { limit: 15 });
+    const history = conversationHistory.map(item => ({
+        role: item.command.role === 'assistant' ? 'model' : 'user', // Gemini uses 'model' for assistant
+        parts: [{ text: item.command.content || String(item.command) }]
+    })).reverse();
 
-  // 1. Retrieve Conversation Context
-  const conversationHistory = await memoryManager.getConversationContext(userId, { limit: 15 });
-  const messages = [
-    { role: 'system', content: MANUS_STYLE_PROMPT },
-    ...conversationHistory.map(item => ({
-        role: item.command.role || 'user',
-        content: item.command.content || item.command
-    })).reverse(),
-    { role: 'user', content: message }
-  ];
+    const systemPrompt = { role: 'system', content: MANUS_STYLE_PROMPT };
+    const userMessage = { role: 'user', content: message };
 
-  // 2. Dynamic Tool Discovery
-  const availableTools = toolManager.getToolSchemas();
-  console.log(`🛠️ Discovered ${availableTools.length} tools available for this request.`);
+    const messagesForOpenAI = [systemPrompt, ...conversationHistory.map(item => item.command).reverse(), userMessage];
+    const messagesForGemini = [...history, { role: 'user', parts: [{ text: message }] }];
 
-  // 3. First LLM Call (with dynamic tools)
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o', // The most capable model
-    messages,
-    tools: availableTools,
-    tool_choice: 'auto',
-    temperature: 0.7,
-    max_tokens: 4000,
-  });
+    // 2. Dynamic Tool Discovery
+    const availableTools = toolManager.getToolSchemas();
+    console.log(`🛠️ Discovered ${availableTools.length} tools available for this request.`);
 
-  let finalResponse = response.choices[0].message;
-  const toolCalls = finalResponse.tool_calls || [];
-  let toolResults = [];
+    let finalContent = 'An error occurred.';
+    const toolCalls = [];
+    const toolResults = [];
+    let usage = {};
 
-  // 4. Dynamic Tool Execution
-  if (toolCalls.length > 0) {
-    console.log(`🔧 Executing ${toolCalls.length} tool(s) dynamically...`);
-    const toolMessages = [finalResponse];
+    // 3. Model-Specific Execution
+    if (model.startsWith('gemini') && genAI) {
+        // --- GEMINI EXECUTION PATH ---
+        const geminiModel = genAI.getGenerativeModel({
+            model: model,
+            systemInstruction: MANUS_STYLE_PROMPT,
+            tools: [{ functionDeclarations: adaptToolsForGemini(availableTools) }]
+        });
+        const chat = geminiModel.startChat({ history });
+        const result = await chat.sendMessage(message);
+        const response = result.response;
+        const responseCalls = response.functionCalls() || [];
+        usage = { total_tokens: result.response.usageMetadata.totalTokenCount };
 
-    for (const toolCall of toolCalls) {
-      const functionName = toolCall.function.name;
-      const args = JSON.parse(toolCall.function.arguments);
-      
-      console.log(`⚡ ${functionName}(${JSON.stringify(args).substring(0, 60)}...)`);
-      joeEvents.emitProgress(userId, sessionId, 50, `Executing tool: ${functionName}...`);
+        if (responseCalls.length > 0) {
+            console.log(`🔧 Gemini Executing ${responseCalls.length} tool(s)...`);
+            toolMessages = [];
 
-      // Delegate execution to the ToolManager
-      const result = await toolManager.execute(functionName, args);
-      toolResults.push({ tool: functionName, args, result });
+            for (const call of responseCalls) {
+                console.log(`⚡ ${call.name}(${JSON.stringify(call.args).substring(0, 60)}...)`);
+                const result = await toolManager.execute(call.name, call.args);
+                toolResults.push({ tool: call.name, args: call.args, result });
+                toolMessages.push({ functionResponse: { name: call.name, response: { content: JSON.stringify(result) } } });
+                toolCalls.push({function: {name: call.name, arguments: call.args}}); // For logging
+            }
 
-      toolMessages.push({
-        role: 'tool',
-        tool_call_id: toolCall.id,
-        content: JSON.stringify(result),
-      });
+            console.log('🔄 Gemini Synthesizing tool results...');
+            const secondResult = await chat.sendMessage(JSON.stringify(toolMessages));
+            finalContent = secondResult.response.text();
+            usage.total_tokens += secondResult.response.usageMetadata.totalTokenCount;
+        } else {
+            finalContent = response.text();
+        }
+
+    } else if (openai) {
+        // --- OPENAI EXECUTION PATH ---
+        const response = await openai.chat.completions.create({ model, messages: messagesForOpenAI, tools: availableTools, tool_choice: 'auto' });
+        const messageResponse = response.choices[0].message;
+        usage = response.usage;
+
+        if (messageResponse.tool_calls) {
+            console.log(`🔧 OpenAI Executing ${messageResponse.tool_calls.length} tool(s)...`);
+            const toolMessages = [messageResponse];
+            for (const toolCall of messageResponse.tool_calls) {
+                const functionName = toolCall.function.name;
+                const args = JSON.parse(toolCall.function.arguments);
+                console.log(`⚡ ${functionName}(${JSON.stringify(args).substring(0, 60)}...)`);
+                const result = await toolManager.execute(functionName, args);
+                toolResults.push({ tool: functionName, args, result });
+                toolMessages.push({ role: 'tool', tool_call_id: toolCall.id, content: JSON.stringify(result) });
+                toolCalls.push(toolCall); // For logging
+            }
+            console.log('🔄 OpenAI Synthesizing tool results...');
+            const secondResponse = await openai.chat.completions.create({ model, messages: [...messagesForOpenAI, ...toolMessages] });
+            finalContent = secondResponse.choices[0].message.content;
+            usage.total_tokens += secondResponse.usage.total_tokens;
+        } else {
+            finalContent = messageResponse.content;
+        }
+    } else {
+        throw new Error('No AI models are configured. Please set OPENAI_API_KEY or GOOGLE_API_KEY.');
     }
 
-    // 5. Second LLM Call to Synthesize Tool Results
-    console.log('🔄 Synthesizing tool results...');
-    const secondResponse = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [...messages, ...toolMessages],
-      temperature: 0.7,
-      max_tokens: 4000,
+    const duration = Date.now() - startTime;
+    console.log(`✅ Processing complete in ${duration}ms.`);
+
+    // 6. Save the complete interaction to memory
+    await memoryManager.saveInteraction(userId, message, finalContent, {
+      sessionId, service: `joe-advanced-v9-${model}`, duration, toolResults,
+      tokens: usage?.total_tokens
     });
-    finalResponse = secondResponse.choices[0].message;
-  }
 
-  const duration = Date.now() - startTime;
-  console.log(`✅ Processing complete in ${duration}ms.`);
-
-  // 6. Save the complete interaction to memory
-  await memoryManager.saveInteraction(userId, message, finalResponse.content, {
-      sessionId,
-      service: 'joe-advanced-v8-phoenix',
-      duration,
-      toolResults,
-      tokens: response.usage?.total_tokens
-  });
-
-  return {
-    response: finalResponse.content,
-    toolsUsed: toolCalls.map(tc => tc.function.name),
-  };
+    return {
+        response: finalContent,
+        toolsUsed: toolCalls.map(tc => tc.function.name),
+    };
 }
+
 
 // =========================
 // 📤 Exports
 // =========================
+export { processMessage, joeEvents };
+export default { processMessage, events: joeEvents, version: '9.0.0', name: 'JOE Advanced Engine - Gemini-Phoenix Edition' };
 
-export {
-  processMessage,
-  joeEvents
-};
-
-export default {
-  processMessage,
-  events: joeEvents,
-  version: '8.0.0',
-  name: 'JOE Advanced Engine - Phoenix Edition'
-};
-
-console.log('🚀 JOE Advanced Engine v8.0.0 "Phoenix" Loaded Successfully!');
+console.log('🚀 JOE Advanced Engine v9.0.0 "Gemini-Phoenix" Loaded Successfully!');
 console.log('🧠 Integrated with Advanced Memory Manager.');
 console.log('🛠️ Now fully dynamic via ToolManager integration.');
+console.log('♊ Capable of running both OpenAI and Gemini models.');

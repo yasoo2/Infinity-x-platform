@@ -1,20 +1,11 @@
 
-/**
- * Browser Manager - Singleton pattern for managing a single Playwright browser instance.
- * Ensures that we don't launch a new browser for every request, which is resource-intensive.
- */
-
 import { chromium } from 'playwright-core';
+import { getUpstashRedis } from '../utils/upstashRedis.mjs';
 
 let browserInstance = null;
 let launchPromise = null;
 
-/**
- * Launches and returns a singleton browser instance.
- * If an instance is already launching or running, it returns the existing one.
- * @returns {Promise<import('playwright-core').Browser>} A promise that resolves to the browser instance.
- */
-export async function getBrowser() {
+async function getBrowser() {
     if (browserInstance && browserInstance.isConnected()) {
         return browserInstance;
     }
@@ -30,7 +21,7 @@ export async function getBrowser() {
                 '--disable-accelerated-2d-canvas',
                 '--no-first-run',
                 '--no-zygote',
-                '--single-process', // Currently needed for some environments
+                '--single-process',
                 '--disable-gpu'
             ]
         }).then(browser => {
@@ -44,7 +35,7 @@ export async function getBrowser() {
             return browser;
         }).catch(error => {
             console.error('❌ Failed to launch shared browser instance:', error);
-            launchPromise = null; // Reset promise on failure
+            launchPromise = null;
             throw error;
         });
     }
@@ -53,14 +44,57 @@ export async function getBrowser() {
 }
 
 /**
- * Closes the shared browser instance. 
- * Should be called on graceful shutdown of the application.
+ * Fetches the content of a URL, using a cache to speed up repeated requests.
+ * @param {string} url The URL to fetch.
+ * @returns {Promise<string>} A promise that resolves to the page content.
  */
+export async function getPageContent(url) {
+    const redis = getUpstashRedis();
+    const cacheKey = `browse:${url}`;
+
+    if (redis) {
+        try {
+            const cachedContent = await redis.get(cacheKey);
+            if (cachedContent) {
+                console.log(`CACHE HIT: Found content for ${url} in Redis.`);
+                return `(Cached Content)\n${cachedContent}`;
+            }
+        } catch (error) {
+            console.error(`Redis GET failed for key "${cacheKey}":`, error.message);
+            // Don't block the request, just proceed without cache
+        }
+    }
+
+    console.log(`CACHE MISS: Fetching content for ${url} from the web.`);
+    const browser = await getBrowser();
+    const page = await browser.newPage();
+    try {
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+        const content = await page.content();
+
+        if (redis) {
+            try {
+                // Cache for 1 hour
+                await redis.set(cacheKey, content, { ex: 3600 });
+                console.log(`CACHED: Stored content for ${url} in Redis.`);
+            } catch (error) {
+                console.error(`Redis SET failed for key "${cacheKey}":`, error.message);
+            }
+        }
+        return content;
+    } finally {
+        await page.close();
+    }
+}
+
+
 export async function closeBrowser() {
     if (launchPromise) {
         console.log('👋 Closing shared browser instance...');
-        const browser = await getBrowser();
-        await browser.close();
+        const browser = await getBrowser(); // Ensures we wait for launch to complete
+        if (browser) {
+            await browser.close();
+        }
         browserInstance = null;
         launchPromise = null;
         console.log('✅ Shared browser instance closed.');

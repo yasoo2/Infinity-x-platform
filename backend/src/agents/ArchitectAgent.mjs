@@ -1,18 +1,16 @@
 
-import { BaseAgent } from './BaseAgent.mjs';
-import { AdvancedToolsManager } from '../tools_refactored/AdvancedToolsManager.mjs';
+import joeAdvanced from '../services/ai/joe-advanced.service.mjs';
 
 /**
- * 🏛️ Architect Agent
- * Analyzes user requests and creates a detailed, step-by-step execution plan.
+ * 🏛️ Architect Agent - v2.0 "Unified"
+ * Creates detailed, step-by-step execution plans by leveraging the core Gemini-Phoenix engine.
+ * This agent is now a self-contained service used by the ArchitectTool.
  */
-class ArchitectAgent extends BaseAgent {
+class ArchitectAgent {
   constructor() {
-    // The Architect needs access to ALL tools to create a comprehensive plan.
-    const tools = new AdvancedToolsManager();
-    super(tools.getAllTools());
     this.role = 'Architect';
-    this.goal = 'To analyze user requests, understand the project goals, and create a detailed, step-by-step execution plan that can be executed by other specialized agents.';
+    this.goal = 'To analyze user requests, understand the project goals, and create a detailed, step-by-step execution plan that can be executed by other specialized agents or tools.';
+    console.log('🏛️ Architect Agent v2.0 "Unified" Initialized.');
   }
 
   /**
@@ -22,49 +20,37 @@ class ArchitectAgent extends BaseAgent {
    */
   async createPlan(instruction) {
     const prompt = `
-      You are the ${this.role}.
-      Your goal is: ${this.goal}
+      You are a world-class AI system architect.
+      Your goal is to break down a complex user request into a clear, numbered, step-by-step execution plan.
 
-      A user has provided the following instruction: "${instruction}"
+      The user's request is: "${instruction}"
 
-      Based on this instruction, create a step-by-step plan to achieve the user's goal.
-      For each step, specify the EXACT agent required (e.g., 'developer', 'designer', 'tester') and a clear, concise description of what that agent needs to do.
+      Analyze this request and produce a plan. Each step in the plan should be a concise and actionable instruction for another AI agent or a developer.
+      The plan should be formatted as a simple numbered list.
 
-      The available agents are: developer, designer, tester, security, devops.
-
-      Example Output Format:
-      {
-        "plan": {
-          "steps": [
-            { "agent": "developer", "description": "Set up the initial project structure using a standard boilerplate." },
-            { "agent": "designer", "description": "Create a color palette and basic UI mockups based on the project description." },
-            { "agent": "developer", "description": "Implement the core application logic and API endpoints." },
-            { "agent": "tester", "description": "Write and run unit tests for the new API endpoints." },
-            { "agent": "devops", "description": "Configure a CI/CD pipeline and deploy the application to a staging environment." }
-          ]
-        }
-      }
+      Example:
+      1. Set up the initial project structure with a Node.js backend and a React frontend.
+      2. Create a database schema for users, products, and orders.
+      3. Implement API endpoints for user authentication and product management.
+      4. Develop the frontend UI for browsing products and managing the shopping cart.
+      5. Deploy the application to a cloud provider.
     `;
 
-    // Using a simple call to an AI model to generate the plan.
-    // In a real system, this would use a more advanced function-calling model.
-    const planResponse = await this.llm.call(prompt);
-    const planObject = JSON.parse(planResponse.text);
+    // Use the unified joeAdvanced engine for the thinking process
+    // We can even specify a model, like Gemini for complex planning
+    const response = await joeAdvanced.processMessage(
+      'architect_agent_user', 
+      prompt, 
+      `architect_plan_${Date.now()}`,
+      { model: 'gemini-1.5-pro-latest' } // Using a powerful model for planning
+    );
 
-    return planObject.plan;
+    // Parse the numbered list response into a structured array
+    const steps = response.response.split('\n').map(step => step.trim()).filter(step => /^[0-9]+\./.test(step));
+    
+    return { steps: steps.map(s => ({ description: s.replace(/^[0-9]+\.\s*/, '') })) };
   }
-
-    /**
-     * The Architect's primary execution method is planning.
-     * @param {object} details - The instruction details.
-     * @param {function} streamUpdate - The streaming function.
-     */
-    async execute(details, streamUpdate) {
-        streamUpdate({ type: 'status', message: 'Architect is starting to draft a plan.' });
-        const plan = await this.createPlan(details.instruction);
-        streamUpdate({ type: 'status', message: 'Architect has finalized the plan.' });
-        return plan;
-    }
 }
 
-export default ArchitectAgent;
+// Export a singleton instance
+export default new ArchitectAgent();

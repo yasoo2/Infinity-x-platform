@@ -22,15 +22,13 @@ import fs from 'fs';
 // --- Core Components ---
 import { initMongo, closeMongoConnection } from './src/core/database.mjs';
 import { setupAuth, requireRole, optionalAuth } from './src/middleware/auth.mjs';
-import eventBus from './src/core/event-bus.mjs'; // Import the Event Bus
+import eventBus from './src/core/event-bus.mjs';
 
 // --- Services ---
 import toolManager from './src/services/tools/tool-manager.service.mjs';
 import SandboxManager from './src/sandbox/SandboxManager.mjs';
-import { AdvancedWorkerManager } from './src/services/ai/project-generator.service.mjs';
-import JoeAdvancedService from './src/services/ai/joe-advanced.service.mjs'; 
 import MemoryManager from './src/services/memory/memory.service.mjs';
-import RealtimeService from './src/services/realtime.service.mjs'; // ✨ Import the new Realtime Service
+import { JoeAgentWebSocketServer } from './src/services/joeAgentWebSocket.mjs'; // ✨ Import the new WebSocket Server
 
 // =========================
 // 🎯 Configuration
@@ -44,7 +42,6 @@ const CONFIG = {
 // 🚀 Main App Initialization
 // =========================
 const app = express();
-// ✨ Create the HTTP server instance here so we can pass it to the WebSocket server
 const server = http.createServer(app);
 
 app.set('trust proxy', 1);
@@ -69,22 +66,18 @@ async function setupDependencies() {
     const db = await initMongo();
     const memoryManager = new MemoryManager({ db }); 
     
-    const workerManager = new AdvancedWorkerManager({ sandboxManager });
-
-    // ✨ Initialize the Realtime Service with the HTTP server
-    const realtimeService = new RealtimeService(server);
+    // ✨ Initialize the Joe Agent WebSocket Server with the HTTP server
+    const joeAgentServer = new JoeAgentWebSocketServer(server);
 
     return {
         db,
         memoryManager,
-        workerManager,
         sandboxManager,
-        realtimeService, // Expose the new service
-        joeAdvancedService: JoeAdvancedService,
+        joeAgentServer, // Expose the new service
         toolManager,
         requireRole: requireRole(db),
         optionalAuth: optionalAuth(db),
-        eventBus // Expose the event bus
+        eventBus
     };
 }
 
@@ -120,18 +113,15 @@ async function startServer() {
     setupAuth(dependencies.db);
     await applyRoutes(dependencies);
     
-    await dependencies.workerManager.start();
-
     app.use((req, res) => res.status(404).json({ error: 'NOT_FOUND' }));
     app.use((err, req, res, next) => {
         console.error('❌ Global Error:', err);
         res.status(500).json({ error: 'SERVER_ERROR', message: err.message });
     });
 
-    // ✨ Listen on the HTTP server, not the Express app
     server.listen(CONFIG.PORT, '0.0.0.0', () => {
       console.log(`✅ Server running on http://localhost:${CONFIG.PORT}`);
-      console.log(`📡 Quantum Tunnel is open at ws://localhost:${CONFIG.PORT}/ws/quantum-tunnel`);
+      console.log(`🤖 Joe Agent v2 is active at ws://localhost:${CONFIG.PORT}/ws/joe-agent`);
     });
 
   } catch (error) {
@@ -140,8 +130,17 @@ async function startServer() {
   }
 }
 
-// Graceful shutdown logic remains the same...
-async function gracefulShutdown(signal) { /* ... */ }
+// Graceful shutdown logic
+async function gracefulShutdown(signal) { 
+    console.log(`\n🔌 Received ${signal}. Shutting down gracefully...`);
+    server.close(() => {
+        console.log('Closed out remaining connections.');
+        closeMongoConnection().then(() => {
+            console.log('MongoDB connection closed.');
+            process.exit(0);
+        });
+    });
+}
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
