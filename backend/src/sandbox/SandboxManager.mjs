@@ -108,7 +108,7 @@ class SandboxManager {
         try {
             await this.analyzeCode(command, language);
         } catch (error) {
-            end({ success: false // });
+            end({ success: false }); // Fixed syntax error
             return { success: false, code: -1, stdout: '', stderr: error.message };
         }
     }
