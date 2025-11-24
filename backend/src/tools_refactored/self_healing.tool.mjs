@@ -14,7 +14,7 @@ import { selfHealingSystem } from '../systems/self-healing.service.mjs';
  */
 async function reportError({ error, context }) {
   try {
-    console.log('🔧 Reporting error to self-healing system...');
+    console.log('[HEALING] Reporting error to self-healing system...');
     // The error object might not be serializable, so we extract key properties.
     const serializableError = { 
         message: error.message, 
@@ -24,7 +24,7 @@ async function reportError({ error, context }) {
     const result = await selfHealingSystem.handleSystemError(serializableError, context);
     return { success: true, ...result };
   } catch (e) {
-    console.error('❗ Self-healing system itself failed:', e);
+    console.error('[ERROR] Self-healing system itself failed:', e);
     return { success: false, error: `The self-healing system encountered a fatal error: ${e.message}` };
   }
 }
