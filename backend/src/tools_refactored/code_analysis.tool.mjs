@@ -18,7 +18,7 @@ async function analyzeCode({ filePath }) {
 
     // Dependency extraction using Regex
     const dependencies = [];
-    const importRegex = /import(?:[\s\S]*?from[\s]*)['"].*?\.m?js)['"]/g;
+    const importRegex = /import(?:[\s\S]*?from[\s]*)["'](.*\.m?js)["']/g;
     const requireRegex = /require\(['"](.*?\.m?js)['"]\)/g;
     let match;
 

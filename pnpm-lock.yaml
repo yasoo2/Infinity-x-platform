@@ -57,7 +57,7 @@ importers:
         specifier: ^8.3.2
         version: 8.20.1(socks@2.8.7)
       openai:
-        specifier: ^4.47.1
+        specifier: ^4.104.0
         version: 4.104.0(ws@8.18.3)(zod@3.23.8)
       prom-client:
         specifier: ^15.1.2
