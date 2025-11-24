@@ -1,5 +1,6 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import {ROLES} from '../../../shared/roles.js'
 
 const authRouterFactory = ({ db }) => {
@@ -56,7 +57,47 @@ const authRouterFactory = ({ db }) => {
         }
     });
 
-    // NOTE: A login endpoint would also be here, but for now we are just integrating the orphaned file.
+        /**
+     * @route POST /api/v1/auth/login
+     * @description Logs in a user.
+     * @access Public
+     */
+    router.post('/login', async (req, res) => {
+        try {
+            const { username, password } = req.body;
+
+            // --- Validation ---
+            if (!username || !password) {
+                return res.status(400).json({ success: false, error: 'Username and password are required.' });
+            }
+
+            // --- Find user ---
+            const user = await db.collection('users').findOne({ email: username.toLowerCase() });
+            if (!user) {
+                return res.status(401).json({ success: false, message: 'Invalid username or password.' });
+            }
+
+            // --- Check password ---
+            const isMatch = await bcrypt.compare(password, user.password);
+            if (!isMatch) {
+                return res.status(401).json({ success: false, message: 'Invalid username or password.' });
+            }
+
+            // --- Generate JWT ---
+            const token = jwt.sign({ userId: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+            res.status(200).json({
+                success: true,
+                message: 'Login successful.',
+                redirectTo: '/dashboard',
+                token: token
+            });
+
+        } catch (error) {
+            console.error('❌ Login endpoint error:', error);
+            res.status(500).json({ success: false, error: 'An internal server error occurred.' });
+        }
+    });
 
     return router;
 };

@@ -158,3 +158,28 @@ header nav a:hover, header nav a.active {
     margin-bottom: 20px;
     display: none; /* Hidden by default */
 }
+
+/* Password Toggle Styles */
+.password-group {
+    position: relative;
+}
+
+.password-group input {
+    padding-right: 40px; /* Make space for the icon */
+}
+
+.toggle-password {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    transform: translateY(10px); /* Adjust based on label height */
+    cursor: pointer;
+    color: #5f6368;
+    font-size: 1.2em;
+    user-select: none;
+    z-index: 10;
+}
+
+.toggle-password:hover {
+    color: #1a73e8;
+}

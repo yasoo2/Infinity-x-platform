@@ -1,8 +1,21 @@
 document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('loginForm');
+    const togglePassword = document.getElementById('togglePassword');
+    const passwordInput = document.getElementById('password');
     const errorMessage = document.getElementById('error-message');
 
     if (loginForm) {
+        // Toggle password visibility
+        if (togglePassword && passwordInput) {
+            togglePassword.addEventListener('click', function () {
+                // Toggle the type attribute
+                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordInput.setAttribute('type', type);
+                
+                // Toggle the eye icon (using text for simplicity)
+                this.textContent = type === 'password' ? '👁️' : '🔒';
+            });
+        }
         loginForm.addEventListener('submit', async (event) => {
             event.preventDefault(); // Prevent the default form submission
 
@@ -17,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             try {
                 // Send login request to the backend
-                const response = await fetch('/login', { // Assuming a /login endpoint
+                const response = await fetch('/api/v1/auth/login', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -30,6 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (response.ok && result.success) {
                     // On successful login, redirect to the dashboard or main app page
                     console.log('Login successful, redirecting...');
+                    localStorage.setItem('joe_token', result.token);
                     window.location.href = result.redirectTo || '/dashboard'; // Redirect to dashboard
                 } else {
                     // Show error message from the server
