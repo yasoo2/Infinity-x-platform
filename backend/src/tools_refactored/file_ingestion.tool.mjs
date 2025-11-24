@@ -16,7 +16,7 @@ const UPLOAD_DIR = path.join(os.tmpdir(), 'infinity-uploads');
 // We can import the memoryManager directly if it's a singleton, but it's better to pass it in.
 // For now, we will assume it is available as a dependency injected elsewhere, and this tool is a proxy.
 // This file is about defining the tool, the execution is handled by the ToolManager which has context.
-import MemoryManager from '../../services/memory/memory.service.mjs';
+import MemoryManager from '../services/memory/memory.service.mjs';
 const memoryManager = new MemoryManager(); // Lightweight instantiation for access to methods.
 
 async function initializeService() {
