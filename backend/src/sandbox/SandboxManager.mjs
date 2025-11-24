@@ -132,18 +132,18 @@ class SandboxManager {
           SecurityOpt: ['no-new-privileges'],
           NetworkMode: 'none', // No network access by default
         },
-      // });
+      });
 
       await container.start();
-      const stream = await container.logs({ follow: true, stdout: true, stderr: true // });
+      const stream = await container.logs({ follow: true, stdout: true, stderr: true });
 
       stream.on('data', (chunk) => {
         const output = chunk.toString('utf8');
         // The Docker log stream multiplexes stdout and stderr. We might need to demultiplex if needed.
         // For now, we'll send all as 'data'.
         finalOutput += output;
-        eventBus.emit('sandbox:data', { sessionId, data: output // });
-      // });
+        eventBus.emit('sandbox:data', { sessionId, data: output });
+      });
 
       const [exitData] = await container.wait();
       const code = exitData.StatusCode;
@@ -159,21 +159,21 @@ class SandboxManager {
       if (this.isRedisConnected && result.success) {
         await this.redisClient.set(cacheKey, JSON.stringify(result), {
           EX: 3600, // Cache for 1 hour
-        // });
+        });
       }
 
-      end// end({ success: result.success });
+      // end({ success: result.success });
       return result;
 
     } catch (error) {
         console.error('❌ Docker execution failed:', error);
-        e// end({ success: false }););
+        // end({ success: false });
         throw error;
     } finally {
         // 5. Cleanup
         if (container) {
             console.log('🗑️ Removing container...');
-            await container.remove({ force: true // });
+            await container.remove({ force: true });
         }
     }
   }
@@ -184,13 +184,13 @@ class SandboxManager {
     // Escaping the code to be safely passed inside a shell command
     const escapedCode = code.replace(/"/g, '\"');
     const command = `python3 -c "${escapedCode}"`;
-    return this.executeShell(command, { ...options, language: 'python' // });
+    return this.executeShell(command, { ...options, language: 'python' });
   }
 
   async executeNode(code, options = {}) {
     const escapedCode = code.replace(/"/g, '\"');
     const command = `node -e "${escapedCode}"`;
-    return this.executeShell(command, { ...options, language: 'node' // });
+    return this.executeShell(command, { ...options, language: 'node' });
   }
 
   /**
@@ -202,7 +202,7 @@ class SandboxManager {
     // 1. Use a specific Docker image like 'buildkite/puppeteer'
     // 2. Pass the script to the container
     // 3. Execute and stream results
-    return Promise.resolve({ success: false, reason: 'Not implemented' // });
+    return Promise.resolve({ success: false, reason: 'Not implemented' });
   }
 }
 
