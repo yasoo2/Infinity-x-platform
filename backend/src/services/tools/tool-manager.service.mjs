@@ -14,7 +14,8 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const TOOLS_DIR = path.join(__dirname, '..', '..', 'tools_refactored');
+// CORRECTED: Pointing to the correct directory where the refactored tools are located.
+const TOOLS_DIR = path.join(__dirname, '..', '..', '..', 'src', 'tools_refactored');
 
 class ToolManager {
     constructor() {

@@ -1,13 +1,4 @@
 services:
-  # Service for the Frontend
-  - type: web
-    name: frontend-dashboard
-    env: static
-    rootDir: dashboard-x
-    plan: free
-    buildCommand: "npm install && npm run build"
-    staticPublishPath: ./dist
-
   # Service for the Backend API
   - type: web
     name: backend-api
