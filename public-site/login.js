@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     // On successful login, redirect to the dashboard or main app page
                     console.log('Login successful, redirecting...');
                     localStorage.setItem('joe_token', result.token);
-                    window.location.href = result.redirectTo || '/dashboard'; // Redirect to dashboard
+                    window.location.href = result.redirectTo || '/dashboard/index.html'; // Redirect to dashboard
                 } else {
                     // Show error message from the server
                     showError(result.message || 'Invalid username or password.');

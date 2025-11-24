@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const TOOLS_DIR = path.join(__dirname, '..', '..', '..', 'src', 'tools_refactored');
+const TOOLS_DIR_V1 = path.join(__dirname, '..', '..', '..', 'src', 'services', 'tools');
 
 // Helper to check if a value is a class
 function isClass(v) {
@@ -26,11 +27,16 @@ class ToolManager {
         if (this._isInitialized) return;
         console.log('🔄 Initializing ToolManager with dependencies...');
 
-        const toolFiles = await fs.readdir(TOOLS_DIR);
+        const toolFilesV2 = await fs.readdir(TOOLS_DIR);
+        const toolFilesV1 = await fs.readdir(TOOLS_DIR_V1);
+        const allToolFiles = [
+            ...toolFilesV2.map(file => ({ file, dir: TOOLS_DIR })),
+            ...toolFilesV1.map(file => ({ file, dir: TOOLS_DIR_V1 }))
+        ];
 
-        for (const file of toolFiles) {
-            if (file.endsWith('.mjs')) {
-                const toolModulePath = path.join(TOOLS_DIR, file);
+        for (const { file, dir } of allToolFiles) {
+            if (file.endsWith('.mjs') && file !== 'tool-manager.service.mjs') {
+                const toolModulePath = path.join(dir, file);
                 try {
                     const { default: toolExport } = await import(`file://${toolModulePath}`);
                     let toolModule;
