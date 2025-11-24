@@ -14,6 +14,6 @@ export const SYSTEM_STATUS = {
 export const COMPANY = {
   NAME: "X Elite Solutions",
   DOMAIN: "xelitesolutions.com",
-  MISSION: "Build, automate, and scale businesses using intelligent 
-engineering.",
+  MISSION: `Build, automate, and scale businesses using intelligent 
+engineering.`,
 };
