@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import toolManager from '../services/tools/tool-manager.service.mjs';ai';
+import toolManager from '../services/tools/tool-manager.service.mjs';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
