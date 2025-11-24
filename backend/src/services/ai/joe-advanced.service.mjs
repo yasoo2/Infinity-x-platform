@@ -75,7 +75,8 @@ function adaptToolsForGemini(openAITools) {
  */
 async function processMessage(userId, message, sessionId, { model = 'gpt-4o' } = {}) {
     const startTime = Date.now();
-    console.log(`\n🤖 JOE v9 \"Gemini-Phoenix\" [${model}] Processing: \"${message.substring(0, 80)}...\" for User: ${userId}`);
+    console.log(`
+🤖 JOE v9 "Gemini-Phoenix" [${model}] Processing: "${message.substring(0, 80)}..." for User: ${userId}`);
 
     // 1. Retrieve Conversation Context
     const conversationHistory = await memoryManager.getConversationContext(userId, { limit: 15 });
@@ -115,7 +116,7 @@ async function processMessage(userId, message, sessionId, { model = 'gpt-4o' } =
 
         if (responseCalls.length > 0) {
             console.log(`🔧 Gemini Executing ${responseCalls.length} tool(s)...`);
-            toolMessages = [];
+            let toolMessages = [];
 
             for (const call of responseCalls) {
                 console.log(`⚡ ${call.name}(${JSON.stringify(call.args).substring(0, 60)}...)`);

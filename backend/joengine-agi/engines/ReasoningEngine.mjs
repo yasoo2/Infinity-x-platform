@@ -17,11 +17,11 @@ export class ReasoningEngine {
 
     /**
      * Analyzes a user request and generates a step-by-step execution plan.
-     * @param {string} userRequest The user\'s high-level goal.
+     * @param {string} userRequest The user's high-level goal.
      * @returns {Promise<object>} A structured plan with subtasks.
      */
     async createPlan(userRequest) {
-        console.log(`\n🤔 Generating execution plan for: \"${userRequest}\"...`);
+        console.log(`\n🤔 Generating execution plan for: "${userRequest}"...`);
 
         const systemPrompt = `
 أنت **العقل المدبر (Mastermind)** في نظام الذكاء الاصطناعي **JOE**.
@@ -36,32 +36,32 @@ ${this.availableTools.map(tool => `- **${tool.name}**: ${tool.description}`).joi
 2.  **لا للتنفيذ:** مهمتك هي التخطيط فقط، لا تقم بتنفيذ أي شيء أو استدعاء أي دالة.
 3.  **الدقة المطلقة:** يجب أن تكون أسماء الأدوات والدوال والوسائط متطابقة تمامًا مع ما هو متاح.
 4.  **الخطوات المنطقية:** قسّم الطلب إلى سلسلة من الخطوات الصغيرة والمنطقية.
-5.  **التفكير العميق:** لكل خطوة، اشرح لماذا اتخذت هذا القرار في حقل \"thought\".
+5.  **التفكير العميق:** لكل خطوة، اشرح لماذا اتخذت هذا القرار في حقل "thought".
 
 **صيغة الرد (JSON فقط):**
 \`\`\`json
 {
-  \"thought\": \"أعتقد أنني بحاجة إلى تقسيم الطلب إلى 3 خطوات رئيسية...\",
-  \"plan\": {
-    \"description\": \"خطة عمل لتحقيق طلب المستخدم: ${userRequest}\",
-    \"subtasks\": [
+  "thought": "أعتقد أنني بحاجة إلى تقسيم الطلب إلى 3 خطوات رئيسية...",
+  "plan": {
+    "description": "خطة عمل لتحقيق طلب المستخدم: ${userRequest}",
+    "subtasks": [
       {
-        \"thought\": \"الخطوة الأولى هي قراءة الملف المطلوب...\",
-        \"description\": \"قراءة محتوى ملف package.json\",
-        \"tool\": \"FileSystemTool\",
-        \"function\": \"readFile\",
-        \"args\": {
-          \"path\": \"package.json\"
+        "thought": "الخطوة الأولى هي قراءة الملف المطلوب...",
+        "description": "قراءة محتوى ملف package.json",
+        "tool": "FileSystemTool",
+        "function": "readFile",
+        "args": {
+          "path": "package.json"
         }
       },
       {
-        \"thought\": \"الخطوة الثانية هي تعديل الإصدار...\",
-        \"description\": \"تحديث رقم الإصدار في الملف\",
-        \"tool\": \"CodeTool\",
-        \"function\": \"refactorCode\",
-        \"args\": {
-          \"originalCode\": \"<file_content>\", // سيتم ملؤه لاحقًا
-          \"command\": \"قم بزيادة رقم الإصدار الثانوي (minor version)\"
+        "thought": "الخطوة الثانية هي تعديل الإصدار...",
+        "description": "تحديث رقم الإصدار في الملف",
+        "tool": "CodeTool",
+        "function": "refactorCode",
+        "args": {
+          "originalCode": "<file_content>", // سيتم ملؤه لاحقًا
+          "command": "قم بزيادة رقم الإصدار الثانوي (minor version)"
         }
       }
     ]
@@ -75,7 +75,7 @@ ${this.availableTools.map(tool => `- **${tool.name}**: ${tool.description}`).joi
                 model: this.model,
                 messages: [
                     { role: 'system', content: systemPrompt },
-                    { role: 'user', content: `URGENT: Create a plan for this request: \"${userRequest}\"` }
+                    { role: 'user', content: `URGENT: Create a plan for this request: "${userRequest}"` }
                 ],
                 response_format: { type: 'json_object' },
                 temperature: 0.1, 

@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "start": "node backend/server.mjs",
-    "dev": "nodemon backend/server.mjs"
+    "dev": "nodemon backend/server.mjs",
+    "lint": "eslint ."
   },
   "dependencies": {
     "axios": "^1.7.2",

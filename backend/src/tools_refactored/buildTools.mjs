@@ -14,7 +14,7 @@ async function createBasicWebApp({ directory, appName, description }) {
     try {
         await fs.mkdir(projectPath, { recursive: true });
 
-        const htmlContent = `<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>${appName}</title>\n  <link rel=\"stylesheet\" href=\"style.css\">\n</head>\n<body>\n  <h1>Welcome to ${appName}</h1>\n  <p>${description}</p>\n  <script src=\"script.js\"></script>\n</body>\n</html>`;
+        const htmlContent = `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <title>${appName}</title>\n  <link rel="stylesheet" href="style.css">\n</head>\n<body>\n  <h1>Welcome to ${appName}</h1>\n  <p>${description}</p>\n  <script src="script.js"></script>\n</body>\n</html>`;
         const cssContent = `body { font-family: sans-serif; background-color: #f0f2f5; color: #333; text-align: center; padding: 50px; } h1 { color: #4a4a4a; }`;
         const jsContent = `console.log('Hello from ${appName}!');`;
 

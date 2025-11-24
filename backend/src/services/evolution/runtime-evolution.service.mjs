@@ -71,14 +71,14 @@ class RuntimeEvolutionService {
   }
 
   async implementImprovement(improvement) {
-    console.log(`🔧 [V2.1] Attempting REAL implementation for: \"${improvement.description}\"`);
+    console.log(`🔧 [V2.1] Attempting REAL implementation for: "${improvement.description}"`);
     if (!improvement || !improvement.description) {
         return { success: false, error: "Invalid improvement object" };
     }
 
     const filePathMatch = improvement.description.match(/in '([^']+)'/);
     if (!filePathMatch || !filePathMatch[1]) {
-        return { success: false, error: `Could not extract file path from description: \"${improvement.description}\"` };
+        return { success: false, error: `Could not extract file path from description: "${improvement.description}"` };
     }
     const relativeFilePath = filePathMatch[1];
     const absoluteFilePath = path.join(projectRoot, relativeFilePath);
