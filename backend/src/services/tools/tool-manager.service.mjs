@@ -1,1 +1,102 @@
-/**\n * 🛠️ ToolManager - The Dynamic, Self-Aware Tool Engine\n * @version 2.1.0 - Now supports Classes, Factories, and static Objects.\n */\nimport fs from \'fs/promises\';\nimport path from \'path\';\nimport { fileURLToPath } from \'url\';\n\nconst __filename = fileURLToPath(import.meta.url);\nconst __dirname = path.dirname(__filename);\nconst TOOLS_DIR = path.join(__dirname, \'..\' , \'..\' , \'..\' , \'src\', \'tools_refactored\');\n\n// Helper to check if a value is a class\nfunction isClass(v) {\n  return typeof v === \'function\' && /^\s*class\s+/.test(v.toString());\n}\n\nclass ToolManager {\n    constructor() {\n        this.tools = new Map();\n        this.toolSchemas = [];\n        this._isInitialized = false;\n    }\n\n    async initialize(dependencies) {\n        if (this._isInitialized) return;\n        console.log(\'🔄 Initializing ToolManager with dependencies...\');\n\n        const toolFiles = await fs.readdir(TOOLS_DIR);\n\n        for (const file of toolFiles) {\n            if (file.endsWith(\'.mjs\')) {\n                const toolModulePath = path.join(TOOLS_DIR, file);\n                try {\n                    const { default: toolExport } = await import(`file://${toolModulePath}`);\n                    let toolModule;\n\n                    if (isClass(toolExport)) {\n                        // It\'s a class, instantiate it\n                        const toolInstance = new toolExport(dependencies);\n                        toolModule = this._extractToolsFromInstance(toolInstance);\n                    } else if (typeof toolExport === \'function\') {\n                        // It\'s a factory function, call it\n                        toolModule = toolExport(dependencies);\n                    } else if (typeof toolExport === \'object\' && toolExport !== null) {\n                        // It\'s a static tool module\n                        toolModule = toolExport;\n                    } else {\n                        console.warn(`⚠️ Tool file ${file} has an invalid or unhandled export type.`);\n                        continue;\n                    }\n                    \n                    this._registerModule(toolModule);\n\n                } catch (error) {\n                    console.error(`❌ Critical Error: Failed to load or process tool file: ${file}`, error);\n                    throw error; // Stop the server on critical tool failure\n                }\n            }\n        }\n\n        this._isInitialized = true;\n        console.log(`✅ ToolManager initialized. ${this.tools.size} tools registered.`);\n    }\n\n    _extractToolsFromInstance(instance) {\n        const tools = {};\n        // Look for methods on the prototype that have metadata\n        for (const propName of Object.getOwnPropertyNames(Object.getPrototypeOf(instance))) {\n            const prop = instance[propName];\n            if (typeof prop === \'function\' && prop.metadata) {\n                tools[propName] = prop.bind(instance);\n                tools[propName].metadata = prop.metadata; // Re-attach metadata\n            }\n        }\n        return tools;\n    }\n\n    _registerModule(module) {\n        for (const [toolName, toolFunction] of Object.entries(module)) {\n            if (typeof toolFunction === \'function\' && toolFunction.metadata) {\n                this.tools.set(toolName, toolFunction);\n                this.toolSchemas.push({ type: \'function\', function: toolFunction.metadata });\n            }\n        }\n    }\n\n    async execute(toolName, args) {\n        if (!this._isInitialized) throw new Error(\'ToolManager not initialized.\');\n        const tool = this.tools.get(toolName);\n        if (!tool) throw new Error(`Tool \"${toolName}\" not found.`);\n        \n        console.log(`-⚡ Executing tool: ${toolName}`);\n        return tool(args);\n    }\n\n    getToolSchemas() {\n        return this.toolSchemas;\n    }\n}\n\nexport default new ToolManager();\n
+/**
+ * 🛠️ ToolManager - The Dynamic, Self-Aware Tool Engine
+ * @version 2.1.0 - Now supports Classes, Factories, and static Objects.
+ */
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const TOOLS_DIR = path.join(__dirname, '..', '..', '..', 'src', 'tools_refactored');
+
+// Helper to check if a value is a class
+function isClass(v) {
+  return typeof v === 'function' && /^\s*class\s+/.test(v.toString());
+}
+
+class ToolManager {
+    constructor() {
+        this.tools = new Map();
+        this.toolSchemas = [];
+        this._isInitialized = false;
+    }
+
+    async initialize(dependencies) {
+        if (this._isInitialized) return;
+        console.log('🔄 Initializing ToolManager with dependencies...');
+
+        const toolFiles = await fs.readdir(TOOLS_DIR);
+
+        for (const file of toolFiles) {
+            if (file.endsWith('.mjs')) {
+                const toolModulePath = path.join(TOOLS_DIR, file);
+                try {
+                    const { default: toolExport } = await import(`file://${toolModulePath}`);
+                    let toolModule;
+
+                    if (isClass(toolExport)) {
+                        // It's a class, instantiate it
+                        const toolInstance = new toolExport(dependencies);
+                        toolModule = this._extractToolsFromInstance(toolInstance);
+                    } else if (typeof toolExport === 'function') {
+                        // It's a factory function, call it
+                        toolModule = toolExport(dependencies);
+                    } else if (typeof toolExport === 'object' && toolExport !== null) {
+                        // It's a static tool module
+                        toolModule = toolExport;
+                    } else {
+                        console.warn(`⚠️ Tool file ${file} has an invalid or unhandled export type.`);
+                        continue;
+                    }
+                    
+                    this._registerModule(toolModule);
+
+                } catch (error) {
+                    console.error(`❌ Critical Error: Failed to load or process tool file: ${file}`, error);
+                    throw error; // Stop the server on critical tool failure
+                }
+            }
+        }
+
+        this._isInitialized = true;
+        console.log(`✅ ToolManager initialized. ${this.tools.size} tools registered.`);
+    }
+
+    _extractToolsFromInstance(instance) {
+        const tools = {};
+        // Look for methods on the prototype that have metadata
+        for (const propName of Object.getOwnPropertyNames(Object.getPrototypeOf(instance))) {
+            const prop = instance[propName];
+            if (typeof prop === 'function' && prop.metadata) {
+                tools[propName] = prop.bind(instance);
+                tools[propName].metadata = prop.metadata; // Re-attach metadata
+            }
+        }
+        return tools;
+    }
+
+    _registerModule(module) {
+        for (const [toolName, toolFunction] of Object.entries(module)) {
+            if (typeof toolFunction === 'function' && toolFunction.metadata) {
+                this.tools.set(toolName, toolFunction);
+                this.toolSchemas.push({ type: 'function', function: toolFunction.metadata });
+            }
+        }
+    }
+
+    async execute(toolName, args) {
+        if (!this._isInitialized) throw new Error('ToolManager not initialized.');
+        const tool = this.tools.get(toolName);
+        if (!tool) throw new Error(`Tool "${toolName}" not found.`);
+        
+        console.log(`-⚡ Executing tool: ${toolName}`);
+        return tool(args);
+    }
+
+    getToolSchemas() {
+        return this.toolSchemas;
+    }
+}
+
+export default new ToolManager();

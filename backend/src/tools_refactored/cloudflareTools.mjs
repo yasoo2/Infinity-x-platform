@@ -7,12 +7,15 @@ import axios from 'axios';
  */
 
 class CloudflareTools {
-  constructor(apiToken, accountId) {
-    if (!apiToken || !accountId) {
-        throw new Error("Cloudflare API Token and Account ID are required.");
+  constructor(dependencies) {
+    const { apiToken, accountId } = dependencies.cloudflare ?? {};
+    this.apiToken = apiToken || process.env.CLOUDFLARE_API_TOKEN;
+    this.accountId = accountId || process.env.CLOUDFLARE_ACCOUNT_ID;
+
+    if (!this.apiToken || !this.accountId) {
+        // This won't block server start, but tools will fail.
+        console.warn('⚠️ CloudflareTools: API Token or Account ID is missing. Tools will be unavailable.');
     }
-    this.apiToken = apiToken;
-    this.accountId = accountId;
     this.baseURL = 'https://api.cloudflare.com/client/v4';
   }
 
@@ -23,9 +26,8 @@ class CloudflareTools {
     };
   }
 
-  // ... (all other methods like listPagesProjects, getDNSRecords, etc. remain the same)
-
   async listPagesProjects() {
+    if (!this.apiToken) return { success: false, error: 'Cloudflare API token not configured.' };
     try {
       const response = await axios.get(
         `${this.baseURL}/accounts/${this.accountId}/pages/projects`,
@@ -36,35 +38,21 @@ class CloudflareTools {
       return { success: false, error: error.message };
     }
   }
+
+  // Add other methods here, ensuring they check for apiToken and handle errors.
 }
+
+// --- Metadata for dynamic tool registration ---
+
+CloudflareTools.prototype.listPagesProjects.metadata = {
+    name: "listCloudflarePages",
+    description: "Lists all Cloudflare Pages projects for the configured account.",
+    parameters: { type: "object", properties: {} }
+};
+
 
 /**
- * Factory function to create an instance of CloudflareTools.
- * This ensures that the class is instantiated with the correct, resolved environment variables
- * during the server's initialization phase, not at the module load time.
+ * Factory function for ToolManager.
+ * This default export is what the ToolManager will use to create the tool.
  */
-function cloudflareToolsFactory() {
-    const apiToken = process.env.CLOUDFLARE_API_TOKEN;
-    const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-
-    // Create a new instance of the class
-    const cloudflareInstance = new CloudflareTools(apiToken, accountId);
-
-    // The ToolManager expects an object of functions, so we extract them.
-    // We also need to ensure 'this' is correctly bound to the instance.
-    const tools = {
-        listCloudflarePages: cloudflareInstance.listPagesProjects.bind(cloudflareInstance),
-        // ... bind other methods that you want to expose as tools
-    };
-
-    // Attach metadata to each tool function
-    tools.listCloudflarePages.metadata = {
-        name: "listCloudflarePages",
-        description: "Lists all Cloudflare Pages projects for the configured account.",
-        parameters: { type: "object", properties: {} }
-    };
-
-    return tools;
-}
-
-export default cloudflareToolsFactory;
+export default CloudflareTools;
