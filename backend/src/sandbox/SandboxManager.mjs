@@ -15,30 +15,30 @@ import os from 'os';
 import { v4 as uuidv4 } from 'uuid';
 import Docker from 'dockerode';
 import { createClient } from 'redis';
-import { Histogram, Counter } from 'prom-client';
+// import { Histogram, Counter } from 'prom-client'; // Removed as dependency was uninstalled
 import eventBus from '../core/event-bus.mjs'; 
 // Placeholder for AI analysis; we will integrate this with a real service.
 // import { analyzeCodeForSafety } from '../services/ai/code-analysis.service.mjs'; 
 
-// --- Prometheus Metrics ---
-const executionTime = new Histogram({
+// --- Prometheus Metrics (Removed as dependency was uninstalled) ---
+// const executionTime = new Histogram({
   name: 'sandbox_execution_duration_seconds',
   help: 'Duration of sandbox executions in seconds',
-  labelNames: ['language', 'success'],
-});
+//   labelNames: ['language', 'success'],
+// });
 
-const executionCounter = new Counter({
+// const executionCounter = new Counter({
   name: 'sandbox_executions_total',
   help: 'Total number of sandbox executions',
-  labelNames: ['language'],
-});
+//   labelNames: ['language'],
+// });
 
 class SandboxManager {
   constructor(options = {}) {
     this.docker = new Docker(); // Assumes Docker is running on the host
     this.redisClient = createClient({
       url: process.env.REDIS_URL || 'redis://localhost:6379'
-    });
+    // });
     this.isRedisConnected = false;
     console.log('⚛️ Sandbox Manager v3.0 (The Intelligent Fortress) Initialized.');
   }
@@ -89,8 +89,8 @@ class SandboxManager {
       return Promise.reject(new Error('A session ID is required for execution.'));
     }
 
-    const end = executionTime.startTimer({ language });
-    executionCounter.inc({ language });
+    // const end = executionTime.startTimer({ language });});
+ // executionCounter.inc({ language });// });
 
     // 1. Check Cache
     const cacheKey = `sandbox:v3:${command}`;
@@ -98,7 +98,7 @@ class SandboxManager {
       const cachedResult = await this.redisClient.get(cacheKey);
       if (cachedResult) {
         console.log('⚡️ Returning cached result.');
-        end({ success: true });
+        // end({ success: true });});
         return JSON.parse(cachedResult);
       }
     }
@@ -108,7 +108,7 @@ class SandboxManager {
         try {
             await this.analyzeCode(command, language);
         } catch (error) {
-            end({ success: false });
+            end({ success: false // });
             return { success: false, code: -1, stdout: '', stderr: error.message };
         }
     }
@@ -132,18 +132,18 @@ class SandboxManager {
           SecurityOpt: ['no-new-privileges'],
           NetworkMode: 'none', // No network access by default
         },
-      });
+      // });
 
       await container.start();
-      const stream = await container.logs({ follow: true, stdout: true, stderr: true });
+      const stream = await container.logs({ follow: true, stdout: true, stderr: true // });
 
       stream.on('data', (chunk) => {
         const output = chunk.toString('utf8');
         // The Docker log stream multiplexes stdout and stderr. We might need to demultiplex if needed.
         // For now, we'll send all as 'data'.
         finalOutput += output;
-        eventBus.emit('sandbox:data', { sessionId, data: output });
-      });
+        eventBus.emit('sandbox:data', { sessionId, data: output // });
+      // });
 
       const [exitData] = await container.wait();
       const code = exitData.StatusCode;
@@ -159,21 +159,21 @@ class SandboxManager {
       if (this.isRedisConnected && result.success) {
         await this.redisClient.set(cacheKey, JSON.stringify(result), {
           EX: 3600, // Cache for 1 hour
-        });
+        // });
       }
 
-      end({ success: result.success });
+      end// end({ success: result.success });
       return result;
 
     } catch (error) {
         console.error('❌ Docker execution failed:', error);
-        end({ success: false });
+        e// end({ success: false }););
         throw error;
     } finally {
         // 5. Cleanup
         if (container) {
             console.log('🗑️ Removing container...');
-            await container.remove({ force: true });
+            await container.remove({ force: true // });
         }
     }
   }
@@ -184,13 +184,13 @@ class SandboxManager {
     // Escaping the code to be safely passed inside a shell command
     const escapedCode = code.replace(/"/g, '\"');
     const command = `python3 -c "${escapedCode}"`;
-    return this.executeShell(command, { ...options, language: 'python' });
+    return this.executeShell(command, { ...options, language: 'python' // });
   }
 
   async executeNode(code, options = {}) {
     const escapedCode = code.replace(/"/g, '\"');
     const command = `node -e "${escapedCode}"`;
-    return this.executeShell(command, { ...options, language: 'node' });
+    return this.executeShell(command, { ...options, language: 'node' // });
   }
 
   /**
@@ -202,7 +202,7 @@ class SandboxManager {
     // 1. Use a specific Docker image like 'buildkite/puppeteer'
     // 2. Pass the script to the container
     // 3. Execute and stream results
-    return Promise.resolve({ success: false, reason: 'Not implemented' });
+    return Promise.resolve({ success: false, reason: 'Not implemented' // });
   }
 }
 
