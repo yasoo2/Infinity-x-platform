@@ -1,7 +1,7 @@
 /**
  * 🧠 JOE Advanced Memory Management System
  * @module MemoryManager
- * @version 4.3.0 - Implemented lazy loading for DB connection.
+ * @version 4.4.0 - Activated and implemented memory cleanup logic.
  */
 
 import { getDB } from '../../core/database.mjs';
@@ -11,27 +11,25 @@ class MemoryManager extends EventEmitter {
     constructor(options = {}) {
         super();
         
-        // DB is no longer fetched here. It will be fetched on-demand.
         this.db = null; 
 
         this.shortTermMemory = new Map();
         this.conversations = new Map();
 
         this.config = {
-            shortTermMemoryTTL: options.shortTermMemoryTTL || 30 * 60 * 1000, 
-            cleanupInterval: options.cleanupInterval || 5 * 60 * 1000,
+            shortTermMemoryTTL: options.shortTermMemoryTTL || 30 * 60 * 1000, // 30 minutes
+            cleanupInterval: options.cleanupInterval || 5 * 60 * 1000, // 5 minutes
         };
 
         this.stats = {};
 
         this.startAutoCleanup();
-        console.log('✅ Memory Manager v4.3.0 initialized. DB will be fetched on-demand.');
+        console.log('✅ Memory Manager v4.4.0 initialized. DB will be fetched on-demand.');
     }
 
-    // Private helper to get DB connection, ensuring it's initialized.
     _getDB() {
         if (!this.db) {
-            this.db = getDB(); // This will throw an error if not initialized, which is correct.
+            this.db = getDB();
         }
         return this.db;
     }
@@ -41,11 +39,37 @@ class MemoryManager extends EventEmitter {
         setInterval(() => this.performCleanup(), this.config.cleanupInterval);
     }
 
+    /**
+     * Cleans up expired entries from the in-memory caches.
+     */
     performCleanup() {
         const now = Date.now();
         let cleanedCount = 0;
-        // No DB interaction here, so no change needed.
-        // ... (cleanup logic remains the same)
+        console.log('🧹 Performing memory cleanup...');
+
+        // Clean Short-Term Memory
+        for (const [userId, memory] of this.shortTermMemory.entries()) {
+            const originalCount = memory.length;
+            const freshMemory = memory.filter(interaction => {
+                const timestamp = new Date(interaction.metadata.timestamp).getTime();
+                return (now - timestamp) < this.config.shortTermMemoryTTL;
+            });
+
+            if (freshMemory.length < originalCount) {
+                cleanedCount += (originalCount - freshMemory.length);
+                if (freshMemory.length === 0) {
+                    this.shortTermMemory.delete(userId);
+                } else {
+                    this.shortTermMemory.set(userId, freshMemory);
+                }
+            }
+        }
+
+        if (cleanedCount > 0) {
+            console.log(`✨ Cleaned up ${cleanedCount} expired short-term memory entries.`);
+        } else {
+            console.log('✨ Short-term memory is fresh. No entries needed cleaning.');
+        }
     }
 
     async saveInteraction(userId, command, result, metadata = {}) {

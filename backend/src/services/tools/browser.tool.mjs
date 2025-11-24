@@ -70,21 +70,24 @@ browseWebsite.metadata = {
 
 async function screenshotWebsite({ url, fullPage = false }) {
     const browser = await getBrowser();
-    const page = await browser.newPage({ deviceScaleFactor: 2 }); // Higher resolution
+    const page = await browser.newPage({ deviceScaleFactor: 1.5 }); // Adjusted for balance
     try {
         await page.setViewportSize({ width: 1280, height: 800 });
         await page.goto(url, { waitUntil: 'networkidle', timeout: 25000 });
         
+        // Capture the screenshot directly into a buffer
         const screenshotBuffer = await page.screenshot({ 
-            path: `screenshot-${new Date().toISOString()}.png`,
             fullPage,
             type: 'png'
         });
 
+        // Convert to Base64 and return it, giving the AI vision
+        const base64Image = screenshotBuffer.toString('base64');
+
         return { 
             success: true, 
-            message: "Screenshot saved successfully.",
-            path: `screenshot-${new Date().toISOString()}.png`
+            message: "Screenshot captured successfully and returned as Base64.",
+            base64Image: base64Image
         };
 
     } catch (error) {
@@ -96,7 +99,7 @@ async function screenshotWebsite({ url, fullPage = false }) {
 }
 screenshotWebsite.metadata = {
     name: "screenshotWebsite",
-    description: "Captures a screenshot of a given URL. Renders the page in a virtual browser.",
+    description: "Captures a screenshot of a given URL and returns it as a Base64 encoded string. This allows for visual analysis of the webpage.",
     parameters: {
         type: "object",
         properties: {

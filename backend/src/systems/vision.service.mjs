@@ -1,23 +1,68 @@
 /**
- * 👁️ Advanced Vision System
- * Advanced image and video processing.
+ * 👁️ Advanced Vision System v1.1 - Now with Visual Memory
+ * @version 1.1.0
+ * This version adds the capability to save images to the filesystem, giving the system a 'visual memory'.
  */
 
 import OpenAI from 'openai';
 import axios from 'axios';
-import fs from 'fs/promises';
+import { promises as fs } from 'fs';
 import path from 'path';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
+// Define a consistent storage path for generated/uploaded images
+const VISION_STORAGE_PATH = 'public/uploads/vision';
+
 class AdvancedVisionSystem {
   constructor() {
     this.capabilities = [
       'image_analysis', 'object_detection', 'ocr', 'video_analysis',
-      'image_generation', 'image_editing', 'style_transfer'
+      'image_generation', 'image_editing', 'style_transfer', 'visual_memory' // Added new capability
     ];
+    this._initializeStorage();
+  }
+
+  /**
+   * Ensures the storage directory for images exists.
+   * @private
+   */
+  async _initializeStorage() {
+    try {
+      await fs.mkdir(VISION_STORAGE_PATH, { recursive: true });
+      console.log(`👁️ Vision storage initialized at: ${VISION_STORAGE_PATH}`);
+    } catch (error) {
+      console.error(`❌ Failed to create vision storage directory: ${error.message}`);
+    }
+  }
+
+  /**
+   * Saves a Base64 encoded image to the filesystem.
+   * @param {string} base64Data The Base64 encoded image data.
+   * @param {string} filename The desired filename for the saved image.
+   * @returns {Promise<object>} An object containing the success status and the public URL of the image.
+   */
+  async saveImageFromBase64(base64Data, filename) {
+    try {
+      const buffer = Buffer.from(base64Data, 'base64');
+      const filePath = path.join(VISION_STORAGE_PATH, filename);
+      
+      await fs.writeFile(filePath, buffer);
+      
+      const publicUrl = `/${path.relative('public', filePath)}`;
+      console.log(`🖼️ Image saved successfully to ${publicUrl}`);
+
+      return { 
+        success: true, 
+        message: 'Image saved successfully.',
+        url: publicUrl
+      };
+    } catch (error) {
+      console.error(`❌ Error saving image from Base64: ${error.message}`);
+      return { success: false, error: `Failed to save image: ${error.message}` };
+    }
   }
 
   async analyzeImage(imageUrl, options = {}) {
