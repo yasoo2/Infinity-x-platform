@@ -22,14 +22,14 @@ import eventBus from '../core/event-bus.mjs';
 
 // --- Prometheus Metrics (Removed as dependency was uninstalled) ---
 // const executionTime = new Histogram({
-  name: 'sandbox_execution_duration_seconds',
-  help: 'Duration of sandbox executions in seconds',
+//   name: 'sandbox_execution_duration_seconds',
+//   help: 'Duration of sandbox executions in seconds',
 //   labelNames: ['language', 'success'],
 // });
 
 // const executionCounter = new Counter({
-  name: 'sandbox_executions_total',
-  help: 'Total number of sandbox executions',
+//   name: 'sandbox_executions_total',
+//   help: 'Total number of sandbox executions',
 //   labelNames: ['language'],
 // });
 
