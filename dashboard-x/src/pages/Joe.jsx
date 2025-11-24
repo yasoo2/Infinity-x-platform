@@ -15,38 +15,39 @@ const Joe = () => {
     conversations, 
     currentConversation, 
     handleConversationSelect, 
-    handleNewConversation 
+    handleNewConversation,
+    isProcessing,
+    plan, // <-- Get the plan data
+    wsLog, // <-- Get WebSocket logs
   } = useJoeChat();
 
   const toggleSidePanel = () => {
     setIsSidePanelOpen(!isSidePanelOpen);
   };
 
-  // Define the grid layout dynamically based on side panel state
+  // Dynamically adjust grid layout based on side panel state
   const gridLayout = `
     .joe-layout {
       display: grid;
       height: 100vh;
-      grid-template-columns: ${isSidePanelOpen ? 'auto auto 1fr auto' : 'auto 1fr auto'}; /* activity, side, main, right */
-      grid-template-rows: auto 1fr auto; /* top, main, bottom */
+      grid-template-columns: ${isSidePanelOpen ? 'auto auto 1fr auto' : 'auto 1fr auto'};
+      grid-template-rows: auto 1fr auto;
       grid-template-areas:
         "top top top top"
-        "activity ${isSidePanelOpen ? 'side' : 'main'} main right"
-        "activity ${isSidePanelOpen ? 'side' : 'bottom'} bottom right";
+        "activity ${isSidePanelOpen ? 'side main main' : 'main main main'} right"
+        "activity ${isSidePanelOpen ? 'side bottom bottom' : 'bottom bottom bottom'} right";
     }
-    /* Mobile adjustments would go here */
+    /* Further responsive adjustments can be made here */
   `;
 
   return (
     <div className="h-screen text-white font-sans bg-gray-800 joe-layout">
-      <style>{gridLayout}</style>
+      <style>{gridLayout.replace(/\s+/g, ' ').trim()}</style>
 
       <TopBar />
       
-      {/* Pass the toggle function to ActivityBar */}
-      <ActivityBar onChatClick={toggleSidePanel} /> 
+      <ActivityBar onChatClick={toggleSidePanel} isSidePanelOpen={isSidePanelOpen} />
 
-      {/* Conditionally render SidePanel */}
       {isSidePanelOpen && (
         <SidePanel 
           conversations={conversations} 
@@ -57,8 +58,11 @@ const Joe = () => {
       )}
 
       <MainConsole />
-      <RightPanel />
-      <BottomPanel />
+      
+      {/* Pass the new data to RightPanel and BottomPanel */}
+      <RightPanel isProcessing={isProcessing} plan={plan} />
+      <BottomPanel logs={wsLog} />
+
     </div>
   );
 };
