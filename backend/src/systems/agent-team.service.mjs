@@ -1,4 +1,5 @@
-import { OpenAI } from 'openai';
+import OpenAI from 'openai';
+import toolManager from '../services/tools/tool-manager.service.mjs';ai';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
@@ -37,7 +38,8 @@ class AgentTeam {
     this.llm = openai;
   }
 
-  async analyzeAndPlan(instruction, availableTools, streamUpdate) {
+  async analyzeAndPlan(instruction, streamUpdate) {
+    const availableTools = toolManager.getToolSchemas();
     streamUpdate({ type: 'status', message: '🧠 Planner received instruction. Analyzing...' });
 
     const toolSignatures = availableTools.map(tool => 

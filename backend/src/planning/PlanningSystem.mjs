@@ -4,6 +4,7 @@
  */
 
 import { ObjectId } from 'mongodb';
+import toolManager from '../services/tools/tool-manager.service.mjs';
 import { v4 as uuidv4 } from 'uuid';
 
 class PlanningSystem {
@@ -31,7 +32,8 @@ class PlanningSystem {
         createdAt: new Date(),
         updatedAt: new Date(),
         userId: planData.userId,
-        metadata: planData.metadata || {}
+        metadata: planData.metadata || {},
+        availableTools: toolManager.getToolSchemas()
       };
 
       await this.plansCollection.insertOne(plan);
