@@ -18,7 +18,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import http from 'http';
 import fs from 'fs';
-import { register, collectDefaultMetrics } from 'prom-client';
+// import { register, collectDefaultMetrics } from 'prom-client'; // Removed as dependency was uninstalled
 
 // --- Core Components ---
 import { initMongo, closeMongoConnection } from './src/core/database.mjs';
@@ -36,7 +36,7 @@ const CONFIG = {
   NODE_ENV: process.env.NODE_ENV || 'development',
 };
 
-collectDefaultMetrics();
+// collectDefaultMetrics(); // Removed as dependency was uninstalled
 
 const app = express();
 const server = http.createServer(app);
@@ -91,14 +91,9 @@ async function applyRoutes(dependencies) {
     }
   }
   
-  app.get('/metrics', async (req, res) => {
-      try {
-          res.set('Content-Type', register.contentType);
-          res.end(await register.metrics());
-      } catch (ex) {
-          res.status(500).end(ex);
-      }
-  });
+  // app.get('/metrics', async (req, res) => {
+  //     // Removed as dependency was uninstalled
+  // });
 }
 
 async function startServer() {
