@@ -48,5 +48,4 @@ reportError.metadata = {
     }
 };
 
-
 export default { reportError };
