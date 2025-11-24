@@ -339,6 +339,4 @@ npm run build
   }
 }
 
-export const ecommerceTools = {
-  createEcommerceStore
-};
+export { createEcommerceStore };
