@@ -18,6 +18,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import http from 'http';
 import fs from 'fs';
+import { register, collectDefaultMetrics } from 'prom-client'; //  observability
 
 // --- Core Components ---
 import { initMongo, closeMongoConnection } from './src/core/database.mjs';
@@ -28,7 +29,7 @@ import eventBus from './src/core/event-bus.mjs';
 import toolManager from './src/services/tools/tool-manager.service.mjs';
 import SandboxManager from './src/sandbox/SandboxManager.mjs';
 import MemoryManager from './src/services/memory/memory.service.mjs';
-import { JoeAgentWebSocketServer } from './src/services/joeAgentWebSocket.mjs'; // ✨ Import the new WebSocket Server
+import { JoeAgentWebSocketServer } from './src/services/joeAgentWebSocket.mjs';
 
 // =========================
 // 🎯 Configuration
@@ -37,6 +38,9 @@ const CONFIG = {
   PORT: process.env.PORT || 4001,
   NODE_ENV: process.env.NODE_ENV || 'development',
 };
+
+// Start collecting default metrics for Prometheus
+collectDefaultMetrics();
 
 // =========================
 // 🚀 Main App Initialization
@@ -60,20 +64,19 @@ app.use(express.json({ limit: '50mb' }));
 async function setupDependencies() {
     // Initialize core services first
     await toolManager.initialize();
-    const sandboxManager = new SandboxManager();
-    await sandboxManager.initialize();
+    // CORRECTED: Await the async initialization of the SandboxManager
+    const sandboxManager = await new SandboxManager().initializeConnections();
 
     const db = await initMongo();
     const memoryManager = new MemoryManager({ db }); 
     
-    // ✨ Initialize the Joe Agent WebSocket Server with the HTTP server
     const joeAgentServer = new JoeAgentWebSocketServer(server);
 
     return {
         db,
         memoryManager,
         sandboxManager,
-        joeAgentServer, // Expose the new service
+        joeAgentServer,
         toolManager,
         requireRole: requireRole(db),
         optionalAuth: optionalAuth(db),
@@ -101,6 +104,16 @@ async function applyRoutes(dependencies) {
         }
     }
   }
+  
+  // ADDED: Expose Prometheus metrics endpoint
+  app.get('/metrics', async (req, res) => {
+      try {
+          res.set('Content-Type', register.contentType);
+          res.end(await register.metrics());
+      } catch (ex) {
+          res.status(500).end(ex);
+      }
+  });
 }
 
 // =========================
@@ -122,6 +135,7 @@ async function startServer() {
     server.listen(CONFIG.PORT, '0.0.0.0', () => {
       console.log(`✅ Server running on http://localhost:${CONFIG.PORT}`);
       console.log(`🤖 Joe Agent v2 is active at ws://localhost:${CONFIG.PORT}/ws/joe-agent`);
+      console.log(`📊 Metrics available at http://localhost:${CONFIG.PORT}/metrics`); // Observability
     });
 
   } catch (error) {

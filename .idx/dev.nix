@@ -6,17 +6,9 @@
   packages = [
     pkgs.nodejs_22
     pkgs.pnpm
-    pkgs.openssl
-  ];
-
-  # متغيرات البيئة
-  env = {
-    GEMINI_API_KEY = "AIzaSyC8meZmS5U1plDU7qwaG-QcWLdfWHXA6uU";
-    NPM_CONFIG_FROZEN_LOCKFILE = "false";
-  };
-  
-  idx = {
-    # إضافات VS Code
+    جدحاتن٨٧٦٥  ض٤٥ظذ
+    \
+    =-ح٠مزومخ٩ه٨ع
     extensions = [
       "dbaeumer.vscode-eslint"
       "esbenp.prettier-vscode"

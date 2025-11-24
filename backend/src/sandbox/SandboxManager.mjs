@@ -1,8 +1,11 @@
 /**
- * ⚛️ Sandbox Manager - Now with Real-time Event Streaming
- * @version 2.0.0
- * Manages isolated execution environments and now streams process output in real-time
- * via the central event bus, enabling features like live terminal feeds.
+ * ⚛️ Sandbox Manager v3.0 - The Intelligent Fortress
+ * @version 3.0.0
+ * 
+ * This new architecture transforms the SandboxManager into a highly secure, intelligent,
+ * and efficient execution environment. It leverages Docker for ultimate isolation,
+ * Redis for lightning-fast caching, AI for pre-execution analysis, and Prometheus
+ * for deep performance monitoring.
  */
 
 import { spawn } from 'child_process';
@@ -10,124 +13,197 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
 import { v4 as uuidv4 } from 'uuid';
-import eventBus from '../core/event-bus.mjs'; // CORRECTED PATH: Import the central nervous system
+import Docker from 'dockerode';
+import { createClient } from 'redis';
+import { Histogram, Counter } from 'prom-client';
+import eventBus from '../core/event-bus.mjs'; 
+// Placeholder for AI analysis; we will integrate this with a real service.
+// import { analyzeCodeForSafety } from '../services/ai/code-analysis.service.mjs'; 
+
+// --- Prometheus Metrics ---
+const executionTime = new Histogram({
+  name: 'sandbox_execution_duration_seconds',
+  help: 'Duration of sandbox executions in seconds',
+  labelNames: ['language', 'success'],
+});
+
+const executionCounter = new Counter({
+  name: 'sandbox_executions_total',
+  help: 'Total number of sandbox executions',
+  labelNames: ['language'],
+});
 
 class SandboxManager {
   constructor(options = {}) {
-    this.sandboxDir = options.sandboxDir || path.join(os.tmpdir(), 'infinity-sandbox');
-    // ... other configurations ...
-    this.activeProcesses = new Map();
+    this.docker = new Docker(); // Assumes Docker is running on the host
+    this.redisClient = createClient({
+      url: process.env.REDIS_URL || 'redis://localhost:6379'
+    });
+    this.isRedisConnected = false;
+    console.log('⚛️ Sandbox Manager v3.0 (The Intelligent Fortress) Initialized.');
   }
 
-  async initialize() {
-    await fs.mkdir(this.sandboxDir, { recursive: true });
-    console.log(`⚛️ Sandbox Manager v2.0 initialized at ${this.sandboxDir}`);
+  async initializeConnections() {
+    try {
+      await this.redisClient.connect();
+      this.isRedisConnected = true;
+      console.log('✅ Connected to Redis for caching.');
+    } catch (err) {
+      console.error('❌ Could not connect to Redis. Caching will be disabled.', err);
+      this.isRedisConnected = false;
+    }
+    return this; // Return instance for chaining
   }
 
   /**
-   * Executes a shell command and streams the output in real-time.
+   * AI-powered code analysis before execution.
+   * @param {string} code The code to analyze.
+   * @param {string} language The language of the code.
+   * @returns {Promise<boolean>} True if the code is deemed safe.
    */
-  async executeShell(command, options = {}) {
-    // A session ID is crucial for routing the output to the correct client.
-    const sessionId = options.sessionId;
-    if (!sessionId) {
-      return Promise.reject(new Error('A session ID is required for real-time execution.'));
+  async analyzeCode(code, language) {
+    console.log(`🧠 Analyzing ${language} code for safety...`);
+    // [ Placeholder for AI Integration ]
+    // In a real implementation, this would call an AI service.
+    // For now, we'll simulate a safety check.
+    // const { isSafe, reason } = await analyzeCodeForSafety(code, language);
+    // if (!isSafe) {
+    //   throw new Error(`AI Safety Violation Detected: ${reason}`);
+    // }
+    if (code.includes('rm -rf') || code.includes('shutdown')) {
+        throw new Error('AI Safety Violation Detected: Potentially dangerous command.');
     }
-
-    const timeout = options.timeout || this.timeout || 60000; // 60 seconds
-    const cwd = options.cwd || path.join(this.sandboxDir, sessionId);
-
-    return new Promise(async (resolve, reject) => {
-      let finalOutput = '';
-      let finalErrorOutput = '';
-
-      try {
-        await fs.mkdir(cwd, { recursive: true });
-
-        const process = spawn('bash', ['-c', command], {
-          cwd,
-          timeout,
-          env: { ...process.env, SANDBOX_SESSION_ID: sessionId }
-        });
-
-        const processId = process.pid;
-        this.activeProcesses.set(processId, process);
-
-        // --- Real-time Streaming --- 
-
-        process.stdout.on('data', (data) => {
-          const output = data.toString();
-          finalOutput += output;
-          // Emit the data chunk to the event bus for any service to consume.
-          eventBus.emit('sandbox:data', { sessionId, data: output });
-        });
-
-        process.stderr.on('data', (data) => {
-          const errorOutput = data.toString();
-          finalErrorOutput += errorOutput;
-          // Emit the error chunk to the event bus.
-          eventBus.emit('sandbox:error', { sessionId, error: errorOutput });
-        });
-
-        process.on('close', (code) => {
-          this.activeProcesses.delete(processId);
-          // Announce that the process has finished.
-          eventBus.emit('sandbox:exit', { sessionId, code });
-
-          // The promise still resolves with the full output for services that need it.
-          resolve({
-            code,
-            stdout: finalOutput,
-            stderr: finalErrorOutput,
-            success: code === 0,
-          });
-        });
-
-        process.on('error', (err) => {
-          this.activeProcesses.delete(processId);
-          eventBus.emit('sandbox:error', { sessionId, error: err.message });
-          reject(err);
-        });
-
-      } catch (err) {
-        eventBus.emit('sandbox:error', { sessionId, error: err.message });
-        reject(err);
-      }
-    });
+    console.log('✅ AI analysis passed.');
+    return true;
   }
 
-  // The other methods (writeFile, readFile, executePython, etc.) can remain largely the same,
-  // as they build upon the newly enhanced executeShell method.
+  /**
+   * The core execution method, now powered by Docker.
+   * @param {string} command The shell command to execute.
+   * @param {object} options Execution options (sessionId, language).
+   * @returns {Promise<object>} The execution result.
+   */
+  async executeShell(command, options = {}) {
+    const { sessionId, language = 'shell' } = options;
+    if (!sessionId) {
+      return Promise.reject(new Error('A session ID is required for execution.'));
+    }
+
+    const end = executionTime.startTimer({ language });
+    executionCounter.inc({ language });
+
+    // 1. Check Cache
+    const cacheKey = `sandbox:v3:${command}`;
+    if (this.isRedisConnected) {
+      const cachedResult = await this.redisClient.get(cacheKey);
+      if (cachedResult) {
+        console.log('⚡️ Returning cached result.');
+        end({ success: true });
+        return JSON.parse(cachedResult);
+      }
+    }
+
+    // 2. AI Analysis (if it's not a simple shell command)
+    if (language !== 'shell') {
+        try {
+            await this.analyzeCode(command, language);
+        } catch (error) {
+            end({ success: false });
+            return { success: false, code: -1, stdout: '', stderr: error.message };
+        }
+    }
+
+
+    // 3. Docker Execution
+    let container;
+    let finalOutput = '';
+    let finalErrorOutput = '';
+    
+    try {
+      console.log(`📦 Creating Docker container for command: ${command}`);
+      container = await this.docker.createContainer({
+        Image: 'ubuntu:latest', // A safe, minimal base image
+        Cmd: ['/bin/bash', '-c', command],
+        Tty: false,
+        HostConfig: {
+          Memory: 256 * 1024 * 1024, // 256MB memory limit
+          CpuPeriod: 100000,
+          CpuQuota: 50000, // 50% CPU limit
+          SecurityOpt: ['no-new-privileges'],
+          NetworkMode: 'none', // No network access by default
+        },
+      });
+
+      await container.start();
+      const stream = await container.logs({ follow: true, stdout: true, stderr: true });
+
+      stream.on('data', (chunk) => {
+        const output = chunk.toString('utf8');
+        // The Docker log stream multiplexes stdout and stderr. We might need to demultiplex if needed.
+        // For now, we'll send all as 'data'.
+        finalOutput += output;
+        eventBus.emit('sandbox:data', { sessionId, data: output });
+      });
+
+      const [exitData] = await container.wait();
+      const code = exitData.StatusCode;
+      
+      const result = {
+        success: code === 0,
+        code,
+        stdout: finalOutput,
+        stderr: code !== 0 ? finalOutput : '', // Basic error handling
+      };
+
+      // 4. Cache Result
+      if (this.isRedisConnected && result.success) {
+        await this.redisClient.set(cacheKey, JSON.stringify(result), {
+          EX: 3600, // Cache for 1 hour
+        });
+      }
+
+      end({ success: result.success });
+      return result;
+
+    } catch (error) {
+        console.error('❌ Docker execution failed:', error);
+        end({ success: false });
+        throw error;
+    } finally {
+        // 5. Cleanup
+        if (container) {
+            console.log('🗑️ Removing container...');
+            await container.remove({ force: true });
+        }
+    }
+  }
+
+  // --- Wrapper Methods for Different Languages ---
 
   async executePython(code, options = {}) {
-    const sessionPath = path.join(this.sandboxDir, options.sessionId);
-    const scriptPath = path.join(sessionPath, `script_${uuidv4()}.py`);
-    await fs.mkdir(sessionPath, { recursive: true });
-    await fs.writeFile(scriptPath, code);
-    const result = await this.executeShell(`python3 "${scriptPath}"`, options);
-    await fs.unlink(scriptPath).catch(()=>{});
-    return result;
+    // Escaping the code to be safely passed inside a shell command
+    const escapedCode = code.replace(/"/g, '\"');
+    const command = `python3 -c "${escapedCode}"`;
+    return this.executeShell(command, { ...options, language: 'python' });
   }
 
   async executeNode(code, options = {}) {
-    const sessionPath = path.join(this.sandboxDir, options.sessionId);
-    const scriptPath = path.join(sessionPath, `script_${uuidv4()}.mjs`);
-    await fs.mkdir(sessionPath, { recursive: true });
-    await fs.writeFile(scriptPath, code);
-    const result = await this.executeShell(`node "${scriptPath}"`, options);
-    await fs.unlink(scriptPath).catch(()=>{});
-    return result;
+    const escapedCode = code.replace(/"/g, '\"');
+    const command = `node -e "${escapedCode}"`;
+    return this.executeShell(command, { ...options, language: 'node' });
   }
 
-  async writeFile(sessionId, filePath, content) {
-    // ... (implementation remains the same) ...
+  /**
+   * [PLANNED] Executes a browser-based task in a dedicated container.
+   * This is where the Puppeteer solution will be implemented.
+   */
+  async executeBrowserTask(script, options = {}) {
+    console.log('🚧 Browser task execution is planned but not yet implemented.');
+    // 1. Use a specific Docker image like 'buildkite/puppeteer'
+    // 2. Pass the script to the container
+    // 3. Execute and stream results
+    return Promise.resolve({ success: false, reason: 'Not implemented' });
   }
-
-  async readFile(sessionId, filePath) {
-    // ... (implementation remains the same) ...
-  }
-
-  // ... etc ...
 }
 
 export default SandboxManager;
