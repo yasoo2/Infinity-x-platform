@@ -1,134 +1,262 @@
 
-import { useState, useCallback, useReducer, useEffect, useRef } from 'react';
-import { useSpeechRecognition } from './useSpeechRecognition';
+import { useReducer, useEffect, useCallback, useRef } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 
-const initialState = {
-  // ... (initial state remains the same)
+const JOE_CHAT_HISTORY = 'joeChatHistory';
+
+const chatReducer = (state, action) => {
+    const { currentConversationId, conversations } = state;
+    const currentConvo = conversations[currentConversationId];
+
+    switch (action.type) {
+        // ... (existing cases like SET_INPUT, APPEND_MESSAGE, etc.)
+        case 'SET_INPUT':
+            return { ...state, input: action.payload };
+
+        case 'START_PROCESSING': {
+            if (!currentConversationId) return state;
+            const newMessage = { type: 'user', content: action.payload, id: uuidv4() };
+            const updatedMessages = [...(currentConvo?.messages || []), newMessage];
+            const title = currentConvo?.title === 'New Conversation' ? action.payload.substring(0, 40) + '...' : currentConvo.title;
+            const updatedConvo = { ...currentConvo, messages: updatedMessages, title, lastModified: Date.now() };
+            
+            return {
+                ...state,
+                input: '',
+                isProcessing: true,
+                progress: 0,
+                currentStep: 'Processing...',
+                conversations: { ...conversations, [currentConversationId]: updatedConvo },
+                plan: [], // CLEAR_PLAN on start
+            };
+        }
+
+        case 'APPEND_MESSAGE': {
+            if (!currentConvo) return state;
+            const lastMessage = currentConvo.messages[currentConvo.messages.length - 1];
+            let updatedMessages;
+
+            if (lastMessage && lastMessage.type === 'joe' && action.payload.type === 'joe') {
+                updatedMessages = [...currentConvo.messages.slice(0, -1), { ...lastMessage, content: lastMessage.content + action.payload.content }];
+            } else {
+                updatedMessages = [...currentConvo.messages, { type: action.payload.type, content: action.payload.content, id: uuidv4() }];
+            }
+
+            const updatedConvo = { ...currentConvo, messages: updatedMessages, lastModified: Date.now() };
+            return {
+                ...state,
+                conversations: { ...conversations, [currentConversationId]: updatedConvo },
+            };
+        }
+
+        case 'STOP_PROCESSING':
+            return { ...state, isProcessing: false, progress: 0, currentStep: '', plan: [] }; // CLEAR_PLAN on stop
+
+        case 'SET_PROGRESS':
+            return { ...state, progress: action.payload.progress, currentStep: action.payload.step };
+
+        case 'SET_LISTENING':
+            return { ...state, isListening: action.payload };
+
+        case 'SET_TRANSCRIPT':
+            return { ...state, transcript: action.payload, input: action.payload };
+
+        case 'ADD_WS_LOG':
+            return { ...state, wsLog: [...state.wsLog, action.payload] };
+
+        case 'SET_CONVERSATIONS':
+            return { ...state, conversations: action.payload };
+
+        case 'SELECT_CONVERSATION':
+            return { ...state, currentConversationId: action.payload, isProcessing: false, input: '', plan: [] };
+
+        case 'NEW_CONVERSATION': {
+            const newId = uuidv4();
+            const newConversations = {
+                ...conversations,
+                [newId]: { id: newId, title: 'New Conversation', messages: [], lastModified: Date.now() },
+            };
+            return {
+                ...state,
+                conversations: newConversations,
+                currentConversationId: newId,
+                input: '',
+                isProcessing: false,
+                plan: [],
+            };
+        }
+
+        // NEW ACTIONS FOR THE RIGHT PANEL
+        case 'ADD_PLAN_STEP':
+            return { ...state, plan: [...state.plan, action.payload] };
+        
+        case 'CLEAR_PLAN':
+            return { ...state, plan: [] };
+
+        default:
+            return state;
+    }
 };
 
-// ... (reducer remains the same)
-
 export const useJoeChat = () => {
-  const [state, dispatch] = useReducer(chatReducer, initialState);
-  const [input, setInput] = useState('');
-  const [wsLog, setWsLog] = useState(''); 
   const ws = useRef(null);
+  const recognition = useRef(null);
 
-  const { isListening, startListening, stopListening, transcript } = useSpeechRecognition();
+  const [state, dispatch] = useReducer(chatReducer, {
+    conversations: {},
+    currentConversationId: null,
+    input: '',
+    isProcessing: false,
+    progress: 0,
+    currentStep: '',
+    isListening: false,
+    transcript: '',
+    wsLog: [],
+    plan: [], // Initial state for the plan
+  });
+
+  // ... (useEffect for localStorage loading remains the same)
+  const handleNewConversation = useCallback(() => {
+    dispatch({ type: 'NEW_CONVERSATION' });
+  }, []);
 
   useEffect(() => {
-    // THE CRITICAL FIX: Pointing to the new, correct WebSocket endpoint
-    const API_WS_URL = import.meta.env.VITE_API_WS_URL || 'wss://admin.xelitesolutions.com/ws/joe-agent';
-    
-    ws.current = new WebSocket(API_WS_URL);
-
-    ws.current.onopen = () => {
-      console.log('WebSocket Connected to Joe Agent');
-      setWsLog(prev => prev + '[SYSTEM] Connection to Core Intelligence Established.\n');
-    };
-
-    ws.current.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        
-        // Log everything for the live screen
-        setWsLog(prev => prev + `[JOE] ${JSON.stringify(data, null, 2)}\n`);
-
-        // Update the chat and progress based on the message type from the agent
-        switch (data.type) {
-            case 'status':
-                dispatch({ type: 'SET_PROGRESS', payload: { progress: data.progress || state.progress, step: data.message } });
-                break;
-            case 'thought': // To show Joe's thinking process
-                 setWsLog(prev => prev + `[THOUGHT] ${data.thought}\n`);
-                break;
-            case 'tool_used':
-                 dispatch({ type: 'ADD_MESSAGE', payload: { type: 'joe', content: `🔧 Using tool: ${data.tool} with input: ${JSON.stringify(data.input)}`, timestamp: new Date().toLocaleTimeString() } });
-                 break;
-            case 'final_response':
-                dispatch({ type: 'UPDATE_JOE_RESPONSE', payload: data.content });
-                dispatch({ type: 'STOP_PROCESSING' });
-                break;
-            case 'error':
-                dispatch({ type: 'ADD_MESSAGE', payload: { type: 'joe', content: `Error: ${data.message}`, timestamp: new Date().toLocaleTimeString() } });
-                dispatch({ type: 'STOP_PROCESSING' });
-                break;
+    try {
+      const savedHistory = localStorage.getItem(JOE_CHAT_HISTORY);
+      if (savedHistory) {
+        const { conversations, currentConversationId } = JSON.parse(savedHistory);
+        if (conversations && Object.keys(conversations).length > 0) {
+          dispatch({ type: 'SET_CONVERSATIONS', payload: conversations });
+          dispatch({ type: 'SELECT_CONVERSATION', payload: currentConversationId || Object.keys(conversations)[0] });
+        } else {
+          handleNewConversation();
         }
-    };
-
-    // ... (rest of the WebSocket handlers: onclose, onerror)
-
-    return () => {
-      if (ws.current) {
-        ws.current.close();
+      } else {
+        handleNewConversation();
       }
+    } catch (error) {
+      console.error("Failed to load chat history:", error);
+      handleNewConversation();
+    }
+  }, [handleNewConversation]);
+
+  useEffect(() => {
+    if (state.currentConversationId && Object.keys(state.conversations).length > 0) {
+      const dataToSave = {
+        conversations: state.conversations,
+        currentConversationId: state.currentConversationId,
+      };
+      localStorage.setItem(JOE_CHAT_HISTORY, JSON.stringify(dataToSave));
+    }
+  }, [state.conversations, state.currentConversationId]);
+
+  useEffect(() => {
+    const connect = () => {
+      const sessionToken = localStorage.getItem('sessionToken');
+      if (!sessionToken) return;
+      const wsUrl = `wss://backend-api.onrender.com/ws?token=${sessionToken}`;
+      ws.current = new WebSocket(wsUrl);
+      ws.current.onopen = () => dispatch({ type: 'ADD_WS_LOG', payload: '[WS] Connection established' });
+      ws.current.onclose = () => setTimeout(connect, 3000);
+      ws.current.onerror = (err) => dispatch({ type: 'ADD_WS_LOG', payload: `[WS] Error: ${err.message}` });
+      
+      ws.current.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        dispatch({ type: 'ADD_WS_LOG', payload: `[WS] Received: ${event.data}` });
+
+        switch(data.type) {
+          case 'stream':
+            dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: data.content } });
+            break;
+          case 'progress':
+            dispatch({ type: 'SET_PROGRESS', payload: { progress: data.progress, step: data.step } });
+            break;
+          case 'task_complete':
+            dispatch({ type: 'STOP_PROCESSING' });
+            break;
+          // MODIFIED: Handle plan steps
+          case 'thought':
+            dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'thought', content: data.content } });
+            break;
+          case 'tool_used':
+            dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'tool_used', content: data.tool, details: data.details } });
+            break;
+          case 'error':
+            dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `[ERROR]: ${data.message}` } });
+            dispatch({ type: 'STOP_PROCESSING' });
+            break;
+          default:
+            break;
+        }
+      };
     };
+    connect();
+    return () => ws.current?.close();
   }, []);
 
   const handleSend = useCallback(() => {
-    if (!input.trim() || state.isProcessing || !ws.current || ws.current.readyState !== WebSocket.OPEN) return;
+    if (state.input.trim() && state.currentConversationId) {
+      dispatch({ type: 'START_PROCESSING', payload: state.input }); // This now also clears the plan
+      if (ws.current?.readyState === WebSocket.OPEN) {
+        ws.current.send(JSON.stringify({ action: 'execute', command: state.input }));
+      } else {
+        dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: 'WebSocket not connected. Please wait.' } });
+      }
+    }
+  }, [state.input, state.currentConversationId]);
 
-    const userMessage = {
-      id: Date.now(),
-      type: 'user',
-      content: input.trim(),
-      timestamp: new Date().toLocaleTimeString(),
+  const stopProcessing = useCallback(() => {
+    if (ws.current?.readyState === WebSocket.OPEN) {
+      ws.current.send(JSON.stringify({ action: 'cancel' }));
+    }
+    dispatch({ type: 'STOP_PROCESSING' }); // This now also clears the plan
+    dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: 'Processing stopped by user.' }});
+  }, []);
+
+  const handleConversationSelect = useCallback((id) => {
+    dispatch({ type: 'SELECT_CONVERSATION', payload: id });
+  }, []);
+
+  const handleVoiceInput = useCallback(() => {
+    // ... (voice logic remains unchanged)
+    if (state.isListening) {
+        recognition.current?.stop();
+        return;
+    }
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+    recognition.current = new SpeechRecognition();
+    recognition.current.continuous = true;
+    recognition.current.interimResults = true;
+    recognition.current.lang = 'en-US';
+    recognition.current.onstart = () => dispatch({ type: 'SET_LISTENING', payload: true });
+    recognition.current.onend = () => dispatch({ type: 'SET_LISTENING', payload: false });
+    recognition.current.onresult = (event) => {
+      const transcript = Array.from(event.results).map(r => r[0]).map(r => r.transcript).join('');
+      dispatch({ type: 'SET_TRANSCRIPT', payload: transcript });
     };
+    recognition.current.start();
+  }, [state.isListening]);
 
-    dispatch({ type: 'START_PROCESSING', payload: userMessage });
-    
-    // Send instruction to the REAL agent backend
-    ws.current.send(JSON.stringify({ 
-        action: 'instruct', 
-        message: input.trim(),
-    }));
-
-    setInput('');
-    setWsLog(`[USER] ${input.trim()}\n`);
-
-  }, [input, state.isProcessing]);
-
-  // ... (the rest of the hook remains the same: stopProcessing, handleVoiceInput, etc.)
-  
   return {
-    ...state,
-    canStop: state.isProcessing,
-    input,
-    setInput,
-    isListening,
-    handleConversationSelect: () => {},
-    handleNewConversation: () => {},
+    // ... (all existing returned values)
+    conversations: Object.values(state.conversations).sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0)),
+    currentConversation: state.currentConversationId,
+    messages: state.conversations[state.currentConversationId]?.messages || [],
+    isProcessing: state.isProcessing,
+    progress: state.progress,
+    currentStep: state.currentStep,
+    input: state.input,
+    setInput: (value) => dispatch({ type: 'SET_INPUT', payload: value }),
+    isListening: state.isListening,
+    transcript: state.transcript,
+    wsLog: state.wsLog,
     handleSend,
-    stopProcessing: () => {},
+    stopProcessing,
+    handleNewConversation,
+    handleConversationSelect,
     handleVoiceInput,
-    transcript,
-    wsLog,
+    // NEWLY EXPORTED STATE
+    plan: state.plan,
   };
 };
-
-// Reducer needs to be defined for the hook to work
-const chatReducer = (state, action) => {
-    switch (action.type) {
-      case 'START_PROCESSING':
-        return { ...state, isProcessing: true, progress: 0, currentStep: 'Connecting...', messages: [...state.messages, action.payload] };
-      case 'STOP_PROCESSING':
-        return { ...state, isProcessing: false };
-      case 'ADD_MESSAGE':
-        if (state.messages.some(msg => msg.id === action.payload.id)) return state;
-        return { ...state, messages: [...state.messages, action.payload] };
-      case 'UPDATE_JOE_RESPONSE':
-          const newMessages = [...state.messages];
-          const joeMsgIndex = newMessages.findIndex(msg => msg.id === 'joe-response');
-          if (joeMsgIndex !== -1) {
-              newMessages[joeMsgIndex].content = action.payload;
-          } else {
-              newMessages.push({ id: 'joe-response', type: 'joe', content: action.payload, timestamp: new Date().toLocaleTimeString() });
-          }
-          return { ...state, messages: newMessages };
-      case 'SET_PROGRESS':
-        return { ...state, progress: action.payload.progress, currentStep: action.payload.step };
-      case 'SELECT_CONVERSATION':
-        return { ...state, currentConversation: action.payload.id, messages: action.payload.messages };
-      default:
-        return state;
-    }
-  };

@@ -1,56 +1,175 @@
+
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Xelite Solutions - Unified Software Engineering Platform</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@700;800;900&family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700;800;900&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        :root { --primary: #2563EB; --secondary: #7C3AED; --dark: #0F172A; }
-        body { font-family: 'Poppins', sans-serif; background: #FFFFFF; color: #1E293B; overflow-x: hidden; line-height: 1.6; }
-        body.rtl { direction: rtl; font-family: 'Cairo', 'Poppins', sans-serif; }
-        header { position: fixed; top: 0; width: 100%; padding: 20px 100px; background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(20px); box-shadow: 0 2px 20px rgba(0, 0, 0, 0.05); z-index: 1000; transition: all 0.3s ease; }
-        .header-container { max-width: 1400px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
-        .logo h1 { font-size: 26px; font-weight: 800; background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        nav { display: flex; align-items: center; gap: 20px; }
-        .lang-btn { background: #F1F5F9; border: none; padding: 10px 20px; border-radius: 10px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px; }
-        .lang-dropdown { position: absolute; top: 55px; right: 0; background: white; border-radius: 12px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15); padding: 10px; min-width: 180px; display: none; z-index: 100; }
+        :root {
+            --bg-primary: #F0F4F8; /* Light grayish-blue */
+            --bg-secondary: #FFFFFF;
+            --text-primary: #1E293B; /* Dark slate */
+            --text-secondary: #475569;
+            --accent-primary: #3B82F6; /* Vibrant blue */
+            --accent-secondary: #14B8A6; /* Teal */
+            --border-color: #E2E8F0;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            line-height: 1.7;
+        }
+        body.rtl { direction: rtl; font-family: 'Cairo', 'Inter', sans-serif; }
+        .container { max-width: 1280px; margin: 0 auto; padding: 0 2rem; }
+        
+        /* Header */
+        header {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            padding: 1rem 0;
+            background: rgba(240, 244, 248, 0.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-color);
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo h1 {
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--text-primary);
+        }
+        nav { display: flex; align-items: center; gap: 1rem; }
+        .lang-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            padding: 0.6rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: background-color 0.3s;
+        }
+        .lang-btn:hover { background-color: var(--bg-secondary); }
+        .lang-dropdown { position: absolute; top: calc(100% + 10px); right: 0; background: var(--bg-secondary); border-radius: 0.75rem; box-shadow: 0 10px 40px rgba(0,0,0,0.1); padding: 0.5rem; min-width: 180px; display: none; z-index: 100; border: 1px solid var(--border-color); }
         .lang-dropdown.active { display: block; }
-        .lang-option { padding: 12px 15px; cursor: pointer; border-radius: 8px; transition: all 0.3s; display: flex; align-items: center; gap: 12px; }
-        .lang-option:hover, .lang-option.active { background: #EEF2FF; color: var(--primary); }
-        .login-btn { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; border: none; padding: 12px 28px; border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3); }
-        .login-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 25px rgba(37, 99, 235, 0.4); }
-        .hero { padding: 180px 100px 120px; background: #F8FAFC; }
-        .hero-container { max-width: 1200px; margin: 0 auto; text-align: center; }
-        .hero-content h1 { font-family: 'Playfair Display', serif; font-size: 58px; font-weight: 900; line-height: 1.2; color: var(--dark); margin-bottom: 25px; }
-        .hero-content .highlight { background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .hero-content p { font-size: 18px; color: #475569; line-height: 1.8; margin-bottom: 40px; max-width: 800px; margin-left:auto; margin-right:auto; }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(5px); z-index: 2000; align-items: center; justify-content: center; }
+        .lang-option { padding: 0.75rem 1rem; cursor: pointer; border-radius: 0.5rem; display: flex; align-items: center; gap: 0.75rem; transition: all 0.2s; }
+        .lang-option:hover, .lang-option.active { background: var(--bg-primary); color: var(--accent-primary); }
+        .login-btn {
+            background: var(--accent-primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.2);
+        }
+        .login-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3); }
+
+        /* Hero Section */
+        .hero {
+            padding: 10rem 0 6rem;
+            text-align: center;
+        }
+        .hero-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+            align-items: center;
+            text-align: left;
+        }
+        .hero-content h1 {
+            font-family: 'Inter', sans-serif;
+            font-size: 48px;
+            font-weight: 800;
+            line-height: 1.2;
+            color: var(--text-primary);
+            margin-bottom: 1.5rem;
+        }
+        .hero-content .highlight {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero-content p {
+            font-size: 1.125rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
+            margin-bottom: 2.5rem;
+            max-width: 600px;
+        }
+        .hero-image {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .hero-image img {
+            width: 100%;
+            max-width: 600px;
+            height: auto;
+            border-radius: 1.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+
+        /* Footer */
+        footer {
+            padding: 2.5rem 0;
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            text-align: center;
+            font-size: 0.9rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* Modal */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(8px); z-index: 2000; align-items: center; justify-content: center; }
         .modal.active { display: flex; }
-        .modal-content { background: white; border-radius: 24px; padding: 50px; max-width: 480px; width: 90%; position: relative; animation: slideUp 0.3s ease; }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-        .close-modal { position: absolute; top: 20px; right: 20px; width: 40px; height: 40px; background: #F1F5F9; border-radius: 10px; border: none; cursor: pointer; transition: all 0.3s; font-size: 20px; }
-        .close-modal:hover { transform: rotate(90deg); }
-        .modal h2 { font-size: 28px; font-weight: 800; color: var(--dark); margin-bottom: 30px; text-align: center; }
-        .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; margin-bottom: 8px; color: #475569; font-weight: 600; font-size: 14px; }
-        .form-group input { width: 100%; padding: 14px 16px; background: #F8FAFC; border: 2px solid #E2E8F0; border-radius: 10px; font-size: 15px; transition: all 0.3s; }
-        .form-group input:focus { outline: none; border-color: var(--primary); background: white; }
+        .modal-content { background: var(--bg-secondary); border-radius: 1.5rem; padding: 3rem; max-width: 480px; width: 90%; position: relative; animation: slideUp 0.3s ease; border: 1px solid var(--border-color); }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .close-modal { position: absolute; top: 1.25rem; right: 1.25rem; width: 40px; height: 40px; background: var(--bg-primary); border-radius: 0.5rem; border: none; cursor: pointer; transition: all 0.3s; font-size: 20px; color: var(--text-primary); }
+        .close-modal:hover { transform: rotate(90deg); background-color: #E2E8F0; }
+        .modal h2 { font-size: 24px; font-weight: 700; color: var(--text-primary); margin-bottom: 2rem; text-align: center; }
+        .form-group { margin-bottom: 1.25rem; }
+        .form-group label { display: block; margin-bottom: 0.5rem; color: var(--text-secondary); font-weight: 600; font-size: 14px; }
+        .form-group input { width: 100%; padding: 0.875rem 1rem; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 0.5rem; font-size: 15px; transition: all 0.3s; }
+        .form-group input:focus { outline: none; border-color: var(--accent-primary); background: white; }
         .password-group { position: relative; }
-        .password-toggle { position: absolute; top: 50%; transform: translateY(-50%); right: 15px; cursor: pointer; color: #94A3B8; }
-        .submit-btn { width: 100%; padding: 16px; background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; border: none; border-radius: 10px; font-weight: 800; font-size: 16px; cursor: pointer; transition: all 0.3s; }
-        footer { padding: 40px 100px; background: var(--dark); color: #94A3B8; text-align: center; font-size: 14px; }
-        @media (max-width: 768px) { header { padding: 15px 20px; } .hero { padding: 120px 20px 80px; } .hero-content h1 { font-size: 38px; } }
+        .password-toggle { position: absolute; top: 50%; transform: translateY(-50%); right: 1rem; cursor: pointer; color: #94A3B8; }
+        .submit-btn { width: 100%; padding: 1rem; background: var(--accent-primary); color: white; border: none; border-radius: 0.5rem; font-weight: 700; font-size: 16px; cursor: pointer; transition: all 0.3s; }
+        
+        @media (min-width: 768px) {
+            .hero-grid { grid-template-columns: repeat(2, 1fr); gap: 4rem; }
+        }
+        @media (max-width: 768px) {
+            header { padding: 1rem; }
+            .container { padding: 0 1rem; }
+            .hero { padding: 8rem 0 4rem; }
+            .hero-content h1 { font-size: 36px; }
+        }
     </style>
 </head>
 <body>
     <header id="header">
-        <div class="header-container">
+        <div class="header-container container">
             <div class="logo"><h1>XeliteSolutions</h1></div>
             <nav>
-                <div class="lang-selector">
+                <div class="lang-selector" style="position: relative;">
                     <button class="lang-btn" onclick="toggleLang()">
                         <i class="fas fa-globe"></i>
                         <span id="currentLang">EN</span>
@@ -65,24 +184,36 @@
                     </div>
                 </div>
                 <button class="login-btn" onclick="openModal()">
-                    <i class="fas fa-sign-in-alt"></i>
                     <span data-key="systemLogin">System Login</span>
                 </button>
             </nav>
         </div>
     </header>
 
-    <section class="hero">
-        <div class="hero-container">
-            <div class="hero-content">
-                <h1><span class="highlight" data-key="heroTitle1">One Platform,</span> <span data-key="heroTitle2">Infinite Solutions</span></h1>
-                <p data-key="heroDesc">Xelite Solutions is your strategic partner in digital innovation. We build cutting-edge websites, e-commerce platforms, Android & iOS apps, robust internal systems, and powerful software tools, all powered by our revolutionary AI assistant, JOE.</p>
+    <main>
+        <section class="hero">
+            <div class="container">
+                <div class="hero-grid">
+                    <div class="hero-content">
+                        <h1>
+                            <span data-key="heroTitle1">Building the Future of Software,</span>
+                            <span class="highlight" data-key="heroTitle2">Powered by AI.</span>
+                        </h1>
+                        <p data-key="heroDesc">We are not just developers; we are architects of intelligent systems. From complex web platforms to AI-driven tools, we build robust, scalable, and innovative solutions that propel your business forward.</p>
+                        <!-- Future Call to Action buttons can go here -->
+                    </div>
+                    <div class="hero-image">
+                        <img src="https://images.unsplash.com/photo-1551434678-e076c223a692?q=80&w=2070&auto=format&fit=crop" alt="Tech team collaborating on a project">
+                    </div>
+                </div>
             </div>
-        </div>
-    </section>
+        </section>
+    </main>
 
     <footer id="contact">
-        <p>&copy; 2024 XeliteSolutions. <span data-key="rights">All rights reserved.</span></p>
+        <div class="container">
+            <p>&copy; 2024 XeliteSolutions. <span data-key="rights">All rights reserved.</span></p>
+        </div>
     </footer>
 
     <div class="modal" id="loginModal">
@@ -104,7 +235,7 @@
                 <button type="submit" class="submit-btn">
                     <span data-key="loginButton">Authenticate</span>
                 </button>
-                <p id="loginMessage" style="color: red; margin-top: 15px; display: none; text-align: center;"></p>
+                <p id="loginMessage" style="color: #EF4444; margin-top: 1rem; display: none; text-align: center; font-weight: 500;"></p>
             </form>
         </div>
     </div>
@@ -113,9 +244,9 @@
         const translations = {
             en: {
                 systemLogin: "System Login",
-                heroTitle1: "One Platform,",
-                heroTitle2: "Infinite Solutions",
-                heroDesc: "Xelite Solutions is your strategic partner in digital innovation. We build cutting-edge websites, e-commerce platforms, Android & iOS apps, robust internal systems, and powerful software tools, all powered by our revolutionary AI assistant, JOE.",
+                heroTitle1: "Building the Future of Software,",
+                heroTitle2: "Powered by AI.",
+                heroDesc: "We are not just developers; we are architects of intelligent systems. From complex web platforms to AI-driven tools, we build robust, scalable, and innovative solutions that propel your business forward.",
                 rights: "All rights reserved.",
                 loginTitle: "Secure Access – JOE System",
                 emailLabel: "Admin Identity",
@@ -124,64 +255,41 @@
             },
             ar: {
                 systemLogin: "دخول النظام",
-                heroTitle1: "منصة واحدة،",
-                heroTitle2: "حلول لا نهائية",
-                heroDesc: "Xelite Solutions هي شريكك الاستراتيجي في الابتكار الرقمي. نحن نبني أحدث المواقع الإلكترونية، منصات التجارة الإلكترونية، تطبيقات أندرويد و iOS، أنظمة داخلية قوية، وأدوات برمجية فعالة، وكل ذلك مدعوم بمساعدنا الذكي الثوري، JOE.",
+                heroTitle1: "نبني مستقبل البرمجيات،",
+                heroTitle2: "بقوة الذكاء الاصطناعي.",
+                heroDesc: "نحن لسنا مجرد مطورين؛ نحن مهندسو الأنظمة الذكية. من منصات الويب المعقدة إلى الأدوات المدعومة بالذكاء الاصطناعي، نبني حلولاً قوية ومبتكرة وقابلة للتطوير تدفع بأعمالك إلى الأمام.",
                 rights: "جميع الحقوق محفوظة.",
                 loginTitle: "الدخول الآمن – نظام JOE",
                 emailLabel: "هوية المسؤول",
                 passwordLabel: "المفتاح السري",
                 loginButton: "مصادقة"
             },
-            fr: {
-                systemLogin: "Connexion Système",
-                heroTitle1: "Une Plateforme,",
-                heroTitle2: "Solutions Infinies",
-                heroDesc: "Xelite Solutions est votre partenaire stratégique en innovation numérique. Nous créons des sites web de pointe, des plateformes e-commerce, des applications Android & iOS, des systèmes internes robustes et des outils logiciels puissants, tous propulsés par notre assistant IA révolutionnaire, JOE.",
-                rights: "Tous droits réservés.",
-                loginTitle: "Accès Sécurisé – Système JOE",
-                emailLabel: "Identité Admin",
-                passwordLabel: "Clé Sécurisée",
-                loginButton: "S'authentifier"
-            },
-            es: {
-                systemLogin: "Acceso al Sistema",
-                heroTitle1: "Una Plataforma,",
-                heroTitle2: "Soluciones Infinitas",
-                heroDesc: "Xelite Solutions es su socio estratégico en innovación digital. Creamos sitios web de vanguardia, plataformas de comercio electrónico, aplicaciones para Android y iOS, sistemas internos robustos y potentes herramientas de software, todo impulsado por nuestro revolucionario asistente de IA, JOE.",
-                rights: "Todos los derechos reservados.",
-                loginTitle: "Acceso Seguro – Sistema JOE",
-                emailLabel: "Identidad del Admin",
-                passwordLabel: "Clave Segura",
-                loginButton: "Autenticar"
-            },
-            de: {
-                systemLogin: "Systemanmeldung",
-                heroTitle1: "Eine Plattform,",
-                heroTitle2: "Unendliche Lösungen",
-                heroDesc: "Xelite Solutions ist Ihr strategischer Partner für digitale Innovation. Wir entwickeln hochmoderne Websites, E-Commerce-Plattformen, Android- & iOS-Apps, robuste interne Systeme und leistungsstarke Software-Tools, alle angetrieben von unserem revolutionären KI-Assistenten, JOE.",
-                rights: "Alle Rechte vorbehalten.",
-                loginTitle: "Sicherer Zugang – JOE System",
-                emailLabel: "Admin-Identität",
-                passwordLabel: "Sicherer Schlüssel",
-                loginButton: "Authentifizieren"
-            }
+            // ... (other languages can be updated similarly)
+            fr: { systemLogin: "Connexion", heroTitle1: "Construire l'avenir du logiciel,", heroTitle2: "Propulsé par l'IA.", heroDesc: "Nous ne sommes pas seulement des développeurs; nous sommes des architectes de systèmes intelligents. Des plateformes web complexes aux outils basés sur l'IA, nous construisons des solutions robustes, évolutives et innovantes qui font progresser votre entreprise.", rights: "Tous droits réservés.", loginTitle: "Accès Sécurisé – Système JOE", emailLabel: "Identité Admin", passwordLabel: "Clé Sécurisée", loginButton: "S'authentifier" },
+            es: { systemLogin: "Acceso", heroTitle1: "Construyendo el futuro del software,", heroTitle2: "Impulsado por IA.", heroDesc: "No somos solo desarrolladores; somos arquitectos de sistemas inteligentes. Desde complejas plataformas web hasta herramientas impulsadas por IA, construimos soluciones robustas, escalables e innovadoras que impulsan su negocio.", rights: "Todos los derechos reservados.", loginTitle: "Acceso Seguro – Sistema JOE", emailLabel: "Identidad del Admin", passwordLabel: "Clave Segura", loginButton: "Autenticar" },
+            de: { systemLogin: "Anmelden", heroTitle1: "Die Zukunft der Software gestalten,", heroTitle2: "Angetrieben durch KI.", heroDesc: "Wir sind nicht nur Entwickler; wir sind Architekten intelligenter Systeme. Von komplexen Webplattformen bis hin zu KI-gesteuerten Werkzeugen entwickeln wir robuste, skalierbare und innovative Lösungen, die Ihr Unternehmen voranbringen.", rights: "Alle Rechte vorbehalten.", loginTitle: "Sicherer Zugang – JOE System", emailLabel: "Admin-Identität", passwordLabel: "Sicherer Schlüssel", loginButton: "Authentifizieren" }
         };
 
         function changeLang(lang) {
             document.querySelectorAll('.lang-option').forEach(opt => opt.classList.remove('active'));
-            document.querySelector(`.lang-option[onclick="changeLang('${lang}')"]`).classList.add('active');
+            const currentOption = document.querySelector(`.lang-option[onclick="changeLang('${lang}')"]`);
+            if (currentOption) currentOption.classList.add('active');
+            
             document.getElementById('currentLang').textContent = lang.toUpperCase();
             document.documentElement.lang = lang;
             document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
             document.body.classList.toggle('rtl', lang === 'ar');
+            
             document.querySelectorAll('[data-key]').forEach(el => {
                 const key = el.getAttribute('data-key');
                 if (translations[lang]?.[key]) {
-                    el.textContent = translations[lang][key];
+                    el.innerHTML = translations[lang][key]; // Use innerHTML to support span highlighting
                 }
             });
-            toggleLang();
+            const dropdown = document.getElementById('langDropdown');
+            if (dropdown.classList.contains('active')) {
+                toggleLang();
+            }
         }
 
         function toggleLang() { document.getElementById('langDropdown').classList.toggle('active'); }
@@ -197,11 +305,9 @@
             passwordToggle.classList.toggle('fa-eye-slash');
         });
         
-        // --- Login Logic ---
         const loginForm = document.getElementById('loginForm');
         const loginMessage = document.getElementById('loginMessage');
-        // Use relative path for API calls within the same domain
-        const API_BASE_URL = ''; 
+        const API_BASE_URL = 'https://backend-api.onrender.com'; // IMPORTANT: Using the URL we discussed
 
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -218,20 +324,28 @@
                 const data = await response.json();
                 if (response.ok) {
                     const sessionToken = data.sessionToken || data.token;
-                    localStorage.setItem('sessionToken', sessionToken);
-                    window.location.href = '/'; // Redirect to the main app (JOE UI)
+                    if (sessionToken) {
+                        localStorage.setItem('sessionToken', sessionToken);
+                        window.location.href = '/joe'; 
+                    } else {
+                         loginMessage.textContent = 'Login successful, but no session token received.';
+                         loginMessage.style.display = 'block';
+                    }
                 } else {
                     loginMessage.textContent = data.message || 'Login failed. Please check your credentials.';
                     loginMessage.style.display = 'block';
                 }
             } catch (error) {
-                loginMessage.textContent = 'An error occurred. Please try again later.';
+                console.error('Login Error:', error);
+                loginMessage.textContent = 'An error occurred. Please check your network connection and try again.';
                 loginMessage.style.display = 'block';
             }
         });
 
-        // Initialize with default language
-        changeLang('en');
+        // Initialize with default language on page load
+        document.addEventListener('DOMContentLoaded', () => {
+             changeLang('en');
+        });
     </script>
 </body>
 </html>
