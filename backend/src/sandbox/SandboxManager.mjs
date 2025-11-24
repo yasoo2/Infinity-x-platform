@@ -38,7 +38,7 @@ class SandboxManager {
     this.docker = new Docker(); // Assumes Docker is running on the host
     this.redisClient = createClient({
       url: process.env.REDIS_URL || 'redis://localhost:6379'
-    // });
+    });
     this.isRedisConnected = false;
     console.log('⚛️ Sandbox Manager v3.0 (The Intelligent Fortress) Initialized.');
   }
