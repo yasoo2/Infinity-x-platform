@@ -18,7 +18,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import http from 'http';
 import fs from 'fs';
-import { register, collectDefaultMetrics } from 'prom-client'; //  observability
+import { register, collectDefaultMetrics } from 'prom-client';
 
 // --- Core Components ---
 import { initMongo, closeMongoConnection } from './src/core/database.mjs';
@@ -39,7 +39,6 @@ const CONFIG = {
   NODE_ENV: process.env.NODE_ENV || 'development',
 };
 
-// Start collecting default metrics for Prometheus
 collectDefaultMetrics();
 
 // =========================
@@ -62,18 +61,17 @@ app.use(express.json({ limit: '50mb' }));
 // 🚀 Service & Dependency Injection Setup
 // =========================
 async function setupDependencies() {
-    // Initialize core services first
-    const db = await initMongo(); // Initialize DB connection first
+    const db = await initMongo();
     await toolManager.initialize();
-    // CORRECTED: Await the async initialization of the SandboxManager
     const sandboxManager = await new SandboxManager().initializeConnections();
     
-    const memoryManager = new MemoryManager({ db }); 
+    // Corrected: Instantiate MemoryManager without passing the db object.
+    const memoryManager = new MemoryManager(); 
     
     const joeAgentServer = new JoeAgentWebSocketServer(server);
 
     return {
-        db,
+        db, // db is still needed for auth
         memoryManager,
         sandboxManager,
         joeAgentServer,
@@ -105,7 +103,6 @@ async function applyRoutes(dependencies) {
     }
   }
   
-  // ADDED: Expose Prometheus metrics endpoint
   app.get('/metrics', async (req, res) => {
       try {
           res.set('Content-Type', register.contentType);
@@ -135,7 +132,7 @@ async function startServer() {
     server.listen(CONFIG.PORT, '0.0.0.0', () => {
       console.log(`✅ Server running on http://localhost:${CONFIG.PORT}`);
       console.log(`🤖 Joe Agent v2 is active at ws://localhost:${CONFIG.PORT}/ws/joe-agent`);
-      console.log(`📊 Metrics available at http://localhost:${CONFIG.PORT}/metrics`); // Observability
+      console.log(`📊 Metrics available at http://localhost:${CONFIG.PORT}/metrics`);
     });
 
   } catch (error) {
