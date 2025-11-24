@@ -63,11 +63,11 @@ app.use(express.json({ limit: '50mb' }));
 // =========================
 async function setupDependencies() {
     // Initialize core services first
+    const db = await initMongo(); // Initialize DB connection first
     await toolManager.initialize();
     // CORRECTED: Await the async initialization of the SandboxManager
     const sandboxManager = await new SandboxManager().initializeConnections();
-
-    const db = await initMongo();
+    
     const memoryManager = new MemoryManager({ db }); 
     
     const joeAgentServer = new JoeAgentWebSocketServer(server);
@@ -146,7 +146,8 @@ async function startServer() {
 
 // Graceful shutdown logic
 async function gracefulShutdown(signal) { 
-    console.log(`\n🔌 Received ${signal}. Shutting down gracefully...`);
+    console.log(`
+🔌 Received ${signal}. Shutting down gracefully...`);
     server.close(() => {
         console.log('Closed out remaining connections.');
         closeMongoConnection().then(() => {
