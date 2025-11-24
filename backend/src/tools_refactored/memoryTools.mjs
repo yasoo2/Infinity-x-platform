@@ -1,82 +1,77 @@
 /**
- * Memory Tools - Long-term memory system
- * Allows JOE to remember conversations and learn from experiences.
- * @version 2.0.0 - ToolManager Compliant
+ * 🛠️ Memory Management Tools - Refactored for Dynamic Loading
+ * @version 2.0.1
+ * @description Provides tools for the AI to interact with its own memory, now corrected to import the singleton instance.
  */
 
-import { memoryManager } from '../services/memory/memory.service.mjs';
+// Corrected import to match the singleton export from memory.service.mjs
+import memoryManager from '../services/memory/memory.service.mjs';
 
-// Note: This tool now acts as a simplified adapter for the more robust memoryManager service.
+// --- Tool Functions ---
 
-async function saveToMemory({ userId, key, value }) {
-    // This is a simplified abstraction. The memoryManager has a more sophisticated structure.
-    const data = { [key]: value };
-    try {
-        await memoryManager.saveInteraction(userId, `User stored data for key: ${key}`, 'Data saved to profile.', { customData: data });
-        return { success: true, message: `Saved data for key '${key}' to user profile.` };
-    } catch (error) {
-        return { success: false, error: error.message };
+async function saveToMemory({ userId, data, metadata }) {
+    if (!userId || !data) {
+        return { success: false, error: 'userId and data are required to save to memory.' };
     }
+    const result = await memoryManager.saveInteraction(userId, 'manual_save', data, metadata);
+    return result;
 }
+
+async function retrieveFromMemory({ userId, limit = 10 }) {
+    if (!userId) {
+        return { success: false, error: 'userId is required to retrieve from memory.' };
+    }
+    const context = await memoryManager.getConversationContext(userId, { limit });
+    return { success: true, memory: context };
+}
+
+// --- Metadata for ToolManager ---
+
 saveToMemory.metadata = {
     name: "saveToMemory",
-    description: "Saves a key-value pair to the user's long-term memory profile. Use this to remember user preferences, facts, or specific information for later use.",
+    description: "Saves a piece of information to the user's long-term memory for future reference.",
     parameters: {
         type: "object",
         properties: {
-            userId: { type: "string", description: "The ID of the user to associate the memory with." },
-            key: { type: "string", description: "The unique key for the information being stored." },
-            value: { type: "any", description: "The information (string, number, object) to be stored." }
+            userId: { 
+                type: "string", 
+                description: "The unique identifier for the user."
+            },
+            data: { 
+                type: "string", 
+                description: "The information or data to be saved."
+            },
+            metadata: { 
+                type: "object", 
+                description: "Optional metadata to provide context about the saved information."
+            }
         },
-        required: ["userId", "key", "value"]
+        required: ["userId", "data"]
     }
 };
 
-async function retrieveFromMemory({ userId, key }) {
-    try {
-        const profile = await memoryManager.getUserProfile(userId);
-        const value = profile?.customData?.[key];
-        if (value !== undefined) {
-            return { success: true, key, value };
-        } else {
-            return { success: false, message: `No data found for key '${key}'.` };
-        }
-    } catch (error) {
-        return { success: false, error: error.message };
-    }
-}
 retrieveFromMemory.metadata = {
     name: "retrieveFromMemory",
-    description: "Retrieves a specific piece of information from the user's long-term memory using a key.",
+    description: "Retrieves the recent conversation history or saved data for a specific user.",
     parameters: {
         type: "object",
         properties: {
-            userId: { type: "string", description: "The ID of the user whose memory to access." },
-            key: { type: "string", description: "The key of the information to retrieve." }
+            userId: { 
+                type: "string", 
+                description: "The unique identifier for the user to retrieve memory for."
+            },
+            limit: { 
+                type: "integer", 
+                description: "The maximum number of recent interactions to retrieve. Defaults to 10."
+            }
         },
-        required: ["userId", "key"]
+        required: ["userId"]
     }
 };
 
-async function searchConversations({ userId, query }) {
-    try {
-        const results = await memoryManager.searchInteractions(userId, query, { limit: 10 });
-        return { success: true, results };
-    } catch (error) {
-        return { success: false, error: error.message };
-    }
-}
-searchConversations.metadata = {
-    name: "searchConversations",
-    description: "Searches through the user's past conversation history for a specific query.",
-    parameters: {
-        type: "object",
-        properties: {
-            userId: { type: "string", description: "The user's ID to search within their conversations." },
-            query: { type: "string", description: "The text to search for in past messages and responses." }
-        },
-        required: ["userId", "query"]
-    }
-};
+// --- Exporting the tools ---
 
-export default { saveToMemory, retrieveFromMemory, searchConversations };
+export default {
+    saveToMemory,
+    retrieveFromMemory
+};

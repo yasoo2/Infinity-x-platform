@@ -1,47 +1,36 @@
 /**
  * 🧠 JOE Advanced Memory Management System
  * @module MemoryManager
- * @version 4.2.0 - Patched memory leak and activated auto-cleanup.
- * @description A robust memory system that learns from interactions, detects sequences, and provides proactive suggestions. Now with a functional auto-cleanup process.
+ * @version 4.2.1 - Exporting a singleton instance.
  */
 
 import { getDB } from '../../core/database.mjs';
 import { EventEmitter } from 'events';
 
-export class MemoryManager extends EventEmitter {
+class MemoryManager extends EventEmitter {
     constructor(options = {}) {
         super();
         
         this.shortTermMemory = new Map();
-        this.conversations = new Map(); // For session-based context
-        this.db = getDB(); // Get the singleton DB instance
+        this.conversations = new Map();
+        this.db = getDB();
 
         this.config = {
-            shortTermMemoryTTL: options.shortTermMemoryTTL || 30 * 60 * 1000, // 30 minutes
-            cleanupInterval: options.cleanupInterval || 5 * 60 * 1000, // Run cleanup every 5 minutes
-            // ... other configs
+            shortTermMemoryTTL: options.shortTermMemoryTTL || 30 * 60 * 1000, 
+            cleanupInterval: options.cleanupInterval || 5 * 60 * 1000,
         };
 
-        this.stats = { /* ... stats ... */ };
+        this.stats = {};
 
-        // ✨ [FIXED] Activate the auto-cleanup process upon initialization.
         this.startAutoCleanup();
-        
-        console.log('✅ Memory Manager v4.2.0 initialized. Auto-cleanup is active.');
+        console.log('✅ Memory Manager v4.2.1 initialized. Auto-cleanup is active.');
     }
 
-    /**
-     * Starts the automatic cleanup process for short-term memory.
-     */
     startAutoCleanup() {
         console.log(`🧹 Auto-cleanup scheduled every ${this.config.cleanupInterval / 1000 / 60} minutes.`);
-        // Use a non-blocking interval to perform cleanup periodically.
         setInterval(() => this.performCleanup(), this.config.cleanupInterval);
     }
 
-    /**
-     * ✨ [FIXED] Performs the cleanup of expired short-term memory items.
-     */
     performCleanup() {
         const now = Date.now();
         let cleanedCount = 0;
@@ -55,7 +44,7 @@ export class MemoryManager extends EventEmitter {
                 if (validItems.length > 0) {
                     this.shortTermMemory.set(userId, validItems);
                 } else {
-                    this.shortTermMemory.delete(userId); // Clean up the map key if no items remain
+                    this.shortTermMemory.delete(userId);
                 }
             }
         }
@@ -66,13 +55,9 @@ export class MemoryManager extends EventEmitter {
         }
     }
 
-    /**
-     * Saves a new interaction to the database and caches.
-     */
     async saveInteraction(userId, command, result, metadata = {}) {
         try {
             const interaction = {
-                _id: new ObjectId(),
                 userId,
                 command,
                 result,
@@ -80,7 +65,6 @@ export class MemoryManager extends EventEmitter {
                     timestamp: new Date(),
                     ...metadata
                 },
-                // The advanced analysis can be done offline by another process if needed
             };
 
             await this.db.collection('joe_interactions').insertOne(interaction);
@@ -96,18 +80,12 @@ export class MemoryManager extends EventEmitter {
         }
     }
 
-    /**
-     * Retrieves the recent conversation history for a user.
-     * This is the primary method used by the Phoenix Engine for context.
-     */
     async getConversationContext(userId, { limit = 15 } = {}) {
-        // First, check the in-memory cache
         const cachedConversation = this.conversations.get(userId);
         if (cachedConversation && cachedConversation.length > 0) {
             return cachedConversation.slice(-limit);
         }
 
-        // If not in cache, fetch from the database
         try {
             const interactions = await this.db.collection('joe_interactions')
                 .find({ userId })
@@ -115,8 +93,7 @@ export class MemoryManager extends EventEmitter {
                 .limit(limit)
                 .toArray();
             
-            // Store the fetched conversation in the cache for future requests
-            this.conversations.set(userId, interactions.slice().reverse()); // Store in chronological order
+            this.conversations.set(userId, interactions.slice().reverse());
             return interactions;
         } catch (error) {
             console.error('❌ Get conversation context error:', error);
@@ -135,10 +112,8 @@ export class MemoryManager extends EventEmitter {
         history.push(interaction);
         this.conversations.set(userId, history);
     }
-    
-    // The other advanced learning methods (updateLearning, getProactiveSuggestions, etc.) remain the same.
-    // They are not essential for the core functionality right now but are available for future use.
 }
 
-// We export a class and not a singleton, because the server.mjs instantiates it.
-export default MemoryManager;
+// Create and export a single instance (singleton)
+const memoryManager = new MemoryManager();
+export default memoryManager;
