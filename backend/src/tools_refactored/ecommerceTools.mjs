@@ -9,7 +9,7 @@ import path from 'path';
 /**
  * إنشاء متجر إلكتروني كامل
  */
-export async function createEcommerceStore(storeName, config = {}) {
+async function createEcommerceStore(storeName, config = {}) {
   try {
     const {
       currency = 'USD',
