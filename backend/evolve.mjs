@@ -28,21 +28,27 @@ async function main() {
         serverProcess.stdout.on('data', (data) => {
             const output = data.toString();
             console.log(`[SERVER LOGS]: ${output.trim()}`);
-            if (output.includes('Auth setup complete')) { // A reliable indicator the server is ready
+            // Use a more reliable indicator for server readiness
+            if (output.includes('Server running on http://localhost:4001')) { 
                 if (!serverReady) {
                     serverReady = true;
-                    console.log('Server is ready. Proceeding with evolution.');
+                    console.log('✅ Server is ready. Proceeding with evolution cycle.');
                     runEvolutionCycle();
                 }
             }
         });
 
         serverProcess.stderr.on('data', (data) => {
-            console.error(`[SERVER ERROR]: ${data.toString().trim()}`);
-            // If there's an error, especially a startup error, kill the process.
-            if (!serverReady) {
-                console.error('Server failed to start. Aborting evolution.');
-                cleanup();
+            const errorMessage = data.toString().trim();
+            // Ignore common warnings that don't indicate a startup failure
+            if (errorMessage.includes('ExperimentalWarning') || errorMessage.includes('Debugger attached')) {
+                console.log(`[SERVER WARN]: ${errorMessage}`);
+            } else {
+                console.error(`[SERVER ERROR]: ${errorMessage}`);
+                if (!serverReady) {
+                    console.error('Server failed to start. Aborting evolution.');
+                    cleanup();
+                }
             }
         });
 

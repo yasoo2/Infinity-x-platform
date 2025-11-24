@@ -1,67 +1,96 @@
 
 /**
- * Code Analysis Tool Adapter - The Bridge
- * This tool acts as a bridge between the complex, plugin-based CodeTools engine
- * and the main AdvancedToolsManager, making its capabilities discoverable and usable.
- * @version 1.0.0
+ * Code Analysis Tool - Standalone & Refactored
+ * Provides essential code analysis functions, including dependency extraction.
+ * @version 2.5.0
  */
 
-import codeToolsEngine from './code.tool.mjs'; // Importing the complex engine
 import { promises as fs } from 'fs';
 
-// --- Adapter Functions ---
+// --- Standalone Functions ---
 
 async function analyzeCode({ filePath }) {
   try {
-    // 1. Read the file first
     const code = await fs.readFile(filePath, 'utf-8');
 
-    // 2. Use the internal engine to perform the analysis
-    const result = await codeToolsEngine.executeTask({
-      action: 'analyze', 
-      language: 'javascript', // This could be determined dynamically in a future version
-      code: code
-    });
+    // Basic metrics
+    const lineCount = code.split('\n').length;
 
-    return result;
+    // Dependency extraction using Regex
+    const dependencies = [];
+    const importRegex = /import(?:[\s\S]*?from[\s]*)['\"](.*?\.m?js)['\"]/g;
+    const requireRegex = /require\(['\"](.*?\.m?js)['\"]\)/g;
+    let match;
+
+    while ((match = importRegex.exec(code)) !== null) {
+        dependencies.push(match[1]);
+    }
+
+    while ((match = requireRegex.exec(code)) !== null) {
+        dependencies.push(match[1]);
+    }
+
+    return { 
+        success: true, 
+        metrics: {
+            lineCount,
+        },
+        dependencies // Array of imported module strings
+    };
 
   } catch (error) {
-    return { success: false, error: `Failed to analyze code: ${error.message}` };
+    // If a file doesn't exist (e.g., in a sparse checkout), treat as empty.
+    if (error.code === 'ENOENT') {
+        return { success: true, metrics: { lineCount: 0 }, dependencies: [] };
+    }
+    return { success: false, error: `Failed to analyze code: ${error.message}`, dependencies: [] };
   }
 }
 analyzeCode.metadata = {
     name: "analyzeCode",
-    description: "Performs a deep static analysis of a JavaScript file, providing metrics like complexity, dependencies, and function count.",
+    description: "Performs a static analysis of a file, providing metrics and extracting its dependencies (imports/requires).",
     parameters: {
         type: "object",
         properties: {
-            filePath: { type: "string", description: "The path to the JavaScript file to be analyzed." }
+            filePath: { type: "string", description: "The path to the file to be analyzed." }
         },
         required: ["filePath"]
     }
 };
 
 async function validateBrackets({ filePath }) {
-  try {
-    // 1. Read the file
-    const code = await fs.readFile(filePath, 'utf-8');
+    try {
+        const code = await fs.readFile(filePath, 'utf-8');
+        const stack = [];
+        const bracketPairs = { '(': ')', '[': ']', '{': '}' };
 
-    // 2. Use the internal engine to validate brackets
-    const result = await codeToolsEngine.executeTask({
-      action: 'validate-brackets',
-      language: 'javascript', // This specific validator works on any language, denoted by '*' in the engine
-      code: code
-    });
-    
-    return result;
+        for (let i = 0; i < code.length; i++) {
+            const char = code[i];
+            if (bracketPairs[char]) {
+                stack.push(char);
+            } else if (Object.values(bracketPairs).includes(char)) {
+                if (bracketPairs[stack.pop()] !== char) {
+                    return { success: false, error: `Mismatched brackets at character ${i}` };
+                }
+            }
+        }
 
-  } catch (error) {
-    return { success: false, error: `Failed to validate brackets: ${error.message}` };
-  }
+        if (stack.length > 0) {
+            return { success: false, error: 'Unclosed brackets remain.' };
+        }
+
+        return { success: true, message: 'Bracket validation passed.' };
+
+    } catch (error) {
+        if (error.code === 'ENOENT') {
+            return { success: true, message: 'File not found, validation skipped.' };
+        }
+        return { success: false, error: `Failed to validate brackets: ${error.message}` };
+    }
 }
 validateBrackets.metadata = {
     name: "validateBrackets",
-    description: "Checks a file for mismatched or unclosed brackets, ignoring comments and strings.",
+    description: "Checks a file for mismatched or unclosed brackets.",
     parameters: {
         type: "object",
         properties: {

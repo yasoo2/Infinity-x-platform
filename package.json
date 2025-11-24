@@ -11,7 +11,10 @@
     "dev:frontend": "cd dashboard-x && npm run dev",
     "postinstall": "npx pnpm install --prefix backend --no-frozen-lockfile && npx pnpm install --prefix dashboard-x --no-frozen-lockfile && npx pnpm install --prefix worker --no-frozen-lockfile",
     "build": "./build.sh",
-    "test": "jest"
+    "test": "jest",
+    "joe": "node backend/joe.mjs",
+    "evolve": "node backend/evolve.mjs",
+    "admin:create": "node backend/scripts/manage-admin.mjs"
   },
   "engines": {
     "node": ">=22.0.0",
