@@ -16,19 +16,9 @@
       "esbenp.prettier-vscode"
       "eamodio.gitlens"
       "humao.rest-client"
-      "mongodb.mongodb-vscode"
+      "bradlc.vscode-tailwindcss"
+      "ms-azuretools.vscode-docker"
+      "jnoortheen.nix-ide"
     ];
-    
-    # استخدام pnpm للتثبيت عند تحميل البيئة
-    onLoad = "pnpm install --no-frozen-lockfile";
-
-    # أمر بدء تشغيل المشروع
-    start = {
-      # استخدام pnpm بدلاً من npm للاتساق
-      command = "pnpm run dev";
-      notification = {
-        onSuccess = "Development servers are running. Access the frontend on port 5173 and the backend on 4000.";
-      };
-    };
   };
 }

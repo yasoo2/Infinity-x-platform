@@ -1,2 +1,6 @@
 packages:
   - 'backend'
+  - 'dashboard-x'
+  - 'public-site'
+  - 'shared'
+  - 'worker'
