@@ -10,7 +10,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
 import { v4 as uuidv4 } from 'uuid';
-import eventBus from './core/event-bus.mjs'; // Import the central nervous system
+import eventBus from '../core/event-bus.mjs'; // CORRECTED PATH: Import the central nervous system
 
 class SandboxManager {
   constructor(options = {}) {
