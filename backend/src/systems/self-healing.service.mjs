@@ -1,5 +1,5 @@
 /**
- * ❤️‍🩹 Self-Healing System
+ * [Self-Healing System]
  * Proactively detects and fixes errors.
  */
 
@@ -12,7 +12,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 class SelfHealingSystem {
 
   async handleSystemError(error, context = {}) {
-    console.error('❤️‍🩹 An error was caught by the Self-Healing System:', error);
+    console.error('[Self-Healing] An error was caught by the Self-Healing System:', error);
 
     // 1. Analyze the error
     const analysis = await this.analyzeError(error, context);
@@ -28,7 +28,7 @@ class SelfHealingSystem {
       const result = await this.applyFix(bestSolution, context);
       return { success: true, fixApplied: result, analysis };
     } else {
-      console.log('❤️‍🩹 No suitable solution found. Escalating...');
+      console.log('[Self-Healing] No suitable solution found. Escalating...');
       return { success: false, fixApplied: null, analysis, escalation: 'A manual review is required.' };
     }
   }
@@ -87,7 +87,7 @@ class SelfHealingSystem {
   }
 
   async applyFix(solution, context) {
-    console.log(`❤️‍🩹 Applying fix: ${solution.description}`);
+    console.log(`[Self-Healing] Applying fix: ${solution.description}`);
     if (solution.type === 'code_patch' && context.filePath) {
         try {
             const originalCode = await fs.readFile(context.filePath, 'utf-8');
@@ -98,7 +98,7 @@ class SelfHealingSystem {
             // Let's get a quick review before applying
             const review = await codeReviewSystem.reviewCode(newCode, context.language || 'javascript');
             if (review.score < 70) {
-                console.warn('❤️‍🩹 Proposed fix has low quality score. Aborting.', review.issues);
+                console.warn('[Self-Healing] Proposed fix has low quality score. Aborting.', review.issues);
                 return { applied: false, reason: 'Low quality score on fix.' };
             }
             
@@ -107,10 +107,10 @@ class SelfHealingSystem {
 
             // Write the new code
             await fs.writeFile(context.filePath, newCode);
-            console.log(`❤️‍🩹 ✅ Successfully patched file: ${context.filePath}`);
+            console.log(`[Self-Healing] ✅ Successfully patched file: ${context.filePath}`);
             return { applied: true, filePath: context.filePath };
         } catch(e) {
-            console.error('❤️‍🩹 ❌ Failed to apply code patch:', e);
+            console.error('[Self-Healing] ❌ Failed to apply code patch:', e);
             return { applied: false, reason: e.message };
         }
     }
