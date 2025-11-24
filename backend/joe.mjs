@@ -1,1 +1,108 @@
-/**\n * 🚀 Joe Standalone Orchestrator - Your Command-Line Agent\n * @version 2.0.0\n * This script is the entry point for running the Joe agent from the command line.\n * It initializes all necessary services, takes a task as input,\n * creates a plan, and executes it using the full suite of available tools.\n *\n * How to Use (after integration):\n * npm run joe -- \"Your task description here\"\n */\n\nimport dotenv from \'dotenv\';\ndotenv.config();\n\nimport toolManager from \'./src/services/tools/tool-manager.service.mjs\';\nimport { createPlan } from \'./src/services/ai/ai-engine.service.mjs\';\n\n// --- Main Task Acquisition ---\nconst mainTask = process.argv.slice(2).join(\' \');\n\nif (!mainTask) {\n    console.error(\'❌ ERROR: No task provided.\');\n    console.error(\'Usage: node backend/joe.mjs \\\"Your task description here\\\"\');\n    console.error(\'Or after integration: npm run joe -- \\\"Your task description here\\\"\');\n    process.exit(1);\n}\n\n// --- Main Execution Logic ---\nasync function main() {\n    // 1. Initialize Services\n    console.log(\'🔄 Initializing services...\');\n    try {\n        await toolManager.initialize();\n        console.log(`✅ Services initialized. ${toolManager.tools.size} tools ready.`);\n    } catch (error) {\n        console.error(\'❌ CRITICAL: Failed to initialize the ToolManager.\', error);\n        process.exit(1);\n    }\n    \n    console.log(\'--------------------------------------------------\');\n    console.log(`🎯 Starting main task: \\\"${mainTask}\\\"\`);\n    console.log(\'--------------------------------------------------\');\n\n    try {\n        // 2. Create a plan\n        console.log(\'🧠 Step 1: Creating a plan...\');\n        const planResponse = await createPlan(mainTask, {\n            workingDirectory: process.cwd()\n        });\n\n        if (!planResponse.success || !planResponse.plan || planResponse.plan.length === 0) {\n            console.error(\'❌ Failed to create a valid plan.\');\n            return;\n        }\n        \n        const plan = planResponse.plan;\n        console.log(\'✅ Plan created successfully:\');\n        console.log(JSON.stringify(plan, null, 2));\n        console.log(\'--------------------------------------------------\');\n\n        // 3. Execute the plan\n        console.log(\'🚀 Step 2: Executing the plan...\');\n        \n        let finalSummary = [];\n\n        for (const step of plan) {\n            console.log(`\\n▶️ Executing Step: ${step.thought}`);\n            try {\n                const result = await toolManager.execute(step.toolName, step.args);\n                finalSummary.push({\n                    step: step.thought,\n                    tool: step.toolName,\n                    args: step.args,\n                    status: \'success\',\n                    result: result\n                });\n                 console.log(`✔️ Step successful. Result:`, result);\n            } catch (e) {\n                console.error(`❌ Step failed: ${e.message}`);\n                finalSummary.push({\n                    step: step.thought,\n                    tool: step.toolName,\n                    args: step.args,\n                    status: \'failure\',\n                    error: e.message\n                });\n                // Stop execution on failure\n                console.error(\'📊 Execution Summary:\');\n                console.error(JSON.stringify(finalSummary, null, 2));\n                throw new Error(`Execution stopped due to a failed step: ${step.thought}`);\n            }\n        }\n        \n        console.log(\'--------------------------------------------------\');\n        console.log(\'🎉🎉🎉 Main task completed successfully! 🎉🎉🎉\');\n        console.log(\'📊 Final Summary:\');\n        console.log(JSON.stringify(finalSummary, null, 2));\n\n    } catch (error) {\n        console.error(`\\n❌ A critical error occurred in the orchestrator: ${error.message}`);\n        process.exit(1);\n    }\n}\n\n// Start the whole process\nmain();\n
+/**
+ * 🚀 Joe Standalone Orchestrator - Your Command-Line Agent
+ * @version 2.0.0
+ * This script is the entry point for running the Joe agent from the command line.
+ * It initializes all necessary services, takes a task as input,
+ * creates a plan, and executes it using the full suite of available tools.
+ *
+ * How to Use (after integration):
+ * npm run joe -- "Your task description here"
+ */
+
+import dotenv from 'dotenv';
+dotenv.config();
+
+import toolManager from './src/services/tools/tool-manager.service.mjs';
+import { createPlan } from './src/services/ai/ai-engine.service.mjs';
+
+// --- Main Task Acquisition ---
+const mainTask = process.argv.slice(2).join(' ');
+
+if (!mainTask) {
+    console.error('❌ ERROR: No task provided.');
+    console.error('Usage: node backend/joe.mjs "Your task description here"');
+    console.error('Or after integration: npm run joe -- "Your task description here"');
+    process.exit(1);
+}
+
+// --- Main Execution Logic ---
+async function main() {
+    // 1. Initialize Services
+    console.log('🔄 Initializing services...');
+    try {
+        await toolManager.initialize();
+        console.log(`✅ Services initialized. ${toolManager.tools.size} tools ready.`);
+    } catch (error) {
+        console.error('❌ CRITICAL: Failed to initialize the ToolManager.', error);
+        process.exit(1);
+    }
+    
+    console.log('--------------------------------------------------');
+    console.log(`🎯 Starting main task: "${mainTask}"`);
+    console.log('--------------------------------------------------');
+
+    try {
+        // 2. Create a plan
+        console.log('🧠 Step 1: Creating a plan...');
+        const planResponse = await createPlan(mainTask, {
+            workingDirectory: process.cwd()
+        });
+
+        if (!planResponse.success || !planResponse.plan || planResponse.plan.length === 0) {
+            console.error('❌ Failed to create a valid plan.');
+            return;
+        }
+        
+        const plan = planResponse.plan;
+        console.log('✅ Plan created successfully:');
+        console.log(JSON.stringify(plan, null, 2));
+        console.log('--------------------------------------------------');
+
+        // 3. Execute the plan
+        console.log('🚀 Step 2: Executing the plan...');
+        
+        let finalSummary = [];
+
+        for (const step of plan) {
+            console.log(`
+▶️ Executing Step: ${step.thought}`);
+            try {
+                const result = await toolManager.execute(step.toolName, step.args);
+                finalSummary.push({
+                    step: step.thought,
+                    tool: step.toolName,
+                    args: step.args,
+                    status: 'success',
+                    result: result
+                });
+                 console.log(`✔️ Step successful. Result:`, result);
+            } catch (e) {
+                console.error(`❌ Step failed: ${e.message}`);
+                finalSummary.push({
+                    step: step.thought,
+                    tool: step.toolName,
+                    args: step.args,
+                    status: 'failure',
+                    error: e.message
+                });
+                // Stop execution on failure
+                console.error('📊 Execution Summary:');
+                console.error(JSON.stringify(finalSummary, null, 2));
+                throw new Error(`Execution stopped due to a failed step: ${step.thought}`);
+            }
+        }
+        
+        console.log('--------------------------------------------------');
+        console.log('🎉🎉🎉 Main task completed successfully! 🎉🎉🎉');
+        console.log('📊 Final Summary:');
+        console.log(JSON.stringify(finalSummary, null, 2));
+
+    } catch (error) {
+        console.error(`
+❌ A critical error occurred in the orchestrator: ${error.message}`);
+        process.exit(1);
+    }
+}
+
+// Start the whole process
+main();
