@@ -340,3 +340,43 @@ npm run build
 }
 
 export { createEcommerceStore };
+
+// Metadata for Dynamic Discovery
+createEcommerceStore.metadata = {
+  name: "createEcommerceStore",
+  description: "Creates a complete e-commerce store with React, Vite, Tailwind CSS, and Zustand for state management. Includes product cards, shopping cart, and wishlist features.",
+  parameters: {
+    type: "object",
+    properties: {
+      storeName: {
+        type: "string",
+        description: "The name of the e-commerce store to create."
+      },
+      config: {
+        type: "object",
+        description: "Optional configuration for the store.",
+        properties: {
+          currency: {
+            type: "string",
+            description: "Currency code (e.g., 'USD', 'EUR')."
+          },
+          language: {
+            type: "string",
+            description: "Language code (e.g., 'ar', 'en')."
+          },
+          paymentMethods: {
+            type: "array",
+            items: { type: "string" },
+            description: "Payment methods to support (e.g., ['stripe', 'paypal'])."
+          },
+          features: {
+            type: "array",
+            items: { type: "string" },
+            description: "Features to include (e.g., ['cart', 'wishlist', 'reviews'])."
+          }
+        }
+      }
+    },
+    required: ["storeName"]
+  }
+};

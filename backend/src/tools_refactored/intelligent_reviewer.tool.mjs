@@ -1,1 +1,60 @@
-import { OpenAI } from 'openai';\n\nconst client = new OpenAI();\n\nasync function reviewCode({ code, language, review_type = 'best_practices' }) {\n    try {\n        const prompt = `You are an expert AI Code Reviewer. Your task is to perform a detailed review of the provided ${language} code snippet based on the review type: ${review_type}.\n\nCode to review:\n\`\`\`${language}\n${code}\n\`\`\`\n\nProvide a concise, professional review in Markdown format, focusing on actionable feedback and security/performance issues.`;\n\n        const response = await client.chat.completions.create({\n            model: 'gemini-2.5-flash',\n            messages: [\n                { role: 'system', content: 'You are an expert AI Code Reviewer.' },\n                { role: 'user', content: prompt }\n            ],\n            temperature: 0.2,\n        });\n\n        const feedback = response.choices[0].message.content;\n\n        return { success: true, feedback };\n    } catch (error) {\n        console.error('AI Code Review failed:', error);\n        return { success: false, error: `AI Code Review failed: ${error.message}` };\n    }\n}\n\n// Metadata for Dynamic Discovery\nreviewCode.metadata = {\n    name: \"reviewCode\",\n    description: \"Performs an AI-powered code review on a given code snippet. (Temporarily disabled)\",\n    parameters: {\n        type: \"object\",\n        properties: {\n            code: {\n                type: \"string\",\n                description: \"The raw source code to be reviewed.\"\n            },\n            language: {\n                type: \"string\",\n                description: \"The programming language of the code (e.g., 'javascript', 'python').\"\n            },\n            review_type: {\n                type: \"string\",\n                description: \"The type of review to perform.\",\n                enum: [\"best_practices\", \"security_vulnerabilities\", \"performance_optimization\", \"documentation_and_clarity\"]\n            }\n        },\n        required: [\"code\", \"language\", \"review_type\"]\n    }\n};\n\n// Export the simplified tool\nexport { reviewCode };\n
+import { OpenAI } from 'openai';
+
+const client = new OpenAI();
+
+async function reviewCode({ code, language, review_type = 'best_practices' }) {
+    try {
+        const prompt = `You are an expert AI Code Reviewer. Your task is to perform a detailed review of the provided ${language} code snippet based on the review type: ${review_type}.
+
+Code to review:
+\`\`\`${language}
+${code}
+\`\`\`
+
+Provide a concise, professional review in Markdown format, focusing on actionable feedback and security/performance issues.`;
+
+        const response = await client.chat.completions.create({
+            model: 'gemini-2.5-flash',
+            messages: [
+                { role: 'system', content: 'You are an expert AI Code Reviewer.' },
+                { role: 'user', content: prompt }
+            ],
+            temperature: 0.2,
+        });
+
+        const feedback = response.choices[0].message.content;
+
+        return { success: true, feedback };
+    } catch (error) {
+        console.error('AI Code Review failed:', error);
+        return { success: false, error: `AI Code Review failed: ${error.message}` };
+    }
+}
+
+// Metadata for Dynamic Discovery
+reviewCode.metadata = {
+    name: "reviewCode",
+    description: "Performs an AI-powered code review on a given code snippet using Gemini 2.5 Flash.",
+    parameters: {
+        type: "object",
+        properties: {
+            code: {
+                type: "string",
+                description: "The raw source code to be reviewed."
+            },
+            language: {
+                type: "string",
+                description: "The programming language of the code (e.g., 'javascript', 'python')."
+            },
+            review_type: {
+                type: "string",
+                description: "The type of review to perform.",
+                enum: ["best_practices", "security_vulnerabilities", "performance_optimization", "documentation_and_clarity"]
+            }
+        },
+        required: ["code", "language", "review_type"]
+    }
+};
+
+// Export the simplified tool
+export { reviewCode };
