@@ -1,6 +1,7 @@
+
 /**
- * Auto Update Tools - أدوات التحديث التلقائي
- * يحدث JOE نفسه تلقائياً ويبقى محدثاً دائماً
+ * Auto Update Tools - The Autonomous Engine for JOE
+ * This module allows JOE to be self-aware, self-improving, and always up-to-date.
  */
 
 import fs from 'fs/promises';
@@ -12,20 +13,20 @@ import axios from 'axios';
 const execAsync = promisify(exec);
 
 /**
- * فحص التحديثات المتاحة
+ * Checks for available updates from Git and npm.
  */
 export async function checkForUpdates() {
   try {
     console.log('🔍 Checking for updates...');
 
-    // فحص تحديثات npm packages
+    // Check for npm package updates
     const { stdout: npmOutdated } = await execAsync('npm outdated --json', {
       cwd: process.cwd()
     }).catch(() => ({ stdout: '{}' }));
 
     const outdatedPackages = JSON.parse(npmOutdated || '{}');
 
-    // فحص تحديثات Git
+    // Check for Git updates
     const { stdout: gitStatus } = await execAsync('git fetch && git status -uno', {
       cwd: process.cwd()
     }).catch(() => ({ stdout: '' }));
@@ -50,7 +51,7 @@ export async function checkForUpdates() {
 }
 
 /**
- * تحديث المكتبات والحزم
+ * Updates dependencies using npm.
  */
 export async function updateDependencies(packages = []) {
   try {
@@ -70,7 +71,7 @@ export async function updateDependencies(packages = []) {
       command,
       output: stdout,
       errors: stderr,
-      message: 'تم تحديث المكتبات بنجاح'
+      message: 'Dependencies updated successfully.'
     };
 
   } catch (error) {
@@ -83,27 +84,21 @@ export async function updateDependencies(packages = []) {
 }
 
 /**
- * تحديث الكود من Git
+ * Updates the codebase from the Git repository.
  */
 export async function updateFromGit() {
   try {
     console.log('📥 Updating from Git...');
-
-    // حفظ التغييرات المحلية
     await execAsync('git stash', { cwd: process.cwd() });
-
-    // سحب التحديثات
     const { stdout } = await execAsync('git pull origin main', {
       cwd: process.cwd()
     });
-
-    // استعادة التغييرات المحلية
     await execAsync('git stash pop', { cwd: process.cwd() }).catch(() => {});
 
     return {
       success: true,
       output: stdout,
-      message: 'تم تحديث الكود من Git بنجاح'
+      message: 'Codebase updated from Git successfully.'
     };
 
   } catch (error) {
@@ -116,11 +111,11 @@ export async function updateFromGit() {
 }
 
 /**
- * تحديث تلقائي شامل
+ * A comprehensive, autonomous self-update process.
  */
 export async function autoUpdate() {
   try {
-    console.log('🚀 Starting auto-update...');
+    console.log('🚀 Starting auto-update cycle...');
 
     const updateLog = {
       startTime: new Date().toISOString(),
@@ -128,19 +123,20 @@ export async function autoUpdate() {
       success: true
     };
 
-    // 1. فحص التحديثات
+    // 1. Check for updates
     const checkResult = await checkForUpdates();
     updateLog.steps.push({ step: 'check', result: checkResult });
 
     if (!checkResult.hasUpdates) {
+      updateLog.endTime = new Date().toISOString();
       return {
         success: true,
-        message: 'JOE محدث بالفعل',
+        message: 'JOE is already up-to-date.',
         log: updateLog
       };
     }
 
-    // 2. تحديث من Git
+    // 2. Git Update (if needed)
     if (checkResult.hasGitUpdates) {
       const gitUpdate = await updateFromGit();
       updateLog.steps.push({ step: 'git', result: gitUpdate });
@@ -149,7 +145,7 @@ export async function autoUpdate() {
       }
     }
 
-    // 3. تحديث المكتبات
+    // 3. Dependencies Update (if needed)
     if (Object.keys(checkResult.outdatedPackages).length > 0) {
       const depsUpdate = await updateDependencies();
       updateLog.steps.push({ step: 'dependencies', result: depsUpdate });
@@ -157,12 +153,21 @@ export async function autoUpdate() {
         updateLog.success = false;
       }
     }
+    
+    // 4. Update Self-Awareness
+    const kbUpdate = await updateKnowledgeBase();
+    updateLog.steps.push({ step: 'knowledge_base', result: kbUpdate });
+    if (!kbUpdate.success) {
+      updateLog.success = false; // Log failure but don't stop the whole process
+      console.error("Knowledge base update failed, but continuing process.", kbUpdate.error);
+    }
 
-    // 4. إعادة تشغيل الخدمة
+
+    // 5. Signal for restart
     if (updateLog.success) {
       updateLog.steps.push({
         step: 'restart',
-        message: 'يجب إعادة تشغيل الخدمة لتطبيق التحديثات'
+        message: 'A restart is required to apply all updates.'
       });
     }
 
@@ -170,12 +175,12 @@ export async function autoUpdate() {
 
     return {
       success: updateLog.success,
-      message: updateLog.success ? 'تم التحديث بنجاح' : 'فشل بعض خطوات التحديث',
+      message: updateLog.success ? 'Self-update cycle completed successfully.' : 'Some update steps failed.',
       log: updateLog
     };
 
   } catch (error) {
-    console.error('Auto update error:', error.message);
+    console.error('Auto update cycle error:', error.message);
     return {
       success: false,
       error: error.message
@@ -184,31 +189,33 @@ export async function autoUpdate() {
 }
 
 /**
- * جدولة التحديثات التلقائية
+ * Schedules the autonomous self-update cycle.
  */
 export async function scheduleAutoUpdate(interval = 24) {
   try {
-    console.log(`⏰ Scheduling auto-update every ${interval} hours`);
+    const intervalHours = Math.max(1, interval); // Ensure interval is at least 1 hour
+    console.log(`⏰ Scheduling self-update cycle every ${intervalHours} hours.`);
+    const intervalMs = intervalHours * 60 * 60 * 1000;
 
-    const intervalMs = interval * 60 * 60 * 1000;
+    if (global.autoUpdateInterval) {
+        clearInterval(global.autoUpdateInterval);
+    }
 
     const updateInterval = setInterval(async () => {
-      console.log('🔄 Running scheduled auto-update...');
-      const result = await autoUpdate();
-      console.log('Update result:', result);
+      console.log('🔄 Running scheduled self-update cycle...');
+      await autoUpdate();
     }, intervalMs);
 
-    // حفظ معرف الفاصل الزمني
     global.autoUpdateInterval = updateInterval;
 
     return {
       success: true,
-      interval,
-      message: `تم جدولة التحديث التلقائي كل ${interval} ساعة`
+      interval: intervalHours,
+      message: `Self-update cycle scheduled every ${intervalHours} hours.`
     };
 
   } catch (error) {
-    console.error('Schedule auto update error:', error.message);
+    console.error('Schedule auto-update error:', error.message);
     return {
       success: false,
       error: error.message
@@ -217,27 +224,24 @@ export async function scheduleAutoUpdate(interval = 24) {
 }
 
 /**
- * إيقاف التحديثات التلقائية المجدولة
+ * Stops the scheduled self-update cycle.
  */
 export async function stopAutoUpdate() {
   try {
     if (global.autoUpdateInterval) {
       clearInterval(global.autoUpdateInterval);
       delete global.autoUpdateInterval;
-      
       return {
         success: true,
-        message: 'تم إيقاف التحديثات التلقائية'
+        message: 'Scheduled self-update cycle has been stopped.'
       };
     }
-
     return {
       success: false,
-      message: 'لا توجد تحديثات مجدولة'
+      message: 'No update cycle is currently scheduled.'
     };
-
   } catch (error) {
-    console.error('Stop auto update error:', error.message);
+    console.error('Stop auto-update error:', error.message);
     return {
       success: false,
       error: error.message
@@ -246,41 +250,55 @@ export async function stopAutoUpdate() {
 }
 
 /**
- * تحديث قاعدة بيانات المعرفة
+ * [REPAIRED & SECURED] Updates JOE's self-awareness knowledge base.
+ * This function now safely writes to a dedicated file, preventing system-wide corruption.
+ * This is a foundational step for JOE's autonomous learning and evolution.
  */
 export async function updateKnowledgeBase() {
+  const projectRoot = process.cwd();
+  const kbPath = path.join(projectRoot, 'knowledge-base.json');
+  
   try {
-    console.log('📚 Updating knowledge base...');
+    console.log(`📚 Updating knowledge base at: ${kbPath}`);
 
-    // تحديث معلومات المكتبات والأدوات
+    // 1. Define the structure for the knowledge base
     const knowledgeBase = {
       lastUpdate: new Date().toISOString(),
+      schemaVersion: '1.0.0',
       libraries: {},
-      tools: {},
-      bestPractices: []
+      tools: {}, // Future-proofing for tool analysis
+      bestPractices: [] // Future-proofing for learning
     };
 
-    // جمع معلومات عن المكتبات المثبتة
+    // 2. Safely gather package information
     const { stdout: packageInfo } = await execAsync('npm list --json --depth=0', {
-      cwd: process.cwd()
+      cwd: projectRoot
     });
 
+    // 3. Parse and add library data
     const packages = JSON.parse(packageInfo);
     knowledgeBase.libraries = packages.dependencies || {};
 
-    // حفظ قاعدة المعرفة
-    const kbPath = path.join(process.cwd(), 'knowledge-base.json');
-    await fs.writeFile(kbPath, JSON.stringify(knowledgeBase, null, 2));
-
+    // 4. ATOMIC WRITE: Write to a temporary file first, then rename.
+    // This prevents file corruption if the process is interrupted.
+    const tempPath = `${kbPath}.${Date.now()}.tmp`;
+    await fs.writeFile(tempPath, JSON.stringify(knowledgeBase, null, 2), 'utf-8');
+    await fs.rename(tempPath, kbPath);
+    
+    console.log('✅ Knowledge base updated successfully.');
     return {
       success: true,
-      knowledgeBase,
       path: kbPath,
-      message: 'تم تحديث قاعدة المعرفة'
+      message: 'Knowledge base updated.'
     };
 
   } catch (error) {
-    console.error('Update knowledge base error:', error.message);
+    console.error(`❌ CRITICAL: Failed to update knowledge base at ${kbPath}.`, error);
+    // Clean up temp file if it exists
+    const tempFile = error.path || kbPath;
+    if(tempFile && tempFile.includes('.tmp')){
+        await fs.unlink(tempFile).catch(e => console.error(`Failed to clean up temp file: ${e.message}`));
+    }
     return {
       success: false,
       error: error.message
@@ -288,31 +306,32 @@ export async function updateKnowledgeBase() {
   }
 }
 
+
 /**
- * نسخ احتياطي قبل التحديث
+ * Creates a secure backup before initiating updates.
  */
 export async function createBackup() {
   try {
-    console.log('💾 Creating backup...');
-
-    const backupDir = path.join(process.cwd(), 'backups');
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupPath = path.join(backupDir, `backup-${timestamp}`);
-
-    // إنشاء مجلد النسخ الاحتياطية
+    const projectRoot = process.cwd();
+    const backupDir = path.join(projectRoot, 'backups');
     await fs.mkdir(backupDir, { recursive: true });
 
-    // نسخ الملفات المهمة
-    const { stdout } = await execAsync(
-      `tar -czf ${backupPath}.tar.gz src package.json package-lock.json`,
-      { cwd: process.cwd() }
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const backupFile = `backup-${timestamp}.tar.gz`;
+    const backupPath = path.join(backupDir, backupFile);
+    
+    console.log(`💾 Creating backup at: ${backupPath}`);
+    
+    // tar command is safer and more portable
+    await execAsync(
+      `tar -czf ${backupPath} src package.json package-lock.json .env`,
+      { cwd: projectRoot }
     );
 
     return {
       success: true,
-      backupPath: `${backupPath}.tar.gz`,
-      timestamp,
-      message: 'تم إنشاء نسخة احتياطية'
+      backupPath: backupPath,
+      message: 'Backup created successfully.'
     };
 
   } catch (error) {
@@ -324,7 +343,8 @@ export async function createBackup() {
   }
 }
 
-export const autoUpdateTools = {
+// Export a unified tool object for the ToolManager
+const autoUpdateTools = {
   checkForUpdates,
   updateDependencies,
   updateFromGit,
@@ -334,3 +354,18 @@ export const autoUpdateTools = {
   updateKnowledgeBase,
   createBackup
 };
+
+// Add metadata for AI Function Calling
+Object.values(autoUpdateTools).forEach(tool => {
+    // This is a placeholder for a more robust metadata system
+    if(!tool.metadata){
+        tool.metadata = {
+            name: tool.name,
+            description: `A tool for JOE's autonomous self-update system. Function: ${tool.name}`,
+            parameters: { type: 'object', properties: {} } // Placeholder
+        };
+    }
+});
+
+
+export default autoUpdateTools;
