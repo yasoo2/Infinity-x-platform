@@ -6,9 +6,11 @@
   packages = [
     pkgs.nodejs_22
     pkgs.pnpm
-    جدحاتن٨٧٦٥  ض٤٥ظذ
-    \
-    =-ح٠مزومخ٩ه٨ع
+  ];
+
+  # إعدادات مساحة العمل (Workspace)
+  workspace = {
+    # الإضافات الموصى بها لـ VS Code
     extensions = [
       "dbaeumer.vscode-eslint"
       "esbenp.prettier-vscode"
@@ -17,27 +19,16 @@
       "mongodb.mongodb-vscode"
     ];
     
-    # أوامر تشغيل المشروع
-    workspace = {
-      # استخدام pnpm للتثبيت
-      onLoad = "pnpm install --no-frozen-lockfile";
-      start = {
-        command = "npm run dev";
-        notification = {
-          onSuccess = "Development servers are running. Access the frontend on port 5173 and the backend on 4000.";
-        };
+    # استخدام pnpm للتثبيت عند تحميل البيئة
+    onLoad = "pnpm install --no-frozen-lockfile";
+
+    # أمر بدء تشغيل المشروع
+    start = {
+      # استخدام pnpm بدلاً من npm للاتساق
+      command = "pnpm run dev";
+      notification = {
+        onSuccess = "Development servers are running. Access the frontend on port 5173 and the backend on 4000.";
       };
     };
-
-    # المعاينة
-    previews = [
-      {
-        id = "frontend-dashboard";
-        name = "Application Dashboard";
-        port = 5173;
-        manager = "web";
-        command = ["npm" "run" "dev:frontend"];
-      }
-    ];
   };
 }
