@@ -103,13 +103,62 @@ class DesignerAgent {
   async review(result) { return { agent: 'designer', score: 9, issues: [] }; }
 }
 
-class TesterAgent { /* Placeholder */ async execute(task) { return { agent: 'tester', result: 'All tests passed.' }; } async review(result) { return { agent: 'tester', score: 9, issues: [] }; } }
-class SecurityAgent { /* Placeholder */ async execute(task) { return { agent: 'security', result: 'No vulnerabilities found.' }; } async review(result) { return { agent: 'security', score: 9, issues: [] }; } }
-class DevOpsAgent { /* Placeholder */ async execute(task) { return { agent: 'devops', result: 'Deployment pipeline created.' }; } async review(result) { return { agent: 'devops', score: 9, issues: [] }; } }
-class AnalystAgent { /* Placeholder */ async execute(task) { return { agent: 'analyst', result: 'Data analysis complete.' }; } async review(result) { return { agent: 'analyst', score: 9, issues: [] }; } }
-class WriterAgent { /* Placeholder */ async execute(task) { return { agent: 'writer', result: 'Content written.' }; } async review(result) { return { agent: 'writer', score: 9, issues: [] }; } }
-class ResearcherAgent { /* Placeholder */ async execute(task) { return { agent: 'researcher', result: 'Research complete.' }; } async review(result) { return { agent: 'researcher', score: 9, issues: [] }; } }
-class OptimizerAgent { /* Placeholder */ async execute(task) { return { agent: 'optimizer', result: 'Performance optimized.' }; } async review(result) { return { agent: 'optimizer', score: 9, issues: [] }; } }
+class TesterAgent {
+  async execute(task) {
+    const prompt = `As an expert software tester, create a comprehensive test plan and a set of unit/integration tests for the task: "${task.description}". Focus on edge cases and error handling.`;
+    const response = await openai.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'You are an expert software tester.' }, { role: 'user', content: prompt }] });
+    return { agent: 'tester', result: response.choices[0].message.content };
+  }
+  async review(result) { return { agent: 'tester', score: 9, issues: [] }; }
+}
+class SecurityAgent {
+  async execute(task) {
+    const prompt = `As a security expert, analyze the task: "${task.description}" and provide a security review. Identify potential vulnerabilities (e.g., XSS, SQLi, CSRF) and recommend mitigation strategies.`;
+    const response = await openai.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'You are a security expert.' }, { role: 'user', content: prompt }] });
+    return { agent: 'security', result: response.choices[0].message.content };
+  }
+  async review(result) { return { agent: 'security', score: 9, issues: [] }; }
+}
+class DevOpsAgent {
+  async execute(task) {
+    const prompt = `As a DevOps engineer, create a deployment strategy (e.g., CI/CD pipeline in GitHub Actions or GitLab CI) for the task: "${task.description}". Include infrastructure as code (IaC) recommendations if applicable.`;
+    const response = await openai.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'You are a DevOps engineer.' }, { role: 'user', content: prompt }] });
+    return { agent: 'devops', result: response.choices[0].message.content };
+  }
+  async review(result) { return { agent: 'devops', score: 9, issues: [] }; }
+}
+class AnalystAgent {
+  async execute(task) {
+    const prompt = `As a data analyst, analyze the task: "${task.description}" and provide a data model, database schema (e.g., MongoDB or SQL), and a plan for data collection and reporting.`;
+    const response = await openai.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'You are a data analyst.' }, { role: 'user', content: prompt }] });
+    return { agent: 'analyst', result: response.choices[0].message.content };
+  }
+  async review(result) { return { agent: 'analyst', score: 9, issues: [] }; }
+}
+class WriterAgent {
+  async execute(task) {
+    const prompt = `As a professional content writer, write all necessary user-facing content (e.g., documentation, marketing copy, error messages) for the task: "${task.description}".`;
+    const response = await openai.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'You are a professional content writer.' }, { role: 'user', content: prompt }] });
+    return { agent: 'writer', result: response.choices[0].message.content };
+  }
+  async review(result) { return { agent: 'writer', score: 9, issues: [] }; }
+}
+class ResearcherAgent {
+  async execute(task) {
+    const prompt = `As a market and technical researcher, perform a deep dive on the task: "${task.description}". Provide a summary of best practices, competitor analysis, and technical feasibility report.`;
+    const response = await openai.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'You are a market and technical researcher.' }, { role: 'user', content: prompt }] });
+    return { agent: 'researcher', result: response.choices[0].message.content };
+  }
+  async review(result) { return { agent: 'researcher', score: 9, issues: [] }; }
+}
+class OptimizerAgent {
+  async execute(task) {
+    const prompt = `As a performance optimization expert, analyze the task: "${task.description}" and provide a detailed plan for optimizing speed, memory usage, and scalability.`;
+    const response = await openai.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'You are a performance optimization expert.' }, { role: 'user', content: prompt }] });
+    return { agent: 'optimizer', result: response.choices[0].message.content };
+  }
+  async review(result) { return { agent: 'optimizer', score: 9, issues: [] }; }
+}
 
 // ===========================
 // 🤖 Main Agent Team Class

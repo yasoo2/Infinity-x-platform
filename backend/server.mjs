@@ -127,12 +127,13 @@ async function startServer() {
 async function gracefulShutdown(signal) { 
     console.log(`
 🔌 Received ${signal}. Shutting down gracefully...`);
-    server.close(() => {
+    server.close(async () => {
         console.log('Closed out remaining connections.');
-        closeMongoConnection().then(() => {
-            console.log('MongoDB connection closed.');
-            process.exit(0);
-        });
+        await Promise.all([
+            closeMongoConnection().then(() => console.log('MongoDB connection closed.')),
+            // Add other service shutdowns here if needed (e.g., Redis)
+        ]);
+        process.exit(0);
     });
 }
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));

@@ -106,9 +106,9 @@ class GitHubTools {
     try {
       const repoPath = path.join(this.workDir, repoName);
       
-      // Use grep to find files
+      // Use git grep for better performance and accuracy
       const { stdout } = await execAsync(
-        `cd ${repoPath} && grep -rl "${pattern}" . || true`
+        `cd ${repoPath} && git grep -l "${pattern}" -- ${filePattern} || true`
       );
       
       const files = stdout.trim().split('\n').filter(f => f);
@@ -151,7 +151,7 @@ class GitHubTools {
     try {
       const repoPath = path.join(this.workDir, repoName);
       
-      // Configure git
+      // Configure git (using the provided token's user)
       await execAsync(`cd ${repoPath} && git config user.email "joe@xelitesolutions.com"`);
       await execAsync(`cd ${repoPath} && git config user.name "JOE AI"`);
       
@@ -192,8 +192,9 @@ class GitHubTools {
     try {
       const repoPath = path.join(this.workDir, repoName);
       
+      const repoUrl = `https://${this.token}@github.com/${this.username}/${repoName}.git`;
       const { stdout } = await execAsync(
-        `cd ${repoPath} && git push origin ${branch}`
+        `cd ${repoPath} && git push ${repoUrl} ${branch}`
       );
       
       console.log(`✅ Pushed to ${branch}`);
