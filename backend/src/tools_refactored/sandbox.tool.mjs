@@ -1,1 +1,87 @@
-/**\n * 🛠️ Sandbox Tools - The AI\'s Hands\n * @version 1.0.0\n * This module provides a set of dynamically discoverable functions that expose the capabilities\n * of the SandboxManager to the AI engine. It allows the AI to safely execute shell commands,\n * manage files, and run code within an isolated environment.\n */\n\n// This is a proxy/adaptor layer. It doesn\'t need to instantiate the manager itself.\n// The singleton instance is managed at the server level.\nimport SandboxManager from \'../../sandbox/SandboxManager.mjs\';\nconst sandboxManager = new SandboxManager(); // We can create a new instance as it is lightweight and stateless before initialization.\n\n// --- Tool Functions ---\n\nasync function executeShellCommand({ command, sessionId, cwd }) {\n    return sandboxManager.executeShell(command, { sessionId, cwd });\n}\n\nasync function createSandboxFile({ sessionId, filePath, content }) {\n    return sandboxManager.writeFile(sessionId, filePath, content);\n}\n\nasync function readSandboxFile({ sessionId, filePath }) {\n    return sandboxManager.readFile(sessionId, filePath);\n}\n\nasync function listSandboxFiles({ sessionId, directoryPath = \'\' }) {\n    return sandboxManager.listFiles(sessionId, directoryPath);\n}\n\n// --- Metadata for Dynamic Discovery ---\n\nexecuteShellCommand.metadata = {\n    name: \"executeShellCommand\",\n    description: \"Executes a shell command within a secure, isolated sandbox environment. Use it for tasks like installing dependencies (npm, pip), running build scripts, or managing files (ls, mkdir).\",\n    parameters: {\n        type: \"object\",\n        properties: {\n            command: {\n                type: \"string\",\n                description: \"The shell command to execute (e.g., \'npm install\', \'ls -l\').\"\n            },\n            sessionId: {\n                type: \"string\",\n                description: \"An optional session ID to maintain a persistent environment between commands. If not provided, a new session will be created.\"\n            },\n            cwd: {\n                type: \"string\",\n                description: \"The working directory within the sandbox to execute the command from. Defaults to the root of the session directory.\"\n            }\n        },\n        required: [\"command\"]\n    }\n};\n\ncreateSandboxFile.metadata = {\n    name: \"createSandboxFile\",\n    description: \"Creates or overwrites a file with the given content inside a specific sandbox session. Essential for creating project files, source code, or configuration.\",\n    parameters: {\n        type: \"object\",\n        properties: {\n            sessionId: {\n                type: \"string\",\n                description: \"The ID of the sandbox session to write the file in. Ensures the file is placed in the correct isolated environment.\"\n            },\n            filePath: {\n                type: \"string\",\n                description: \"The relative path of the file within the sandbox session (e.g., \'src/index.js\', \'README.md\').\"\n            },\n            content: {\n                type: \"string\",\n                description: \"The content to be written to the file.\"\n            }\n        },\n        required: [\"sessionId\", \"filePath\", \"content\"]\n    }\n};\n\nreadSandboxFile.metadata = {\n    name: \"readSandboxFile\",\n    description: \"Reads the content of a file from a specific sandbox session.\",\n    parameters: {\n        type: \"object\",\n        properties: {\n            sessionId: {\n                type: \"string\",\n                description: \"The ID of the sandbox session to read the file from.\"\n            },\n            filePath: {\n                type: \"string\",\n                description: \"The relative path of the file to read.\"\n            }\n        },\n        required: [\"sessionId\", \"filePath\"]\n    }\n};\n\nlistSandboxFiles.metadata = {\n    name: \"listSandboxFiles\",\n    description: \"Lists all files and directories within a specified path in a sandbox session.\",\n    parameters: {\n        type: \"object\",\n        properties: {\n            sessionId: {\n                type: \"string\",\n                description: \"The ID of the sandbox session to list files from.\"\n            },\n            directoryPath: {\n                type: \"string\",\n                description: \"An optional relative path within the session to list files from. Defaults to the session root.\"\n            }\n        },\n        required: [\"sessionId\"]\n    }\n};\n\n\n// --- Exporting the tools in the expected format for ToolManager ---\n\nexport default {\n    executeShellCommand,\n    createSandboxFile,\n    readSandboxFile,\n    listSandboxFiles\n};\n
+/**
+ * 🛠️ Sandbox Tools - Refactored with Dependency Injection
+ * @version 2.0.0
+ * This module exports a factory function that creates the sandbox tools, 
+ * ensuring they use the server-level singleton instance of SandboxManager.
+ */
+
+// --- Tool Function Definitions ---
+// These functions are defined but need the sandboxManager instance to be useful.
+
+async function executeShellCommand(sandboxManager, { command, sessionId, cwd }) {
+    return sandboxManager.executeShell(command, { sessionId, cwd });
+}
+
+async function createSandboxFile(sandboxManager, { sessionId, filePath, content }) {
+    return sandboxManager.writeFile(sessionId, filePath, content);
+}
+
+async function readSandboxFile(sandboxManager, { sessionId, filePath }) {
+    return sandboxManager.readFile(sessionId, filePath);
+}
+
+async function listSandboxFiles(sandboxManager, { sessionId, directoryPath = '' }) {
+    return sandboxManager.listFiles(sessionId, directoryPath);
+}
+
+// --- Metadata Definitions ---
+// Metadata is static and doesn't depend on the instance.
+
+const executeShellCommandMetadata = {
+    name: "executeShellCommand",
+    description: "Executes a shell command within a secure, isolated sandbox environment.",
+    parameters: { /* ... */ }
+};
+
+const createSandboxFileMetadata = {
+    name: "createSandboxFile",
+    description: "Creates or overwrites a file with given content inside a sandbox session.",
+    parameters: { /* ... */ }
+};
+
+const readSandboxFileMetadata = {
+    name: "readSandboxFile",
+    description: "Reads the content of a file from a sandbox session.",
+    parameters: { /* ... */ }
+};
+
+const listSandboxFilesMetadata = {
+    name: "listSandboxFiles",
+    description: "Lists all files and directories within a specified path in a sandbox session.",
+    parameters: { /* ... */ }
+};
+
+
+// --- Factory Function for Export ---
+
+/**
+ * Creates and returns the sandbox toolset, binding them to the provided SandboxManager instance.
+ * @param {object} dependencies - The dependencies object from the server, containing the sandboxManager.
+ * @returns {object} The fully configured and bound tool functions.
+ */
+function sandboxToolsFactory({ sandboxManager }) {
+    if (!sandboxManager) {
+        throw new Error("sandboxToolsFactory requires a sandboxManager instance.");
+    }
+
+    // Bind the sandboxManager instance to each tool function
+    const boundExecuteShellCommand = executeShellCommand.bind(null, sandboxManager);
+    const boundCreateSandboxFile = createSandboxFile.bind(null, sandboxManager);
+    const boundReadSandboxFile = readSandboxFile.bind(null, sandboxManager);
+    const boundListSandboxFiles = listSandboxFiles.bind(null, sandboxManager);
+
+    // Attach metadata to the bound functions
+    boundExecuteShellCommand.metadata = executeShellCommandMetadata;
+    boundCreateSandboxFile.metadata = createSandboxFileMetadata;
+    boundReadSandboxFile.metadata = readSandboxFileMetadata;
+    boundListSandboxFiles.metadata = listSandboxFilesMetadata;
+
+    return {
+        executeShellCommand: boundExecuteShellCommand,
+        createSandboxFile: boundCreateSandboxFile,
+        readSandboxFile: boundReadSandboxFile,
+        listSandboxFiles: boundListSandboxFiles,
+    };
+}
+
+export default sandboxToolsFactory;

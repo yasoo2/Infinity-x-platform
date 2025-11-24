@@ -31,9 +31,6 @@ import SandboxManager from './src/sandbox/SandboxManager.mjs';
 import MemoryManager from './src/services/memory/memory.service.mjs';
 import { JoeAgentWebSocketServer } from './src/services/joeAgentWebSocket.mjs';
 
-// =========================
-// 🎯 Configuration
-// =========================
 const CONFIG = {
   PORT: process.env.PORT || 4001,
   NODE_ENV: process.env.NODE_ENV || 'development',
@@ -41,50 +38,41 @@ const CONFIG = {
 
 collectDefaultMetrics();
 
-// =========================
-// 🚀 Main App Initialization
-// =========================
 const app = express();
 const server = http.createServer(app);
 
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
 
-// =========================
-// 📦 Core Middlewares
-// =========================
 app.use(helmet());
 app.use(cors({ origin: '*', credentials: true }));
 app.use(express.json({ limit: '50mb' }));
 
-// =========================
-// 🚀 Service & Dependency Injection Setup
-// =========================
 async function setupDependencies() {
     const db = await initMongo();
-    await toolManager.initialize();
     const sandboxManager = await new SandboxManager().initializeConnections();
+    const memoryManager = new MemoryManager();
     
-    // Corrected: Instantiate MemoryManager without passing the db object.
-    const memoryManager = new MemoryManager(); 
-    
-    const joeAgentServer = new JoeAgentWebSocketServer(server);
-
-    return {
-        db, // db is still needed for auth
-        memoryManager,
+    // The dependencies object that will be passed around
+    const dependencies = {
+        db,
         sandboxManager,
-        joeAgentServer,
-        toolManager,
+        memoryManager,
+        eventBus,
         requireRole: requireRole(db),
         optionalAuth: optionalAuth(db),
-        eventBus
     };
+
+    // Pass the dependencies to the ToolManager
+    await toolManager.initialize(dependencies);
+    dependencies.toolManager = toolManager; // Add toolManager itself to dependencies
+
+    const joeAgentServer = new JoeAgentWebSocketServer(server, dependencies);
+    dependencies.joeAgentServer = joeAgentServer;
+
+    return dependencies;
 }
 
-// =========================
-// 📁 Dynamic Route Loading
-// =========================
 async function applyRoutes(dependencies) {
   const apiDir = path.join(__dirname, 'src', 'api');
   const routeFiles = await fs.promises.readdir(apiDir);
@@ -113,9 +101,6 @@ async function applyRoutes(dependencies) {
   });
 }
 
-// =========================
-// 🚀 Server Start & Shutdown
-// =========================
 async function startServer() {
   try {
     console.log('🔄 Starting server setup...');
@@ -131,8 +116,6 @@ async function startServer() {
 
     server.listen(CONFIG.PORT, '0.0.0.0', () => {
       console.log(`✅ Server running on http://localhost:${CONFIG.PORT}`);
-      console.log(`🤖 Joe Agent v2 is active at ws://localhost:${CONFIG.PORT}/ws/joe-agent`);
-      console.log(`📊 Metrics available at http://localhost:${CONFIG.PORT}/metrics`);
     });
 
   } catch (error) {
@@ -141,7 +124,6 @@ async function startServer() {
   }
 }
 
-// Graceful shutdown logic
 async function gracefulShutdown(signal) { 
     console.log(`
 🔌 Received ${signal}. Shutting down gracefully...`);
