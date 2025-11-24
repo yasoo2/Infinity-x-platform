@@ -28,7 +28,7 @@ import eventBus from './src/core/event-bus.mjs';
 import toolManager from './src/services/tools/tool-manager.service.mjs';
 import SandboxManager from './src/sandbox/SandboxManager.mjs';
 import MemoryManager from './src/services/memory/memory.service.mjs';
-import { JoeAgentWebSocketServer } from './src/services/joeAgentWebSocket.mjs';
+import { JoeAgentWebSocketServer } from './src/services/joeAgentWebSocket.mjs'; // ✨ Import the new WebSocket Server
 
 // =========================
 // 🎯 Configuration
@@ -58,21 +58,36 @@ app.use(express.json({ limit: '50mb' }));
 // 🚀 Service & Dependency Injection Setup
 // =========================
 async function setupDependencies() {
+    // Initialize core services first
     await toolManager.initialize();
     const sandboxManager = new SandboxManager();
     await sandboxManager.initialize();
+
     const db = await initMongo();
     const memoryManager = new MemoryManager({ db }); 
+    
+    // ✨ Initialize the Joe Agent WebSocket Server with the HTTP server
     const joeAgentServer = new JoeAgentWebSocketServer(server);
-    return { db, memoryManager, sandboxManager, joeAgentServer, toolManager, requireRole: requireRole(db), optionalAuth: optionalAuth(db), eventBus };
+
+    return {
+        db,
+        memoryManager,
+        sandboxManager,
+        joeAgentServer, // Expose the new service
+        toolManager,
+        requireRole: requireRole(db),
+        optionalAuth: optionalAuth(db),
+        eventBus
+    };
 }
 
 // =========================
-// 📁 Dynamic API Route Loading
+// 📁 Dynamic Route Loading
 // =========================
-async function applyApiRoutes(dependencies) {
+async function applyRoutes(dependencies) {
   const apiDir = path.join(__dirname, 'src', 'api');
   const routeFiles = await fs.promises.readdir(apiDir);
+
   for (const file of routeFiles) {
     if (file.endsWith('.router.mjs')) {
         const routeName = file.split('.')[0];
@@ -96,33 +111,8 @@ async function startServer() {
     console.log('🔄 Starting server setup...');
     const dependencies = await setupDependencies();
     setupAuth(dependencies.db);
+    await applyRoutes(dependencies);
     
-    // --- API Routes ---
-    await applyApiRoutes(dependencies);
-
-    // --- Frontend Static Serving ---
-    const frontendPath = path.resolve(__dirname, '..', 'dashboard-x');
-    const staticBuildPath = path.join(frontendPath, 'dist');
-    const landingPagePath = path.join(frontendPath, 'landing.html');
-    
-    // Serve the built React app (JOE UI)
-    app.use(express.static(staticBuildPath));
-
-    // Serve the landing page for the root domain
-    app.get('/', (req, res) => {
-        res.sendFile(landingPagePath);
-    });
-
-    // Handle React routing, return all other requests to the React app
-    app.get('*', (req, res) => {
-        // Exclude API routes from being redirected to the React app
-        if (req.originalUrl.startsWith('/api/')) {
-            return next();
-        }
-        res.sendFile(path.join(staticBuildPath, 'index.html'));
-    });
-
-    // --- Error Handling ---
     app.use((req, res) => res.status(404).json({ error: 'NOT_FOUND' }));
     app.use((err, req, res, next) => {
         console.error('❌ Global Error:', err);
@@ -131,6 +121,7 @@ async function startServer() {
 
     server.listen(CONFIG.PORT, '0.0.0.0', () => {
       console.log(`✅ Server running on http://localhost:${CONFIG.PORT}`);
+      console.log(`🤖 Joe Agent v2 is active at ws://localhost:${CONFIG.PORT}/ws/joe-agent`);
     });
 
   } catch (error) {
@@ -139,6 +130,7 @@ async function startServer() {
   }
 }
 
+// Graceful shutdown logic
 async function gracefulShutdown(signal) { 
     console.log(`\n🔌 Received ${signal}. Shutting down gracefully...`);
     server.close(() => {
