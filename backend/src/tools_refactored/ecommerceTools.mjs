@@ -339,7 +339,7 @@ npm run build
   }
 }
 
-export { createEcommerceStore };
+export default { createEcommerceStore };
 
 // Metadata for Dynamic Discovery
 createEcommerceStore.metadata = {

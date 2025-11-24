@@ -57,4 +57,4 @@ reviewCode.metadata = {
 };
 
 // Export the simplified tool
-export { reviewCode };
+export default { reviewCode };
