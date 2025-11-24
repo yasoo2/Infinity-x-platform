@@ -1,21 +1,19 @@
 services:
-  # Service for the Frontend
+  # Unified Service for Backend API and Frontend Serving
   - type: web
-    name: frontend-dashboard
-    env: static
-    rootDir: dashboard-x
-    plan: free
-    buildCommand: "npm install && npm run build"
-    staticPublishPath: ./dist
-
-  # Service for the Backend API
-  - type: web
-    name: backend-api
+    name: infinity-x-platform
     env: node
-    rootDir: backend
     plan: free
-    buildCommand: "npm install"
-    startCommand: "node server.mjs"
+    # Set the root directory to the project root, so we can access both backend and frontend
+    rootDir: .
+    # Build command now orchestrates both frontend and backend setup
+    buildCommand: |
+      echo "Building frontend..."
+      cd dashboard-x && npm install && npm run build && cd ..
+      echo "Installing backend dependencies..."
+      cd backend && npm install
+    # Start command remains the same, running the unified server
+    startCommand: "node backend/server.mjs"
     envVars:
       - key: NODE_VERSION
         value: 22
