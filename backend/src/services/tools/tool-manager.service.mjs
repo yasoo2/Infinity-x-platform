@@ -53,13 +53,12 @@ class ToolManager {
                         toolModule = toolExports.default;
                     } else {
                         // If no default export, check for named exports (static tools)
-                    if (Object.keys(toolExports).length > 0) {
-                        toolModule = toolExports;
-                    } else {
-                        console.warn(`⚠️ Tool file ${file} has an invalid or unhandled export type.`);
-                        continue;
-                    }
-                        continue;
+                        if (Object.keys(toolExports).length > 0) {
+                            toolModule = toolExports;
+                        } else {
+                            console.warn(`⚠️ Tool file ${file} has an invalid or unhandled export type.`);
+                            continue;
+                        }
                     }
                     
                     this._registerModule(toolModule);
