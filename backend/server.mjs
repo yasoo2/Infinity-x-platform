@@ -14,7 +14,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 // --- Now, import the rest of the app ---
 import express from 'express';
-import cors from 'cors';
+// import cors from 'cors'; // Removed - using custom CORS middleware instead
 import helmet from 'helmet';
 import http from 'http';
 import fs from 'fs';
@@ -63,22 +63,33 @@ const whitelist = process.env.CORS_ORIGINS
 
 console.log('CORS whitelist:', whitelist);
 
-// Simplified CORS configuration - explicit and guaranteed to work
-// --- AGGRESSIVE CORS FOR DEBUGGING ---
-// This is NOT secure for production, but will help us isolate the problem.
-const corsOptions = {
-  origin: "*", // Allow all origins
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-  credentials: false // Credentials cannot be used with wildcard origin
-};
-
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
 
-// Apply CORS BEFORE helmet to avoid conflicts
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // Handle preflight requests explicitly
+// --- CUSTOM CORS MIDDLEWARE (Full Control) ---
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  
+  // Allow all origins from whitelist
+  if (origin && whitelist.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else if (!origin) {
+    // For requests without origin (same-origin or tools like curl)
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+  
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Max-Age', '86400');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
+  next();
+});
 
 // Apply helmet with CORS-friendly configuration
 app.use(helmet({
