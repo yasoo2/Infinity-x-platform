@@ -1,5 +1,5 @@
 
-import cheerio from 'cheerio';
+import * as cheerio from 'cheerio';
 
 /**
  * @fileoverview SEO Analysis Tool for the JOE AGI system.
