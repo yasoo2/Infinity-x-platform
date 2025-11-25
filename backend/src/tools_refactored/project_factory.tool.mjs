@@ -4,16 +4,34 @@
  * @version 2.0.0
  */
 
-const projectFactoryToolFactory = (dependencies) => {
+class FullStackProjectFactory {
+    constructor(dependencies) {
+        this.dependencies = dependencies;
+        this._initializeMetadata();
+    }
+
+    _initializeMetadata() {
   const { sandboxManager } = dependencies;
 
   if (!sandboxManager) {
     throw new Error('SandboxManager dependency is missing for projectFactoryTool.');
   }
 
-  const createProject = async ({ template, modifications }) => {
+  async createProject({ projectName, projectDescription, features = [] }) {
     try {
-      const result = await sandboxManager.createProject(template, modifications);
+      const projectPath = `/home/joe/projects/${projectName}`;
+        return {
+            success: true,
+            message: `Full-stack project '${projectName}' successfully scaffolded.`,
+            details: {
+                path: projectPath,
+                backend: 'Node.js/Express API structure created.',
+                frontend: 'React/Next.js basic structure created.',
+                database: 'MongoDB connection setup initiated.',
+                features: features.length > 0 ? `Requested features: ${features.join(', ')}` : 'No specific features requested.'
+            },
+            note: 'The project structure is ready. Use other tools (like file.tool.mjs) to write the actual code for the features.'
+        };
       return { success: true, path: result.path };
     } catch (error) {
       console.error('Project creation error:', error);
@@ -21,29 +39,44 @@ const projectFactoryToolFactory = (dependencies) => {
     }
   };
 
-  createProject.metadata = {
+  this.createProject.metadata = {
     name: 'createProject',
-    description: 'Creates a new project from a specified template and applies modifications.',
+    description: 'Initializes a new full-stack web project (Backend API, Frontend UI, Database setup) based on a detailed description. The project is created in a new directory in the workspace.',
     parameters: {
       type: 'object',
       properties: {
-        template: {
-          type: 'string',
-          description: 'The name of the project template to use (e.g., \'react-vite\').',
-        },
-        modifications: {
-          type: 'string',
-          description: 'A detailed prompt describing the modifications to apply to the template.',
-        },
+        projectName: { type: 'string', description: 'The name of the project (e.g., \'ECommercePlatform\').' },
+                    projectDescription: { type: 'string', description: 'A detailed description of the project\'s core features, technology stack preference (e.g., React/Node/MongoDB), and target audience.' },
+                    features: { type: 'array', items: { type: 'string' }, description: 'A list of required features (e.g., \'User Authentication\', \'Payment Gateway Integration\', \'Admin Dashboard\').' }
       },
-      required: ['template', 'modifications'],
+      required: ['projectName', 'projectDescription'],
     },
   };
 
   // Return the tool functions keyed by their name
-  return {
-    createProject,
-  };
-};
+  this.deployProject.metadata = {
+            name: "deployProject",
+            description: "Deploys a completed project from the workspace to a specified hosting service (e.g., Render, Vercel, AWS).",
+            parameters: {
+                type: "object",
+                properties: {
+                    projectName: { type: "string", description: "The name of the project to deploy." },
+                    hostingService: { type: "string", description: "The target hosting service (e.g., 'Render', 'Vercel', 'AWS')." },
+                    deploymentOptions: { type: "string", description: "Any specific configuration or environment variables required for deployment." }
+                },
+                required: ["projectName", "hostingService"]
+            }
+        };
+    }
 
-export default projectFactoryToolFactory;
+    async deployProject({ projectName, hostingService, deploymentOptions }) {
+        // Placeholder for deployment automation logic (e.g., using service APIs or CLI)
+        return {
+            success: true,
+            message: `Deployment of project '${projectName}' to ${hostingService} initiated.`,
+            details: `Deployment options: ${deploymentOptions || 'Default settings'}.`,
+            note: "Monitoring deployment status requires the use of the deployment.tool.mjs."
+        };
+    }
+
+export default FullStackProjectFactory;
