@@ -23,6 +23,8 @@ import fs from 'fs';
 // --- Core Components ---
 import { initMongo, closeMongoConnection } from './src/core/database.mjs';
 import { setupSuperAdmin } from './src/core/setup-admin.mjs';
+import PlanningSystem from './src/planning/PlanningSystem.mjs';
+import SchedulingSystem from './src/scheduling/SchedulingSystem.mjs';
 import { setupAuth, requireRole, optionalAuth } from './src/middleware/auth.mjs';
 import eventBus from './src/core/event-bus.mjs';
 
@@ -43,7 +45,7 @@ const app = express();
 const server = http.createServer(app);
 
 // --- CORS Configuration ---
-const whitelist = ['https://xelitesolutions.com', 'http://localhost:3000', 'http://localhost:5173'];
+const whitelist = ['https://xelitesolutions.com', 'http://localhost:3000', 'http://localhost:5173', 'https://5178-iavhwtgdu2snl4ndzssze-a66a9dda.manus-asia.computer'];
 const corsOptions = {
     origin: function (origin, callback) {
         if (whitelist.indexOf(origin) !== -1 || !origin) {
@@ -105,10 +107,17 @@ app.use(express.static(finalDashboardPath));
 
 async function setupDependencies() {
     let db;
+    let planningSystem = null;
+    let schedulingSystem = null;
     try {
         db = await initMongo();
         // Run Super Admin setup after successful DB connection
         await setupSuperAdmin(() => Promise.resolve(db));
+
+        // Initialize Advanced Systems
+        planningSystem = new PlanningSystem(db);
+        schedulingSystem = new SchedulingSystem(db);
+
     } catch (error) {
         console.error('Could not connect to MongoDB. Continuing without database connection.', error);
         db = null;
@@ -122,6 +131,8 @@ async function setupDependencies() {
         sandboxManager,
         memoryManager,
         eventBus,
+        planningSystem,
+        schedulingSystem,
         requireRole: requireRole(db),
         optionalAuth: optionalAuth(db),
     };
@@ -144,6 +155,11 @@ async function applyRoutes(dependencies) {
     if (file.endsWith('.router.mjs')) {
         const routeName = file.split('.')[0];
         const routePath = `/api/v1/${routeName}`;
+        // Skip loading planning and scheduling routers if the system is not initialized
+        if ((routeName === 'planning' && !dependencies.planningSystem) || (routeName === 'scheduling' && !dependencies.schedulingSystem)) {
+            console.warn(`⚠️ Skipping loading of ${routeName} router because the system is not initialized.`);
+            continue;
+        }
         try {
             const { default: routerFactory } = await import(path.join(apiDir, file));
             const router = routerFactory(dependencies);

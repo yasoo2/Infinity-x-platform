@@ -6,7 +6,7 @@ import { viteStaticCopy } from 'vite-plugin-static-copy';
 // https://vitejs.dev/config/
 export default defineConfig({
   define: {
-    'import.meta.env.VITE_API_BASE_URL': JSON.stringify('https://infinity-x-platform.onrender.com/api/v1'),
+   'import.meta.env.VITE_API_BASE_URL': JSON.stringify('http://4000-iavhwtgdu2snl4ndzssze-a66a9dda.manus-asia.computer/api/v1'),
   },
   plugins: [
     react(),
@@ -38,6 +38,8 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    host: '0.0.0.0',
+    allowedHosts: ['*'],
     strictPort: false,
     // ✅ إضافة البروكسي للـ API والـ WebSocket أثناء التطوير
     proxy: {

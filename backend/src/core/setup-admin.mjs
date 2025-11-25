@@ -1,4 +1,4 @@
-import { getDB } from './database.mjs';
+import User from '../database/models/User.mjs';
 import bcrypt from 'bcryptjs';
 
 const SUPER_ADMIN_EMAIL = 'info.auraaluxury@gmail.com';
@@ -7,41 +7,35 @@ const SUPER_ADMIN_ROLE = 'super_admin';
 
 /**
  * Checks for and creates the default Super Admin user if one does not exist.
- * @param {Function} db - The function to get the MongoDB database instance.
+ * Checks for and creates the default Super Admin user if one does not exist.
  */
-export async function setupSuperAdmin(db) {
-    if (!db) {
-        console.warn('⚠️ Cannot setup Super Admin: Database connection is not available.');
-        return;
-    }
-
+export async function setupSuperAdmin() {
     try {
-        const mongoDb = await db();
-        const usersCollection = mongoDb.collection('users');
-
         // 1. Check if the Super Admin user already exists
-        const existingUser = await usersCollection.findOne({ email: SUPER_ADMIN_EMAIL });
+        const existingUser = await User.findOne({ email: SUPER_ADMIN_EMAIL });
+        const hashedPassword = await bcrypt.hash(SUPER_ADMIN_PASSWORD, 10);
+        const now = new Date();
 
         if (existingUser) {
-            console.log(`✅ Super Admin user (${SUPER_ADMIN_EMAIL}) already exists. Skipping creation.`);
+            // Update existing admin's password and role
+            await User.updateOne(
+                { _id: existingUser._id },
+                { $set: { password: hashedPassword, role: SUPER_ADMIN_ROLE, updatedAt: now } }
+            );
+            console.log(`✅ Super Admin user (${SUPER_ADMIN_EMAIL}) updated with new password and role.`);
             return;
         }
 
-        // 2. Hash the password
-        const hashedPassword = await bcrypt.hash(SUPER_ADMIN_PASSWORD, 10);
-
         // 3. Create the new Super Admin user
-        const newUser = {
+        const newUser = new User({
             email: SUPER_ADMIN_EMAIL,
             password: hashedPassword,
             role: SUPER_ADMIN_ROLE,
-            createdAt: new Date(),
-            updatedAt: new Date(),
             isVerified: true,
             // Add any other necessary fields
-        };
+        });
 
-        await usersCollection.insertOne(newUser);
+        await newUser.save();
         console.log(`🎉 Successfully created default Super Admin user: ${SUPER_ADMIN_EMAIL}`);
 
     } catch (error) {
