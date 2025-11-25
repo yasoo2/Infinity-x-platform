@@ -49,7 +49,13 @@ app.use(cors({ origin: '*', credentials: true }));
 app.use(express.json({ limit: '50mb' }));
 
 async function setupDependencies() {
-    const db = await initMongo();
+    let db;
+    try {
+        db = await initMongo();
+    } catch (error) {
+        console.error('Could not connect to MongoDB. Continuing without database connection.', error);
+        db = null;
+    }
     const sandboxManager = await new SandboxManager().initializeConnections();
     const memoryManager = new MemoryManager();
     
