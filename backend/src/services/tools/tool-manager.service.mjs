@@ -38,21 +38,27 @@ class ToolManager {
             if (file.endsWith('.mjs') && file !== 'tool-manager.service.mjs') {
                 const toolModulePath = path.join(dir, file);
                 try {
-                    const { default: toolExport } = await import(`file://${toolModulePath}`);
+                    const toolExports = await import(`file://${toolModulePath}`);
                     let toolModule;
 
-                    if (isClass(toolExport)) {
+                    if (toolExports.default && isClass(toolExports.default)) {
                         // It's a class, instantiate it
-                        const toolInstance = new toolExport(dependencies);
+                        const toolInstance = new toolExports.default(dependencies);
                         toolModule = this._extractToolsFromInstance(toolInstance);
-                    } else if (typeof toolExport === 'function') {
+                    } else if (toolExports.default && typeof toolExports.default === 'function') {
                         // It's a factory function, call it
-                        toolModule = toolExport(dependencies);
-                    } else if (typeof toolExport === 'object' && toolExport !== null) {
+                        toolModule = toolExports.default(dependencies);
+                    } else if (toolExports.default && typeof toolExports.default === 'object' && toolExports.default !== null) {
                         // It's a static tool module
-                        toolModule = toolExport;
+                        toolModule = toolExports.default;
+                    } else {
+                        // If no default export, check for named exports (static tools)
+                    if (Object.keys(toolExports).length > 0) {
+                        toolModule = toolExports;
                     } else {
                         console.warn(`⚠️ Tool file ${file} has an invalid or unhandled export type.`);
+                        continue;
+                    }
                         continue;
                     }
                     
