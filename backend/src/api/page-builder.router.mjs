@@ -6,7 +6,7 @@ import express from 'express';
 // Mock/Placeholder imports for services that need to be created.
 // import { generatePageCode } from '../services/ai/ai-page-builder.service.mjs';
 // import { deploymentService } from '../services/deployment/deployment.service.mjs';
-import { githubTools } from '../tools_refactored/githubTools.mjs';
+import GitHubTools from '../tools_refactored/githubTools.mjs';
 
 const pageBuilderRouterFactory = ({ requireRole }) => {
     const router = express.Router();
@@ -49,7 +49,7 @@ const pageBuilderRouterFactory = ({ requireRole }) => {
 
             // Step 2: Push to GitHub
             // This uses the refactored githubTools which should handle auth securely
-            const commitResult = await githubTools.commitFiles({
+            const commitResult = await new GitHubTools().commitFiles({
                 owner: user.githubUsername, // This should come from the user's profile
                 repo: repoName,
                 branch: 'main',
