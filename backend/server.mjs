@@ -62,6 +62,12 @@ app.get('/dashboard*', (req, res) => {
 });
 
 // 3. Serve public-site (landing page and login) at root
+// Serve index.html explicitly for root path
+app.get('/', (req, res) => {
+    res.sendFile(path.join(publicSitePath, 'index.html'));
+});
+
+// Serve other static files from public-site
 app.use(express.static(publicSitePath));
 
 async function setupDependencies() {
