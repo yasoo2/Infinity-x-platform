@@ -8,8 +8,8 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const TOOLS_DIR_V2 = path.join(__dirname, '..', '..', '..', 'src', 'tools_refactored');
-const TOOLS_DIR_V1 = path.join(__dirname, '..', '..', '..', 'src', 'services', 'tools');
+const TOOLS_DIR_V2 = path.join(__dirname, '..', '..', 'tools_refactored');
+const TOOLS_DIR_V1 = path.join(__dirname, '..', '..', 'services', 'tools');
 
 // Helper to check if a value is a class
 function isClass(v) {
