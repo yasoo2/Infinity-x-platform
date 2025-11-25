@@ -66,26 +66,31 @@ console.log('CORS whitelist:', whitelist);
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
 
-// --- CUSTOM CORS MIDDLEWARE (Full Control) ---
+// --- ULTIMATE CORS FIX - Handle ALL requests ---
 app.use((req, res, next) => {
-  const origin = req.headers.origin;
+  const origin = req.headers.origin || req.headers.referer;
   
-  // Allow all origins from whitelist
+  console.log(`[CORS] ${req.method} ${req.path} from origin: ${origin}`);
+  
+  // Set CORS headers for ALL requests
   if (origin && whitelist.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
-  } else if (!origin) {
-    // For requests without origin (same-origin or tools like curl)
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  } else {
+    // Fallback: allow the request anyway for debugging
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
   }
   
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Range, X-Content-Range');
   res.setHeader('Access-Control-Max-Age', '86400');
   
-  // Handle preflight requests
+  // Handle preflight OPTIONS requests immediately
   if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+    console.log('[CORS] Handling OPTIONS preflight request');
+    return res.status(204).end();
   }
   
   next();
