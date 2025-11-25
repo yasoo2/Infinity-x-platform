@@ -58,7 +58,7 @@ const defaultWhitelist = [
 ];
 
 const whitelist = process.env.CORS_ORIGINS
-  ? process.env.CORS_ORIGINS.split(',')
+  ? process.env.CORS_ORIGINS.split(',').map(s => s.trim())
   : defaultWhitelist;
 
 console.log('CORS whitelist:', whitelist);
