@@ -49,7 +49,7 @@ const LoginModal = ({ onClose, onLoginSuccess }) => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full bg-gray-700/50 border border-gray-600 rounded-md py-3 px-4 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-              placeholder="info.auraaluxury@gmail.com"
+              placeholder="Enter your email"
               required
               disabled={loading}
             />
@@ -63,7 +63,7 @@ const LoginModal = ({ onClose, onLoginSuccess }) => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full bg-gray-700/50 border border-gray-600 rounded-md py-3 px-4 pr-12 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                placeholder="••••••••"
+                placeholder="Enter your password"
                 required
                 disabled={loading}
               />
