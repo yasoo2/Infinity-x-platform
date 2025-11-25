@@ -22,6 +22,7 @@ import fs from 'fs';
 
 // --- Core Components ---
 import { initMongo, closeMongoConnection } from './src/core/database.mjs';
+import { setupSuperAdmin } from './src/core/setup-admin.mjs';
 import { setupAuth, requireRole, optionalAuth } from './src/middleware/auth.mjs';
 import eventBus from './src/core/event-bus.mjs';
 
@@ -84,6 +85,8 @@ async function setupDependencies() {
     let db;
     try {
         db = await initMongo();
+        // Run Super Admin setup after successful DB connection
+        await setupSuperAdmin(() => Promise.resolve(db));
     } catch (error) {
         console.error('Could not connect to MongoDB. Continuing without database connection.', error);
         db = null;
