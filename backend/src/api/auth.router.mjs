@@ -15,7 +15,7 @@ const authRouterFactory = ({ db }) => {
         try {
             const { email, phone, password } = req.body;
 
-            // --- Validation ---
+            // --- Validation -- -
             if (!email || !password) {
                 return res.status(400).json({ success: false, error: 'Email and password are required.' });
             }
@@ -23,13 +23,13 @@ const authRouterFactory = ({ db }) => {
                 return res.status(400).json({ success: false, error: 'Password must be at least 8 characters long.' });
             }
 
-            // --- Check for existing user ---
+            // --- Check for existing user -- -
             const existingUser = await db.collection('users').findOne({ email: email.toLowerCase() });
             if (existingUser) {
                 return res.status(409).json({ success: false, error: 'An account with this email already exists.' });
             }
 
-            // --- Create new user ---
+            // --- Create new user -- -
             const hashedPassword = await bcrypt.hash(password, 12);
             const now = new Date();
 
@@ -64,27 +64,34 @@ const authRouterFactory = ({ db }) => {
      */
     router.post('/login', async (req, res) => {
         try {
-            const { username, password } = req.body;
+            // CORRECTED: Changed 'username' to 'email' to match frontend and logic
+            const { email, password } = req.body;
 
-            // --- Validation ---
-            if (!username || !password) {
-                return res.status(400).json({ success: false, error: 'Username and password are required.' });
+            // --- Validation -- -
+            // CORRECTED: Changed 'username' to 'email'
+            if (!email || !password) {
+                return res.status(400).json({ success: false, error: 'Email and password are required.' });
             }
 
-            // --- Find user ---
-            const user = await db.collection('users').findOne({ email: username.toLowerCase() });
+            // --- Find user -- -
+            // CORRECTED: Changed 'username' to 'email'
+            const user = await db.collection('users').findOne({ email: email.toLowerCase() });
             if (!user) {
-                return res.status(401).json({ success: false, message: 'Invalid username or password.' });
+                return res.status(401).json({ success: false, message: 'Invalid credentials.' });
             }
 
-            // --- Check password ---
+            // --- Check password -- -
             const isMatch = await bcrypt.compare(password, user.password);
             if (!isMatch) {
-                return res.status(401).json({ success: false, message: 'Invalid username or password.' });
+                // Return the same generic error for security reasons
+                return res.status(401).json({ success: false, message: 'Invalid credentials.' });
             }
 
-            // --- Generate JWT ---
+            // --- Generate JWT -- -
             const token = jwt.sign({ userId: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+            
+            // --- Update last login timestamp ---
+            await db.collection('users').updateOne({ _id: user._id }, { $set: { lastLoginAt: new Date() } });
 
             res.status(200).json({
                 success: true,
