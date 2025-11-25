@@ -131,7 +131,7 @@ export const gpt4Functions = [
   },
   {
     name: 'self_evolve',
-    description: 'Analyze own code and implement improvements',
+    description: 'Analyze own code, implement improvements, and trigger self-healing for reported errors.',
     parameters: {
       type: 'object',
       properties: {
