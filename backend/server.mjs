@@ -92,16 +92,12 @@ app.use((req, res, next) => {
   
   // 3. Handle preflight OPTIONS requests immediately
   if (req.method === 'OPTIONS') {
-    // Crucial: The Access-Control-Allow-Origin must be set *before* this point for the preflight to succeed.
-    // We only return 204 if the origin was whitelisted and ACAO was set.
-    if (isWhitelisted) {
-        console.log('[CORS] Handling OPTIONS preflight request - SUCCESS');
-        return res.status(204).end();
-    } else {
-        // If not whitelisted, we return 403 Forbidden to explicitly block the request.
-        console.log('[CORS] Handling OPTIONS preflight request - BLOCKED');
-        return res.status(403).json({ error: 'CORS_BLOCKED', message: 'Origin not allowed by CORS policy.' });
-    }
+    // FINAL, ABSOLUTE TEST: Allow all origins for OPTIONS request to isolate the issue.
+    // This is a temporary measure to confirm the code is being executed.
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    console.log('[CORS] Handling OPTIONS preflight request - FORCED ALLOW (TEST)');
+    return res.status(204).end();
   }
   
   next();
