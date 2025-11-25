@@ -73,13 +73,22 @@ app.get('/dashboard*', (req, res) => {
 });
 
 // 3. Serve public-site (landing page and login) at root
-// Serve index.html explicitly for root path
+// Serve the Dashboard (which will contain the new landing logic) at the root path
 app.get('/', (req, res) => {
-    res.sendFile(path.join(publicSitePath, 'index.html'));
+    const indexPath = path.join(finalDashboardPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+    } else {
+        // Fallback to the public site if dashboard is not built
+        res.sendFile(path.join(publicSitePath, 'index.html'));
+    }
 });
 
-// Serve other static files from public-site
+// Serve other static files from public-site (for login.html, etc.)
 app.use(express.static(publicSitePath));
+
+// Serve static files from the built dashboard (must be after public-site to avoid conflict)
+app.use(express.static(finalDashboardPath));
 
 async function setupDependencies() {
     let db;

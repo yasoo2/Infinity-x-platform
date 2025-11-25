@@ -49,7 +49,7 @@ const AppRoutes = () => {
 
         {/* Protected Routes (Requires Authentication) */}
         <Route path="/" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-          <Route index element={<Navigate to="/joe" replace />} />
+          <Route index element={<Joe />} />
           <Route path="joe" element={<Joe />} />
           <Route path="overview" element={<Overview />} />
           <Route path="activity" element={<Activity />} />
