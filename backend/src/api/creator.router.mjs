@@ -1,6 +1,6 @@
 
 import { Router } from 'express';
-import AIEngineService from '../../services/ai/ai-engine.service.mjs'; // استيراد الخدمة المعزولة
+import AIEngineService from '../services/ai/ai-engine.service.mjs'; // استيراد الخدمة المعزولة
 
 /**
  * Factory function to create the Creator router.
