@@ -1,14 +1,28 @@
 import OpenAI from 'openai';
 import toolManager from '../services/tools/tool-manager.service.mjs';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+let openai;
+
+try {
+  openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
+  });
+  // Test the connection to ensure the key is valid, but don't crash the server.
+  openai.models.list().catch(error => {
+    console.warn('⚠️ OpenAI API Key seems invalid, but server will continue running. OpenAI features will fail.', error.message);
+    openai = null; // Invalidate the client if the key is wrong
+  });
+} catch (error) {
+  console.warn('⚠️ OpenAI API Key is missing. OpenAI features will be disabled.');
+  openai = null;
+}
+
 
 // --- Specialist Agent Definitions ---
 
 class ArchitectAgent {
   async execute(task) {
+    if (!openai) throw new Error('OpenAI is not configured. Please set the OPENAI_API_KEY.');
     const prompt = `As an expert system architect, design a complete architecture for this task: "${task.description}". Provide: 1. Full architecture design. 2. Tech stack choices. 3. UML diagrams (in Mermaid format). 4. Scalability strategy. 5. Performance recommendations.`;
     const response = await openai.chat.completions.create({ model: 'gpt-4o', messages: [{ role: 'system', content: 'You are an expert system architect.' }, { role: 'user', content: prompt }] });
     return { agent: 'architect', result: response.choices[0].message.content };
@@ -17,6 +31,7 @@ class ArchitectAgent {
 
 class DeveloperAgent {
   async execute(task) {
+    if (!openai) throw new Error('OpenAI is not configured. Please set the OPENAI_API_KEY.');
     const prompt = `As a professional developer, write clean, SOLID, and optimized code for: "${task.description}". Include error handling and best practices.`;
     const response = await openai.chat.completions.create({ model: 'gpt-4o', messages: [{ role: 'system', content: 'You are an expert developer.' }, { role: 'user', content: prompt }] });
     const code = response.choices[0].message.content;
@@ -39,6 +54,10 @@ class AgentTeam {
   }
 
   async analyzeAndPlan(instruction, streamUpdate) {
+    if (!this.llm) {
+      streamUpdate({ type: 'error', message: 'Planner is disabled. OpenAI is not configured.' });
+      throw new Error('OpenAI is not configured. Please set the OPENAI_API_KEY.');
+    }
     const availableTools = toolManager.getToolSchemas();
     streamUpdate({ type: 'status', message: '🧠 Planner received instruction. Analyzing...' });
 
@@ -99,6 +118,7 @@ class AgentTeam {
   }
 
   async executeTask(task) {
+    if (!openai) throw new Error('OpenAI is not configured. Please set the OPENAI_API_KEY.');
     const analysis = await this.analyzeTask(task);
     const selectedAgentNames = this.selectAgents(analysis);
     if (selectedAgentNames.length === 0) {
@@ -122,6 +142,7 @@ class AgentTeam {
   }
 
   async analyzeTask(task) {
+    if (!openai) throw new Error('OpenAI is not configured. Please set the OPENAI_API_KEY.');
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
@@ -142,6 +163,7 @@ class AgentTeam {
   }
 
   async mergeResults(results) {
+    if (!openai) throw new Error('OpenAI is not configured. Please set the OPENAI_API_KEY.');
     const prompt = `
     You are a lead integrator. Combine these results from different agents into a single, coherent final report.
 
