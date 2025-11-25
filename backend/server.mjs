@@ -72,21 +72,29 @@ app.use((req, res, next) => {
   
   console.log(`[CORS] ${req.method} ${req.path} from origin: ${origin}`);
   
-  // Set CORS headers for ALL requests
+  // Set common CORS headers for ALL requests
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Range, X-Content-Range');
+  res.setHeader('Access-Control-Max-Age', '86400');
+
+  // Set Access-Control-Allow-Origin and Credentials only if origin is whitelisted
   if (origin && whitelist.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
   }
   
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
-  res.setHeader('Access-Control-Expose-Headers', 'Content-Range, X-Content-Range');
-  res.setHeader('Access-Control-Max-Age', '86400');
-  
   // Handle preflight OPTIONS requests immediately
   if (req.method === 'OPTIONS') {
+    // Crucial: The Access-Control-Allow-Origin must be set *before* this point for the preflight to succeed.
+    // If the origin is not whitelisted, the ACAO header will not be set, and the browser will block.
     console.log('[CORS] Handling OPTIONS preflight request');
-    return res.status(204).end();
+    // We only return 204 if the ACAO header was successfully set (i.e., origin was whitelisted).
+    // If ACAO was not set, the browser will still block, which is the desired security behavior.
+    if (res.getHeader('Access-Control-Allow-Origin')) {
+        return res.status(204).end();
+    }
+    // If ACAO is not set, we let it fall through to the 404/error handler, which is safer.
   }
   
   next();
