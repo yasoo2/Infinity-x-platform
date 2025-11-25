@@ -45,23 +45,55 @@ const app = express();
 const server = http.createServer(app);
 
 // --- CORS Configuration ---
-const whitelist = ['https://xelitesolutions.com', 'http://localhost:3000', 'http://localhost:5173', 'https://5178-iavhwtgdu2snl4ndzssze-a66a9dda.manus-asia.computer'];
+// Allow CORS from environment variable or use default whitelist
+const defaultWhitelist = [
+  'https://xelitesolutions.com',
+  'https://www.xelitesolutions.com',
+  'https://backend-api.onrender.com',
+  'https://api.xelitesolutions.com',
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://localhost:4000',
+  'http://localhost:4001',
+];
+
+const whitelist = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',')
+  : defaultWhitelist;
+
+console.log('CORS whitelist:', whitelist);
+
 const corsOptions = {
-    origin: function (origin, callback) {
-        if (whitelist.indexOf(origin) !== -1 || !origin) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    credentials: true
+  origin: function (origin, callback) {
+    console.log('CORS check origin:', origin);
+    
+    // Requests without Origin header (e.g. curl, Postman, same-server)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    if (whitelist.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    return callback(new Error(`Not allowed by CORS: ${origin}`));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400, // 24 hours
 };
 
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
 
 app.use(helmet());
-app.use(cors(corsOptions)); // Use configured CORS
+
+// Apply CORS (including preflight)
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Handle preflight requests explicitly
+
 app.use(express.json({ limit: '50mb' }));
 
 // --- Serve Static Frontend Files ---
