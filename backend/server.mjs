@@ -63,26 +63,16 @@ const whitelist = process.env.CORS_ORIGINS
 
 console.log('CORS whitelist:', whitelist);
 
+// Simplified CORS configuration - explicit and guaranteed to work
 const corsOptions = {
-  origin: function (origin, callback) {
-    console.log('CORS check origin:', origin);
-    
-    // Requests without Origin header (e.g. curl, Postman, same-server)
-    if (!origin) {
-      return callback(null, true);
-    }
-    
-    if (whitelist.includes(origin)) {
-      return callback(null, true);
-    }
-    
-    return callback(new Error(`Not allowed by CORS: ${origin}`));
-  },
+  origin: whitelist,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  maxAge: 86400, // 24 hours
+  maxAge: 86400,
+  optionsSuccessStatus: 200,
+  preflightContinue: false,
 };
 
 app.set('trust proxy', 1);
