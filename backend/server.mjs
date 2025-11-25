@@ -42,11 +42,24 @@ const CONFIG = {
 const app = express();
 const server = http.createServer(app);
 
+// --- CORS Configuration ---
+const whitelist = ['https://xelitesolutions.com', 'http://localhost:3000', 'http://localhost:5173'];
+const corsOptions = {
+    origin: function (origin, callback) {
+        if (whitelist.indexOf(origin) !== -1 || !origin) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true
+};
+
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
 
 app.use(helmet());
-app.use(cors({ origin: '*', credentials: true }));
+app.use(cors(corsOptions)); // Use configured CORS
 app.use(express.json({ limit: '50mb' }));
 
 // --- Serve Static Frontend Files ---

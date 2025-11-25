@@ -22,8 +22,8 @@ const Footer = () => {
                   <input type="text" name="name" id="name" placeholder="Your Name" className="w-full bg-gray-700/50 border-gray-600 rounded-md py-3 px-4 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all" />
                 </div>
                 <div>
-                  <label htmlFor="email" className="sr-only">Email</label>
-                  <input type="email" name="email" id="email" placeholder="Your Email" className="w-full bg-gray-700/50 border-gray-600 rounded-md py-3 px-4 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all" />
+                  <label htmlFor="email-footer" className="sr-only">Email</label>
+                  <input type="email" name="email" id="email-footer" placeholder="Your Email" className="w-full bg-gray-700/50 border-gray-600 rounded-md py-3 px-4 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all" />
                 </div>
               </div>
               <div className="mt-4">
