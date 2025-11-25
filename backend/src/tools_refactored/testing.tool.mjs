@@ -1,34 +1,27 @@
 /**
  * Automated Testing Tool - Bridge to the Automated Testing System
- * @version 1.0.1
+ * @version 1.0.3
  */
-
 import { testingSystem } from '../systems/testing.service.mjs';
-import { readFile } from 'fs/promises'; // Correctly import from Node.js built-in module
+import { readFile } from 'fs/promises';
 
 /**
  * Generates and then runs tests for a specified source file.
- * @param {object} params - The parameters for the operation.
- * @param {string} params.filePath - The path to the source code file to test.
- * @returns {Promise<object>} - An object containing the test generation and execution results.
  */
 async function generateAndRunTests({ filePath }) {
   try {
     console.log(`🤖 Starting test generation and execution for ${filePath}...`);
     
-    // 1. Read the file content first using the corrected import
     const fileContent = await readFile(filePath, 'utf8');
     if (!fileContent) {
         return { success: false, error: `File not found or empty: ${filePath}` };
     }
 
-    // 2. Generate tests
     const generationResult = await testingSystem.generateTests(filePath, fileContent);
     if (!generationResult || !generationResult.testFilePath) {
         return { success: false, error: 'Test generation failed to produce a file path.' };
     }
 
-    // 3. Run the newly created tests
     const runResult = await testingSystem.runTests(generationResult.testFilePath);
 
     return { 
@@ -60,9 +53,6 @@ generateAndRunTests.metadata = {
 
 /**
  * Runs an existing test suite.
- * @param {object} params - The parameters for running tests.
- * @param {string} params.testFilePath - The path to the test file or directory to run.
- * @returns {Promise<object>} - An object containing the test execution results.
  */
 async function runExistingTests({ testFilePath }) {
     try {

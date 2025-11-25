@@ -8,431 +8,290 @@ const execAsync = promisify(exec);
 /**
  * GitHub Tools for JOE
  * Provides full GitHub operations: clone, read, edit, commit, push
+ * @version 2.0.0 - Refactored for ToolManager Compliance
  */
-
 class GitHubTools {
-  constructor(token, username = 'yasoo2') {
-    this.token = token || process.env.GITHUB_TOKEN;
-    this.username = username;
+  constructor(dependencies) {
+    this.token = dependencies.github?.token || process.env.GITHUB_TOKEN;
+    this.username = dependencies.github?.username || 'yasoo2';
     this.workDir = '/tmp/joe-workspace';
+    this._initializeMetadata();
   }
 
-  /**
-   * Clone repository
-   */
+  _initializeMetadata() {
+    this.cloneRepo.metadata = {
+      name: "githubCloneRepo",
+      description: "Clones a GitHub repository to a local workspace.",
+      parameters: {
+        type: "object",
+        properties: {
+          repoName: { type: "string", description: "The name of the repository (e.g., 'my-project')." },
+          branch: { type: "string", description: "The branch to clone.", default: "main" }
+        },
+        required: ["repoName"]
+      }
+    };
+    this.readFile.metadata = {
+        name: "githubReadFile",
+        description: "Reads a file from a cloned repository.",
+        parameters: {
+            type: "object",
+            properties: {
+                repoName: { type: "string", description: "The name of the repository." },
+                filePath: { type: "string", description: "The path to the file within the repository." }
+            },
+            required: ["repoName", "filePath"]
+        }
+    };
+    this.writeFile.metadata = {
+        name: "githubWriteFile",
+        description: "Writes or overwrites a file in a cloned repository.",
+        parameters: {
+            type: "object",
+            properties: {
+                repoName: { type: "string", description: "The name of the repository." },
+                filePath: { type: "string", description: "The path to the file to write." },
+                content: { type: "string", description: "The new content of the file." }
+            },
+            required: ["repoName", "filePath", "content"]
+        }
+    };
+    this.commit.metadata = {
+        name: "githubCommit",
+        description: "Commits all staged changes in a cloned repository.",
+        parameters: {
+            type: "object",
+            properties: {
+                repoName: { type: "string", description: "The name of the repository." },
+                message: { type: "string", description: "The commit message." }
+            },
+            required: ["repoName", "message"]
+        }
+    };
+    this.push.metadata = {
+        name: "githubPush",
+        description: "Pushes committed changes to the remote repository.",
+        parameters: {
+            type: "object",
+            properties: {
+                repoName: { type: "string", description: "The name of the repository." },
+                branch: { type: "string", description: "The branch to push to.", default: "main" }
+            },
+            required: ["repoName"]
+        }
+    };
+    this.searchReplaceAndPush.metadata = {
+        name: "githubSearchReplaceAndPush",
+        description: "Workflow: Clones a repo, performs a search-and-replace on all files, commits, and pushes the changes.",
+        parameters: {
+            type: "object",
+            properties: {
+                repoName: { type: "string", description: "The name of the repository." },
+                pattern: { type: "string", description: "The regex pattern to search for." },
+                replacement: { type: "string", description: "The text to replace the pattern with." },
+                commitMessage: { type: "string", description: "The commit message for the changes." }
+            },
+            required: ["repoName", "pattern", "replacement", "commitMessage"]
+        }
+    };
+    this.searchReplaceInFiles.metadata = {
+        name: "githubSearchReplaceInFiles",
+        description: "Workflow: Clones a repo, performs search-and-replace on specific files, commits, and pushes.",
+        parameters: {
+            type: "object",
+            properties: {
+                repoName: { type: "string", description: "The name of the repository." },
+                targetFiles: { type: "array", items: { type: "string" }, description: "An array of specific file paths to modify." },
+                pattern: { type: "string", description: "The regex pattern to search for." },
+                replacement: { type: "string", description: "The text to replace the pattern with." },
+                commitMessage: { type: "string", description: "The commit message for the changes." }
+            },
+            required: ["repoName", "targetFiles", "pattern", "replacement", "commitMessage"]
+        }
+    };
+     this.listFiles.metadata = {
+        name: "githubListFiles",
+        description: "Lists files and directories in a specified path within a cloned repository.",
+        parameters: {
+            type: "object",
+            properties: {
+                repoName: { type: "string", description: "The name of the repository." },
+                directory: { type: "string", description: "The directory path to list.", default: "." }
+            },
+            required: ["repoName"]
+        }
+    };
+  }
+
   async cloneRepo(repoName, branch = 'main') {
+    if (!this.token) return { success: false, error: "GitHub token is not configured." };
     try {
-      // Clean workspace
       await execAsync(`rm -rf ${this.workDir}`);
       await fs.mkdir(this.workDir, { recursive: true });
-
-      // Clone with authentication
       const repoUrl = `https://${this.token}@github.com/${this.username}/${repoName}.git`;
-      const { stdout, stderr } = await execAsync(
-        `cd ${this.workDir} && git clone -b ${branch} ${repoUrl} ${repoName}`,
-        { maxBuffer: 10 * 1024 * 1024 }
-      );
-
-      console.log(`✅ Cloned ${repoName}`);
-      return {
-        success: true,
-        path: path.join(this.workDir, repoName),
-        message: `Repository cloned successfully`
-      };
+      await execAsync(`cd ${this.workDir} && git clone -b ${branch} ${repoUrl} ${repoName}`, { maxBuffer: 10 * 1024 * 1024 });
+      return { success: true, path: path.join(this.workDir, repoName), message: "Repository cloned successfully" };
     } catch (error) {
-      console.error(`❌ Clone failed:`, error.message);
-      return {
-        success: false,
-        error: error.message
-      };
+      return { success: false, error: error.message };
     }
   }
 
-  /**
-   * Read file from repository
-   */
   async readFile(repoName, filePath) {
     try {
       const fullPath = path.join(this.workDir, repoName, filePath);
       const content = await fs.readFile(fullPath, 'utf-8');
-      
-      console.log(`✅ Read file: ${filePath}`);
-      return {
-        success: true,
-        content,
-        path: filePath
-      };
+      return { success: true, content, path: filePath };
     } catch (error) {
-      console.error(`❌ Read file failed:`, error.message);
-      return {
-        success: false,
-        error: error.message
-      };
+      return { success: false, error: error.message };
     }
   }
 
-  /**
-   * Write/Edit file in repository
-   */
   async writeFile(repoName, filePath, content) {
     try {
       const fullPath = path.join(this.workDir, repoName, filePath);
-      
-      // Ensure directory exists
       await fs.mkdir(path.dirname(fullPath), { recursive: true });
-      
-      // Write file
       await fs.writeFile(fullPath, content, 'utf-8');
-      
-      console.log(`✅ Wrote file: ${filePath}`);
-      return {
-        success: true,
-        path: filePath,
-        message: `File written successfully`
-      };
+      return { success: true, path: filePath, message: "File written successfully" };
     } catch (error) {
-      console.error(`❌ Write file failed:`, error.message);
-      return {
-        success: false,
-        error: error.message
-      };
+      return { success: false, error: error.message };
     }
   }
 
-  /**
-   * Search and replace in files
-   */
-  async searchAndReplace(repoName, pattern, replacement, filePattern = '**/*') {
+  async searchAndReplace(repoName, pattern, replacement) {
+      // This is a helper, so it does not need metadata
     try {
       const repoPath = path.join(this.workDir, repoName);
-      
-      // Use git grep for better performance and accuracy
-      const { stdout } = await execAsync(
-        `cd ${repoPath} && git grep -l "${pattern}" -- ${filePattern} || true`
-      );
-      
+      const { stdout } = await execAsync(`cd ${repoPath} && git grep -l "${pattern}" -- '*' || true`);
       const files = stdout.trim().split('\n').filter(f => f);
       const modified = [];
-
       for (const file of files) {
         const filePath = file.replace('./', '');
         const readResult = await this.readFile(repoName, filePath);
-        
         if (readResult.success) {
-          const newContent = readResult.content.replace(
-            new RegExp(pattern, 'g'),
-            replacement
-          );
-          
+          const newContent = readResult.content.replace(new RegExp(pattern, 'g'), replacement);
           await this.writeFile(repoName, filePath, newContent);
           modified.push(filePath);
         }
       }
-
-      console.log(`✅ Modified ${modified.length} files`);
-      return {
-        success: true,
-        modified,
-        count: modified.length
-      };
+      return { success: true, modified, count: modified.length };
     } catch (error) {
-      console.error(`❌ Search and replace failed:`, error.message);
-      return {
-        success: false,
-        error: error.message
-      };
+      return { success: false, error: error.message };
     }
   }
 
-  /**
-   * Commit changes
-   */
   async commit(repoName, message) {
     try {
       const repoPath = path.join(this.workDir, repoName);
-      
-      // Configure git (using the provided token's user)
       await execAsync(`cd ${repoPath} && git config user.email "joe@xelitesolutions.com"`);
       await execAsync(`cd ${repoPath} && git config user.name "JOE AI"`);
-      
-      // Add all changes
       await execAsync(`cd ${repoPath} && git add -A`);
-      
-      // Commit
-      const { stdout } = await execAsync(
-        `cd ${repoPath} && git commit -m "${message}"`
-      );
-      
-      console.log(`✅ Committed: ${message}`);
-      return {
-        success: true,
-        message: stdout.trim()
-      };
-    } catch (error) {
-      // No changes to commit is not an error
-      if (error.message.includes('nothing to commit')) {
-        return {
-          success: true,
-          message: 'No changes to commit'
-        };
+      const { stdout } = await execAsync(`cd ${repoPath} && git commit -m "${message.replace(/"/g, '\\"')}"`);
+      if (stdout.includes('nothing to commit')) {
+        return { success: true, message: 'No changes to commit' };
       }
-      
-      console.error(`❌ Commit failed:`, error.message);
-      return {
-        success: false,
-        error: error.message
-      };
+      return { success: true, message: stdout.trim() };
+    } catch (error) {
+      if (error.message.includes('nothing to commit')) {
+        return { success: true, message: 'No changes to commit' };
+      }
+      return { success: false, error: error.message };
     }
   }
 
-  /**
-   * Push changes to remote
-   */
   async push(repoName, branch = 'main') {
+    if (!this.token) return { success: false, error: "GitHub token is not configured." };
     try {
       const repoPath = path.join(this.workDir, repoName);
-      
       const repoUrl = `https://${this.token}@github.com/${this.username}/${repoName}.git`;
-      const { stdout } = await execAsync(
-        `cd ${repoPath} && git push ${repoUrl} ${branch}`
-      );
-      
-      console.log(`✅ Pushed to ${branch}`);
-      return {
-        success: true,
-        message: stdout.trim()
-      };
+      await execAsync(`cd ${repoPath} && git push ${repoUrl} ${branch}`);
+      return { success: true, message: `Pushed to ${branch}` };
     } catch (error) {
-      console.error(`❌ Push failed:`, error.message);
-      return {
-        success: false,
-        error: error.message
-      };
+      return { success: false, error: error.message };
     }
   }
-
-  /**
-   * Complete workflow: Clone → Edit → Commit → Push
-   */
-  async editAndPush(repoName, filePath, newContent, commitMessage) {
-    try {
-      // 1. Clone
-      const cloneResult = await this.cloneRepo(repoName);
-      if (!cloneResult.success) {
-        return { success: false, step: 'clone', error: cloneResult.error };
-      }
-
-      // 2. Edit
-      const writeResult = await this.writeFile(repoName, filePath, newContent);
-      if (!writeResult.success) {
-        return { success: false, step: 'write', error: writeResult.error };
-      }
-
-      // 3. Commit
-      const commitResult = await this.commit(repoName, commitMessage);
-      if (!commitResult.success) {
-        return { success: false, step: 'commit', error: commitResult.error };
-      }
-
-      // 4. Push
-      const pushResult = await this.push(repoName);
-      if (!pushResult.success) {
-        return { success: false, step: 'push', error: pushResult.error };
-      }
-
-      console.log(`✅ Complete workflow success`);
-      return {
-        success: true,
-        message: `File ${filePath} edited and pushed successfully`,
-        commitMessage
-      };
-    } catch (error) {
-      console.error(`❌ Workflow failed:`, error.message);
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
-
-  /**
-   * Search and replace workflow
-   */
+  
   async searchReplaceAndPush(repoName, pattern, replacement, commitMessage) {
     try {
-      // 1. Clone
       const cloneResult = await this.cloneRepo(repoName);
-      if (!cloneResult.success) {
-        return { success: false, step: 'clone', error: cloneResult.error };
-      }
+if (!cloneResult.success) return { success: false, step: 'clone', error: cloneResult.error };
 
-      // 2. Search and replace
       const replaceResult = await this.searchAndReplace(repoName, pattern, replacement);
-      if (!replaceResult.success) {
-        return { success: false, step: 'replace', error: replaceResult.error };
-      }
+      if (!replaceResult.success) return { success: false, step: 'replace', error: replaceResult.error };
+      if (replaceResult.count === 0) return { success: true, message: 'No matches found', modified: [] };
 
-      if (replaceResult.count === 0) {
-        return {
-          success: true,
-          message: 'No matches found',
-          modified: []
-        };
-      }
-
-      // 3. Commit
       const commitResult = await this.commit(repoName, commitMessage);
-      if (!commitResult.success) {
-        return { success: false, step: 'commit', error: commitResult.error };
-      }
+      if (!commitResult.success) return { success: false, step: 'commit', error: commitResult.error };
+        if(commitResult.message === 'No changes to commit') {
+            return { success: true, message: "No functional changes detected after replacement."}
+        }
 
-      // 4. Push
       const pushResult = await this.push(repoName);
-      if (!pushResult.success) {
-        return { success: false, step: 'push', error: pushResult.error };
-      }
+      if (!pushResult.success) return { success: false, step: 'push', error: pushResult.error };
 
-      console.log(`✅ Search/Replace workflow success`);
-      return {
-        success: true,
-        message: `Modified ${replaceResult.count} files and pushed`,
-        modified: replaceResult.modified,
-        commitMessage
-      };
+      return { success: true, message: `Modified ${replaceResult.count} files and pushed`, modified: replaceResult.modified };
     } catch (error) {
-      console.error(`❌ Search/Replace workflow failed:`, error.message);
-      return {
-        success: false,
-        error: error.message
-      };
+      return { success: false, error: error.message };
     }
   }
 
-  /**
-   * List files in repository
-   */
+  async searchReplaceInFiles(repoName, targetFiles, pattern, replacement, commitMessage) {
+    try {
+      const cloneResult = await this.cloneRepo(repoName);
+      if (!cloneResult.success) return cloneResult;
+
+      const repoPath = path.join(this.workDir, repoName);
+      const modified = [];
+
+      for (const file of targetFiles) {
+        const filePath = path.join(repoPath, file);
+        try {
+          await fs.access(filePath);
+          const content = await fs.readFile(filePath, 'utf-8');
+          if (new RegExp(pattern).test(content)) {
+            const newContent = content.replace(new RegExp(pattern, 'g'), replacement);
+            if (content !== newContent) {
+                 await fs.writeFile(filePath, newContent, 'utf-8');
+                 modified.push(file);
+            }
+          }
+        } catch (error) {
+           console.log(`File not found or error processing: ${file}, ${error.message}`);
+        }
+      }
+
+      if (modified.length === 0) {
+        return { success: true, message: 'No files were modified (pattern not found or content was identical).', modified: [] };
+      }
+
+      const commitResult = await this.commit(repoName, commitMessage);
+       if (!commitResult.success) return { success: false, step: 'commit', error: commitResult.error };
+       if(commitResult.message === 'No changes to commit') {
+            return { success: true, message: "No functional changes detected after replacement."}
+        }
+
+      const pushResult = await this.push(repoName);
+      if (!pushResult.success) return { success: false, step: 'push', error: pushResult.error };
+
+      return { success: true, modified, count: modified.length, message: `Modified ${modified.length} files and pushed` };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+    
   async listFiles(repoName, directory = '.') {
     try {
       const repoPath = path.join(this.workDir, repoName, directory);
       const files = await fs.readdir(repoPath, { withFileTypes: true });
-      
       const fileList = files.map(f => ({
         name: f.name,
         type: f.isDirectory() ? 'directory' : 'file',
         path: path.join(directory, f.name)
       }));
-
-      return {
-        success: true,
-        files: fileList
-      };
+      return { success: true, files: fileList };
     } catch (error) {
-      console.error(`❌ List files failed:`, error.message);
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
-
-  /**
-   * Cleanup workspace
-   */
-  async cleanup() {
-    try {
-      await execAsync(`rm -rf ${this.workDir}`);
-      console.log(`✅ Workspace cleaned`);
-      return { success: true };
-    } catch (error) {
-      console.error(`❌ Cleanup failed:`, error.message);
       return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * Search and replace in SPECIFIC files (Smart Detection)
-   * @param {string} repoName - Repository name
-   * @param {string[]} targetFiles - Specific files to modify
-   * @param {string} pattern - Pattern to search for
-   * @param {string} replacement - Replacement text
-   * @param {string} commitMessage - Commit message
-   */
-  async searchReplaceInFiles(repoName, targetFiles, pattern, replacement, commitMessage) {
-    try {
-      console.log(`🎯 Targeting specific files:`, targetFiles);
-      
-      // Clone repository
-      const cloneResult = await this.cloneRepo(repoName);
-      if (!cloneResult.success) {
-        return cloneResult;
-      }
-
-      const repoPath = path.join(this.workDir, repoName);
-      const modified = [];
-
-      // Process only target files
-      for (const file of targetFiles) {
-        const filePath = path.join(repoPath, file);
-        
-        try {
-          // Check if file exists
-          await fs.access(filePath);
-          
-          // Read file
-          const content = await fs.readFile(filePath, 'utf-8');
-          
-          // Check if pattern exists
-          if (content.includes(pattern) || new RegExp(pattern).test(content)) {
-            // Replace
-            const newContent = content.replace(new RegExp(pattern, 'g'), replacement);
-            
-            // Write back
-            await fs.writeFile(filePath, newContent, 'utf-8');
-            modified.push(file);
-            console.log(`✅ Modified: ${file}`);
-          } else {
-            console.log(`⚠️ Pattern not found in: ${file}`);
-          }
-        } catch (error) {
-          console.log(`⚠️ File not found or error: ${file}`);
-        }
-      }
-
-      if (modified.length === 0) {
-        return {
-          success: false,
-          error: 'No files were modified (pattern not found in target files)'
-        };
-      }
-
-      // Commit
-      const commitResult = await this.commit(repoName, commitMessage);
-      if (!commitResult.success) {
-        return commitResult;
-      }
-
-      // Push
-      const pushResult = await this.push(repoName);
-      if (!pushResult.success) {
-        return pushResult;
-      }
-
-      return {
-        success: true,
-        modified,
-        count: modified.length,
-        message: `Modified ${modified.length} files and pushed`
-      };
-    } catch (error) {
-      console.error(`❌ searchReplaceInFiles failed:`, error.message);
-      return {
-        success: false,
-        error: error.message
-      };
     }
   }
 }
 
-// Export singleton
-export const githubTools = new GitHubTools(process.env.GITHUB_TOKEN);
 export default GitHubTools;
