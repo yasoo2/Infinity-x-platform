@@ -7,25 +7,44 @@ const LoginModal = ({ onClose, onLoginSuccess }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  // Use the environment variable for the API base URL, with a fallback for local dev
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://backend-api.onrender.com';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    // Check if credentials match Super Admin
-    if (email === 'info.auraaluxury@gmail.com' && password === 'younes2025') {
-      // Save token to localStorage
-      localStorage.setItem('sessionToken', 'super-admin-token');
-      
-      // Call success callback
-      if (onLoginSuccess) {
-        onLoginSuccess();
-      }
-    } else {
-      setError('Invalid email or password');
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            // Use the token received from the backend
+            const sessionToken = data.token;
+            if (sessionToken) {
+                localStorage.setItem('sessionToken', sessionToken);
+                if (onLoginSuccess) {
+                    onLoginSuccess(); // Trigger redirect or state change in parent
+                }
+            } else {
+                setError('Login successful, but no session token was provided.');
+            }
+        } else {
+            // Use the error message from the backend, or a default one
+            setError(data.message || 'Invalid email or password');
+        }
+    } catch (err) {
+        console.error('Login API Error:', err);
+        setError('A network error occurred. Please try again later.');
     }
-    
+
     setLoading(false);
   };
 
