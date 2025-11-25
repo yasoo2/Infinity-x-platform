@@ -48,6 +48,21 @@ app.use(helmet());
 app.use(cors({ origin: '*', credentials: true }));
 app.use(express.json({ limit: '50mb' }));
 
+// --- Serve Static Frontend Files ---
+const publicSitePath = path.join(__dirname, '..', 'public-site');
+const dashboardPath = path.join(__dirname, '..', 'dashboard-x', 'dist');
+
+// Serve public-site (landing page and login) at root
+app.use(express.static(publicSitePath));
+
+// Serve dashboard-x at /dashboard
+app.use('/dashboard', express.static(dashboardPath));
+
+// Fallback for SPA routing: serve index.html for unmatched routes in dashboard
+app.get('/dashboard*', (req, res) => {
+    res.sendFile(path.join(dashboardPath, 'index.html'));
+});
+
 async function setupDependencies() {
     let db;
     try {
@@ -109,7 +124,12 @@ async function startServer() {
     setupAuth(dependencies.db);
     await applyRoutes(dependencies);
     
-    app.use((req, res) => res.status(404).json({ error: 'NOT_FOUND' }));
+    // Fallback for SPA routing: serve index.html for unmatched routes at root
+  app.get('*', (req, res) => {
+      res.sendFile(path.join(publicSitePath, 'index.html'));
+  });
+  
+  app.use((req, res) => res.status(404).json({ error: 'NOT_FOUND' }));
     app.use((err, req, res, next) => {
         console.error('❌ Global Error:', err);
         res.status(500).json({ error: 'SERVER_ERROR', message: err.message });
