@@ -1,8 +1,20 @@
 import React, { useState, useEffect, useReducer, useCallback } from 'react';
 import { Store, ShoppingCart, TrendingUp, AlertCircle, CheckCircle, Loader, RefreshCw, BarChart3, Package, Search, Filter, Download, Upload, Zap, Activity, Globe, Lock, Key, Server, Database, Eye, EyeOff, Sparkles, Target, Rocket } from 'lucide-react';
 
-// API Configuration
-const API_BASE = import.meta.env?.VITE_API_BASE || 'https://api.xelitesolutions.com';
+// API Configuration - متوافق مع نظامك
+const getApiConfig = () => {
+  const isDevelopment = import.meta.env.MODE !== 'production';
+  return {
+    apiBaseUrl: isDevelopment 
+      ? 'http://localhost:4000/api/v1'
+      : 'https://api.xelitesolutions.com/api/v1', // ✅ تم إزالة المسافة الزائدة
+    wsBaseUrl: isDevelopment
+      ? 'ws://localhost:4000'
+      : 'wss://api.xelitesolutions.com'
+  };
+};
+
+const API_CONFIG = getApiConfig();
 
 // State Management with useReducer
 const initialState = {

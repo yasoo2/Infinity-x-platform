@@ -45,7 +45,7 @@ const server = http.createServer(app);
 const defaultWhitelist = [
   'https://xelitesolutions.com',
   'https://www.xelitesolutions.com',
-  'https://backend-api.onrender.com',
+  // 'https://backend-api.onrender.com', // Removed: Old backend URL
   'https://api.xelitesolutions.com',
   'http://localhost:3000',
   'http://localhost:5173',
