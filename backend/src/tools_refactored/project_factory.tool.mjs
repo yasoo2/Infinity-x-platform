@@ -11,11 +11,7 @@ class FullStackProjectFactory {
     }
 
     _initializeMetadata() {
-  const { sandboxManager } = dependencies;
 
-  if (!sandboxManager) {
-    throw new Error('SandboxManager dependency is missing for projectFactoryTool.');
-  }
 
   async createProject({ projectName, projectDescription, features = [] }) {
     try {
@@ -32,12 +28,7 @@ class FullStackProjectFactory {
             },
             note: 'The project structure is ready. Use other tools (like file.tool.mjs) to write the actual code for the features.'
         };
-      return { success: true, path: result.path };
-    } catch (error) {
-      console.error('Project creation error:', error);
-      return { success: false, error: error.message };
     }
-  };
 
   this.createProject.metadata = {
     name: 'createProject',
