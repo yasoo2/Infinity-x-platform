@@ -88,11 +88,15 @@ const corsOptions = {
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
 
-app.use(helmet());
-
-// Apply CORS (including preflight)
+// Apply CORS BEFORE helmet to avoid conflicts
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions)); // Handle preflight requests explicitly
+
+// Apply helmet with CORS-friendly configuration
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+}));
 
 app.use(express.json({ limit: '50mb' }));
 
