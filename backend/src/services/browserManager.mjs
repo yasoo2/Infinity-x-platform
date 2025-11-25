@@ -5,7 +5,7 @@ import { getUpstashRedis } from '../utils/upstashRedis.mjs';
 let browserInstance = null;
 let launchPromise = null;
 
-async function getBrowser() {
+export async function getBrowser() {
     if (browserInstance && browserInstance.isConnected()) {
         return browserInstance;
     }
