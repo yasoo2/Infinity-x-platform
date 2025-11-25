@@ -8,7 +8,7 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const TOOLS_DIR = path.join(__dirname, '..', '..', '..', 'src', 'tools_refactored');
+const TOOLS_DIR_V2 = path.join(__dirname, '..', '..', '..', 'src', 'tools_refactored');
 const TOOLS_DIR_V1 = path.join(__dirname, '..', '..', '..', 'src', 'services', 'tools');
 
 // Helper to check if a value is a class
@@ -27,10 +27,10 @@ class ToolManager {
         if (this._isInitialized) return;
         console.log('🔄 Initializing ToolManager with dependencies...');
 
-        const toolFilesV2 = await fs.readdir(TOOLS_DIR);
+        const toolFilesV2 = await fs.readdir(TOOLS_DIR_V2);
         const toolFilesV1 = await fs.readdir(TOOLS_DIR_V1);
         const allToolFiles = [
-            ...toolFilesV2.map(file => ({ file, dir: TOOLS_DIR })),
+            ...toolFilesV2.map(file => ({ file, dir: TOOLS_DIR_V2 })),
             ...toolFilesV1.map(file => ({ file, dir: TOOLS_DIR_V1 }))
         ];
 

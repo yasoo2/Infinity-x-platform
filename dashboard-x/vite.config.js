@@ -5,6 +5,9 @@ import { viteStaticCopy } from 'vite-plugin-static-copy';
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  define: {
+    'import.meta.env.VITE_API_BASE_URL': JSON.stringify('https://3000-i9roj998jxo9v00pwj743-c1f3d13e.manus-asia.computer/api/v1'),
+  },
   plugins: [
     react(),
     viteStaticCopy({

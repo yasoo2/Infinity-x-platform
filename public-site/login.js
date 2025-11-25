@@ -30,7 +30,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             try {
                 // Send login request to the backend
-                const response = await fetch('/api/v1/auth/login', {
+                const BACKEND_URL = 'https://3000-i9roj998jxo9v00pwj743-c1f3d13e.manus-asia.computer'; // This will be replaced with the actual Render URL in the final deployment
+                const response = await fetch(`${BACKEND_URL}/api/v1/auth/login`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

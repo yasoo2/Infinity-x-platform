@@ -50,15 +50,25 @@ app.use(express.json({ limit: '50mb' }));
 
 // --- Serve Static Frontend Files ---
 const publicSitePath = path.join(__dirname, '..', 'public-site');
-const dashboardPath = path.join(__dirname, '..', 'dashboard-x', 'dist');
+const dashboardPath = path.join(__dirname, '..', 'dashboard-x'); // Assuming the build output is not in 'dist' yet, or we'll build it there.
 
 // --- Serve Static Frontend Files ---
 // 1. Serve dashboard-x at /dashboard (Must be before public-site to avoid conflict)
-app.use('/dashboard', express.static(dashboardPath));
+// We will serve the dashboard from the root of the dashboard-x folder for now, 
+// assuming the build process will place the final files there or in 'dist'.
+// For now, we will assume the dashboard is built into 'dashboard-x/dist' as is common.
+const finalDashboardPath = path.join(__dirname, '..', 'dashboard-x', 'dist');
+app.use('/dashboard', express.static(finalDashboardPath));
 
 // 2. Fallback for SPA routing: serve index.html for unmatched routes in dashboard
 app.get('/dashboard*', (req, res) => {
-    res.sendFile(path.join(dashboardPath, 'index.html'));
+    const indexPath = path.join(finalDashboardPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+    } else {
+        // If the dashboard hasn't been built yet, serve the placeholder index.html
+        res.sendFile(path.join(__dirname, '..', 'dashboard-x', 'index.html'));
+    }
 });
 
 // 3. Serve public-site (landing page and login) at root
