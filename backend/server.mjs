@@ -64,15 +64,13 @@ const whitelist = process.env.CORS_ORIGINS
 console.log('CORS whitelist:', whitelist);
 
 // Simplified CORS configuration - explicit and guaranteed to work
+// --- AGGRESSIVE CORS FOR DEBUGGING ---
+// This is NOT secure for production, but will help us isolate the problem.
 const corsOptions = {
-  origin: whitelist,
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
-  exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  maxAge: 86400,
-  optionsSuccessStatus: 200,
-  preflightContinue: false,
+  origin: "*", // Allow all origins
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  credentials: false // Credentials cannot be used with wildcard origin
 };
 
 app.set('trust proxy', 1);
