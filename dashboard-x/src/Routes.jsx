@@ -8,6 +8,7 @@ import Activity from './pages/Activity';
 import Build from './pages/Build';
 import Command from './pages/Command';
 import Joe from './pages/Joe';
+import Home from './pages/Home';
 import MonitoringPage from './pages/MonitoringPage';
 import NotFound from './pages/NotFound';
 import Overview from './pages/Overview';
@@ -43,13 +44,12 @@ const AppRoutes = () => {
     <Router>
       <Routes>
         {/* Public Routes */}
+        <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
-        <Route path="*" element={<NotFound />} /> {/* Catch-all for non-existent public routes */}
 
         {/* Protected Routes (Requires Authentication) */}
-        <Route path="/" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-          <Route index element={<Joe />} />
+        <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
           <Route path="joe" element={<Joe />} />
           <Route path="overview" element={<Overview />} />
           <Route path="activity" element={<Activity />} />
@@ -62,6 +62,7 @@ const AppRoutes = () => {
           <Route path="users" element={<ProtectedRoute allowedRoles={['super_admin', 'admin']}><Users /></ProtectedRoute>} />
           <Route path="super-admin" element={<ProtectedRoute allowedRoles={['super_admin']}><SuperAdminPanel /></ProtectedRoute>} />
         </Route>
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>
   );
