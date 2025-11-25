@@ -14,7 +14,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 // --- Now, import the rest of the app ---
 import express from 'express';
-// import cors from 'cors'; // Removed - using custom CORS middleware instead
+import cors from 'cors';
 import helmet from 'helmet';
 import http from 'http';
 import fs from 'fs';
@@ -65,43 +65,30 @@ const envOrigins = process.env.CORS_ORIGINS
 // Combine default whitelist with environment-specified origins, removing duplicates
 const whitelist = [...new Set([...defaultWhitelist, ...envOrigins])];
 
-console.log('CORS whitelist:', whitelist);
+console.log('CORS whitelist configured:', whitelist);
+
+// --- Apply standard 'cors' middleware ---
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or Postman)
+    if (!origin) return callback(null, true);
+    
+    if (whitelist.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.log(`[CORS] Blocked origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+}));
 
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
-
-// --- ULTIMATE CORS FIX - Handle ALL requests ---
-app.use((req, res, next) => {
-  const origin = req.headers.origin || req.headers.referer;
-  
-  console.log(`[CORS] ${req.method} ${req.path} from origin: ${origin}`);
-
-  // 1. Set Access-Control-Allow-Origin and Credentials only if origin is whitelisted
-  let isWhitelisted = false;
-  if (origin && whitelist.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    isWhitelisted = true;
-  }
-
-  // 2. Set common CORS headers for ALL requests
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
-  res.setHeader('Access-Control-Expose-Headers', 'Content-Range, X-Content-Range');
-  res.setHeader('Access-Control-Max-Age', '86400');
-  
-  // 3. Handle preflight OPTIONS requests immediately
-  if (req.method === 'OPTIONS') {
-    // FINAL, ABSOLUTE TEST: Allow all origins for OPTIONS request to isolate the issue.
-    // This is a temporary measure to confirm the code is being executed.
-    res.setHeader('Access-Control-Allow-Origin', origin || '*');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    console.log('[CORS] Handling OPTIONS preflight request - FORCED ALLOW (TEST)');
-    return res.status(204).end();
-  }
-  
-  next();
-});
 
 // Apply helmet with CORS-friendly configuration
 app.use(helmet({
