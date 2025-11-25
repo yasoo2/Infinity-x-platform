@@ -1,10 +1,10 @@
 /**
  * Automated Testing Tool - Bridge to the Automated Testing System
- * @version 1.0.0
+ * @version 1.0.1
  */
 
 import { testingSystem } from '../systems/testing.service.mjs';
-import { read_file } from '../../tools_available/fs.cjs'; // Assuming access to basic fs tools
+import { readFile } from 'fs/promises'; // Correctly import from Node.js built-in module
 
 /**
  * Generates and then runs tests for a specified source file.
@@ -16,8 +16,8 @@ async function generateAndRunTests({ filePath }) {
   try {
     console.log(`🤖 Starting test generation and execution for ${filePath}...`);
     
-    // 1. Read the file content first
-    const fileContent = await read_file({ path: filePath });
+    // 1. Read the file content first using the corrected import
+    const fileContent = await readFile(filePath, 'utf8');
     if (!fileContent) {
         return { success: false, error: `File not found or empty: ${filePath}` };
     }
