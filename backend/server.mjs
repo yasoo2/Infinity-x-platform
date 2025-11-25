@@ -41,12 +41,12 @@ const CONFIG = {
 const app = express();
 const server = http.createServer(app);
 
-// --- CORS Configuration (تمت إزالة المسافات البيضاء) ---
+// --- CORS Configuration ---
 const defaultWhitelist = [
-  'https://xelitesolutions.com',      // ✅ تم إزالة المسافة
-  'https://www.xelitesolutions.com',  // ✅ تم إزالة المسافة
-  'https://backend-api.onrender.com', // ✅ تم إزالة المسافة
-  'https://api.xelitesolutions.com',  // ✅ تم إزالة المسافة
+  'https://xelitesolutions.com',
+  'https://www.xelitesolutions.com',
+  'https://backend-api.onrender.com',
+  'https://api.xelitesolutions.com',
   'http://localhost:3000',
   'http://localhost:5173',
   'http://localhost:4000',
@@ -64,18 +64,9 @@ const whitelist = [...new Set([...defaultWhitelist, ...envOrigins])];
 console.log('📋 CORS whitelist configured:', whitelist);
 
 // --- Apply standard 'cors' middleware ---
+// FINAL, ABSOLUTE TEST: Use a simple, permissive configuration to definitively isolate the issue.
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or Postman)
-    if (!origin) return callback(null, true);
-    
-    if (whitelist.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.log(`🚫 CORS Blocked origin: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: '*', // Allow all origins for the test
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
