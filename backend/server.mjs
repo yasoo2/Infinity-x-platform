@@ -1,10 +1,10 @@
+// ملف: backend/server.mjs (الإصدار النهائي والمصحح)
 
 // --- Pre-load environment variables ---
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// Define __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -12,13 +12,12 @@ if (process.env.NODE_ENV !== 'production') {
     dotenv.config({ path: path.resolve(__dirname, '.env') });
 }
 
-// --- Now, import the rest of the app ---
+// --- Import modules ---
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import http from 'http';
 import fs from 'fs';
-// import { register, collectDefaultMetrics } from 'prom-client'; // Removed as dependency was uninstalled
 
 // --- Core Components ---
 import { initMongo, closeMongoConnection } from './src/core/database.mjs';
@@ -39,18 +38,15 @@ const CONFIG = {
   NODE_ENV: process.env.NODE_ENV || 'development',
 };
 
-// collectDefaultMetrics(); // Removed as dependency was uninstalled
-
 const app = express();
 const server = http.createServer(app);
 
-// --- CORS Configuration ---
-// Allow CORS from environment variable or use default whitelist
+// --- CORS Configuration (تمت إزالة المسافات البيضاء) ---
 const defaultWhitelist = [
-  'https://xelitesolutions.com',
-  'https://www.xelitesolutions.com',
-  'https://backend-api.onrender.com',
-  'https://api.xelitesolutions.com',
+  'https://xelitesolutions.com',      // ✅ تم إزالة المسافة
+  'https://www.xelitesolutions.com',  // ✅ تم إزالة المسافة
+  'https://backend-api.onrender.com', // ✅ تم إزالة المسافة
+  'https://api.xelitesolutions.com',  // ✅ تم إزالة المسافة
   'http://localhost:3000',
   'http://localhost:5173',
   'http://localhost:4000',
@@ -65,7 +61,7 @@ const envOrigins = process.env.CORS_ORIGINS
 // Combine default whitelist with environment-specified origins, removing duplicates
 const whitelist = [...new Set([...defaultWhitelist, ...envOrigins])];
 
-console.log('CORS whitelist configured:', whitelist);
+console.log('📋 CORS whitelist configured:', whitelist);
 
 // --- Apply standard 'cors' middleware ---
 app.use(cors({
@@ -76,7 +72,7 @@ app.use(cors({
     if (whitelist.includes(origin)) {
       callback(null, true);
     } else {
-      console.log(`[CORS] Blocked origin: ${origin}`);
+      console.log(`🚫 CORS Blocked origin: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -100,43 +96,30 @@ app.use(express.json({ limit: '50mb' }));
 
 // --- Serve Static Frontend Files ---
 const publicSitePath = path.join(__dirname, '..', 'public-site');
-const dashboardPath = path.join(__dirname, '..', 'dashboard-x'); // Assuming the build output is not in 'dist' yet, or we'll build it there.
+const dashboardPath = path.join(__dirname, '..', 'dashboard-x');
 
-// --- Serve Static Frontend Files ---
-// 1. Serve dashboard-x at /dashboard (Must be before public-site to avoid conflict)
-// We will serve the dashboard from the root of the dashboard-x folder for now, 
-// assuming the build process will place the final files there or in 'dist'.
-// For now, we will assume the dashboard is built into 'dashboard-x/dist' as is common.
 const finalDashboardPath = path.join(__dirname, '..', 'dashboard-x', 'dist');
 app.use('/dashboard', express.static(finalDashboardPath));
 
-// 2. Fallback for SPA routing: serve index.html for unmatched routes in dashboard
 app.get('/dashboard*', (req, res) => {
     const indexPath = path.join(finalDashboardPath, 'index.html');
     if (fs.existsSync(indexPath)) {
         res.sendFile(indexPath);
     } else {
-        // If the dashboard hasn't been built yet, serve the placeholder index.html
         res.sendFile(path.join(__dirname, '..', 'dashboard-x', 'index.html'));
     }
 });
 
-// 3. Serve public-site (landing page and login) at root
-// Serve the Dashboard (which will contain the new landing logic) at the root path
 app.get('/', (req, res) => {
     const indexPath = path.join(finalDashboardPath, 'index.html');
     if (fs.existsSync(indexPath)) {
         res.sendFile(indexPath);
     } else {
-        // Fallback to the public site if dashboard is not built
         res.sendFile(path.join(publicSitePath, 'index.html'));
     }
 });
 
-// Serve other static files from public-site (for login.html, etc.)
 app.use(express.static(publicSitePath));
-
-// Serve static files from the built dashboard (must be after public-site to avoid conflict)
 app.use(express.static(finalDashboardPath));
 
 async function setupDependencies() {
@@ -145,13 +128,9 @@ async function setupDependencies() {
     let schedulingSystem = null;
     try {
         db = await initMongo();
-        // Run Super Admin setup after successful DB connection
         await setupSuperAdmin(() => Promise.resolve(db));
-
-        // Initialize Advanced Systems
         planningSystem = new PlanningSystem(db);
         schedulingSystem = new SchedulingSystem(db);
-
     } catch (error) {
         console.error('Could not connect to MongoDB. Continuing without database connection.', error);
         db = null;
@@ -159,7 +138,6 @@ async function setupDependencies() {
     const sandboxManager = await new SandboxManager().initializeConnections();
     const memoryManager = new MemoryManager();
     
-    // The dependencies object that will be passed around
     const dependencies = {
         db,
         sandboxManager,
@@ -171,10 +149,8 @@ async function setupDependencies() {
         optionalAuth: optionalAuth(db),
     };
 
-    // Pass the dependencies to the ToolManager
     await toolManager.initialize(dependencies);
-    dependencies.toolManager = toolManager; // Add toolManager itself to dependencies
-
+    dependencies.toolManager = toolManager;
     const joeAgentServer = new JoeAgentWebSocketServer(server, dependencies);
     dependencies.joeAgentServer = joeAgentServer;
 
@@ -189,7 +165,6 @@ async function applyRoutes(dependencies) {
     if (file.endsWith('.router.mjs')) {
         const routeName = file.split('.')[0];
         const routePath = `/api/v1/${routeName}`;
-        // Skip loading planning and scheduling routers if the system is not initialized
         if ((routeName === 'planning' && !dependencies.planningSystem) || (routeName === 'scheduling' && !dependencies.schedulingSystem)) {
             console.warn(`⚠️ Skipping loading of ${routeName} router because the system is not initialized.`);
             continue;
@@ -203,10 +178,6 @@ async function applyRoutes(dependencies) {
         }
     }
   }
-  
-  // app.get('/metrics', async (req, res) => {
-  //     // Removed as dependency was uninstalled
-  // });
 }
 
 async function startServer() {
@@ -233,13 +204,11 @@ async function startServer() {
 }
 
 async function gracefulShutdown(signal) { 
-    console.log(`
-🔌 Received ${signal}. Shutting down gracefully...`);
+    console.log(`🔌 Received ${signal}. Shutting down gracefully...`);
     server.close(async () => {
         console.log('Closed out remaining connections.');
         await Promise.all([
             closeMongoConnection().then(() => console.log('MongoDB connection closed.')),
-            // Add other service shutdowns here if needed (e.g., Redis)
         ]);
         process.exit(0);
     });
