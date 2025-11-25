@@ -57,9 +57,13 @@ const defaultWhitelist = [
   'http://localhost:4001',
 ];
 
-const whitelist = process.env.CORS_ORIGINS
+// The whitelist is a combination of the default list and any origins specified in the environment variable.
+const envOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',').map(s => s.trim())
-  : defaultWhitelist;
+  : [];
+
+// Combine default whitelist with environment-specified origins, removing duplicates
+const whitelist = [...new Set([...defaultWhitelist, ...envOrigins])];
 
 console.log('CORS whitelist:', whitelist);
 
