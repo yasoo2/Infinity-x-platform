@@ -13,7 +13,7 @@ class FullStackProjectFactory {
     _initializeMetadata() {
 
 
-  async createProject({ projectName, projectDescription, features = [] }) {
+    async createProject({ projectName, projectDescription, features = [] }) {
     try {
       const projectPath = `/home/joe/projects/${projectName}`;
         return {
@@ -30,7 +30,7 @@ class FullStackProjectFactory {
         };
     }
 
-  this.createProject.metadata = {
+    this.createProject.metadata = {
     name: 'createProject',
     description: 'Initializes a new full-stack web project (Backend API, Frontend UI, Database setup) based on a detailed description. The project is created in a new directory in the workspace.',
     parameters: {
@@ -45,7 +45,7 @@ class FullStackProjectFactory {
   };
 
   // Return the tool functions keyed by their name
-  this.deployProject.metadata = {
+    this.deployProject.metadata = {
             name: "deployProject",
             description: "Deploys a completed project from the workspace to a specified hosting service (e.g., Render, Vercel, AWS).",
             parameters: {
