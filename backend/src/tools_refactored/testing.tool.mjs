@@ -1,6 +1,6 @@
 /**
  * Automated Testing Tool - Bridge to the Automated Testing System
- * @version 1.0.3
+ * @version 1.0.4
  */
 
 import { testingSystem } from "../systems/testing.service.mjs";
