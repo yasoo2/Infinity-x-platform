@@ -98,8 +98,4 @@ runExistingTests.metadata = {
 export default {
   generateAndRunTests,
   runExistingTests,
-<<<<<<< HEAD
 };
-=======
-};
->>>>>>> 256db1688fe01d7faf1a44c556cc99a1e3ec0faf
