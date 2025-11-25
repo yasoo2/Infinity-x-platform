@@ -88,17 +88,16 @@ app.use((req, res, next) => {
   
   // 3. Handle preflight OPTIONS requests immediately
   if (req.method === 'OPTIONS') {
-    // The ACAO header MUST be set for the preflight to succeed.
-    // We only return 204 if the origin was whitelisted and ACAO was set.
-    if (isWhitelisted) {
-        console.log('[CORS] Handling OPTIONS preflight request - SUCCESS');
-        return res.status(204).end();
+    // FINAL TEST: If the origin is not whitelisted, we set ACAO to the origin anyway
+    // This is a temporary measure to isolate the issue to the code vs. deployment.
+    if (!isWhitelisted) {
+        res.setHeader('Access-Control-Allow-Origin', origin || '*');
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+        console.log('[CORS] Handling OPTIONS preflight request - FORCED SUCCESS (TEST)');
     } else {
-        // If not whitelisted, we let it fall through to next() or the 404/error handler.
-        // The browser will block it anyway because ACAO is missing.
-        console.log('[CORS] Handling OPTIONS preflight request - BLOCKED');
-        return res.status(403).json({ error: 'CORS_BLOCKED', message: 'Origin not allowed by CORS policy.' });
+        console.log('[CORS] Handling OPTIONS preflight request - SUCCESS');
     }
+    return res.status(204).end();
   }
   
   next();
