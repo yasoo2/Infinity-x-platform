@@ -1,6 +1,7 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import User from '../database/models/User.mjs';
 import {ROLES} from '../../../shared/roles.js'
 
 const authRouterFactory = ({ db }) => {
@@ -15,7 +16,7 @@ const authRouterFactory = ({ db }) => {
         try {
             const { email, phone, password } = req.body;
 
-            // --- Validation -- -
+            // --- Validation ---
             if (!email || !password) {
                 return res.status(400).json({ success: false, error: 'Email and password are required.' });
             }
@@ -23,32 +24,28 @@ const authRouterFactory = ({ db }) => {
                 return res.status(400).json({ success: false, error: 'Password must be at least 8 characters long.' });
             }
 
-            // --- Check for existing user -- -
-            const existingUser = await db.collection('users').findOne({ email: email.toLowerCase() });
+            // --- Check for existing user ---
+            const existingUser = await User.findOne({ email: email.toLowerCase() });
             if (existingUser) {
                 return res.status(409).json({ success: false, error: 'An account with this email already exists.' });
             }
 
-            // --- Create new user -- -
+            // --- Create new user ---
             const hashedPassword = await bcrypt.hash(password, 12);
-            const now = new Date();
 
-            const newUser = {
+            const newUser = new User({
                 email: email.toLowerCase(),
                 phone: phone || null,
-                password: hashedPassword, // Using 'password' to match other schemas
+                password: hashedPassword,
                 role: ROLES.USER, // Standard user role
-                createdAt: now,
-                updatedAt: now,
-                lastLoginAt: null,
-            };
+            });
 
-            const result = await db.collection('users').insertOne(newUser);
+            await newUser.save();
 
             res.status(201).json({
                 success: true,
                 message: 'User created successfully.',
-                userId: result.insertedId,
+                userId: newUser._id,
             });
 
         } catch (error) {
@@ -57,41 +54,48 @@ const authRouterFactory = ({ db }) => {
         }
     });
 
-        /**
+    /**
      * @route POST /api/v1/auth/login
      * @description Logs in a user.
      * @access Public
      */
     router.post('/login', async (req, res) => {
         try {
-            // CORRECTED: Changed 'username' to 'email' to match frontend and logic
             const { email, password } = req.body;
 
-            // --- Validation -- -
-            // CORRECTED: Changed 'username' to 'email'
+            // --- Validation ---
             if (!email || !password) {
                 return res.status(400).json({ success: false, error: 'Email and password are required.' });
             }
 
-            // --- Find user -- -
-            // CORRECTED: Changed 'username' to 'email'
-            const user = await db.collection('users').findOne({ email: email.toLowerCase() });
+            // --- Find user using Mongoose ---
+            const user = await User.findOne({ email: email.toLowerCase() });
             if (!user) {
                 return res.status(401).json({ success: false, message: 'Invalid credentials.' });
             }
 
-            // --- Check password -- -
+            // --- Check password ---
             const isMatch = await bcrypt.compare(password, user.password);
             if (!isMatch) {
                 // Return the same generic error for security reasons
                 return res.status(401).json({ success: false, message: 'Invalid credentials.' });
             }
 
-            // --- Generate JWT -- -
-            const token = jwt.sign({ userId: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+            // --- Generate JWT ---
+            if (!process.env.JWT_SECRET) {
+                console.error('❌ JWT_SECRET is not defined in environment variables!');
+                return res.status(500).json({ success: false, error: 'Server configuration error.' });
+            }
+
+            const token = jwt.sign(
+                { userId: user._id, role: user.role }, 
+                process.env.JWT_SECRET, 
+                { expiresIn: '1h' }
+            );
             
             // --- Update last login timestamp ---
-            await db.collection('users').updateOne({ _id: user._id }, { $set: { lastLoginAt: new Date() } });
+            user.lastLoginAt = new Date();
+            await user.save();
 
             res.status(200).json({
                 success: true,

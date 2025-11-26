@@ -18,7 +18,23 @@ const userSchema = new mongoose.Schema({
     enum: ['user', 'admin', 'super_admin'],
     default: 'user',
   },
+  phone: {
+    type: String,
+    default: null,
+  },
+  isVerified: {
+    type: Boolean,
+    default: false,
+  },
+  lastLoginAt: {
+    type: Date,
+    default: null,
+  },
   createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+  updatedAt: {
     type: Date,
     default: Date.now,
   },
