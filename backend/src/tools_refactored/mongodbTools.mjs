@@ -7,7 +7,7 @@ import { MongoClient } from 'mongodb';
 
 class MongoDBTools {
   constructor(uri) {
-    this.uri = uri || process.env.MONGO_URI;
+    this.uri = uri || process.env.MONGODB_URI || process.env.MONGO_URI;
     this.client = null;
     this.db = null;
   }
@@ -435,5 +435,5 @@ class MongoDBTools {
 }
 
 // Export singleton
-export const mongodbTools = new MongoDBTools(process.env.MONGO_URI);
+export const mongodbTools = new MongoDBTools(process.env.MONGODB_URI || process.env.MONGO_URI);
 export default MongoDBTools;

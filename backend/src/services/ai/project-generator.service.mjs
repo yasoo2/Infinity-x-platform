@@ -24,7 +24,7 @@ const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const OWNER = process.env.GITHUB_OWNER || process.env.OWNER;
 const REPO = process.env.GITHUB_REPO || process.env.REPO;
 const PROJECTS_DIR = process.env.PROJECTS_DIR || '/tmp/joe-projects';
-const MONGO_URI = process.env.MONGO_URI;
+const MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URI;
 const DB_NAME = process.env.DB_NAME || 'joe_db';
 
 // 🐙 GitHub Client

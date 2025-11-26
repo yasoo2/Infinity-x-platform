@@ -18,7 +18,8 @@ dotenv.config();
 
 async function run() {
     const [,, email, password] = process.argv;
-    const { MONGO_URI, DB_NAME = 'future_system' } = process.env;
+    const MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URI;
+    const DB_NAME = process.env.DB_NAME || 'future_system';
 
     // --- Validation ---
     if (!MONGO_URI) {

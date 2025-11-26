@@ -1,7 +1,7 @@
 
 import mongoose from 'mongoose';
 
-const MONGODB_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/joe_platform';
+const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/joe_platform';
 
 let dbInstance = null;
 
