@@ -437,7 +437,8 @@ server {
         proxy_cache_bypass $http_upgrade;
     }
     
-    location /ws {
+    # توجيه جميع مسارات WebSocket إلى الخادم الخلفي
+    location ~ ^/ws/(joe-agent|browser|live-stream) {
         proxy_pass http://localhost:10000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
