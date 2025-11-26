@@ -154,10 +154,18 @@ export const useJoeChat = () => {
     const connect = () => {
       const sessionToken = localStorage.getItem('sessionToken');
       if (!sessionToken) return;
-      // Use VITE_API_BASE_URL and convert http(s) to ws(s)
-      const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://api.xelitesolutions.com';
-      const wsBase = apiBase.replace(/^http/, 'ws');
-      const wsUrl = `${wsBase}/ws?token=${sessionToken}`;
+      // Use VITE_WS_URL if defined, otherwise build from VITE_API_BASE_URL
+      let wsUrl;
+      if (import.meta.env.VITE_WS_URL) {
+        // Use predefined WebSocket URL and append token
+        const baseWsUrl = import.meta.env.VITE_WS_URL.replace(/\/ws.*$/, '/ws');
+        wsUrl = `${baseWsUrl}?token=${sessionToken}`;
+      } else {
+        // Fallback: build from API base URL
+        const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://api.xelitesolutions.com';
+        const wsBase = apiBase.replace(/^http/, 'ws');
+        wsUrl = `${wsBase}/ws?token=${sessionToken}`;
+      }
       ws.current = new WebSocket(wsUrl);
       ws.current.onopen = () => dispatch({ type: 'ADD_WS_LOG', payload: '[WS] Connection established' });
       ws.current.onclose = () => setTimeout(connect, 3000);
