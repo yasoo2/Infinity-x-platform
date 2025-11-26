@@ -177,15 +177,13 @@ export const useJoeChat = () => {
       } else {
         // Fallback: build from API base URL
         // استخدام api.xelitesolutions.com بشكل افتراضي
-        // The dashboard is running on the admin subdomain, so we should use the current host.
-        const currentHost = window.location.host;
-        const wsBase = currentHost.replace(/^https/, 'wss').replace(/^http/, 'ws');
-        // Fallback to a hardcoded API base if needed, but prioritize current host for WS
-        // const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://api.xelitesolutions.com';
-        // const wsBase = apiBase.replace(/^https/, 'wss').replace(/^http/, 'ws');
+        // The dashboard is running on the admin subdomain, but the WebSocket server is on the API subdomain.
+        // We must use the API subdomain for the WebSocket connection.
+        const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://api.xelitesolutions.com';
+        const wsBase = apiBase.replace(/^https/, 'wss').replace(/^http/, 'ws');
 
-        // تم تعديل المسار ليتطابق مع مسار خادم Joe Agent
-        wsUrl = `wss://${wsBase}/ws/joe-agent?token=${sessionToken}`;
+        // Use the correct API base for the WebSocket connection
+        wsUrl = `${wsBase}/ws/joe-agent?token=${sessionToken}`;
       }
       // Diagnostic log to verify WebSocket URL
       console.log('[Joe Agent] Connecting to WebSocket:', wsUrl.replace(/token=.*/, 'token=***'));
