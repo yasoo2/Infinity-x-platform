@@ -46,18 +46,18 @@ const useAuth = () => {
     return false;
   };
 
-  const logout = () => {
-    localStorage.removeItem('sessionToken');
-    setUser(null);
-    setIsAuthenticated(false);
-  };
+  // const logout = () => { // Removed as per user request
+  //   localStorage.removeItem('sessionToken');
+  //   setUser(null);
+  //   setIsAuthenticated(false);
+  // };
 
   return {
     isAuthenticated,
     user,
     isLoading,
     login,
-    logout,
+    // logout, // Removed as per user request
   };
 };
 
