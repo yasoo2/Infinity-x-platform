@@ -14,7 +14,11 @@
   const connectWebSocket = (onMessage, onOpen, onClose) => {
     // يجب عليك تعديل هذا الجزء ليتناسب مع طريقة اتصالك بـ WebSocket
     // مثال:
-    const ws = new WebSocket('ws://localhost:8000/ws'); // استبدل بالـ URL الخاص بك
+    // تم تصحيح المسار ليتطابق مع مسار خادم Joe Agent
+    const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://api.xelitesolutions.com';
+    const wsBase = apiBase.replace(/^http/, 'ws');
+    const wsUrl = `${wsBase}/ws/joe-agent`; // لا حاجة لتوكين هنا
+    const ws = new WebSocket(wsUrl);
     ws.onopen = onOpen;
     ws.onmessage = (event) => {
       try {

@@ -1,6 +1,8 @@
 
 import { WebSocketServer } from 'ws';
 import joeAdvanced from './ai/joe-advanced.service.mjs'; // The ONE TRUE BRAIN
+import jwt from 'jsonwebtoken';
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 /**
  * Joe Agent WebSocket Server - v2.0 "Unified"
@@ -17,11 +19,38 @@ export class JoeAgentWebSocketServer {
 
   setupWebSocketServer() {
     this.wss.on('connection', (ws, req) => {
-      console.log('[JoeAgentV2] New client connected.');
-      // Associate WebSocket connection with a user/session if available
-      // For now, we'll use a simple session ID from the URL or generate one.
-      const sessionId = req.url.split('?sessionId=')[1] || `session_${Date.now()}`;
-      ws.sessionId = sessionId;
+      // 1. استخراج التوكين من URL
+      const urlParams = new URLSearchParams(req.url.split('?')[1]);
+      const token = urlParams.get('token');
+
+      if (!token) {
+        console.log('[JoeAgentV2] Connection rejected: No token provided.');
+        ws.close(1008, 'Policy Violation: No token provided');
+        return;
+      }
+
+      // 2. التحقق من التوكين
+      let decoded;
+      try {
+        decoded = jwt.verify(token, JWT_SECRET);
+      } catch (err) {
+        console.log('[JoeAgentV2] Connection rejected: Invalid token.');
+        ws.close(1008, 'Policy Violation: Invalid token');
+        return;
+      }
+
+      // 3. ربط الاتصال بمعلومات المستخدم
+      console.log(`[JoeAgentV2] Client connected. User ID: ${decoded.userId}`);
+      ws.userId = decoded.userId;
+      ws.sessionId = `session_${Date.now()}`; // يمكن استخدام أي معرف جلسة آخر
+      ws.role = decoded.role; // تخزين الدور للتحقق من الصلاحيات
+
+      // التحقق من الصلاحيات (اختياري، ولكن يفضل)
+      if (ws.role !== 'super_admin' && ws.role !== 'admin') {
+        console.log(`[JoeAgentV2] Connection rejected: Insufficient role (${ws.role}).`);
+        ws.close(1008, 'Policy Violation: Insufficient role');
+        return;
+      }
 
       ws.on('message', async (message) => {
         try {
@@ -34,9 +63,8 @@ export class JoeAgentWebSocketServer {
             // The model can be specified in the message data, defaulting to gpt-4o
             const model = data.model || 'gpt-4o';
             
-            // The user ID should be handled by your authentication system.
-            // For now, we'll use a placeholder.
-            const userId = 'user_placeholder'; 
+            // استخدام userId المستخرج من التوكين
+            const userId = ws.userId; 
 
             await joeAdvanced.processMessage(userId, data.message, ws.sessionId, { model });
 
