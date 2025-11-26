@@ -35,8 +35,9 @@ export class JoeAgentWebSocketServer {
         const secret = this.dependencies.JWT_SECRET || JWT_SECRET;
         decoded = jwt.verify(token, secret);
       } catch (err) {
-        console.log('[JoeAgentV2] Connection rejected: Invalid token. Error:', err.message);
-        ws.close(1008, 'Policy Violation: Invalid token');
+        // Detailed logging for JWT errors
+        console.log(`[JoeAgentV2] Connection rejected: Token validation failed. Error: ${err.name} - ${err.message}`);
+        ws.close(1008, `Policy Violation: Invalid token (${err.name})`);
         return;
       }
 
