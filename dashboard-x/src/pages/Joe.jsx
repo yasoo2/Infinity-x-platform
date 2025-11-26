@@ -53,7 +53,7 @@ const Joe = () => {
             />
           </div>
         )}
-        {/* Main Console - Center (Flexible) */}}
+        {/* Main Console - Center (Flexible) */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className={`flex-1 overflow-hidden ${isBottomPanelOpen ? '' : 'h-full'}`}>
             <MainConsole />
