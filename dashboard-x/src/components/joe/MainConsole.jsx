@@ -40,7 +40,7 @@ const MainConsole = () => {
   const { 
     messages, isProcessing, progress, currentStep, 
     input, setInput, isListening, handleSend, stopProcessing, 
-    handleVoiceInput, transcript
+    handleVoiceInput, transcript, currentConversation
   } = useJoeChat();
 
   // Auto-scroll to the latest message
@@ -81,7 +81,7 @@ const MainConsole = () => {
       {/* Messages Area - Spacious and Centered */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-5xl mx-auto px-8 py-6">
-          {messages.length === 0 ? (
+          {messages.length === 0 && !currentConversation ? (
             <WelcomeScreen />
           ) : (
             <div className="space-y-5">
