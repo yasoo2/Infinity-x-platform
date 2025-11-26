@@ -7,11 +7,60 @@ const useBrowserWebSocket = () => {
   const [isLoading, setIsLoading] = useState(false);
   const wsRef = useRef(null);
 
-  // Temporarily disable WebSocket connection until the backend supports it
   useEffect(() => {
-    console.log('Browser WebSocket connection temporarily disabled.');
-    setIsConnected(false);
-    return () => {};
+    const connect = () => {
+      const sessionToken = localStorage.getItem('sessionToken');
+      if (!sessionToken) return;
+
+      // بناء URL الـ WebSocket باستخدام المسار الصحيح /ws/browser
+      const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://api.xelitesolutions.com';
+      const wsBase = apiBase.replace(/^http/, 'ws');
+      const wsUrl = `${wsBase}/ws/browser?token=${sessionToken}`;
+
+      wsRef.current = new WebSocket(wsUrl);
+
+      wsRef.current.onopen = () => {
+        setIsConnected(true);
+        console.log('[Browser WS] Connection established');
+      };
+
+      wsRef.current.onclose = () => {
+        setIsConnected(false);
+        console.log('[Browser WS] Connection closed. Reconnecting in 3s...');
+        setTimeout(connect, 3000);
+      };
+
+      wsRef.current.onerror = (err) => {
+        console.error('[Browser WS] Error:', err);
+      };
+
+      wsRef.current.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        switch (data.type) {
+          case 'screenshot':
+            setScreenshot(data.payload.screenshot);
+            setPageInfo(data.payload.pageInfo);
+            setIsLoading(false);
+            break;
+          case 'navigate_result':
+          case 'click_result':
+          case 'type_result':
+          case 'scroll_result':
+          case 'press_key_result':
+            // لا حاجة لعمل شيء هنا، سيتم تحديث الشاشة عبر 'screenshot'
+            break;
+          case 'error':
+            console.error('[Browser WS] Server Error:', data.message);
+            setIsLoading(false);
+            break;
+          default:
+            break;
+        }
+      };
+    };
+
+    connect();
+    return () => wsRef.current?.close();
   }, []);
 
   const navigate = useCallback((url) => {
