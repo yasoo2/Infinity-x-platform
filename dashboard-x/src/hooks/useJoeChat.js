@@ -169,6 +169,8 @@ export const useJoeChat = () => {
         // تم تعديل المسار ليتطابق مع مسار خادم Joe Agent
         wsUrl = `${wsBase}/ws/joe-agent?token=${sessionToken}`;
       }
+      // Diagnostic log to verify WebSocket URL
+      console.log('[Joe Agent] Connecting to WebSocket:', wsUrl.replace(/token=.*/, 'token=***'));
       ws.current = new WebSocket(wsUrl);
       ws.current.onopen = () => dispatch({ type: 'ADD_WS_LOG', payload: '[WS] Connection established' });
       ws.current.onclose = () => setTimeout(connect, 3000);
