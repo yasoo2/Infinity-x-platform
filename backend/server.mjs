@@ -21,6 +21,7 @@ import fs from 'fs';
 
 // --- Core Components ---
 import { initMongo, closeMongoConnection } from './src/core/database.mjs';
+import { connectDB } from './src/db.mjs';
 import { setupSuperAdmin } from './src/core/setup-admin.mjs';
 import PlanningSystem from './src/planning/PlanningSystem.mjs';
 import SchedulingSystem from './src/scheduling/SchedulingSystem.mjs';
@@ -119,6 +120,7 @@ async function setupDependencies() {
     let schedulingSystem = null;
     try {
         db = await initMongo();
+        await connectDB(); // Initialize Mongoose connection
         await setupSuperAdmin(() => Promise.resolve(db));
         planningSystem = new PlanningSystem(db);
         schedulingSystem = new SchedulingSystem(db);
