@@ -74,6 +74,7 @@ const chatReducer = (state, action) => {
         case 'NEW_CONVERSATION': {
             const selectNew = action.payload !== false;
             const newId = uuidv4();
+            console.log('[NEW_CONVERSATION] Creating new conversation with ID:', newId);
             const welcomeMessage = {
                 type: 'joe',
                 content: 'Welcome to Joe AI Assistant! 👋\n\nYour AI-powered engineering partner with 82 tools and functions.\n\nI can help you with:\n💬 Chat & Ask - Get instant answers and explanations\n🛠️ Build & Create - Generate projects and applications\n🔍 Analyze & Process - Work with data and generate insights\n\nStart by typing an instruction below, attaching a file, or using your voice.',
@@ -83,7 +84,7 @@ const chatReducer = (state, action) => {
                 ...conversations,
                 [newId]: { id: newId, title: 'New Conversation', messages: [welcomeMessage], lastModified: Date.now() },
             };
-            return {
+            const newState = {
                 ...state,
                 conversations: newConversations,
                 currentConversationId: selectNew ? newId : state.currentConversationId,
@@ -91,6 +92,8 @@ const chatReducer = (state, action) => {
                 isProcessing: false,
                 plan: [],
             };
+            console.log('[NEW_CONVERSATION] New state:', { conversationCount: Object.keys(newState.conversations).length, currentId: newState.currentConversationId });
+            return newState;
         }
 
         // NEW ACTIONS FOR THE RIGHT PANEL
@@ -155,6 +158,7 @@ export const useJoeChat = () => {
         conversations: state.conversations,
         currentConversationId: state.currentConversationId,
       };
+      console.log('[useEffect] Saving to localStorage:', { conversationCount: Object.keys(dataToSave.conversations).length, currentId: dataToSave.currentConversationId });
       localStorage.setItem(JOE_CHAT_HISTORY, JSON.stringify(dataToSave));
     }
   }, [state.conversations, state.currentConversationId]);
