@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { FiEye, FiEyeOff } from 'react-icons/fi';
+import apiClient from '../../api/client';
 
 const LoginModal = ({ onClose, onLoginSuccess }) => {
   const [email, setEmail] = useState('');
@@ -8,8 +9,7 @@ const LoginModal = ({ onClose, onLoginSuccess }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
-  // Use the environment variable for the API base URL, with a fallback for local dev
-  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://backend-api.onrender.com';
+  // Using the centralized API client instead of hardcoded URL
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -17,17 +17,14 @@ const LoginModal = ({ onClose, onLoginSuccess }) => {
     setLoading(true);
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password }),
+        const response = await apiClient.post('/api/v1/auth/login', {
+            email,
+            password
         });
 
-        const data = await response.json();
-
-        if (response.ok && data.success) {
+        if (response.data.success) {
             // Use the token received from the backend
-            const sessionToken = data.token;
+            const sessionToken = response.data.token;
             if (sessionToken) {
                 localStorage.setItem('sessionToken', sessionToken);
                 if (onLoginSuccess) {
@@ -38,11 +35,11 @@ const LoginModal = ({ onClose, onLoginSuccess }) => {
             }
         } else {
             // Use the error message from the backend, or a default one
-            setError(data.message || 'Invalid email or password');
+            setError(response.data.message || 'Invalid email or password');
         }
     } catch (err) {
         console.error('Login API Error:', err);
-        setError('A network error occurred. Please try again later.');
+        setError(err.message || 'A network error occurred. Please try again later.');
     }
 
     setLoading(false);
