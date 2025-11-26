@@ -158,8 +158,9 @@ export const useJoeChat = () => {
       let wsUrl;
       if (import.meta.env.VITE_WS_URL) {
         // Use predefined WebSocket URL and append token
-        const baseWsUrl = import.meta.env.VITE_WS_URL.replace(/\/ws.*$/, '/ws');
-        wsUrl = `${baseWsUrl}?token=${sessionToken}`;
+        // التأكد من استخدام المسار الصحيح /ws/joe-agent حتى لو كان VITE_WS_URL مُعرفًا
+        const baseWsUrl = import.meta.env.VITE_WS_URL.replace(/\/ws.*$/, ''); // إزالة أي مسار موجود
+        wsUrl = `${baseWsUrl}/ws/joe-agent?token=${sessionToken}`;
       } else {
         // Fallback: build from API base URL
         const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://api.xelitesolutions.com';
