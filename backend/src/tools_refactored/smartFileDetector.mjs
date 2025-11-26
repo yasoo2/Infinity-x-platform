@@ -245,7 +245,7 @@ export async function getFilePreview(filePath, lines = 50) {
   };
 }
 
-export const detectTargetFiles.metadata = {
+detectTargetFiles.metadata = {
     name: "detectTargetFiles",
     description: "Uses AI to intelligently detect the most likely files that need to be modified based on a user's request. This is the first step before reading or writing any file.",
     parameters: {
@@ -258,7 +258,7 @@ export const detectTargetFiles.metadata = {
     }
 };
 
-export const getFilePreview.metadata = {
+getFilePreview.metadata = {
     name: "getFilePreview",
     description: "Retrieves a content preview of a detected file to confirm its relevance before making modifications.",
     parameters: {
