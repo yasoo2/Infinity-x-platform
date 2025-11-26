@@ -143,7 +143,9 @@ export const useJoeChat = () => {
   }, [handleNewConversation]);
 
   useEffect(() => {
-    if (state.currentConversationId && Object.keys(state.conversations).length > 0) {
+    // Save only when conversations change, not just when currentConversationId changes,
+    // and ensure we don't save an empty state if no conversations exist.
+    if (Object.keys(state.conversations).length > 0) {
       const dataToSave = {
         conversations: state.conversations,
         currentConversationId: state.currentConversationId,
