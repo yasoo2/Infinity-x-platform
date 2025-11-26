@@ -74,9 +74,14 @@ const chatReducer = (state, action) => {
         case 'NEW_CONVERSATION': {
             const selectNew = action.payload !== false;
             const newId = uuidv4();
+            const welcomeMessage = {
+                type: 'joe',
+                content: 'Welcome to Joe AI Assistant! 👋\n\nYour AI-powered engineering partner with 82 tools and functions.\n\nI can help you with:\n💬 Chat & Ask - Get instant answers and explanations\n🛠️ Build & Create - Generate projects and applications\n🔍 Analyze & Process - Work with data and generate insights\n\nStart by typing an instruction below, attaching a file, or using your voice.',
+                id: uuidv4()
+            };
             const newConversations = {
                 ...conversations,
-                [newId]: { id: newId, title: 'New Conversation', messages: [], lastModified: Date.now() },
+                [newId]: { id: newId, title: 'New Conversation', messages: [welcomeMessage], lastModified: Date.now() },
             };
             return {
                 ...state,
