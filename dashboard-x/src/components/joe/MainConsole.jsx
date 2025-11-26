@@ -46,7 +46,7 @@ const MainConsole = () => {
   // Auto-scroll to the latest message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, currentConversation]);
 
   // Auto-resize textarea
   useEffect(() => {
