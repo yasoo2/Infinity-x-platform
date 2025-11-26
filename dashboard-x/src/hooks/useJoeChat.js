@@ -164,7 +164,8 @@ export const useJoeChat = () => {
         // Fallback: build from API base URL
         const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://api.xelitesolutions.com';
         const wsBase = apiBase.replace(/^http/, 'ws');
-        wsUrl = `${wsBase}/ws?token=${sessionToken}`;
+        // تم تعديل المسار ليتطابق مع مسار خادم Joe Agent
+        wsUrl = `${wsBase}/ws/joe-agent?token=${sessionToken}`;
       }
       ws.current = new WebSocket(wsUrl);
       ws.current.onopen = () => dispatch({ type: 'ADD_WS_LOG', payload: '[WS] Connection established' });
