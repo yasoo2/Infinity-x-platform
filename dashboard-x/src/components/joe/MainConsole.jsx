@@ -1,19 +1,38 @@
-
 import React, { useEffect, useRef } from 'react';
 import { FiMic, FiPaperclip, FiSend, FiStopCircle, FiCompass } from 'react-icons/fi';
 import { useJoeChat } from '../../hooks/useJoeChat.js';
 
 const WelcomeScreen = () => (
-  <div className="flex flex-col items-center justify-center h-full text-center text-gray-400">
-    <FiCompass size={64} className="mb-4 text-gray-500" />
-    <h1 className="text-2xl font-bold text-gray-200">Welcome to Joe</h1>
-    <p className="max-w-md mt-2">Your AI-powered engineering partner. Start by typing an instruction below, attaching a file, or using your voice.</p>
+  <div className="flex flex-col items-center justify-center h-full text-center px-4">
+    <div className="max-w-2xl">
+      <FiCompass size={80} className="mb-6 text-blue-500 mx-auto" />
+      <h1 className="text-4xl font-bold text-white mb-4">Welcome to Joe</h1>
+      <p className="text-lg text-gray-400 mb-8">
+        Your AI-powered engineering partner. Start by typing an instruction below, 
+        attaching a file, or using your voice.
+      </p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
+        <div className="p-4 bg-gray-800 rounded-lg border border-gray-700">
+          <h3 className="font-semibold text-white mb-2">💬 Chat</h3>
+          <p className="text-sm text-gray-400">Ask questions and get instant answers</p>
+        </div>
+        <div className="p-4 bg-gray-800 rounded-lg border border-gray-700">
+          <h3 className="font-semibold text-white mb-2">🛠️ Build</h3>
+          <p className="text-sm text-gray-400">Create projects and applications</p>
+        </div>
+        <div className="p-4 bg-gray-800 rounded-lg border border-gray-700">
+          <h3 className="font-semibold text-white mb-2">🔍 Analyze</h3>
+          <p className="text-sm text-gray-400">Process data and generate insights</p>
+        </div>
+      </div>
+    </div>
   </div>
 );
 
 const MainConsole = () => {
   const fileInputRef = useRef(null);
-  const messagesEndRef = useRef(null); // Ref for the end of messages
+  const messagesEndRef = useRef(null);
+  const textareaRef = useRef(null);
 
   const { 
     messages, isProcessing, progress, currentStep, 
@@ -25,6 +44,14 @@ const MainConsole = () => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + 'px';
+    }
+  }, [input]);
 
   useEffect(() => {
     if (transcript) {
@@ -40,42 +67,66 @@ const MainConsole = () => {
     const reader = new FileReader();
     reader.onload = (e) => {
       const content = e.target.result;
-      const fileInfo = `Attached file: ${file.name}\n\n'''\n${content}\n'''`;
+      const fileInfo = `Attached file: ${file.name}\n\n\`\`\`\n${content}\n\`\`\``;
       setInput(prev => prev ? `${prev}\n${fileInfo}` : fileInfo);
     };
     reader.readAsText(file);
   };
 
   return (
-    <div className="bg-gray-800 flex flex-col h-full" style={{ gridArea: 'main' }}>
-      <div className="flex-1 overflow-y-auto p-6">
-        {messages.length === 0 ? (
-          <WelcomeScreen />
-        ) : (
-          <div className="space-y-6">
-            {messages.map((msg, index) => (
-              <div key={msg.id || index} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-3xl rounded-lg px-5 py-3 shadow-lg ${msg.type === 'user' ? 'bg-indigo-700' : 'bg-gray-700'}`}>
-                  <p className="text-base text-gray-50 whitespace-pre-wrap">{msg.content}</p>
+    <div className="flex flex-col h-full bg-gray-900">
+      {/* Messages Area - Centered and Spacious */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-4xl mx-auto px-6 py-8">
+          {messages.length === 0 ? (
+            <WelcomeScreen />
+          ) : (
+            <div className="space-y-6">
+              {messages.map((msg, index) => (
+                <div 
+                  key={msg.id || index} 
+                  className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div 
+                    className={`max-w-[80%] rounded-2xl px-6 py-4 shadow-lg ${
+                      msg.type === 'user' 
+                        ? 'bg-blue-600 text-white' 
+                        : 'bg-gray-800 text-gray-100 border border-gray-700'
+                    }`}
+                  >
+                    <p className="text-base leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
-             {isProcessing && (
-                <div className="w-full max-w-3xl mx-auto bg-gray-700 rounded-full h-2 mt-4">
-                  <div className="bg-cyan-500 h-2 rounded-full" style={{ width: `${progress}%` }}></div>
-                  <p className="text-xs text-center text-gray-400 mt-1.5">{currentStep}</p>
+              ))}
+              
+              {/* Progress Bar */}
+              {isProcessing && (
+                <div className="flex justify-start">
+                  <div className="max-w-[80%] bg-gray-800 border border-gray-700 rounded-2xl px-6 py-4">
+                    <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
+                      <div 
+                        className="bg-blue-500 h-2 rounded-full transition-all duration-300" 
+                        style={{ width: `${progress}%` }}
+                      ></div>
+                    </div>
+                    <p className="text-sm text-gray-400">{currentStep || 'Processing...'}</p>
+                  </div>
                 </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-        )}
+              )}
+              
+              <div ref={messagesEndRef} />
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Input Area */}
-      <div className="p-4 bg-gray-900/60 backdrop-blur-sm border-t border-cyan-500/20">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-center bg-gray-800 border border-gray-600 rounded-lg px-3 py-2.5 focus-within:ring-2 focus-within:ring-cyan-500 transition-all duration-200">
+      {/* Input Area - Fixed at Bottom, Centered */}
+      <div className="border-t border-gray-800 bg-gray-900/95 backdrop-blur-sm">
+        <div className="max-w-4xl mx-auto px-6 py-4">
+          <div className="flex items-end gap-3 bg-gray-800 border border-gray-700 rounded-2xl px-4 py-3 focus-within:ring-2 focus-within:ring-blue-500 transition-all">
+            {/* Textarea */}
             <textarea
+              ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={(e) => {
@@ -84,29 +135,69 @@ const MainConsole = () => {
                   handleSend();
                 }
               }}
-              placeholder="Instruct Joe... (Shift+Enter for new line)"
-              className="flex-1 bg-transparent outline-none resize-none text-white placeholder-gray-400 pr-4 text-base"
+              placeholder="Message Joe... (Shift+Enter for new line)"
+              className="flex-1 bg-transparent outline-none resize-none text-white placeholder-gray-500 text-base leading-relaxed"
               rows={1}
-              style={{ maxHeight: '150px' }}
+              style={{ minHeight: '24px', maxHeight: '200px' }}
+              disabled={isProcessing}
             />
-            <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
-            <button onClick={handleFileClick} className="text-gray-400 hover:text-cyan-400 p-2" disabled={isProcessing} title="Attach File">
-              <FiPaperclip size={20} />
-            </button>
-            <button onClick={handleVoiceInput} className={`p-2 ${isListening ? 'text-red-500 animate-pulse' : 'text-gray-400 hover:text-cyan-400'}`} disabled={isProcessing} title="Voice Input">
-              <FiMic size={20} />
-            </button>
 
-            {isProcessing ? (
-              <button onClick={stopProcessing} className="bg-red-600 text-white rounded-lg px-4 py-2 text-sm font-semibold hover:bg-red-700 flex items-center gap-2 ml-2">
-                <FiStopCircle /> Stop
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2">
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleFileChange} 
+                className="hidden" 
+              />
+              
+              <button 
+                onClick={handleFileClick} 
+                className="p-2 text-gray-400 hover:text-blue-400 hover:bg-gray-700 rounded-lg transition-colors" 
+                disabled={isProcessing}
+                title="Attach File"
+              >
+                <FiPaperclip size={20} />
               </button>
-            ) : (
-              <button onClick={handleSend} disabled={!input.trim()} className="text-gray-300 hover:text-cyan-400 p-2 disabled:text-gray-600 ml-2">
-                <FiSend size={22} />
+              
+              <button 
+                onClick={handleVoiceInput} 
+                className={`p-2 rounded-lg transition-colors ${
+                  isListening 
+                    ? 'text-red-500 bg-red-500/10 animate-pulse' 
+                    : 'text-gray-400 hover:text-blue-400 hover:bg-gray-700'
+                }`}
+                disabled={isProcessing}
+                title="Voice Input"
+              >
+                <FiMic size={20} />
               </button>
-            )}
+
+              {isProcessing ? (
+                <button 
+                  onClick={stopProcessing} 
+                  className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+                >
+                  <FiStopCircle size={18} />
+                  Stop
+                </button>
+              ) : (
+                <button 
+                  onClick={handleSend} 
+                  disabled={!input.trim()} 
+                  className="p-2 text-gray-400 hover:text-blue-400 hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="Send Message"
+                >
+                  <FiSend size={20} />
+                </button>
+              )}
+            </div>
           </div>
+          
+          {/* Helper Text */}
+          <p className="text-xs text-gray-500 text-center mt-2">
+            Joe can make mistakes. Consider checking important information.
+          </p>
         </div>
       </div>
     </div>
