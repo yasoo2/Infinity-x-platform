@@ -48,6 +48,7 @@ const defaultWhitelist = [
   'https://www.xelitesolutions.com',
   // 'https://backend-api.onrender.com', // Removed: Old backend URL
   'https://api.xelitesolutions.com',
+  'https://admin.xelitesolutions.com',
   'http://localhost:3000',
   'http://localhost:5173',
   'http://localhost:4000',
@@ -65,9 +66,17 @@ const whitelist = [...new Set([...defaultWhitelist, ...envOrigins])];
 console.log('📋 CORS whitelist configured:', whitelist);
 
 // --- Apply standard 'cors' middleware ---
-// FINAL, ABSOLUTE TEST: Use a simple, permissive configuration to definitively isolate the issue.
+// NOTE: We are reverting to a more secure, whitelist-based CORS policy.
+// The previous permissive '*' setting was for testing only.
+// We must ensure the admin subdomain is included in the whitelist.
 app.use(cors({
-  origin: '*', // Allow all origins for the test
+  origin: (origin, callback) => {
+    if (!origin || whitelist.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
