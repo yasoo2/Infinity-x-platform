@@ -386,4 +386,87 @@ export const renderTools = new RenderTools(
   process.env.RENDER_SERVICE_ID
 );
 
+RenderTools.prototype.getServiceInfo.metadata = {
+    name: "getRenderServiceInfo",
+    description: "Retrieves detailed information about the Render service, including status and URL.",
+    parameters: { type: "object", properties: {} }
+};
+
+RenderTools.prototype.getEnvVars.metadata = {
+    name: "getRenderEnvVars",
+    description: "Retrieves all environment variables for the Render service.",
+    parameters: { type: "object", properties: {} }
+};
+
+RenderTools.prototype.updateEnvVar.metadata = {
+    name: "updateRenderEnvVar",
+    description: "Updates a single environment variable for the Render service.",
+    parameters: {
+        type: "object",
+        properties: {
+            key: { type: "string", description: "The name of the environment variable." },
+            value: { type: "string", description: "The new value for the environment variable." }
+        },
+        required: ["key", "value"]
+    }
+};
+
+RenderTools.prototype.triggerDeploy.metadata = {
+    name: "triggerRenderDeploy",
+    description: "Triggers a new deployment for the Render service.",
+    parameters: { type: "object", properties: {} }
+};
+
+RenderTools.prototype.getLogs.metadata = {
+    name: "getRenderLogs",
+    description: "Retrieves the latest logs for the Render service.",
+    parameters: {
+        type: "object",
+        properties: {
+            limit: { type: "number", description: "The maximum number of log lines to retrieve (default 100)." }
+        }
+    }
+};
+
+RenderTools.prototype.searchErrors.metadata = {
+    name: "searchRenderErrors",
+    description: "Searches the latest logs for common error messages.",
+    parameters: {
+        type: "object",
+        properties: {
+            limit: { type: "number", description: "The maximum number of log lines to search (default 100)." }
+        }
+    }
+};
+
+RenderTools.prototype.getDeployStatus.metadata = {
+    name: "getRenderDeployStatus",
+    description: "Retrieves the status of a specific deployment.",
+    parameters: {
+        type: "object",
+        properties: {
+            deployId: { type: "string", description: "The ID of the deployment." }
+        },
+        required: ["deployId"]
+    }
+};
+
+RenderTools.prototype.updateEnvAndDeploy.metadata = {
+    name: "updateRenderEnvAndDeploy",
+    description: "A complete workflow: updates environment variables, triggers a deploy, and returns the deploy ID.",
+    parameters: {
+        type: "object",
+        properties: {
+            envVars: { type: "object", description: "An object of key-value pairs for environment variables to update." }
+        },
+        required: ["envVars"]
+    }
+};
+
+RenderTools.prototype.healthCheck.metadata = {
+    name: "renderHealthCheck",
+    description: "Performs a health check on the Render service.",
+    parameters: { type: "object", properties: {} }
+};
+
 export default RenderTools;

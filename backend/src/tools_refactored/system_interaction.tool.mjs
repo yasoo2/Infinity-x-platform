@@ -82,4 +82,34 @@ class SystemInteractionTool {
     }
 }
 
+SystemInteractionTool.prototype.executeRemoteCommand.metadata = {
+    name: "executeRemoteCommand",
+    description: "Executes a shell command on a remote server via SSH. Requires host, username, private key, and the command.",
+    parameters: {
+        type: "object",
+        properties: {
+            host: { type: "string", description: "The hostname or IP address of the remote server." },
+            username: { type: "string", description: "The SSH username." },
+            privateKey: { type: "string", description: "The private key content for authentication." },
+            command: { type: "string", description: "The shell command to execute." }
+        },
+        required: ["host", "username", "privateKey", "command"]
+    }
+};
+
+SystemInteractionTool.prototype.queryMongoDB.metadata = {
+    name: "queryRemoteMongoDB",
+    description: "Executes a MongoDB find query on a remote database. Requires connection URI, database name, collection name, and the query object.",
+    parameters: {
+        type: "object",
+        properties: {
+            uri: { type: "string", description: "The MongoDB connection URI." },
+            dbName: { type: "string", description: "The name of the database." },
+            collectionName: { type: "string", description: "The name of the collection." },
+            query: { type: "object", description: "The MongoDB query object (e.g., { status: 'active' })." }
+        },
+        required: ["uri", "dbName", "collectionName", "query"]
+    }
+};
+
 export default SystemInteractionTool;

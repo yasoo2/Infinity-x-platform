@@ -43,7 +43,7 @@ class DependencyQueryTool {
         }
     }
 
-    async call({ file_path, query_type }) {
+    async queryDependencies({ file_path, query_type }) {
         const dependencyMap = await this.loadMap();
         if (!dependencyMap) {
             return "Error: Could not load project dependency map. The map file might be missing or corrupted.";
@@ -78,4 +78,43 @@ class DependencyQueryTool {
     }
 }
 
-export default new DependencyQueryTool();
+DependencyQueryTool.prototype.queryDependencies.metadata = {
+    name: "queryDependencies",
+    description: "Queries the project's dependency map to find relationships between files. Use this tool to determine which files a given file imports, or which files import a given file, before making modifications.",
+    parameters: {
+        type: "object",
+        properties: {
+            file_path: {
+                type: "string",
+                description: "The relative path to the file to query (e.g., 'backend/server.mjs' or 'dashboard-x/src/App.jsx')."
+            },
+            query_type: {
+                type: "string",
+                enum: ["imports", "imported_by"],
+                description: "The type of query to perform. 'imports' finds files that the given file depends on. 'imported_by' finds files that depend on the given file."
+            }
+        },
+        required: ["file_path", "query_type"]
+    }
+};
+
+export const queryDependencies = new DependencyQueryTool().queryDependencies;
+queryDependencies.metadata = {
+    name: "queryDependencies",
+    description: "Queries the project's dependency map to find relationships between files. Use this tool to determine which files a given file imports, or which files import a given file, before making modifications.",
+    parameters: {
+        type: "object",
+        properties: {
+            file_path: {
+                type: "string",
+                description: "The relative path to the file to query (e.g., 'backend/server.mjs' or 'dashboard-x/src/App.jsx')."
+            },
+            query_type: {
+                type: "string",
+                enum: ["imports", "imported_by"],
+                description: "The type of query to perform. 'imports' finds files that the given file depends on. 'imported_by' finds files that depend on the given file."
+            }
+        },
+        required: ["file_path", "query_type"]
+    }
+};

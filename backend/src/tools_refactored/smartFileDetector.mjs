@@ -245,6 +245,32 @@ export async function getFilePreview(filePath, lines = 50) {
   };
 }
 
+export const detectTargetFiles.metadata = {
+    name: "detectTargetFiles",
+    description: "Uses AI to intelligently detect the most likely files that need to be modified based on a user's request. This is the first step before reading or writing any file.",
+    parameters: {
+        type: "object",
+        properties: {
+            userRequest: { type: "string", description: "The user's request for modification (e.g., 'Change the background color of the header to blue')." },
+            repoStructure: { type: "string", description: "Optional: A string representing the current repository structure for better context." }
+        },
+        required: ["userRequest"]
+    }
+};
+
+export const getFilePreview.metadata = {
+    name: "getFilePreview",
+    description: "Retrieves a content preview of a detected file to confirm its relevance before making modifications.",
+    parameters: {
+        type: "object",
+        properties: {
+            filePath: { type: "string", description: "The path to the file to preview." },
+            lines: { type: "number", description: "The number of lines to retrieve for the preview (default 50)." }
+        },
+        required: ["filePath"]
+    }
+};
+
 export default {
   detectTargetFiles,
   getFilePreview

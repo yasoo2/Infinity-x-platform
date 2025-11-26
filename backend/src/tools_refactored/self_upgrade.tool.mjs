@@ -76,4 +76,30 @@ class SelfUpgradeTool {
     }
 }
 
+SelfUpgradeTool.prototype.installDependency.metadata = {
+    name: "installDependency",
+    description: "Installs a new npm package dependency for the backend.",
+    parameters: {
+        type: "object",
+        properties: {
+            packageName: { type: "string", description: "The name of the npm package to install (e.g., 'axios')." },
+            isDevDependency: { type: "boolean", description: "Set to true if it's a development dependency." }
+        },
+        required: ["packageName"]
+    }
+};
+
+SelfUpgradeTool.prototype.updateEnvVariable.metadata = {
+    name: "updateEnvVariable",
+    description: "Updates a key-value pair in the backend's .env configuration file.",
+    parameters: {
+        type: "object",
+        properties: {
+            key: { type: "string", description: "The environment variable key (e.g., 'OPENAI_API_KEY')." },
+            value: { type: "string", description: "The new value for the environment variable." }
+        },
+        required: ["key", "value"]
+    }
+};
+
 export default SelfUpgradeTool;

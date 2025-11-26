@@ -436,4 +436,98 @@ class MongoDBTools {
 
 // Export singleton
 export const mongodbTools = new MongoDBTools(process.env.MONGODB_URI || process.env.MONGO_URI);
+MongoDBTools.prototype.listCollections.metadata = {
+    name: "listCollections",
+    description: "Lists all collection names in the connected MongoDB database.",
+    parameters: { type: "object", properties: {} }
+};
+
+MongoDBTools.prototype.query.metadata = {
+    name: "queryMongoDB",
+    description: "Queries a specific MongoDB collection using a filter and returns up to 100 documents. Use JSON format for filter and options.",
+    parameters: {
+        type: "object",
+        properties: {
+            collectionName: { type: "string", description: "The name of the collection to query." },
+            filter: { type: "object", description: "The query filter in MongoDB extended JSON format (e.g., { 'status': 'active' })." },
+            options: { type: "object", description: "Query options like limit and sort (e.g., { 'limit': 10, 'sort': { 'date': -1 } })." }
+        },
+        required: ["collectionName", "filter"]
+    }
+};
+
+MongoDBTools.prototype.insert.metadata = {
+    name: "insertMongoDB",
+    description: "Inserts a single document into a MongoDB collection.",
+    parameters: {
+        type: "object",
+        properties: {
+            collectionName: { type: "string", description: "The name of the collection." },
+            document: { type: "object", description: "The document to insert in JSON format." }
+        },
+        required: ["collectionName", "document"]
+    }
+};
+
+MongoDBTools.prototype.update.metadata = {
+    name: "updateMongoDB",
+    description: "Updates documents in a MongoDB collection. Use this for modifying existing data.",
+    parameters: {
+        type: "object",
+        properties: {
+            collectionName: { type: "string", description: "The name of the collection." },
+            filter: { type: "object", description: "The filter to select documents to update." },
+            update: { type: "object", description: "The update operation (e.g., { 'field': 'newValue' })." },
+            options: { type: "object", description: "Update options (e.g., { 'many': true } for updateMany)." }
+        },
+        required: ["collectionName", "filter", "update"]
+    }
+};
+
+MongoDBTools.prototype.delete.metadata = {
+    name: "deleteMongoDB",
+    description: "Deletes documents from a MongoDB collection.",
+    parameters: {
+        type: "object",
+        properties: {
+            collectionName: { type: "string", description: "The name of the collection." },
+            filter: { type: "object", description: "The filter to select documents to delete." },
+            options: { type: "object", description: "Delete options (e.g., { 'many': true } for deleteMany)." }
+        },
+        required: ["collectionName", "filter"]
+    }
+};
+
+MongoDBTools.prototype.aggregate.metadata = {
+    name: "aggregateMongoDB",
+    description: "Executes an aggregation pipeline on a MongoDB collection. Use this for complex data transformations.",
+    parameters: {
+        type: "object",
+        properties: {
+            collectionName: { type: "string", description: "The name of the collection." },
+            pipeline: { type: "array", description: "The aggregation pipeline as an array of stages in JSON format." }
+        },
+        required: ["collectionName", "pipeline"]
+    }
+};
+
+MongoDBTools.prototype.analyzeDatabase.metadata = {
+    name: "analyzeMongoDBDatabase",
+    description: "Performs a full analysis of the database, returning collection names, document counts, and storage sizes.",
+    parameters: { type: "object", properties: {} }
+};
+
+MongoDBTools.prototype.searchAll.metadata = {
+    name: "searchAllMongoDBCollections",
+    description: "Searches for a term across all or specified MongoDB collections. Tries text search first, then regex on common fields.",
+    parameters: {
+        type: "object",
+        properties: {
+            searchTerm: { type: "string", description: "The term to search for." },
+            collections: { type: "array", description: "Optional array of collection names to limit the search." }
+        },
+        required: ["searchTerm"]
+    }
+};
+
 export default MongoDBTools;
