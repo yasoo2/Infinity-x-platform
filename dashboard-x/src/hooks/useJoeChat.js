@@ -71,6 +71,7 @@ const chatReducer = (state, action) => {
             return { ...state, currentConversationId: action.payload, isProcessing: false, input: '', plan: [] };
 
         case 'NEW_CONVERSATION': {
+            const selectNew = action.payload !== false;
             const newId = uuidv4();
             const newConversations = {
                 ...conversations,
@@ -79,7 +80,7 @@ const chatReducer = (state, action) => {
             return {
                 ...state,
                 conversations: newConversations,
-                currentConversationId: newId,
+                currentConversationId: selectNew ? newId : state.currentConversationId,
                 input: '',
                 isProcessing: false,
                 plan: [],
@@ -116,8 +117,8 @@ export const useJoeChat = () => {
   });
 
   // ... (useEffect for localStorage loading remains the same)
-  const handleNewConversation = useCallback(() => {
-    dispatch({ type: 'NEW_CONVERSATION' });
+  const handleNewConversation = useCallback((selectNew = true) => {
+    dispatch({ type: 'NEW_CONVERSATION', payload: selectNew });
   }, []);
 
   useEffect(() => {
@@ -127,7 +128,7 @@ export const useJoeChat = () => {
         const { conversations, currentConversationId } = JSON.parse(savedHistory);
         if (conversations && Object.keys(conversations).length > 0) {
           dispatch({ type: 'SET_CONVERSATIONS', payload: conversations });
-          dispatch({ type: 'SELECT_CONVERSATION', payload: currentConversationId || Object.keys(conversations)[0] });
+          dispatch({ type: 'SELECT_CONVERSATION', payload: currentConversationId || Object.keys(conversations).sort((a, b) => conversations[b].lastModified - conversations[a].lastModified)[0] });
         } else {
           handleNewConversation();
         }
