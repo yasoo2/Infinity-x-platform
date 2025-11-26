@@ -154,7 +154,10 @@ export const useJoeChat = () => {
     const connect = () => {
       const sessionToken = localStorage.getItem('sessionToken');
       if (!sessionToken) return;
-      const wsUrl = `wss://backend-api.onrender.com/ws?token=${sessionToken}`;
+      // Use VITE_API_BASE_URL and convert http(s) to ws(s)
+      const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://api.xelitesolutions.com';
+      const wsBase = apiBase.replace(/^http/, 'ws');
+      const wsUrl = `${wsBase}/ws?token=${sessionToken}`;
       ws.current = new WebSocket(wsUrl);
       ws.current.onopen = () => dispatch({ type: 'ADD_WS_LOG', payload: '[WS] Connection established' });
       ws.current.onclose = () => setTimeout(connect, 3000);
