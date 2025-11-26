@@ -216,11 +216,16 @@ export const useJoeChat = () => {
 
   const handleSend = useCallback(() => {
     if (state.input.trim() && state.currentConversationId) {
-      dispatch({ type: 'START_PROCESSING', payload: state.input }); // This now also clears the plan
+      // 1. Dispatch START_PROCESSING to update state (add user message, set processing, update title if 'New Conversation')
+      dispatch({ type: 'START_PROCESSING', payload: state.input }); 
+
+      // 2. Send message via WebSocket
       if (ws.current?.readyState === WebSocket.OPEN) {
         ws.current.send(JSON.stringify({ action: 'execute', command: state.input }));
       } else {
+        // 3. If WS is not open, append an error message
         dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: 'WebSocket not connected. Please wait.' } });
+        dispatch({ type: 'STOP_PROCESSING' }); // Stop processing state if no connection
       }
     }
   }, [state.input, state.currentConversationId]);
