@@ -10,25 +10,13 @@ export default function Navbar({ onToggleJoeScreen }) {
     navigate('/login');
   };
 
-  const navLinks = [
-    { to: '/joe', label: '🤖 JOE' },
-
-    { to: '/monitoring', label: '📊 Monitoring' },
-    { to: '/overview', label: 'Overview' },
-    { to: '/build', label: '🎎 Build' },
-    { to: '/page-builder', label: '🚀 Page Builder' },
-    { to: '/self-design', label: '🤖 Self-Design' },
-    { to: '/store-integration', label: '🛍️ Stores' },
-    { to: '/activity', label: 'Activity' },
-    { to: '/command', label: 'Command' },
-    { to: '/users', label: 'Users' },
-  ];
+  const navLinks = [];
 
   return (
     <nav className="bg-cardDark border-b border-textDim/20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
-          <div className="flex">
+          <div className="flex w-full">
             <div className="flex-shrink-0 flex items-center">
               <h1 className="text-2xl font-bold">
                 <span className="text-neonGreen">Infinity</span>
@@ -36,19 +24,9 @@ export default function Navbar({ onToggleJoeScreen }) {
                 <span className="text-textDim text-sm ml-2">Dashboard</span>
               </h1>
             </div>
-            <div className="hidden sm:ml-8 sm:flex sm:space-x-4">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.to}
-                  to={link.to}
-                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-textDim hover:text-neonGreen transition-colors duration-200"
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </div>
+            {/* قائمة التنقل تم حذفها بناءً على طلب المستخدم */}
           </div>
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-4 ml-auto">
             <button
               onClick={onToggleJoeScreen}
               className="p-2 text-xl text-neonGreen hover:text-white hover:bg-neonGreen/20 rounded-full transition-all duration-200"
