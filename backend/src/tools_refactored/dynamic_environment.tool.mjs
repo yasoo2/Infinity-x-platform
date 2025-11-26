@@ -1,4 +1,4 @@
-import fetch from 'node-fetch';
+// Using native fetch (available in Node.js 18+)
 import { fileURLToPath } from 'url';
 import path from 'path';
 

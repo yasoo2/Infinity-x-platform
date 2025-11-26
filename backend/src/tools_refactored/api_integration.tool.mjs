@@ -84,7 +84,7 @@ class APIIntegrationTool {
     async generateIntegrationCode({ apiName, endpointURL, method, parameters, authenticationMethod, outputFilePath }) {
         // Placeholder for code generation logic
         const codeSnippet = `
-import fetch from 'node-fetch';
+// Using native fetch (Node.js 18+)
 
 async function call${apiName.replace(/\s/g, '')}() {
     const response = await fetch('${endpointURL}', {

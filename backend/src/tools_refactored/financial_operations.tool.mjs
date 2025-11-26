@@ -1,4 +1,4 @@
-import { fetch } from 'node-fetch'; // Assuming node-fetch is available or using native fetch
+// Using native fetch (available in Node.js 18+)
 
 /**
  * 💰 FinancialOperationsTool - Enables JOE to perform financial data analysis, stock market queries, and currency conversions.
