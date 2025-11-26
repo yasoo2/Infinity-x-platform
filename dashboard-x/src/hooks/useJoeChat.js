@@ -235,7 +235,7 @@ export const useJoeChat = () => {
 
       // 2. Send message via WebSocket
       if (ws.current?.readyState === WebSocket.OPEN) {
-        ws.current.send(JSON.stringify({ action: 'execute', command: state.input }));
+        ws.current.send(JSON.stringify({ action: 'instruct', message: state.input }));
       } else {
         // 3. If WS is not open, append an error message
         dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: 'WebSocket not connected. Please wait.' } });

@@ -2,6 +2,7 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { generateToken } from '../middleware/auth.mjs';
 import User from '../database/models/User.mjs';
 import {ROLES} from '../../../shared/roles.js'
 
@@ -88,11 +89,7 @@ const authRouterFactory = ({ db }) => {
                 return res.status(500).json({ success: false, error: 'Server configuration error.' });
             }
 
-            const token = jwt.sign(
-                { userId: user._id, role: user.role }, 
-                process.env.JWT_SECRET, 
-                { expiresIn: '365d' }
-            );
+            const token = generateToken(user);
             
             // --- Update last login timestamp ---
             user.lastLoginAt = new Date();

@@ -56,9 +56,22 @@ export class JoeAgentWebSocketServer {
 
       ws.on('message', async (message) => {
         try {
-          const data = JSON.parse(message);
+          let data;
+          try {
+            data = JSON.parse(message);
+          } catch (parseError) {
+            console.error('[JoeAgentV2] JSON Parse Error:', parseError);
+            ws.send(JSON.stringify({ type: 'error', message: 'Invalid JSON format.' }));
+            return;
+          }
 
-          if (data.action === 'instruct' && data.message) {
+          // Stricter validation for expected message format
+          if (typeof data.action !== 'string' || typeof data.message !== 'string') {
+            ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format. Expected { action: string, message: string }.' }));
+            return;
+          }
+
+          if (data.action === 'instruct') {
             console.log(`[JoeAgentV2] Received instruction: "${data.message}"`);
             
             // Directly call the unified processing engine
@@ -70,8 +83,13 @@ export class JoeAgentWebSocketServer {
 
             await joeAdvanced.processMessage(userId, data.message, ws.sessionId, { model });
 
+          } else if (data.action === 'cancel') {
+            // Handle cancel action if needed
+            console.log(`[JoeAgentV2] Received cancel instruction from user ${ws.userId}`);
+            // Note: Actual cancellation logic in joeAdvanced.service.mjs is needed here
+            ws.send(JSON.stringify({ type: 'status', message: 'Cancellation request received.' }));
           } else {
-             ws.send(JSON.stringify({ type: 'error', message: 'Unknown action or missing message.' }));
+             ws.send(JSON.stringify({ type: 'error', message: `Unknown action: ${data.action}` }));
           }
 
         } catch (error) {

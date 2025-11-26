@@ -18,6 +18,36 @@ export const authenticateToken = async (req, res, next) => {
 
     jwt.verify(token, JWT_SECRET, async (err, decoded) => {
       if (err) {
+        // Check for token expiration
+        if (err.name === 'TokenExpiredError') {
+          // Attempt to refresh the token
+          try {
+            const expiredDecoded = jwt.decode(token);
+            if (!expiredDecoded || !expiredDecoded.userId) {
+              return res.status(403).json({ ok: false, error: 'Invalid token structure' });
+            }
+
+            // Fetch user from database to ensure validity
+            const user = await User.findById(expiredDecoded.userId);
+            if (!user) {
+              return res.status(404).json({ ok: false, error: 'User not found' });
+            }
+
+            // Generate a new token
+            const newToken = generateToken(user);
+            
+            // Attach the new token to the response header
+            res.setHeader('X-New-Token', newToken);
+            
+            req.user = user;
+            return next();
+
+          } catch (refreshError) {
+            console.error('Token refresh failed:', refreshError);
+            return res.status(403).json({ ok: false, error: 'Token refresh failed' });
+          }
+        }
+        // Handle other token errors (e.g., invalid signature)
         return res.status(403).json({ ok: false, error: 'Invalid token' });
       }
 
@@ -66,9 +96,9 @@ export const requireAdmin = (req, res, next) => {
 /**
  * Generate JWT token
  */
-export const generateToken = (userId) => {
-  // تم زيادة مدة الصلاحية إلى 7 أيام لتقليل فشل WebSocket بسبب انتهاء الصلاحية
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '7d' });
+export const generateToken = (user) => {
+  // تم زيادة مدة الصلاحية إلى 365 يومًا (سنة) لتقليل فشل WebSocket بسبب انتهاء الصلاحية
+  return jwt.sign({ userId: user._id, role: user.role }, JWT_SECRET, { expiresIn: '365d' });
 };
 
 // This function is not used in the file, but it was in the original app.mjs
