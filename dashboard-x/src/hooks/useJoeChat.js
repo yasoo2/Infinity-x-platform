@@ -177,9 +177,8 @@ export const useJoeChat = () => {
       } else {
         // Fallback: build from API base URL
         // استخدام api.xelitesolutions.com بشكل افتراضي
-        // The dashboard is running on the admin subdomain, but the WebSocket server is on the API subdomain.
-        // We must use the API subdomain for the WebSocket connection.
-        const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://api.xelitesolutions.com';
+        // FINAL FIX: Hardcode the WebSocket URL to the confirmed API domain to bypass any incorrect environment variable injection.
+        const apiBase = 'https://api.xelitesolutions.com';
         const wsBase = apiBase.replace(/^https/, 'wss').replace(/^http/, 'ws');
 
         // Use the correct API base for the WebSocket connection
