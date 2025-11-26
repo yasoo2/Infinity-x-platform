@@ -68,7 +68,8 @@ const chatReducer = (state, action) => {
             return { ...state, conversations: action.payload };
 
         case 'SELECT_CONVERSATION':
-            return { ...state, currentConversationId: action.payload, isProcessing: false, input: '', plan: [] };
+            // Ensure full state reset to force re-render and clear old input/processing state
+            return { ...state, currentConversationId: action.payload, isProcessing: false, input: '', plan: [], progress: 0, currentStep: '' };
 
         case 'NEW_CONVERSATION': {
             const selectNew = action.payload !== false;
