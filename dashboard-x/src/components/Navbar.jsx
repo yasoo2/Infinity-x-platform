@@ -7,7 +7,13 @@ export default function Navbar({ onToggleJoeScreen }) {
 
   const handleLogout = () => {
     clearToken();
-    navigate('/login');
+    navigate("/login");
+  };
+
+  const handleExitToHome = () => {
+    clearToken();
+    // Redirect to the root of the domain, which is the public site
+    window.location.href = "/";
   };
 
   const navLinks = [];
@@ -33,6 +39,13 @@ export default function Navbar({ onToggleJoeScreen }) {
               title="Toggle Joe Screen"
             >
               💻
+            </button>
+            <button
+              onClick={handleExitToHome}
+              className="px-4 py-2 text-sm font-medium text-neonPink hover:text-white hover:bg-neonPink/20 rounded-lg transition-all duration-200"
+              title="Exit to Home"
+            >
+              Exit
             </button>
             <button
               onClick={handleLogout}
