@@ -163,8 +163,9 @@ export const useJoeChat = () => {
         wsUrl = `${baseWsUrl}/ws/joe-agent?token=${sessionToken}`;
       } else {
         // Fallback: build from API base URL
+        // استخدام api.xelitesolutions.com بشكل افتراضي
         const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://api.xelitesolutions.com';
-        const wsBase = apiBase.replace(/^http/, 'ws');
+        const wsBase = apiBase.replace(/^https/, 'wss').replace(/^http/, 'ws');
         // تم تعديل المسار ليتطابق مع مسار خادم Joe Agent
         wsUrl = `${wsBase}/ws/joe-agent?token=${sessionToken}`;
       }
