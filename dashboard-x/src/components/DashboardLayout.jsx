@@ -1,7 +1,7 @@
 // DashboardLayout.tsx
 import { Outlet } from 'react-router-dom';
 import { useState } from 'react';
-import Navbar from './Navbar';
+// import Navbar from './Navbar'; // Removed to eliminate the header
 import JoeScreen from './JoeScreen';
 
 export default function DashboardLayout() {
@@ -40,8 +40,8 @@ export default function DashboardLayout() {
 
   return (
     <div className="min-h-screen bg-bgDark">
-      <Navbar onToggleJoeScreen={() => setIsJoeScreenOpen(!isJoeScreenOpen)} />
-      <main className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* <Navbar onToggleJoeScreen={() => setIsJoeScreenOpen(!isJoeScreenOpen)} /> */}
+      <main className="max-w-full mx-auto p-0">
         <Outlet />
       </main>
       {isJoeScreenOpen && (
