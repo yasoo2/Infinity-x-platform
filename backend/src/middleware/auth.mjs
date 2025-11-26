@@ -67,6 +67,7 @@ export const requireAdmin = (req, res, next) => {
  * Generate JWT token
  */
 export const generateToken = (userId) => {
+  // تم زيادة مدة الصلاحية إلى 7 أيام لتقليل فشل WebSocket بسبب انتهاء الصلاحية
   return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '7d' });
 };
 
