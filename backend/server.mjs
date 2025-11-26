@@ -140,6 +140,7 @@ async function setupDependencies() {
         schedulingSystem,
         requireRole: requireRole(db),
         optionalAuth: optionalAuth(db),
+        JWT_SECRET: process.env.JWT_SECRET || 'a-very-weak-secret-for-dev',
     };
 
     await toolManager.initialize(dependencies);

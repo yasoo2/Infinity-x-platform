@@ -1,4 +1,3 @@
-
 import { WebSocketServer } from 'ws';
 import joeAdvanced from './ai/joe-advanced.service.mjs'; // The ONE TRUE BRAIN
 import jwt from 'jsonwebtoken';
@@ -10,7 +9,8 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-producti
  * It's simpler, more powerful, and acts as the primary user interface gateway.
  */
 export class JoeAgentWebSocketServer {
-  constructor(server) {
+  constructor(server, dependencies) {
+    this.dependencies = dependencies;
     this.wss = new WebSocketServer({ server, path: '/ws/joe-agent' });
     console.log('🤖 Joe Agent WebSocket Server v2.0 "Unified" Initialized.');
     this.setupWebSocketServer();
@@ -32,9 +32,10 @@ export class JoeAgentWebSocketServer {
       // 2. التحقق من التوكين
       let decoded;
       try {
-        decoded = jwt.verify(token, JWT_SECRET);
+        const secret = this.dependencies.JWT_SECRET || JWT_SECRET;
+        decoded = jwt.verify(token, secret);
       } catch (err) {
-        console.log('[JoeAgentV2] Connection rejected: Invalid token.');
+        console.log('[JoeAgentV2] Connection rejected: Invalid token. Error:', err.message);
         ws.close(1008, 'Policy Violation: Invalid token');
         return;
       }
