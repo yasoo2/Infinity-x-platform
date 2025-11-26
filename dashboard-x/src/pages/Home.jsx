@@ -12,7 +12,7 @@ export default function Home() {
     const token = localStorage.getItem('sessionToken');
     if (token) {
       // User is already logged in, redirect to Joe page
-      navigate('/joe');
+      navigate('/dashboard/joe');
     }
   }, [navigate]);
 
@@ -26,7 +26,7 @@ export default function Home() {
 
   const handleLoginSuccess = () => {
     setIsLoginModalOpen(false);
-    navigate('/joe');
+    navigate('/dashboard/joe');
   };
 
   return (
