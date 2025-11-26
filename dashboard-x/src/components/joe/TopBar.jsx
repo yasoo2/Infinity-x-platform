@@ -1,7 +1,18 @@
 import React from 'react';
-import { FiSidebar, FiTerminal, FiMaximize2, FiMinimize2 } from 'react-icons/fi';
+import { FiTerminal, FiMaximize2, FiLogOut } from 'react-icons/fi'; // Replaced FiSidebar with FiLogOut
+
+import { useSessionToken } from '../../hooks/useSessionToken'; // Import hook for token clearing
+import { useNavigate } from 'react-router-dom'; // Import hook for navigation
 
 const TopBar = ({ onToggleRight, onToggleBottom, isRightOpen, isBottomOpen }) => {
+  const { clearToken } = useSessionToken();
+  const navigate = useNavigate();
+
+  const handleExit = () => {
+    clearToken();
+    // Redirect to the root of the domain, which is the public site
+    window.location.href = '/';
+  };
   return (
     <div className="bg-gray-900 h-14 flex-shrink-0 flex items-center justify-between px-6 border-b border-gray-800">
       {/* Left: Title */}
@@ -13,17 +24,13 @@ const TopBar = ({ onToggleRight, onToggleBottom, isRightOpen, isBottomOpen }) =>
 
       {/* Right: Control Buttons */}
       <div className="flex items-center gap-2">
-        {/* Toggle Right Panel */}
+        {/* Exit Button (Replaces Toggle Right Panel) */}
         <button
-          onClick={onToggleRight}
-          className={`p-2 rounded-lg transition-colors ${
-            isRightOpen 
-              ? 'bg-blue-600 text-white hover:bg-blue-700' 
-              : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-          }`}
-          title={isRightOpen ? "Hide Plan Panel" : "Show Plan Panel"}
+          onClick={handleExit}
+          className={`p-2 rounded-lg transition-colors bg-red-600 text-white hover:bg-red-700`}
+          title="Exit to Home (Logout)"
         >
-          <FiSidebar size={18} />
+          <FiLogOut size={18} />
         </button>
 
         {/* Toggle Bottom Panel */}
