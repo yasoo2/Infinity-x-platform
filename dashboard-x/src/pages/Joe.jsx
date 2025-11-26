@@ -14,7 +14,7 @@ const Joe = () => {
 
   const { 
     conversations, 
-    currentConversation, 
+    currentConversationId, 
     handleConversationSelect, 
     handleNewConversation,
     isProcessing,
@@ -47,7 +47,7 @@ const Joe = () => {
           <div className="w-72 border-r border-gray-800 bg-gray-900 flex-shrink-0">
             <SidePanel 
               conversations={conversations} 
-              currentConversationId={currentConversation}
+              currentConversationId={currentConversationId}
               onConversationSelect={handleConversationSelect}
               onNewConversation={handleNewConversation}
             />
@@ -56,7 +56,7 @@ const Joe = () => {
         {/* Main Console - Center (Flexible) */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className={`flex-1 overflow-hidden ${isBottomPanelOpen ? '' : 'h-full'}`}>
-            <MainConsole key={currentConversation} />
+            <MainConsole key={currentConversationId} />
           </div>
 
           {/* Bottom Panel - Logs (Collapsible) */}

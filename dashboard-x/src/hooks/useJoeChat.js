@@ -271,7 +271,8 @@ export const useJoeChat = () => {
   return {
     // ... (all existing returned values)
     conversations: Object.values(state.conversations).sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0)),
-    currentConversation: state.currentConversationId,
+    currentConversationId: state.currentConversationId,
+    currentConversation: state.conversations[state.currentConversationId] || null,
     messages: state.conversations[state.currentConversationId]?.messages || [],
     isProcessing: state.isProcessing,
     progress: state.progress,
