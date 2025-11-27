@@ -8,10 +8,10 @@ import TechStack from './TechStack';
 import Testimonials from './Testimonials';
 import Footer from './Footer';
 
-const LandingPage = ({ onLoginClick }) => {
+const LandingPage = () => {
   return (
     <div className="bg-gray-900">
-      <Header onLoginClick={onLoginClick} />
+      <Header />
       <main>
         <Hero />
         <Services />

@@ -1,7 +1,7 @@
 
 import React from 'react';
 
-const Header = ({ onLoginClick }) => {
+const Header = () => {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-black/30 backdrop-blur-lg border-b border-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -20,12 +20,7 @@ const Header = ({ onLoginClick }) => {
             </div>
           </div>
           <div>
-            <button
-              onClick={onLoginClick}
-              className="bg-blue-600 text-white font-semibold py-2 px-6 rounded-lg hover:bg-blue-700 transition-all duration-300 transform hover:scale-105"
-            >
-              Admin Login
-            </button>
+            {/* Login handled externally via xelitesolutions.com */}
           </div>
         </div>
       </div>
