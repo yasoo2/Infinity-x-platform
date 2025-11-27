@@ -20,7 +20,7 @@ const Header = () => {
             </div>
           </div>
           <div>
-            {/* Login handled externally via xelitesolutions.com */}
+            <button onClick={() => window.location.href=\"/dashboard/joe\"} className=\"btn-secondary\">Admin Login</button>
           </div>
         </div>
       </div>
