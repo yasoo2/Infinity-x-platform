@@ -30,7 +30,7 @@ const integrationRouterFactory = ({ requireRole }) => {
     router.post('/render/status', requireRole('ADMIN'), notImplemented);
 
     // General Google Search - can be its own service
-    
+    router.post('/google/search', requireRole('USER'), notImplemented);
     
     // Health check remains simple
     router.get('/health', (req, res) => {
