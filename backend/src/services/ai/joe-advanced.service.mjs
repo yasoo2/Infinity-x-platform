@@ -15,7 +15,7 @@ import { EventEmitter } from 'events';
 
 // --- Core System Components ---
 import toolManager from '../tools/tool-manager.service.mjs';
-import memoryManager from '../memory/memory.service.mjs';
+// import memoryManager from '../memory/memory.service.mjs'; // MemoryManager is now passed via dependencies
 import MANUS_STYLE_PROMPT from '../../prompts/manusStylePrompt.mjs';
 
 // --- Client Configuration ---
@@ -74,12 +74,13 @@ function adaptToolsForGemini(openAITools) {
  * @returns {Promise<object>} - The final response and metadata.
  */
 async function processMessage(userId, message, sessionId, { model = 'gpt-4o' } = {}) {
+    const { memoryManager } = this.dependencies;
     const startTime = Date.now();
     console.log(`
 🤖 JOE v9 "Gemini-Phoenix" [${model}] Processing: "${message.substring(0, 80)}..." for User: ${userId}`);
 
     // 1. Retrieve Conversation Context
-    const conversationHistory = await memoryManager.getConversationContext(userId, { limit: 15 });
+        const conversationHistory = await memoryManager.getConversationContext(userId, { limit: 15 });
     const history = conversationHistory.map(item => ({
         role: item.command.role === 'assistant' ? 'model' : 'user', // Gemini uses 'model' for assistant
         parts: [{ text: item.command.content || String(item.command) }]
