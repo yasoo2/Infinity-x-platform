@@ -17,8 +17,8 @@ import SelfDesign from './pages/SelfDesign';
 import SuperAdminPanel from './pages/SuperAdminPanel';
 import UniversalStoreIntegration from './pages/UniversalStoreIntegration';
 import Users from './pages/Users';
-import Login from './pages/Login-GoogleOAuth'; // Use the existing Login page
-import Signup from './pages/Signup'; // Assuming a Signup page exists or will be created
+
+
 
 // Helper component for protected routes
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -29,7 +29,9 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    // Redirect to the external login page/card
+    // Assuming the external login is handled by the root domain or a specific path
+    return <Navigate to="/" replace />; 
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
@@ -45,8 +47,6 @@ const AppRoutes = () => {
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
 
         {/* Protected Routes (Requires Authentication) */}
         <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>

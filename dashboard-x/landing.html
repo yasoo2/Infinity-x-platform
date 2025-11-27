@@ -69,19 +69,6 @@
         .lang-dropdown.active { display: block; }
         .lang-option { padding: 0.75rem 1rem; cursor: pointer; border-radius: 0.5rem; display: flex; align-items: center; gap: 0.75rem; transition: all 0.2s; }
         .lang-option:hover, .lang-option.active { background: var(--bg-primary); color: var(--accent-primary); }
-        .login-btn {
-            background: var(--accent-primary);
-            color: white;
-            border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.5rem;
-            font-weight: 700;
-            font-size: 14px;
-            cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.2);
-        }
-        .login-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3); }
 
         /* Hero Section */
         .hero {
@@ -137,22 +124,6 @@
             font-size: 0.9rem;
             border-top: 1px solid var(--border-color);
         }
-
-        /* Modal */
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(8px); z-index: 2000; align-items: center; justify-content: center; }
-        .modal.active { display: flex; }
-        .modal-content { background: var(--bg-secondary); border-radius: 1.5rem; padding: 3rem; max-width: 480px; width: 90%; position: relative; animation: slideUp 0.3s ease; border: 1px solid var(--border-color); }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        .close-modal { position: absolute; top: 1.25rem; right: 1.25rem; width: 40px; height: 40px; background: var(--bg-primary); border-radius: 0.5rem; border: none; cursor: pointer; transition: all 0.3s; font-size: 20px; color: var(--text-primary); }
-        .close-modal:hover { transform: rotate(90deg); background-color: #E2E8F0; }
-        .modal h2 { font-size: 24px; font-weight: 700; color: var(--text-primary); margin-bottom: 2rem; text-align: center; }
-        .form-group { margin-bottom: 1.25rem; }
-        .form-group label { display: block; margin-bottom: 0.5rem; color: var(--text-secondary); font-weight: 600; font-size: 14px; }
-        .form-group input { width: 100%; padding: 0.875rem 1rem; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 0.5rem; font-size: 15px; transition: all 0.3s; }
-        .form-group input:focus { outline: none; border-color: var(--accent-primary); background: white; }
-        .password-group { position: relative; }
-        .password-toggle { position: absolute; top: 50%; transform: translateY(-50%); right: 1rem; cursor: pointer; color: #94A3B8; }
-        .submit-btn { width: 100%; padding: 1rem; background: var(--accent-primary); color: white; border: none; border-radius: 0.5rem; font-weight: 700; font-size: 16px; cursor: pointer; transition: all 0.3s; }
         
         @media (min-width: 768px) {
             .hero-grid { grid-template-columns: repeat(2, 1fr); gap: 4rem; }
@@ -184,9 +155,6 @@
                         <div class="lang-option" onclick="changeLang('de')"><i class="fas fa-flag"></i> Deutsch</div>
                     </div>
                 </div>
-                <button class="login-btn" onclick="openModal()">
-                    <span data-key="systemLogin">System Login</span>
-                </button>
             </nav>
         </div>
     </header>
@@ -217,58 +185,23 @@
         </div>
     </footer>
 
-    <div class="modal" id="loginModal">
-        <div class="modal-content">
-            <button class="close-modal" onclick="closeModal()"><i class="fas fa-times"></i></button>
-            <h2 data-key="loginTitle">Secure Access – JOE System</h2>
-            <form id="loginForm">
-                <div class="form-group">
-                    <label data-key="emailLabel">Admin Identity</label>
-                    <input type="email" id="email" placeholder="e.g., admin@example.com" required>
-                </div>
-                <div class="form-group">
-                    <label data-key="passwordLabel">Secure Key</label>
-                    <div class="password-group">
-                        <input type="password" id="password" placeholder="••••••••" required>
-                        <i class="fas fa-eye password-toggle" id="passwordToggle"></i>
-                    </div>
-                </div>
-                <button type="submit" class="submit-btn">
-                    <span data-key="loginButton">Authenticate</span>
-                </button>
-                <p id="loginMessage" style="color: #EF4444; margin-top: 1rem; display: none; text-align: center; font-weight: 500;"></p>
-            </form>
-        </div>
-    </div>
-
     <script>
         const translations = {
             en: {
-                systemLogin: "System Login",
                 heroTitle1: "Building the Future of Software,",
                 heroTitle2: "Powered by AI.",
                 heroDesc: "We are not just developers; we are architects of intelligent systems. From complex web platforms to AI-driven tools, we build robust, scalable, and innovative solutions that propel your business forward.",
                 rights: "All rights reserved.",
-                loginTitle: "Secure Access – JOE System",
-                emailLabel: "Admin Identity",
-                passwordLabel: "Secure Key",
-                loginButton: "Authenticate"
             },
             ar: {
-                systemLogin: "دخول النظام",
                 heroTitle1: "نبني مستقبل البرمجيات،",
                 heroTitle2: "بقوة الذكاء الاصطناعي.",
                 heroDesc: "نحن لسنا مجرد مطورين؛ نحن مهندسو الأنظمة الذكية. من منصات الويب المعقدة إلى الأدوات المدعومة بالذكاء الاصطناعي، نبني حلولاً قوية ومبتكرة وقابلة للتطوير تدفع بأعمالك إلى الأمام.",
                 rights: "جميع الحقوق محفوظة.",
-                loginTitle: "الدخول الآمن – نظام JOE",
-                emailLabel: "هوية المسؤول",
-                passwordLabel: "المفتاح السري",
-                loginButton: "مصادقة"
             },
-            // ... (other languages can be updated similarly)
-            fr: { systemLogin: "Connexion", heroTitle1: "Construire l'avenir du logiciel,", heroTitle2: "Propulsé par l'IA.", heroDesc: "Nous ne sommes pas seulement des développeurs; nous sommes des architectes de systèmes intelligents. Des plateformes web complexes aux outils basés sur l'IA, nous construisons des solutions robustes, évolutives et innovantes qui font progresser votre entreprise.", rights: "Tous droits réservés.", loginTitle: "Accès Sécurisé – Système JOE", emailLabel: "Identité Admin", passwordLabel: "Clé Sécurisée", loginButton: "S'authentifier" },
-            es: { systemLogin: "Acceso", heroTitle1: "Construyendo el futuro del software,", heroTitle2: "Impulsado por IA.", heroDesc: "No somos solo desarrolladores; somos arquitectos de sistemas inteligentes. Desde complejas plataformas web hasta herramientas impulsadas por IA, construimos soluciones robustas, escalables e innovadoras que impulsan su negocio.", rights: "Todos los derechos reservados.", loginTitle: "Acceso Seguro – Sistema JOE", emailLabel: "Identidad del Admin", passwordLabel: "Clave Segura", loginButton: "Autenticar" },
-            de: { systemLogin: "Anmelden", heroTitle1: "Die Zukunft der Software gestalten,", heroTitle2: "Angetrieben durch KI.", heroDesc: "Wir sind nicht nur Entwickler; wir sind Architekten intelligenter Systeme. Von komplexen Webplattformen bis hin zu KI-gesteuerten Werkzeugen entwickeln wir robuste, skalierbare und innovative Lösungen, die Ihr Unternehmen voranbringen.", rights: "Alle Rechte vorbehalten.", loginTitle: "Sicherer Zugang – JOE System", emailLabel: "Admin-Identität", passwordLabel: "Sicherer Schlüssel", loginButton: "Authentifizieren" }
+            fr: { heroTitle1: "Construire l'avenir du logiciel,", heroTitle2: "Propulsé par l'IA.", heroDesc: "Nous ne sommes pas seulement des développeurs; nous sommes des architectes de systèmes intelligents. Des plateformes web complexes aux outils basés sur l'IA, nous construisons des solutions robustes, évolutives et innovantes qui font progresser votre entreprise.", rights: "Tous droits réservés." },
+            es: { heroTitle1: "Construyendo el futuro del software,", heroTitle2: "Impulsado por IA.", heroDesc: "No somos solo desarrolladores; somos arquitectos de sistemas inteligentes. Desde complejas plataformas web hasta herramientas impulsadas por IA, construimos soluciones robustas, escalables e innovadoras que impulsan su negocio.", rights: "Todos los derechos reservados." },
+            de: { heroTitle1: "Die Zukunft der Software gestalten,", heroTitle2: "Angetrieben durch KI.", heroDesc: "Wir sind nicht nur Entwickler; wir sind Architekten intelligenter Systeme. Von komplexen Webplattformen bis hin zu KI-gesteuerten Werkzeugen entwickeln wir robuste, skalierbare und innovative Lösungen, die Ihr Unternehmen voranbringen.", rights: "Alle Rechte vorbehalten." }
         };
 
         function changeLang(lang) {
@@ -294,59 +227,13 @@
         }
 
         function toggleLang() { document.getElementById('langDropdown').classList.toggle('active'); }
-        function openModal() { document.getElementById('loginModal').classList.add('active'); }
-        function closeModal() { document.getElementById('loginModal').classList.remove('active'); }
 
-        const passwordInput = document.getElementById('password');
-        const passwordToggle = document.getElementById('passwordToggle');
-        passwordToggle.addEventListener('click', () => {
-            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-            passwordInput.setAttribute('type', type);
-            passwordToggle.classList.toggle('fa-eye');
-            passwordToggle.classList.toggle('fa-eye-slash');
-        });
-        
-        const loginForm = document.getElementById('loginForm');
-        const loginMessage = document.getElementById('loginMessage');
-        const API_BASE_URL = 'https://backend-api.onrender.com'; // IMPORTANT: Using the URL we discussed
-
-        loginForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            loginMessage.style.display = 'none';
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password }),
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    const sessionToken = data.sessionToken || data.token;
-                    if (sessionToken) {
-                        localStorage.setItem('sessionToken', sessionToken);
-                        window.location.href = '/joe'; 
-                    } else {
-                         loginMessage.textContent = 'Login successful, but no session token received.';
-                         loginMessage.style.display = 'block';
-                    }
-                } else {
-                    loginMessage.textContent = data.message || 'Login failed. Please check your credentials.';
-                    loginMessage.style.display = 'block';
-                }
-            } catch (error) {
-                console.error('Login Error:', error);
-                loginMessage.textContent = 'An error occurred. Please check your network connection and try again.';
-                loginMessage.style.display = 'block';
-            }
-        });
-
-        // Initialize with default language on page load
+        // Set initial language based on browser or saved preference
         document.addEventListener('DOMContentLoaded', () => {
-             changeLang('en');
+            const savedLang = localStorage.getItem('preferredLang') || 'en';
+            changeLang(savedLang);
         });
+
     </script>
 </body>
 </html>
