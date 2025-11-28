@@ -61,6 +61,8 @@ const TopBar = ({ onToggleRight, onToggleBottom, isRightOpen, isBottomOpen, onTo
   const [lang, setLang] = React.useState(() => {
     try { return localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'; } catch { return 'en'; }
   });
+  const [open, setOpen] = React.useState(false);
+  const [closing, setClosing] = React.useState(false);
   React.useEffect(() => {
     const onLang = () => {
       try { setLang(localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'); } catch {}
@@ -449,10 +451,10 @@ const AIMenuButton = () => {
   }, []);
 
   React.useEffect(() => {
-    const onDoc = (e) => { if (open) setOpen(false); };
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') onDoc(e); });
-    return () => document.removeEventListener('keydown', onDoc);
-  }, [open]);
+    const handleKeyDown = (e) => { if (e.key === 'Escape' && open) handlePanelClose(); };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [open, handlePanelClose]);
 
   const onKeyChange = (id, value) => {
     const next = { ...keys, [id]: value };
@@ -490,8 +492,14 @@ const AIMenuButton = () => {
   };
 
   const Panel = (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-16">
-      <div className="w-[940px] max-w-[96vw] bg-[#0b0f1a] border border-yellow-600/40 rounded-2xl shadow-2xl max-h-[80vh] overflow-hidden">
+    <div className={`fixed inset-0 z-[100] flex items-start justify-center pt-16 bg-black/40 backdrop-blur-sm transition-opacity duration-200 ${closing ? 'opacity-0' : 'opacity-100'}`} onClick={handlePanelClose}>
+      <style>{`
+        @keyframes panelIn { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        @keyframes panelOut { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(8px) scale(0.98); } }
+        .ai-panel { animation: panelIn 200ms ease-out; transform-origin: center; will-change: transform, opacity; }
+        .ai-panel.closing { animation: panelOut 180ms ease-in; }
+      `}</style>
+      <div className={`ai-panel ${closing ? 'closing' : ''} w-[940px] max-w-[96vw] bg-[#0b0f1a] border border-yellow-600/40 rounded-2xl shadow-2xl max-h-[80vh] overflow-hidden`} onClick={(e)=>e.stopPropagation()}>
       <div className="px-5 py-4 border-b border-yellow-600/40 flex items-center justify-between sticky top-0 bg-[#0b0f1a]">
         <div className="flex items-center gap-2 text-white"><Sparkles className="w-5 h-5 text-yellow-400"/> <span className="font-semibold">مزودي الذكاء الصناعي</span></div>
         <div className="flex items-center gap-2">
@@ -504,7 +512,7 @@ const AIMenuButton = () => {
             <option value="global">العالمي</option>
             <option value="china">الصين</option>
           </select>
-          <button onClick={()=>setOpen(false)} className="px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white">إغلاق</button>
+          <button onClick={handlePanelClose} className="px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white">إغلاق</button>
         </div>
       </div>
       <div className="p-5 max-h-[70vh] overflow-y-auto">
@@ -564,8 +572,8 @@ const AIMenuButton = () => {
   return (
     <div className="relative">
       <button
-        onClick={()=>setOpen(v=>!v)}
-        className={`p-2 w-9 h-9 inline-flex items-center justify-center rounded-lg transition-colors ${open ? 'bg-yellow-600 text-black hover:bg-yellow-700' : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-yellow-600/40'}`}
+        onClick={()=>{ if (open) handlePanelClose(); else setOpen(true); }}
+        className={`relative z-[101] p-2 w-9 h-9 inline-flex items-center justify-center rounded-lg transition-colors ${open ? 'bg-yellow-600 text-black hover:bg-yellow-700' : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-yellow-600/40'}`}
         title="مزودي الذكاء الصناعي"
       >
         <Sparkles className="w-4 h-4"/>
@@ -576,3 +584,10 @@ const AIMenuButton = () => {
 };
 
 export default TopBar;
+  const handlePanelClose = React.useCallback(() => {
+    setClosing(true);
+    setTimeout(() => {
+      setOpen(false);
+      setClosing(false);
+    }, 180);
+  }, []);
