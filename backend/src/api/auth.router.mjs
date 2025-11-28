@@ -4,7 +4,8 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { generateToken } from '../middleware/auth.mjs';
 import User from '../database/models/User.mjs';
-import {ROLES} from '../../../shared/roles.js'
+import { ROLES } from '../../../shared/roles.js';
+import { v4 as uuidv4 } from 'uuid';
 
 const authRouterFactory = ({ db }) => {
     const router = express.Router();
@@ -97,6 +98,26 @@ const authRouterFactory = ({ db }) => {
                 const token = generateToken(fakeUser);
                 return res.json({ ok: true, token, user: { id: fakeUser._id, email: fakeUser.email, role: fakeUser.role } });
             }
+            return res.status(500).json({ ok: false, error: 'INTERNAL_ERROR' });
+        }
+    });
+
+    /**
+     * @route POST /api/v1/auth/guest-token
+     * @description Issues a temporary JWT for anonymous guest access. No registration required.
+     * @access Public
+     */
+    router.post('/guest-token', async (req, res) => {
+        try {
+            const guestId = `guest:${uuidv4()}`;
+            const token = jwt.sign(
+                { userId: guestId, role: 'guest' },
+                process.env.JWT_SECRET || 'your-secret-key-change-in-production',
+                { expiresIn: '7d' }
+            );
+            return res.json({ ok: true, token, guest: { id: guestId, role: 'guest' } });
+        } catch (error) {
+            console.error('❌ Guest token issuance error:', error);
             return res.status(500).json({ ok: false, error: 'INTERNAL_ERROR' });
         }
     });

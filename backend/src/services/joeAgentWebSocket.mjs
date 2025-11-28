@@ -47,8 +47,9 @@ export class JoeAgentWebSocketServer {
       ws.sessionId = `session_${Date.now()}`; // يمكن استخدام أي معرف جلسة آخر
       ws.role = decoded.role; // تخزين الدور للتحقق من الصلاحيات
 
-      // التحقق من الصلاحيات (اختياري، ولكن يفضل)
-      if (ws.role !== 'super_admin' && ws.role !== 'admin') {
+      // التحقق من الصلاحيات: السماح للمستخدمين العاديين والضيوف
+      const allowedRoles = new Set(['super_admin', 'admin', 'user', 'guest']);
+      if (!allowedRoles.has(ws.role)) {
         console.log(`[JoeAgentV2] Connection rejected: Insufficient role (${ws.role}).`);
         ws.close(1008, 'Policy Violation: Insufficient role');
         return;

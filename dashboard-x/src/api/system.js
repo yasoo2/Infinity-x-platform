@@ -159,3 +159,7 @@ export const getSystemStatus = (opts) =>
 
   export const getUserContext = (params) =>
     call(() => apiClient.get(chatHistory('/user-context'), { params: { limit: params?.limit } }));
+
+  // Guest token issuance
+  export const getGuestToken = () =>
+    call(() => apiClient.post(v1('/auth/guest-token')));

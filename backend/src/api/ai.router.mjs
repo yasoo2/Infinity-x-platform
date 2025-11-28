@@ -18,7 +18,7 @@ const aiRouterFactory = ({ optionalAuth, requireRole }) => {
       const token = authHeader && authHeader.split(' ')[1];
       if (!token) return res.status(403).json({ ok: false, error: 'ACCESS_DENIED' });
       const decoded = jwt.verify(token, JWT_SECRET);
-      if (decoded?.userId) return next();
+      if (decoded?.userId || decoded?.role === 'guest') return next();
       return res.status(403).json({ ok: false, error: 'ACCESS_DENIED' });
     } catch {
       return res.status(403).json({ ok: false, error: 'ACCESS_DENIED' });
@@ -121,7 +121,7 @@ const aiRouterFactory = ({ optionalAuth, requireRole }) => {
     }
   });
 
-  router.get('/active', allowAdmin, (req, res) => {
+  router.get('/active', requireAdmin, (req, res) => {
     const { activeProvider: ap, activeModel: am } = getConfig();
     res.json({ ok: true, activeProvider: ap, activeModel: am });
   });

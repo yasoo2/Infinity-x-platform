@@ -1,7 +1,7 @@
 
 import { useReducer, useEffect, useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { getChatSessions, getChatSessionById } from '../api/system';
+import { getChatSessions, getChatSessionById, getGuestToken } from '../api/system';
 
 const JOE_CHAT_HISTORY = 'joeChatHistory';
 
@@ -298,8 +298,17 @@ export const useJoeChat = () => {
 
   const syncBackendSessions = useCallback(async () => {
     try {
-      const token = localStorage.getItem('sessionToken');
-      if (!token) return;
+      let token = localStorage.getItem('sessionToken');
+      if (!token) {
+        try {
+          const r = await getGuestToken();
+          if (r?.ok && r?.token) {
+            localStorage.setItem('sessionToken', r.token);
+            token = r.token;
+          }
+        } catch {}
+        if (!token) return;
+      }
       const s = await getChatSessions();
       const list = s?.sessions || [];
       const convs = { ...state.conversations };
@@ -372,36 +381,49 @@ export const useJoeChat = () => {
 
   useEffect(() => {
     const connect = () => {
-      const sessionToken = localStorage.getItem('sessionToken');
-      if (!sessionToken) return;
-      // Use VITE_WS_URL if defined, otherwise build from VITE_API_BASE_URL
-      let wsUrl;
-      if (import.meta.env.VITE_WS_URL) {
-        // Use predefined WebSocket URL and append token
-        // التأكد من استخدام المسار الصحيح /ws/joe-agent حتى لو كان VITE_WS_URL مُعرفًا
-        const baseWsUrl = import.meta.env.VITE_WS_URL.replace(/\/ws.*$/, ''); // إزالة أي مسار موجود
-        wsUrl = `${baseWsUrl}/ws/joe-agent?token=${sessionToken}`;
-      } else {
-        // Build from API base URL (dev/local friendly)
-        const apiBase = import.meta.env.VITE_API_BASE_URL || window.location.origin;
-        const wsBase = apiBase.replace(/^https/, 'wss').replace(/^http/, 'ws');
-        wsUrl = `${wsBase}/ws/joe-agent?token=${sessionToken}`;
-      }
-      // Diagnostic log to verify WebSocket URL
-      console.log('[Joe Agent] Connecting to WebSocket:', wsUrl.replace(/token=.*/, 'token=***'));
-      ws.current = new WebSocket(wsUrl);
-      ws.current.onopen = () => dispatch({ type: 'ADD_WS_LOG', payload: '[WS] Connection established' });
-      ws.current.onclose = (e) => {
-        const code = e?.code;
-        const reason = e?.reason || '';
-        dispatch({ type: 'ADD_WS_LOG', payload: `[WS] Connection closed (code=${code} reason=${reason}). Reconnecting...` });
-        setTimeout(connect, 3000);
+      let sessionToken = localStorage.getItem('sessionToken');
+      const ensureToken = async () => {
+        if (!sessionToken) {
+          try {
+            const r = await getGuestToken();
+            if (r?.ok && r?.token) {
+              localStorage.setItem('sessionToken', r.token);
+              sessionToken = r.token;
+            }
+          } catch {}
+        }
       };
-      ws.current.onerror = (err) => dispatch({ type: 'ADD_WS_LOG', payload: `[WS] Error: ${err.message}` });
-      
-      ws.current.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        dispatch({ type: 'ADD_WS_LOG', payload: `[WS] Received: ${event.data}` });
+      // Ensure token before attempting connection
+      ensureToken().then(() => {
+        if (!sessionToken) return;
+        // Use VITE_WS_URL if defined, otherwise build from VITE_API_BASE_URL
+        let wsUrl;
+        if (import.meta.env.VITE_WS_URL) {
+          // Use predefined WebSocket URL and append token
+          // التأكد من استخدام المسار الصحيح /ws/joe-agent حتى لو كان VITE_WS_URL مُعرفًا
+          const baseWsUrl = import.meta.env.VITE_WS_URL.replace(/\/ws.*$/, ''); // إزالة أي مسار موجود
+          wsUrl = `${baseWsUrl}/ws/joe-agent?token=${sessionToken}`;
+        } else {
+          // Build from API base URL (dev/local friendly)
+          const apiBase = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+          const wsBase = apiBase.replace(/^https/, 'wss').replace(/^http/, 'ws');
+          wsUrl = `${wsBase}/ws/joe-agent?token=${sessionToken}`;
+        }
+        // Diagnostic log to verify WebSocket URL
+        console.log('[Joe Agent] Connecting to WebSocket:', wsUrl.replace(/token=.*/, 'token=***'));
+        ws.current = new WebSocket(wsUrl);
+        ws.current.onopen = () => dispatch({ type: 'ADD_WS_LOG', payload: '[WS] Connection established' });
+        ws.current.onclose = (e) => {
+          const code = e?.code;
+          const reason = e?.reason || '';
+          dispatch({ type: 'ADD_WS_LOG', payload: `[WS] Connection closed (code=${code} reason=${reason}). Reconnecting...` });
+          setTimeout(connect, 3000);
+        };
+        ws.current.onerror = (err) => dispatch({ type: 'ADD_WS_LOG', payload: `[WS] Error: ${err.message}` });
+        
+        ws.current.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          dispatch({ type: 'ADD_WS_LOG', payload: `[WS] Received: ${event.data}` });
 
         switch(data.type) {
           case 'stream':
@@ -430,8 +452,9 @@ export const useJoeChat = () => {
             break;
           default:
             break;
-        }
-      };
+          }
+        };
+      });
     };
     connect();
     return () => ws.current?.close();
