@@ -298,6 +298,8 @@ export const useJoeChat = () => {
 
   const syncBackendSessions = useCallback(async () => {
     try {
+      const token = localStorage.getItem('sessionToken');
+      if (!token) return;
       const s = await getChatSessions();
       const list = s?.sessions || [];
       const convs = { ...state.conversations };
@@ -316,7 +318,12 @@ export const useJoeChat = () => {
           dispatch({ type: 'SELECT_CONVERSATION', payload: ids[0] });
         }
       }
-    } catch {}
+    } catch (e) {
+      // Ignore 403 Forbidden gracefully
+      if (e?.status !== 403) {
+        console.warn('syncBackendSessions error:', e);
+      }
+    }
   }, [state.conversations, state.currentConversationId, mapSessionToConversation]);
 
   useEffect(() => {
