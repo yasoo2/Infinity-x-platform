@@ -17,7 +17,7 @@ const useAuth = () => {
 
   const login = async (email, password, remember = false) => {
     try {
-      const { data } = await apiClient.post('/auth/login', { email, password });
+      const { data } = await apiClient.post('/api/v1/auth/login', { email, password });
       if (data?.token) {
         try {
           localStorage.setItem('sessionToken', data.token);
