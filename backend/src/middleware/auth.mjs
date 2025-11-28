@@ -109,7 +109,9 @@ export const setupAuth = (db) => {
 };
 
 export const requireRole = (db) => (role) => (req, res, next) => {
-    if (!req.user || req.user.role !== role) {
+    const required = String(role).toLowerCase();
+    const actual = String(req?.user?.role || '').toLowerCase();
+    if (!req.user || actual !== required) {
         return res.status(403).json({ error: 'ACCESS_DENIED', message: `Role '${role}' required.` });
     }
     next();

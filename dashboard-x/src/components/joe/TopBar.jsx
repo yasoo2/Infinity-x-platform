@@ -345,8 +345,8 @@ const TopBar = ({ onToggleRight, onToggleBottom, isRightOpen, isBottomOpen, onTo
           </div>
         )}
 
-        {/* AI Providers Button */}
-        <AIMenuButton />
+        {/* AI Providers Button (Super Admin only) */}
+        {isSuperAdmin && <AIMenuButton />}
 
         {/* Language Toggle */}
         <button
