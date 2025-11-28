@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { FiMic, FiPaperclip, FiSend, FiStopCircle, FiCompass, FiMessageSquare, FiPlus } from 'react-icons/fi';
+import { FiMic, FiPaperclip, FiSend, FiStopCircle, FiCompass } from 'react-icons/fi';
 import { useJoeChatContext } from '../../context/JoeChatContext.jsx';
 
 const WelcomeScreen = () => (
@@ -40,8 +40,7 @@ const MainConsole = () => {
   const { 
     messages, isProcessing, progress, currentStep, 
     input, setInput, isListening, handleSend, stopProcessing, 
-    handleVoiceInput, transcript, currentConversation,
-    conversations, currentConversationId, handleConversationSelect, handleNewConversation
+    handleVoiceInput, transcript, currentConversation
   } = useJoeChatContext();
 
   // Auto-scroll to the latest message
@@ -124,37 +123,7 @@ const MainConsole = () => {
         </div>
       </div>
 
-      {/* Conversations Strip - Above Input */}
-      <div className="border-t border-gray-800 bg-gray-900/98">
-        <div className="max-w-5xl mx-auto px-4 md:px-8 py-3">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-semibold text-gray-300">جلسات المحادثة</h3>
-            <button
-              onClick={() => handleNewConversation(true)}
-              className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-md"
-              title="محادثة جديدة"
-            >
-              <FiPlus size={14} /> جديد
-            </button>
-          </div>
-          <div className="flex gap-2 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-800 py-1">
-            {conversations.map((convo) => (
-              <button
-                key={convo.id}
-                onClick={() => handleConversationSelect(convo.id)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-md whitespace-nowrap text-sm transition-colors border ${currentConversationId === convo.id ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700'}`}
-                title={convo.title}
-              >
-                <FiMessageSquare size={14} />
-                <span className="truncate max-w-[180px]">{convo.title || 'New Conversation'}</span>
-              </button>
-            ))}
-            {conversations.length === 0 && (
-              <div className="text-xs text-gray-400">لا توجد محادثات بعد</div>
-            )}
-          </div>
-        </div>
-      </div>
+      {/* Conversations strip removed to avoid duplication with left SidePanel */}
 
       {/* Input Area - Fixed at Bottom, Centered and Spacious */}
       <div className="border-t border-gray-800 bg-gray-900/98 backdrop-blur-sm">
