@@ -4,7 +4,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { getConfig, setActive, setKey } from '../services/ai/runtime-config.mjs';
 import { requireAdmin } from '../middleware/auth.mjs';
 import jwt from 'jsonwebtoken';
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || 'a-very-weak-secret-for-dev';
 
 const aiRouterFactory = ({ optionalAuth, requireRole }) => {
   const router = express.Router();

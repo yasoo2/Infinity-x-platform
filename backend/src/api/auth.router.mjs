@@ -112,7 +112,7 @@ const authRouterFactory = ({ db }) => {
             const guestId = `guest:${uuidv4()}`;
             const token = jwt.sign(
                 { userId: guestId, role: 'guest' },
-                process.env.JWT_SECRET || 'your-secret-key-change-in-production',
+                process.env.JWT_SECRET || 'a-very-weak-secret-for-dev',
                 { expiresIn: '7d' }
             );
             return res.json({ ok: true, token, guest: { id: guestId, role: 'guest' } });

@@ -426,8 +426,8 @@ const JoeContent = () => {
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
         {/* Removed ActivityBar to free space and use TopBar toggles */}
-        {isSidePanelOpen && !isMobile && (
-          <div className={`relative z-10 bg-gray-900 flex-shrink-0 ${panelStyles.left.width === 0 ? 'border-r border-gray-800' : ''}`} style={{ ...leftStyle, width: leftWidth }}>
+        {isSidePanelOpen && (
+          <div className={`relative z-0 bg-gray-900 flex-shrink-0 ${panelStyles.left.width === 0 ? 'border-r border-gray-800' : ''}`} style={{ ...leftStyle, width: isMobile ? Math.min(leftWidth, 360) : leftWidth }}>
             <SidePanel 
               conversations={conversationsList} 
               currentConversationId={currentConversationId}
@@ -444,23 +444,6 @@ const JoeContent = () => {
               className="absolute top-0 right-0 h-full cursor-col-resize z-20 select-none"
               style={{ width: '2px', background: 'rgba(107,114,128,0.5)' }}
             />
-          </div>
-        )}
-        {isSidePanelOpen && isMobile && (
-          <div className="fixed inset-0 z-40 bg-black/50" onClick={() => setIsSidePanelOpen(false)}>
-            <div className={`absolute left-0 top-14 bottom-0 w-[85%] max-w-xs bg-gray-900 ${panelStyles.left.width === 0 ? 'border-r border-gray-800' : ''}`} style={leftStyle} onClick={(e)=>e.stopPropagation()}>
-              <SidePanel 
-                conversations={conversationsList} 
-                currentConversationId={currentConversationId}
-                onConversationSelect={handleConversationSelect}
-                onNewConversation={handleNewConversation}
-                onRenameConversation={renameConversation}
-                onDeleteConversation={deleteConversation}
-                onPinToggle={pinToggle}
-                onDuplicate={duplicateConversation}
-                onClear={clearMessages}
-              />
-            </div>
           </div>
         )}
         {/* Main Console - Center (Flexible) */}

@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import User from '../database/models/User.mjs';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || 'a-very-weak-secret-for-dev';
 
 /**
  * Authenticate token middleware

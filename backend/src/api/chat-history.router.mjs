@@ -1,7 +1,7 @@
 
 import express from 'express';
 import jwt from 'jsonwebtoken';
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || 'a-very-weak-secret-for-dev';
 
 // This factory function receives all necessary, instantiated services.
 const chatHistoryRouterFactory = ({ requireRole, memoryManager, optionalAuth }) => {

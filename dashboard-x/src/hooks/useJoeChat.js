@@ -417,9 +417,28 @@ export const useJoeChat = () => {
           const code = e?.code;
           const reason = e?.reason || '';
           dispatch({ type: 'ADD_WS_LOG', payload: `[WS] Connection closed (code=${code} reason=${reason}). Reconnecting...` });
-          setTimeout(connect, 3000);
+          // If policy violation or invalid token, clear token and fetch a new guest token before reconnecting
+          const shouldResetToken = code === 1008 || /invalid token|malformed|signature/i.test(reason);
+          if (shouldResetToken) {
+            try { localStorage.removeItem('sessionToken'); } catch {}
+          }
+          setTimeout(async () => {
+            if (shouldResetToken) {
+              try {
+                const r = await getGuestToken();
+                if (r?.ok && r?.token) localStorage.setItem('sessionToken', r.token);
+              } catch {}
+            }
+            connect();
+          }, 1000);
         };
-        ws.current.onerror = (err) => dispatch({ type: 'ADD_WS_LOG', payload: `[WS] Error: ${err.message}` });
+        ws.current.onerror = (err) => {
+          dispatch({ type: 'ADD_WS_LOG', payload: `[WS] Error: ${err.message}` });
+          const m = String(err?.message || '').toLowerCase();
+          if (m.includes('invalid') || m.includes('malformed') || m.includes('signature')) {
+            try { localStorage.removeItem('sessionToken'); } catch {}
+          }
+        };
         
         ws.current.onmessage = (event) => {
           const data = JSON.parse(event.data);
