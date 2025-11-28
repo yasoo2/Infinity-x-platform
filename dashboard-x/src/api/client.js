@@ -110,11 +110,16 @@
           }, 0);
         }
       }
+      if (status === 403) {
+        const details = normalizeError(error);
+        window.dispatchEvent(new CustomEvent('auth:forbidden', { detail: details }));
+      }
 
       // Throw normalized error for consistent handling in callers
       return Promise.reject(normalizeError(error));
     }
   );
+
 
   export default apiClient;
 

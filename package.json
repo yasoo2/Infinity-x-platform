@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node backend/server.mjs",
     "dev": "nodemon backend/server.mjs",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "deploy:prod:backend": "if [ -z \"$RENDER_API_KEY\" ] || [ -z \"$RENDER_SERVICE_ID\" ]; then echo 'Missing RENDER_API_KEY or RENDER_SERVICE_ID'; exit 1; else curl -s -X POST -H \"Authorization: Bearer $RENDER_API_KEY\" https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys | jq .; fi"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

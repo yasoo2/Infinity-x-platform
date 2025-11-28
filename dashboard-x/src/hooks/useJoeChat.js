@@ -460,6 +460,16 @@ export const useJoeChat = () => {
     return () => ws.current?.close();
   }, []);
 
+  useEffect(() => {
+    const onForbidden = (e) => {
+      const lang = getLang();
+      const m = lang === 'ar' ? 'انتهت صلاحية جلسة الدخول أو ليس لديك إذن. يرجى تسجيل الدخول مرة أخرى.' : 'Your session expired or you lack permission. Please log in again.';
+      dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: m } });
+    };
+    window.addEventListener('auth:forbidden', onForbidden);
+    return () => window.removeEventListener('auth:forbidden', onForbidden);
+  }, []);
+
   const handleSend = useCallback(() => {
     const inputText = state.input.trim();
     if (!inputText) return;
