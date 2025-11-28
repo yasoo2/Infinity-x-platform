@@ -1,8 +1,8 @@
   import axios from 'axios';
 
   // Base URL normalization
-  const envBase = import.meta.env?.VITE_API_BASE_URL || 'https://api.xelitesolutions.com';
-  const BASE_URL = envBase.replace(/\/+$/, ''); // remove trailing slash
+  let envBase = import.meta.env?.VITE_API_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4001');
+  const BASE_URL = String(envBase).replace(/\/+$/, '');
 
   // Helper to detect FormData
   const isFormData = (data) =>

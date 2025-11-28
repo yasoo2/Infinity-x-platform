@@ -251,7 +251,7 @@ export default function BrowserViewer({ sessionId, onClose, language = 'ar' }) {
             {isLoading && <Loader2 className="h-5 w-5 animate-spin" />}
             {isUserControlled ? t.youControl : t.joeControls}
           </button>
-          <button onClick={handleClose} className="text-gray-400 hover:text-white text-3xl px-2 leading-none transition-colors duration-200" title={t.closeViewer}>
+          <button onClick={handleClose} className="text-red-500 hover:text-red-400 text-3xl px-2 leading-none transition-colors duration-200" title={t.closeViewer}>
             <X className="w-7 h-7" />
           </button>
         </div>

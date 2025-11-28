@@ -60,7 +60,7 @@
                 <FormControl>
                   <Textarea
                     placeholder="أدخل أمرك باللغة العربية أو الإنجليزية..."
-                    className="min-h-[150px] resize-y bg-gray-800 border-gray-600 text-white placeholder:text-gray-400 focus-visible:ring-neonGreen"
+                    className="min-h-[150px] resize-y bg-gray-800 border-gray-600 text-white placeholder:text-gray-400 focus-visible:ring-yellow-500"
                     disabled={loading}
                     {...field}
                   />

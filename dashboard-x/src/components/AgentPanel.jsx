@@ -16,14 +16,16 @@
     // يجب عليك تعديل هذا الجزء ليتناسب مع طريقة اتصالك بـ WebSocket
     // مثال:
     // تم تصحيح المسار ليتطابق مع مسار خادم Joe Agent
-    const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4001';
-    const wsBase = apiBase.replace(/^http/, 'ws');
+    const apiBase = import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
+    const baseWsUrl = import.meta.env.VITE_WS_URL
+      ? import.meta.env.VITE_WS_URL.replace(/\/(ws.*)?$/, '')
+      : apiBase.replace(/^https/, 'wss').replace(/^http/, 'ws');
     const token = (typeof window !== 'undefined') ? (localStorage.getItem('sessionToken') || '') : '';
     if (!token) {
       console.warn('AgentPanel: لا يوجد توكن جلسة، لن يتم الاتصال بـ Joe Agent WS');
       return null;
     }
-    const wsUrl = `${wsBase}/ws/joe-agent?token=${encodeURIComponent(token)}`;
+    const wsUrl = `${baseWsUrl}/ws/joe-agent?token=${encodeURIComponent(token)}`;
     const ws = new WebSocket(wsUrl);
     ws.onopen = onOpen;
     ws.onmessage = (event) => {
@@ -162,7 +164,7 @@
       setLoading(true);
       setError(null);
       try {
-        const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4001';
+        const apiBase = import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
         const url = apiPath.startsWith('http') ? apiPath : `${apiBase}${apiPath}`;
         const result = await apiRequest(url, {
           method: 'POST',

@@ -166,12 +166,34 @@ const JoeContent = () => {
     pinToggle,
     duplicateConversation,
     clearMessages,
+    setInput,
   } = useJoeChatContext();
 
   const robotRef = React.useRef(null);
   const pupilLeftRef = React.useRef(null);
   const pupilRightRef = React.useRef(null);
   const [robotActive, setRobotActive] = useState(false);
+  const [robotCorner, setRobotCorner] = useState('bl');
+  const [robotScale, setRobotScale] = useState(() => {
+    try {
+      const v = parseFloat(localStorage.getItem('joeRobotScale'));
+      return Number.isFinite(v) && v > 0 ? v : 1;
+    } catch {
+      return 1;
+    }
+  });
+  const [robotPos, setRobotPos] = useState(() => {
+    try {
+      const raw = localStorage.getItem('joeRobotPos');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [robotSize, setRobotSize] = useState({ w: 120, h: 140 });
+  const [dragState, setDragState] = useState(null);
+  const wasDragging = React.useRef(false);
+  const ROBOT_MARGIN = 16;
   useEffect(() => {
     const onMouseMove = (e) => {
       const el = robotRef.current;
@@ -190,6 +212,122 @@ const JoeContent = () => {
     window.addEventListener('mousemove', onMouseMove);
     return () => window.removeEventListener('mousemove', onMouseMove);
   }, []);
+
+  const computeRobotSize = React.useCallback(() => {
+    const vw = window.innerWidth;
+    let base = { w: 120, h: 140 };
+    if (vw < 640) base = { w: 88, h: 104 };
+    else if (vw < 1024) base = { w: 104, h: 122 };
+    return {
+      w: Math.round(base.w * robotScale),
+      h: Math.round(base.h * robotScale),
+    };
+  }, [robotScale]);
+
+  const getRectForCorner = (corner) => {
+    const vw = window.innerWidth; const vh = window.innerHeight;
+    const { w, h } = robotSize;
+    if (corner === 'bl') return { left: ROBOT_MARGIN, top: vh - h - ROBOT_MARGIN, right: ROBOT_MARGIN + w, bottom: vh - ROBOT_MARGIN };
+    if (corner === 'br') return { left: vw - w - ROBOT_MARGIN, top: vh - h - ROBOT_MARGIN, right: vw - ROBOT_MARGIN, bottom: vh - ROBOT_MARGIN };
+    if (corner === 'tl') return { left: ROBOT_MARGIN, top: ROBOT_MARGIN, right: ROBOT_MARGIN + w, bottom: ROBOT_MARGIN + h };
+    return { left: vw - w - ROBOT_MARGIN, top: ROBOT_MARGIN, right: vw - ROBOT_MARGIN, bottom: ROBOT_MARGIN + h };
+  };
+
+  const rectOverlapArea = (a, b) => {
+    const xOverlap = Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left));
+    const yOverlap = Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+    return xOverlap * yOverlap;
+  };
+
+  const findBestCorner = React.useCallback(() => {
+    const candidates = ['bl','br','tl','tr'];
+    const elements = Array.from(document.querySelectorAll('button,a,input,textarea,select,[role="dialog"],[data-joe-important="true"]'));
+    const vis = elements.filter(el => {
+      const s = getComputedStyle(el);
+      return s.visibility !== 'hidden' && s.display !== 'none' && s.pointerEvents !== 'none';
+    }).map(el => el.getBoundingClientRect());
+    let best = 'bl';
+    let bestScore = Number.POSITIVE_INFINITY;
+    for (const c of candidates) {
+      const r = getRectForCorner(c);
+      const score = vis.reduce((sum, vr) => sum + rectOverlapArea(r, vr), 0);
+      if (score < bestScore) { bestScore = score; best = c; }
+    }
+    setRobotCorner(best);
+  }, [robotSize]);
+
+  const findBestCornerRef = React.useRef(findBestCorner);
+  useEffect(() => {
+    findBestCornerRef.current = findBestCorner;
+  }, [findBestCorner]);
+
+  const onRobotPointerDown = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const el = robotRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const startOffsetX = e.clientX - rect.left;
+    const startOffsetY = e.clientY - rect.top;
+    setDragState({ offsetX: startOffsetX, offsetY: startOffsetY });
+    wasDragging.current = false;
+    let currLeft = rect.left;
+    let currTop = rect.top;
+    const onMove = (ev) => {
+      const vw = window.innerWidth; const vh = window.innerHeight;
+      currLeft = Math.max(0, Math.min(vw - robotSize.w, ev.clientX - startOffsetX));
+      currTop = Math.max(0, Math.min(vh - robotSize.h, ev.clientY - startOffsetY));
+      setDragState((s) => ({ ...s, left: currLeft, top: currTop }));
+      wasDragging.current = true;
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      const vw = window.innerWidth; const vh = window.innerHeight; const { w, h } = robotSize;
+      const centers = {
+        bl: { x: ROBOT_MARGIN + w / 2, y: vh - ROBOT_MARGIN - h / 2 },
+        br: { x: vw - ROBOT_MARGIN - w / 2, y: vh - ROBOT_MARGIN - h / 2 },
+        tl: { x: ROBOT_MARGIN + w / 2, y: ROBOT_MARGIN + h / 2 },
+        tr: { x: vw - ROBOT_MARGIN - w / 2, y: ROBOT_MARGIN + h / 2 },
+      };
+      const cx = currLeft + w / 2; const cy = currTop + h / 2;
+      let best = 'bl'; let bestD = Infinity;
+      for (const k of ['bl','br','tl','tr']) {
+        const c = centers[k]; const d = Math.hypot(cx - c.x, cy - c.y);
+        if (d < bestD) { bestD = d; best = k; }
+      }
+      setRobotPos({ left: currLeft, top: currTop });
+      setRobotCorner(best);
+      setDragState(null);
+      setTimeout(() => { wasDragging.current = false; }, 0);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp, { once: true });
+  };
+
+  useEffect(() => {
+    const onResize = () => { setRobotSize(computeRobotSize()); findBestCornerRef.current(); };
+    const onScroll = () => findBestCornerRef.current();
+    setRobotSize(computeRobotSize());
+    findBestCornerRef.current();
+    window.addEventListener('resize', onResize);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    const onOpenProviders = () => setRobotActive(true);
+    window.addEventListener('joe:openProviders', onOpenProviders);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('joe:openProviders', onOpenProviders);
+    };
+  }, [computeRobotSize]);
+
+  useEffect(() => {
+    try { localStorage.setItem('joeRobotScale', String(robotScale)); } catch {}
+  }, [robotScale]);
+
+  useEffect(() => {
+    try { localStorage.setItem('joeRobotPos', robotPos ? JSON.stringify(robotPos) : ''); } catch {}
+  }, [robotPos]);
 
   const toggleSidePanel = () => setIsSidePanelOpen(!isSidePanelOpen);
   const toggleRightPanel = () => setIsRightPanelOpen(!isRightPanelOpen);
@@ -329,7 +467,7 @@ const JoeContent = () => {
       {isBorderSettingsOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="relative bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-5xl p-6 shadow-2xl">
-            <button onClick={()=>setIsBorderSettingsOpen(false)} className="md:hidden absolute top-4 right-4 bg-gray-800 hover:bg-gray-700 text-white rounded p-2">
+            <button onClick={()=>setIsBorderSettingsOpen(false)} className="md:hidden absolute top-4 right-4 bg-red-600 hover:bg-red-700 text-white rounded p-2">
               <X className="w-4 h-4" />
             </button>
             <div className="flex items-center justify-between mb-4">
@@ -337,7 +475,7 @@ const JoeContent = () => {
               <div className="flex items-center gap-2">
                 <button onClick={()=>navigate('/dashboard/users')} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded">فتح صفحة المستخدمين</button>
                 <button onClick={()=>navigate('/dashboard/super-admin')} className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded">إدارة متقدمة</button>
-                <button onClick={()=>setIsBorderSettingsOpen(false)} className="px-3 py-1.5 bg-gray-800 text-white rounded hover:bg-gray-700">إغلاق</button>
+                <button onClick={()=>setIsBorderSettingsOpen(false)} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded">إغلاق</button>
               </div>
             </div>
             {usersError && (
@@ -438,6 +576,7 @@ const JoeContent = () => {
               onPinToggle={pinToggle}
               onDuplicate={duplicateConversation}
               onClear={clearMessages}
+              lang={lang}
             />
             <div
               onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setDragLeft(true); }}
@@ -480,13 +619,15 @@ const JoeContent = () => {
         )}
       </div>
       <style>{`
-        #joe-container { position: fixed; bottom: 30px; left: 30px; width: 120px; height: 140px; cursor: pointer; z-index: 1000; transition: transform 0.3s ease; }
-        #joe-container:hover { transform: scale(1.1); }
+        #joe-container { position: fixed; cursor: pointer; z-index: 1000; transition: transform 0.3s ease; }
+        #joe-container:hover { transform: scale(1.06); }
         #joe-container .chat-bubble { position: absolute; bottom: 140px; left: 0; background: #fff; padding: 10px 15px; border-radius: 15px 15px 15px 0; box-shadow: 0 5px 15px rgba(0,0,0,0.1); font-size: 14px; color: #333; opacity: 0; transform: translateY(10px); transition: all 0.3s ease; pointer-events: none; width: 180px; text-align: center; }
         #joe-container:hover .chat-bubble, #joe-container.active .chat-bubble { opacity: 1; transform: translateY(0); }
         #joe-container svg { width: 100%; height: 100%; overflow: visible; }
         .floating-body { animation: float 3s ease-in-out infinite; }
         @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+        #joe-container.playful { animation: wander 4s ease-in-out infinite; }
+        @keyframes wander { 0%,100% { transform: translateX(0); } 50% { transform: translateX(6px); } }
         .eye-lids { animation: blink 4s infinite; transform-origin: center; }
         @keyframes blink { 0%, 96% { transform: scaleY(1); } 98% { transform: scaleY(0.1); } 100% { transform: scaleY(1); } }
         .arm-right { transform-origin: 15% 15%; animation: wave 3s ease-in-out infinite; }
@@ -495,36 +636,82 @@ const JoeContent = () => {
         .thinking .antenna-light { animation: pulse 0.5s infinite alternate; }
         @keyframes pulse { from { fill: #ff4d4d; opacity: 0.5; } to { fill: #ff0000; opacity: 1; } }
       `}</style>
-      <div id="joe-container" ref={robotRef} onClick={()=>setRobotActive(v=>!v)} className={(robotActive || isProcessing) ? 'active' : ''}>
-        <div className="chat-bubble">{lang === 'ar' ? 'مرحباً! أنا Joe المهندس. هل تحتاج مساعدة في الكود؟' : "Hello! I'm Joe the engineer. Need help with code?"}</div>
-        <svg viewBox="0 0 200 240" className={(robotActive || isProcessing) ? 'thinking' : ''}>
-          <g className="floating-body">
-            <rect x="40" y="150" width="20" height="50" rx="10" fill="#BDC3C7"/>
-            <g className="arm-right" transform="translate(140, 150)">
-              <rect x="0" y="0" width="20" height="50" rx="10" fill="#BDC3C7"/>
-            </g>
-            <rect x="50" y="140" width="100" height="90" rx="20" fill="#F1C40F"/>
-            <rect x="50" y="210" width="100" height="20" rx="10" fill="#F39C12"/>
-            <rect x="110" y="160" width="30" height="35" rx="5" fill="#D35400" opacity="0.2"/>
-            <rect x="115" y="155" width="5" height="25" rx="2" fill="#ECF0F1"/>
-            <rect x="85" y="130" width="30" height="15" fill="#7F8C8D"/>
-            <rect x="40" y="40" width="120" height="100" rx="25" fill="#ECF0F1"/>
-            <line x1="100" y1="40" x2="100" y2="15" stroke="#7F8C8D" strokeWidth="5"/>
-            <circle className="antenna-light" cx="100" cy="15" r="8" fill="#E74C3C"/>
-            <g>
-              <circle cx="75" cy="90" r="15" fill="#2C3E50"/>
-              <circle ref={pupilLeftRef} className="pupil" cx="75" cy="90" r="5" fill="white"/>
-              <circle cx="125" cy="90" r="15" fill="#2C3E50"/>
-              <circle ref={pupilRightRef} className="pupil" cx="125" cy="90" r="5" fill="white"/>
-              <path d="M 85 115 Q 100 125 115 115" stroke="#2C3E50" strokeWidth="3" fill="none" strokeLinecap="round"/>
-              <g className="eye-lids">
-                <rect x="55" y="70" width="40" height="40" fill="#ECF0F1" transform="scale(1, 0)"/>
-                <rect x="105" y="70" width="40" height="40" fill="#ECF0F1" transform="scale(1, 0)"/>
+      {(() => {
+        const s = { position: 'fixed', width: `${robotSize.w}px`, height: `${robotSize.h}px`, zIndex: 1000, touchAction: 'none' };
+        if (dragState && typeof dragState.left === 'number' && typeof dragState.top === 'number') {
+          Object.assign(s, { left: dragState.left, top: dragState.top });
+        } else {
+          if (robotPos && typeof robotPos.left === 'number' && typeof robotPos.top === 'number') {
+            const vw = window.innerWidth; const vh = window.innerHeight;
+            const left = Math.max(0, Math.min(vw - robotSize.w, robotPos.left));
+            const top = Math.max(0, Math.min(vh - robotSize.h, robotPos.top));
+            Object.assign(s, { left, top });
+          } else {
+            if (robotCorner === 'bl') Object.assign(s, { left: ROBOT_MARGIN, bottom: ROBOT_MARGIN });
+            if (robotCorner === 'br') Object.assign(s, { right: ROBOT_MARGIN, bottom: ROBOT_MARGIN });
+            if (robotCorner === 'tl') Object.assign(s, { left: ROBOT_MARGIN, top: ROBOT_MARGIN });
+            if (robotCorner === 'tr') Object.assign(s, { right: ROBOT_MARGIN, top: ROBOT_MARGIN });
+          }
+        }
+        const cls = (robotActive || isProcessing) ? 'active playful' : '';
+        return (
+          <div id="joe-container" ref={robotRef} onPointerDown={onRobotPointerDown} onClick={()=>{ if (wasDragging.current) return; setRobotActive(v=>!v); }} className={cls} style={s}>
+            <div className="chat-bubble">{lang === 'ar' ? 'مرحباً! أنا Joe المهندس. هل تحتاج مساعدة في الكود؟' : "Hello! I'm Joe the engineer. Need help with code?"}</div>
+            <svg viewBox="0 0 200 240" className={(robotActive || isProcessing) ? 'thinking' : ''}>
+              <g className="floating-body">
+                <rect x="40" y="150" width="20" height="50" rx="10" fill="#BDC3C7"/>
+                <g className="arm-right" transform="translate(140, 150)">
+                  <rect x="0" y="0" width="20" height="50" rx="10" fill="#BDC3C7"/>
+                </g>
+                <rect x="50" y="140" width="100" height="90" rx="20" fill="#F1C40F"/>
+                <rect x="50" y="210" width="100" height="20" rx="10" fill="#F39C12"/>
+                <rect x="110" y="160" width="30" height="35" rx="5" fill="#D35400" opacity="0.2"/>
+                <rect x="115" y="155" width="5" height="25" rx="2" fill="#ECF0F1"/>
+                <rect x="85" y="130" width="30" height="15" fill="#7F8C8D"/>
+                <rect x="40" y="40" width="120" height="100" rx="25" fill="#ECF0F1"/>
+                <line x1="100" y1="40" x2="100" y2="15" stroke="#7F8C8D" strokeWidth="5"/>
+                <circle className="antenna-light" cx="100" cy="15" r="8" fill="#E74C3C"/>
+                <g>
+                  <circle cx="75" cy="90" r="15" fill="#2C3E50"/>
+                  <circle ref={pupilLeftRef} className="pupil" cx="75" cy="90" r="5" fill="white"/>
+                  <circle cx="125" cy="90" r="15" fill="#2C3E50"/>
+                  <circle ref={pupilRightRef} className="pupil" cx="125" cy="90" r="5" fill="white"/>
+                  <path d="M 85 115 Q 100 125 115 115" stroke="#2C3E50" strokeWidth="3" fill="none" strokeLinecap="round"/>
+                  <g className="eye-lids">
+                    <rect x="55" y="70" width="40" height="40" fill="#ECF0F1" transform="scale(1, 0)"/>
+                    <rect x="105" y="70" width="40" height="40" fill="#ECF0F1" transform="scale(1, 0)"/>
+                  </g>
+                </g>
               </g>
-            </g>
-          </g>
-        </svg>
-      </div>
+            </svg>
+            {robotActive && (
+              <div className="absolute" style={{ bottom: robotCorner.includes('b') ? robotSize.h + 8 : undefined, top: robotCorner.includes('t') ? robotSize.h + 8 : undefined, left: robotCorner.includes('l') ? 0 : undefined, right: robotCorner.includes('r') ? 0 : undefined }}>
+                <div className="min-w-[200px] max-w-[240px] p-3 rounded-xl bg-gray-900 border border-yellow-600 text-white shadow-2xl">
+                  <div className="text-sm mb-2">{lang === 'ar' ? 'مساعد جو — اختصر الوقت:' : 'Joe Assistant — quick actions:'}</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button onClick={(e)=>{ e.stopPropagation(); setInput(prev=>prev ? prev+"\n\n— رجاءً قدّم ملخصًا واضحًا." : '— رجاءً قدّم ملخصًا واضحًا.'); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'تلخيص':'Summarize'}</button>
+                    <button onClick={(e)=>{ e.stopPropagation(); setInput('اقترح أوامر مفيدة بحسب السياق الحالي'); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'اقتراح أوامر':'Suggest cmds'}</button>
+                    <button onClick={(e)=>{ e.stopPropagation(); try { window.dispatchEvent(new CustomEvent('joe:openProviders')); } catch {} }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'مزودي الذكاء':'AI Providers'}</button>
+                    <button onClick={(e)=>{ e.stopPropagation(); findBestCorner(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'تحريك لمكان فارغ':'Find empty spot'}</button>
+                    <button onClick={(e)=>{ e.stopPropagation(); setRobotCorner('bl'); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'نقل: يسار-أسفل':'Move BL'}</button>
+                    <button onClick={(e)=>{ e.stopPropagation(); setRobotCorner('br'); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'نقل: يمين-أسفل':'Move BR'}</button>
+                    <button onClick={(e)=>{ e.stopPropagation(); setRobotCorner('tl'); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'نقل: يسار-أعلى':'Move TL'}</button>
+                    <button onClick={(e)=>{ e.stopPropagation(); setRobotCorner('tr'); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'نقل: يمين-أعلى':'Move TR'}</button>
+                    <button onClick={(e)=>{ e.stopPropagation(); setRobotScale(0.85); setRobotSize(computeRobotSize()); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'حجم صغير':'Small'}</button>
+                    <button onClick={(e)=>{ e.stopPropagation(); setRobotScale(1.0); setRobotSize(computeRobotSize()); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'حجم متوسط':'Medium'}</button>
+                    <button onClick={(e)=>{ e.stopPropagation(); setRobotScale(1.25); setRobotSize(computeRobotSize()); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'حجم كبير':'Large'}</button>
+                    <button onClick={(e)=>{ e.stopPropagation(); toggleSidePanel(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'لوحة اليسار':'Left Panel'}</button>
+                    <button onClick={(e)=>{ e.stopPropagation(); toggleRightPanel(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'لوحة اليمين':'Right Panel'}</button>
+                    <button onClick={(e)=>{ e.stopPropagation(); toggleBottomPanel(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'سجلّ النظام':'Logs'}</button>
+                    <button onClick={(e)=>{ e.stopPropagation(); handleNewConversation(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'جلسة جديدة':'New Chat'}</button>
+                    <button onClick={(e)=>{ e.stopPropagation(); if (currentConversationId) clearMessages(currentConversationId); }} className="px-2 py-1 rounded bg-gray-700 hover:bg-gray-600 text-white text-xs">{lang==='ar'?'مسح الرسائل':'Clear msgs'}</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 };

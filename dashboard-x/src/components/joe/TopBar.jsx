@@ -55,8 +55,9 @@ const TopBar = ({ onToggleRight, onToggleBottom, isRightOpen, isBottomOpen, onTo
   const [userMenuOpen, setUserMenuOpen] = React.useState(false);
   const brandRef = React.useRef(null);
   const [eyeOffset, setEyeOffset] = React.useState({ x: 0, y: 0 });
-  const [activity, setActivity] = React.useState('idle');
+  const [activity, setActivity] = React.useState('ready');
   const [outfit, setOutfit] = React.useState('suit');
+  const [mascotScale, setMascotScale] = React.useState(1);
   const [lang, setLang] = React.useState(() => {
     try { return localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'; } catch { return 'en'; }
   });
@@ -86,7 +87,7 @@ const TopBar = ({ onToggleRight, onToggleBottom, isRightOpen, isBottomOpen, onTo
   };
 
   React.useEffect(() => {
-    const activities = ['idle', 'build', 'layout', 'deploy', 'think', 'walk', 'dance'];
+    const activities = ['ready', 'idle', 'think', 'happy', 'walk', 'dance', 'build', 'layout', 'deploy'];
     let i = 0;
     const timer = setInterval(() => {
       i = (i + 1) % activities.length;
@@ -100,7 +101,7 @@ const TopBar = ({ onToggleRight, onToggleBottom, isRightOpen, isBottomOpen, onTo
     }, 45000);
     const onProc = (e) => {
       const p = e.detail?.processing;
-      if (p) setActivity('think'); else setActivity('idle');
+      if (p) setActivity('think'); else setActivity('ready');
     };
     window.addEventListener('joe:processing', onProc);
     return () => {
@@ -264,8 +265,11 @@ const TopBar = ({ onToggleRight, onToggleBottom, isRightOpen, isBottomOpen, onTo
           .joe-brand[data-activity='build'] .mascot .mouth { animation: pulse 1.2s ease-in-out infinite; }
           @keyframes layout { 0%,100% { transform: scale(1); } 50% { transform: scale(1.04); } }
           .joe-brand[data-activity='layout'] .mascot .face { animation: layout 2s ease-in-out infinite; }
+          .joe-brand[data-activity='ready'] .mascot .ring { animation: pulse 2.2s ease-in-out infinite; }
+          .joe-brand[data-activity='happy'] .mascot .ring { animation: ringGlow 2s ease-in-out infinite; }
+          .joe-brand[data-activity='happy'] .mascot .mouth { animation: layout 1.6s ease-in-out infinite; }
         `}</style>
-        <div className="joe-brand" ref={brandRef} onMouseMove={onBrandMouseMove} style={{ '--eyeX': `${eyeOffset.x}px`, '--eyeY': `${eyeOffset.y}px` }} data-activity={activity} data-outfit={outfit}>
+        <div className="joe-brand" ref={brandRef} onMouseMove={onBrandMouseMove} style={{ '--eyeX': `${eyeOffset.x}px`, '--eyeY': `${eyeOffset.y}px`, transform: `scale(${mascotScale})` }} data-activity={activity} data-outfit={outfit}>
           <div className="text">
             jo<span>e</span>
           </div>
@@ -278,18 +282,18 @@ const TopBar = ({ onToggleRight, onToggleBottom, isRightOpen, isBottomOpen, onTo
             </div>
           </div>
         </div>
-      </div>
+        </div>
 
-      {/* Right: Control Buttons */}
-      <div className="flex items-center gap-2">
+        {/* Right: Control Buttons */}
+        <div className="flex items-center gap-2">
         <button
           onClick={onToggleLeft}
-          className={`p-2 rounded-lg transition-colors ${
+          className={`p-2 w-9 h-9 inline-flex items-center justify-center rounded-lg transition-colors ${
             isLeftOpen 
-              ? 'bg-blue-600 text-white hover:bg-blue-700' 
-              : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+              ? 'bg-yellow-600 text-black hover:bg-yellow-700' 
+              : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-yellow-600/40'
           }`}
-          title={isLeftOpen ? "Hide Chats Panel" : "Show Chats Panel"}
+          title={isLeftOpen ? (lang==='ar'?'إخفاء لوحة المحادثات':'Hide Chats Panel') : (lang==='ar'?'إظهار لوحة المحادثات':'Show Chats Panel')}
         >
           <FiSidebar size={18} />
         </button>
@@ -297,12 +301,12 @@ const TopBar = ({ onToggleRight, onToggleBottom, isRightOpen, isBottomOpen, onTo
         {/* Toggle System Status Panel */}
         <button
           onClick={onToggleStatus}
-          className={`p-2 rounded-lg transition-colors ${
+          className={`p-2 w-9 h-9 inline-flex items-center justify-center rounded-lg transition-colors ${
             isStatusOpen 
-              ? 'bg-green-600 text-white hover:bg-green-700' 
-              : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+              ? 'bg-yellow-600 text-black hover:bg-yellow-700' 
+              : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-yellow-600/40'
           }`}
-          title={isStatusOpen ? "Hide System Status" : "Show System Status"}
+          title={isStatusOpen ? (lang==='ar'?'إخفاء حالة النظام':'Hide System Status') : (lang==='ar'?'إظهار حالة النظام':'Show System Status')}
         >
           <FiActivity size={18} />
         </button>
@@ -311,17 +315,17 @@ const TopBar = ({ onToggleRight, onToggleBottom, isRightOpen, isBottomOpen, onTo
           <div className="relative">
             <button
               onClick={() => setUserMenuOpen((v) => !v)}
-              className={`p-2 rounded-lg transition-colors ${
+              className={`p-2 w-9 h-9 inline-flex items-center justify-center rounded-lg transition-colors ${
                 userMenuOpen || isBorderSettingsOpen
-                  ? 'bg-purple-600 text-white hover:bg-purple-700'
-                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                  ? 'bg-yellow-600 text-black hover:bg-yellow-700'
+                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-yellow-600/40'
               }`}
               title="إدارة المستخدمين"
             >
               <FiUsers size={18} />
             </button>
             {userMenuOpen && (
-              <div className="absolute right-0 top-12 z-50 w-56 bg-gray-900 border border-gray-800 rounded-lg shadow-xl p-2">
+              <div className="absolute right-0 top-12 z-50 w-56 bg-gray-900 border border-yellow-600/40 rounded-lg shadow-xl p-2">
                 <button
                   onClick={() => { setUserMenuOpen(false); navigate('/dashboard/users'); }}
                   className="w-full text-right px-3 py-2 rounded bg-gray-800 text-white hover:bg-gray-700"
@@ -351,21 +355,26 @@ const TopBar = ({ onToggleRight, onToggleBottom, isRightOpen, isBottomOpen, onTo
         {/* Language Toggle */}
         <button
           onClick={toggleLang}
-          className="px-3 py-2 rounded-lg bg-gray-800 text-white border border-gray-700 hover:bg-gray-700 transition-colors"
+          className="p-2 w-9 h-9 inline-flex items-center justify-center rounded-lg bg-yellow-600 hover:bg-yellow-700 text-black border border-yellow-600 transition-colors"
           title={lang === 'ar' ? 'AR' : 'EN'}
         >
-          {lang === 'ar' ? 'AR' : 'EN'}
+          <span className="text-xs font-semibold">{lang === 'ar' ? 'AR' : 'EN'}</span>
         </button>
+
+        {/* Mascot Size Slider */}
+        <div className="hidden md:flex items-center px-2 py-1 bg-gray-800 text-gray-300 border border-yellow-600/40 rounded-lg" title={lang==='ar'?'حجم جو':'Joe Size'}>
+          <input type="range" min="0.8" max="1.4" step="0.02" value={mascotScale} onChange={(e)=>setMascotScale(parseFloat(e.target.value))} className="w-24" style={{ accentColor: '#eab308' }} />
+        </div>
 
         {/* Toggle Bottom Panel */}
         <button
           onClick={onToggleBottom}
-          className={`p-2 rounded-lg transition-colors ${
+          className={`p-2 w-9 h-9 inline-flex items-center justify-center rounded-lg transition-colors ${
             isBottomOpen 
-              ? 'bg-blue-600 text-white hover:bg-blue-700' 
-              : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+              ? 'bg-yellow-600 text-black hover:bg-yellow-700' 
+              : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-yellow-600/40'
           }`}
-          title={isBottomOpen ? "Hide Logs Panel" : "Show Logs Panel"}
+          title={isBottomOpen ? (lang==='ar'?'إخفاء لوحة السجل':'Hide Logs Panel') : (lang==='ar'?'إظهار لوحة السجل':'Show Logs Panel')}
         >
           <FiTerminal size={18} />
         </button>
@@ -379,16 +388,16 @@ const TopBar = ({ onToggleRight, onToggleBottom, isRightOpen, isBottomOpen, onTo
               document.documentElement.requestFullscreen();
             }
           }}
-          className="p-2 rounded-lg bg-gray-800 text-gray-400 hover:bg-gray-700 transition-colors"
-          title="Toggle Fullscreen"
+          className="p-2 w-9 h-9 inline-flex items-center justify-center rounded-lg bg-gray-800 text-gray-300 hover:bg-gray-700 border border-yellow-600/40 transition-colors"
+          title={lang==='ar'?'ملء الشاشة':'Toggle Fullscreen'}
         >
           <FiMaximize2 size={18} />
         </button>
 
         <button
           onClick={handleExit}
-          className={`p-2 rounded-lg transition-colors bg-red-600 text-white hover:bg-red-700`}
-          title="Exit to Home (Logout)"
+          className={`p-2 w-9 h-9 inline-flex items-center justify-center rounded-lg transition-colors bg-red-600 text-white hover:bg-red-700`}
+          title={lang==='ar'?'خروج إلى الرئيسية':'Exit to Home (Logout)'}
         >
           <FiLogOut size={18} />
         </button>
@@ -406,6 +415,8 @@ const AIMenuButton = () => {
     try { return JSON.parse(localStorage.getItem('aiProviderKeys') || '{}'); } catch { return {}; }
   });
   const [valid, setValid] = React.useState({});
+  const [validationError, setValidationError] = React.useState({});
+  const [activationError, setActivationError] = React.useState({});
 
   const loadProviders = async () => {
     setLoading(true);
@@ -432,6 +443,12 @@ const AIMenuButton = () => {
   }, [open]);
 
   React.useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener('joe:openProviders', onOpen);
+    return () => window.removeEventListener('joe:openProviders', onOpen);
+  }, []);
+
+  React.useEffect(() => {
     const onDoc = (e) => { if (open) setOpen(false); };
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') onDoc(e); });
     return () => document.removeEventListener('keydown', onDoc);
@@ -449,7 +466,12 @@ const AIMenuButton = () => {
       const k = keys[id];
       const res = await validateAIKey(id, k);
       setValid(v => ({ ...v, [id]: !!res.valid }));
-    } catch { setValid(v => ({ ...v, [id]: false })); }
+      setValidationError(e => ({ ...e, [id]: '' }));
+    } catch (err) {
+      setValid(v => ({ ...v, [id]: false }));
+      const msg = (err && err.message) ? err.message : 'فشل التحقق من المفتاح';
+      setValidationError(e => ({ ...e, [id]: msg }));
+    }
     finally { setLoading(false); }
   };
 
@@ -459,25 +481,30 @@ const AIMenuButton = () => {
       await activateAIProvider(id, model);
       setActive({ provider: id, model });
       try { localStorage.setItem('aiSelectedModel', model); } catch {}
-    } catch {}
+      setActivationError(e => ({ ...e, [id]: '' }));
+    } catch (err) {
+      const msg = (err && err.message) ? err.message : 'فشل تفعيل المزود (يتطلب صلاحية Super Admin)';
+      setActivationError(e => ({ ...e, [id]: msg }));
+    }
     finally { setLoading(false); }
   };
 
   const Panel = (
-    <div className="absolute right-4 top-16 z-[100] w-[940px] max-w-[96vw] bg-[#0b0f1a] border border-[#132036] rounded-2xl shadow-2xl max-h-[80vh] overflow-hidden">
-      <div className="px-5 py-4 border-b border-[#132036] flex items-center justify-between sticky top-0 bg-[#0b0f1a]">
-        <div className="flex items-center gap-2 text-white"><Sparkles className="w-5 h-5 text-fuchsia-400"/> <span className="font-semibold">مزودي الذكاء الصناعي</span></div>
+    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-16">
+      <div className="w-[940px] max-w-[96vw] bg-[#0b0f1a] border border-yellow-600/40 rounded-2xl shadow-2xl max-h-[80vh] overflow-hidden">
+      <div className="px-5 py-4 border-b border-yellow-600/40 flex items-center justify-between sticky top-0 bg-[#0b0f1a]">
+        <div className="flex items-center gap-2 text-white"><Sparkles className="w-5 h-5 text-yellow-400"/> <span className="font-semibold">مزودي الذكاء الصناعي</span></div>
         <div className="flex items-center gap-2">
           <div className="relative">
-            <input value={search} onChange={(e)=>setSearch(e.target.value)} className="pl-8 px-3 py-2 rounded-lg bg-[#0e1524] border border-[#1f2a46] text-white text-sm focus:outline-none focus:ring-2 focus:ring-fuchsia-500" placeholder="بحث عن مزود"/>
+            <input value={search} onChange={(e)=>setSearch(e.target.value)} className="pl-8 px-3 py-2 rounded-lg bg-[#0e1524] border border-yellow-600/30 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500" placeholder="بحث عن مزود"/>
             <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400"><SearchIcon className="w-4 h-4"/></span>
           </div>
-          <select value={region} onChange={(e)=>setRegion(e.target.value)} className="px-3 py-2 rounded-lg bg-[#0e1524] border border-[#1f2a46] text-white text-sm">
+          <select value={region} onChange={(e)=>setRegion(e.target.value)} className="px-3 py-2 rounded-lg bg-[#0e1524] border border-yellow-600/30 text-white text-sm">
             <option value="all">الكل</option>
             <option value="global">العالمي</option>
             <option value="china">الصين</option>
           </select>
-          <button onClick={()=>setOpen(false)} className="px-3 py-2 rounded-lg bg-[#0e1524] border border-[#1f2a46] text-gray-300 hover:bg-[#141c2e]">إغلاق</button>
+          <button onClick={()=>setOpen(false)} className="px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white">إغلاق</button>
         </div>
       </div>
       <div className="p-5 max-h-[70vh] overflow-y-auto">
@@ -487,8 +514,8 @@ const AIMenuButton = () => {
           const isActive = active.provider === p.id;
           const isValid = valid[p.id] === true;
           return (
-            <div key={p.id} className="rounded-2xl border border-[#1f2a46] bg-gradient-to-br from-[#0e1524] to-[#0b1220] shadow-lg">
-              <div className="p-4 border-b border-[#1f2a46] flex items-center justify-between">
+            <div key={p.id} className="rounded-2xl border border-yellow-600/20 bg-gradient-to-br from-[#0e1524] to-[#0b1220] shadow-lg">
+              <div className="p-4 border-b border-yellow-600/20 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <a href={p.createUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:opacity-90">
                     {p.logo ? <img src={p.logo} alt={p.name} className="w-6 h-6 rounded"/> : <span className="text-xl" style={{color:p.color}}>{p.icon || '🤖'}</span>}
@@ -497,32 +524,39 @@ const AIMenuButton = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   {p.siteUrl && (
-                    <a href={p.siteUrl} target="_blank" rel="noopener noreferrer" className="text-xs px-2 py-1 bg-[#0e1524] border border-[#1f2a46] text-white rounded inline-flex items-center gap-1"><ExternalLink className="w-3 h-3"/> زيارة الموقع</a>
+                    <a href={p.siteUrl} target="_blank" rel="noopener noreferrer" className="p-2 bg-gray-800 border border-yellow-600/40 text-gray-200 rounded inline-flex items-center gap-1 hover:bg-yellow-600 hover:text-black"><ExternalLink className="w-3 h-3"/> زيارة الموقع</a>
                   )}
-                  <a href={p.createUrl} target="_blank" rel="noopener noreferrer" className="text-xs px-2 py-1 bg-[#0e1524] border border-[#1f2a46] text-white rounded inline-flex items-center gap-1"><ExternalLink className="w-3 h-3"/> إنشاء مفتاح</a>
+                  <a href={p.createUrl} target="_blank" rel="noopener noreferrer" className="p-2 bg-gray-800 border border-yellow-600/40 text-gray-200 rounded inline-flex items-center gap-1 hover:bg-yellow-600 hover:text-black"><ExternalLink className="w-3 h-3"/> إنشاء مفتاح</a>
                 </div>
               </div>
               <div className="p-4 space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className={`text-xs px-2 py-1 rounded-full inline-flex items-center gap-1 ${isActive ? 'bg-green-600/20 text-green-300 ring-1 ring-green-600' : 'bg-red-600/20 text-red-300 ring-1 ring-red-600'}`}>{isActive ? <CheckCircle className="w-3 h-3"/> : <XCircle className="w-3 h-3"/>}{isActive ? 'النظام يعمل على المزود' : 'غير مفعل'}</span>
-                  <span className={`text-xs px-2 py-1 rounded-full inline-flex items-center gap-1 ${isValid ? 'bg-emerald-600/20 text-emerald-300 ring-1 ring-emerald-600' : 'bg-red-600/20 text-red-300 ring-1 ring-red-600'}`}>{isValid ? <CheckCircle className="w-3 h-3"/> : <XCircle className="w-3 h-3"/>}{isValid ? 'المفتاح صالح' : 'المفتاح غير صالح'}</span>
+                  <span className={`text-xs px-2 py-1 rounded-full inline-flex items-center gap-1 ${isActive ? 'bg-green-600/20 text-green-300 ring-1 ring-yellow-500' : 'bg-red-600/20 text-red-300 ring-1 ring-yellow-500'}`}>{isActive ? <CheckCircle className="w-3 h-3"/> : <XCircle className="w-3 h-3"/>}{isActive ? 'النظام يعمل على المزود' : 'غير مفعل'}</span>
+                  <span className={`text-xs px-2 py-1 rounded-full inline-flex items-center gap-1 ${isValid ? 'bg-emerald-600/20 text-emerald-300 ring-1 ring-yellow-500' : 'bg-red-600/20 text-red-300 ring-1 ring-yellow-500'}`}>{isValid ? <CheckCircle className="w-3 h-3"/> : <XCircle className="w-3 h-3"/>}{isValid ? 'المفتاح صالح' : 'المفتاح غير صالح'}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Key className="w-4 h-4 text-yellow-300"/>
-                  <input className="flex-1 px-3 py-2 rounded-lg bg-[#0e1524] border border-[#1f2a46] text-white" placeholder="أدخل المفتاح" value={keys[p.id] || ''} onChange={(e)=>onKeyChange(p.id, e.target.value)} />
-                  <button onClick={()=>handleValidate(p.id)} className="px-3 py-2 rounded-lg bg-[#141c2e] border border-[#1f2a46] text-white hover:bg-[#192338]">تحقق</button>
+                  <input className="flex-1 px-3 py-2 rounded-lg bg-[#0e1524] border border-yellow-600/30 text-white" placeholder="أدخل المفتاح" value={keys[p.id] || ''} onChange={(e)=>onKeyChange(p.id, e.target.value)} />
+                  <button onClick={()=>handleValidate(p.id)} className="p-2 rounded-lg bg-yellow-600 hover:bg-yellow-700 text-black border border-yellow-600">تحقق</button>
+                  {!!validationError[p.id] && (
+                    <span className="text-xs text-red-400 ml-2">{validationError[p.id]}</span>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <select defaultValue={p.defaultModel} className="px-3 py-2 rounded-lg bg-[#0e1524] border border-[#1f2a46] text-white">
+                  <select defaultValue={p.defaultModel} className="px-3 py-2 rounded-lg bg-[#0e1524] border border-yellow-600/30 text-white">
                     <option value={p.defaultModel}>{p.defaultModel}</option>
                   </select>
-                  <button onClick={()=>handleActivate(p.id, p.defaultModel)} className="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white">تفعيل المزود</button>
+                  <button onClick={()=>handleActivate(p.id, p.defaultModel)} className="p-2 rounded-lg bg-yellow-600 hover:bg-yellow-700 text-black">تفعيل المزود</button>
+                  {!!activationError[p.id] && (
+                    <span className="text-xs text-red-400 ml-2">{activationError[p.id]}</span>
+                  )}
                 </div>
               </div>
             </div>
           );
         })}
         </div>
+      </div>
       </div>
     </div>
   );
@@ -531,7 +565,7 @@ const AIMenuButton = () => {
     <div className="relative">
       <button
         onClick={()=>setOpen(v=>!v)}
-        className={`p-2 rounded-lg transition-colors ${open ? 'bg-fuchsia-600 text-white hover:bg-fuchsia-700' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
+        className={`p-2 w-9 h-9 inline-flex items-center justify-center rounded-lg transition-colors ${open ? 'bg-yellow-600 text-black hover:bg-yellow-700' : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-yellow-600/40'}`}
         title="مزودي الذكاء الصناعي"
       >
         <Sparkles className="w-4 h-4"/>

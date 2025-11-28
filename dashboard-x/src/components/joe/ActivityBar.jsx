@@ -24,8 +24,8 @@ const ActivityBar = ({ onChatClick, isSidePanelOpen, onToggleRight, onToggleBott
             onClick={item.action}
             className={`p-2 rounded-lg transition-colors duration-200 ${
               item.active
-                ? 'text-white bg-cyan-600/50' 
-                : 'text-gray-400 hover:text-cyan-400 hover:bg-gray-700/50'
+                ? 'text-black bg-yellow-600/60' 
+                : 'text-gray-400 hover:text-yellow-400 hover:bg-gray-700/50'
             }`}
           >
             {React.cloneElement(item.icon, { size: 24 })}
@@ -33,7 +33,7 @@ const ActivityBar = ({ onChatClick, isSidePanelOpen, onToggleRight, onToggleBott
         ))}
       </div>
       <div className="mt-auto">
-         <button title="Settings" className="text-gray-400 hover:text-cyan-400 p-2">
+         <button title="Settings" className="text-gray-400 hover:text-yellow-400 p-2">
             <FiSettings size={24} />
          </button>
       </div>

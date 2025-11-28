@@ -152,7 +152,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
               </button>
               <button
                 onClick={onClose}
-                className="text-gray-400 hover:text-red-500 transition-colors"
+                className="text-red-500 hover:text-red-400 transition-colors"
                 title="Close"
               >
                 ×
@@ -207,14 +207,14 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
                       <button
                         onClick={handleNavigate}
                         disabled={!isConnected || isLoading}
-                        className="bg-purple-500 hover:bg-purple-600 text-white text-xs px-3 py-1.5 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="bg-yellow-600 hover:bg-yellow-700 text-black text-xs px-3 py-1.5 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Go
                       </button>
                       <button
                         onClick={getScreenshot}
                         disabled={!isConnected}
-                        className="bg-blue-500 hover:bg-blue-600 text-white text-xs p-1.5 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="bg-yellow-500 hover:bg-yellow-600 text-black text-xs p-1.5 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         title="Refresh Screenshot"
                       >
                         <RefreshCw className="w-3 h-3" />

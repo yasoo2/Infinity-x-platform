@@ -97,13 +97,29 @@ async function processMessage(userId, message, sessionId, { model = 'gpt-4o' } =
     // 3. Model-Specific Execution
     // Prepare clients from runtime config
     const cfg = getConfig();
+    let userCfg = null;
+    try {
+      const db = _dependencies?.db;
+      if (db && userId) {
+        userCfg = await db.collection('ai_user_config').findOne({ userId });
+      }
+    } catch {}
     let openaiClient = null;
     let geminiClient = null;
-    if (cfg.keys.openai) {
-      openaiClient = new OpenAI({ apiKey: cfg.keys.openai });
+    const effectiveKeys = {
+      openai: (userCfg?.keys?.openai) || cfg.keys.openai,
+      gemini: (userCfg?.keys?.gemini) || cfg.keys.gemini,
+    };
+    if (effectiveKeys.openai) {
+      openaiClient = new OpenAI({ apiKey: effectiveKeys.openai });
     }
-    if (cfg.keys.gemini) {
-      geminiClient = new GoogleGenerativeAI(cfg.keys.gemini);
+    if (effectiveKeys.gemini) {
+      geminiClient = new GoogleGenerativeAI(effectiveKeys.gemini);
+    }
+
+    // Choose default model from user config if model not explicitly provided
+    if (!model) {
+      model = (userCfg?.activeModel) || cfg.activeModel || 'gpt-4o';
     }
 
     if (model.startsWith('gemini') && geminiClient) {

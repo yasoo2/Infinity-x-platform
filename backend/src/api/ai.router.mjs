@@ -6,7 +6,7 @@ import { requireAdmin } from '../middleware/auth.mjs';
 import jwt from 'jsonwebtoken';
 const JWT_SECRET = process.env.JWT_SECRET || 'a-very-weak-secret-for-dev';
 
-const aiRouterFactory = ({ optionalAuth, requireRole }) => {
+const aiRouterFactory = ({ optionalAuth, requireRole, db }) => {
   const router = express.Router();
   router.use(optionalAuth);
 
@@ -67,29 +67,53 @@ const aiRouterFactory = ({ optionalAuth, requireRole }) => {
     { id: 'snowflake-cortex', name: 'Snowflake Cortex', createUrl: 'https://www.snowflake.com/en/data-cloud/cortex/', defaultModel: 'snowflake/llm' },
   ];
 
-  router.get('/providers', allowLoggedIn, (req, res) => {
-    const status = providers.map(p => ({
-      ...p,
-      isActive: p.id === activeProvider,
-      hasEnvKey: !!(
-        (p.id === 'openai' && process.env.OPENAI_API_KEY) ||
-        (p.id === 'gemini' && process.env.GOOGLE_API_KEY) ||
-        (p.id === 'grok' && process.env.GROK_API_KEY)
-      ),
-    }));
-    res.json({ ok: true, providers: status, activeProvider, activeModel });
+  router.get('/providers', allowLoggedIn, async (req, res) => {
+    try {
+      let userActiveProvider = activeProvider;
+      let userActiveModel = activeModel;
+      if (db) {
+        const cfg = await db.collection('ai_user_config').findOne({ userId: req.user?.id || req.user?.userId });
+        if (cfg) {
+          userActiveProvider = cfg.activeProvider || userActiveProvider;
+          userActiveModel = cfg.activeModel || userActiveModel;
+        }
+      }
+      const status = providers.map(p => ({
+        ...p,
+        isActive: p.id === userActiveProvider,
+        hasEnvKey: !!(
+          (p.id === 'openai' && process.env.OPENAI_API_KEY) ||
+          (p.id === 'gemini' && process.env.GOOGLE_API_KEY) ||
+          (p.id === 'grok' && process.env.GROK_API_KEY)
+        ),
+      }));
+      res.json({ ok: true, providers: status, activeProvider: userActiveProvider, activeModel: userActiveModel });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: 'SERVER_ERROR', message: e.message });
+    }
   });
 
-  router.post('/activate', allowSuperAdmin, (req, res) => {
-    const { provider, model } = req.body || {};
-    if (!provider || !providers.find(p => p.id === provider)) {
-      return res.status(400).json({ ok: false, error: 'UNKNOWN_PROVIDER' });
+  router.post('/activate', allowLoggedIn, async (req, res) => {
+    try {
+      const { provider, model } = req.body || {};
+      if (!provider || !providers.find(p => p.id === provider)) {
+        return res.status(400).json({ ok: false, error: 'UNKNOWN_PROVIDER' });
+      }
+      const def = providers.find(p => p.id === provider)?.defaultModel;
+      const selectedModel = model || def || activeModel;
+      const userId = req.user?.id || req.user?.userId;
+      if (!userId) return res.status(403).json({ ok: false, error: 'ACCESS_DENIED' });
+      if (db) {
+        await db.collection('ai_user_config').updateOne(
+          { userId },
+          { $set: { userId, activeProvider: provider, activeModel: selectedModel, updatedAt: new Date() } },
+          { upsert: true }
+        );
+      }
+      return res.json({ ok: true, activeProvider: provider, activeModel: selectedModel });
+    } catch (e) {
+      return res.status(500).json({ ok: false, error: 'SERVER_ERROR', message: e.message });
     }
-    activeProvider = provider;
-    const def = providers.find(p => p.id === provider)?.defaultModel;
-    activeModel = model || def || activeModel;
-    setActive(activeProvider, activeModel);
-    return res.json({ ok: true, activeProvider, activeModel });
   });
 
   router.post('/validate', allowLoggedIn, async (req, res) => {
@@ -98,18 +122,32 @@ const aiRouterFactory = ({ optionalAuth, requireRole }) => {
       if (!provider || !apiKey) {
         return res.status(400).json({ ok: false, error: 'PROVIDER_AND_API_KEY_REQUIRED' });
       }
+      const userId = req.user?.id || req.user?.userId;
+      if (!userId) return res.status(403).json({ ok: false, error: 'ACCESS_DENIED' });
       if (provider === 'openai') {
         const client = new OpenAI({ apiKey });
         // Simple lightweight request
         await client.models.list();
-        setKey('openai', apiKey);
+        if (db) {
+          await db.collection('ai_user_config').updateOne(
+            { userId },
+            { $set: { userId, [`keys.${provider}`]: apiKey, updatedAt: new Date() } },
+            { upsert: true }
+          );
+        }
         return res.json({ ok: true, valid: true });
       } else if (provider === 'gemini') {
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
         const r = await model.generateContent('ping');
         if (r?.response?.text) {
-          setKey('gemini', apiKey);
+          if (db) {
+            await db.collection('ai_user_config').updateOne(
+              { userId },
+              { $set: { userId, [`keys.${provider}`]: apiKey, updatedAt: new Date() } },
+              { upsert: true }
+            );
+          }
           return res.json({ ok: true, valid: true });
         }
         return res.json({ ok: true, valid: false });

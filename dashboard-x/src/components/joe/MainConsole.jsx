@@ -76,6 +76,7 @@ const MainConsole = () => {
     reader.readAsText(file);
   };
 
+
   return (
     <div className="flex flex-col h-full bg-gray-900">
       {/* Messages Area - Spacious and Centered */}
@@ -91,13 +92,13 @@ const MainConsole = () => {
                   className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div 
-                    className={`max-w-[75%] rounded-2xl px-5 py-4 shadow-lg ${
+                    className={`max-w-[90%] sm:max-w-[85%] md:max-w-[75%] rounded-2xl px-5 py-4 shadow-lg ${
                       msg.type === 'user' 
-                        ? 'bg-blue-600 text-white' 
-                        : 'bg-gray-800 text-gray-100 border border-gray-700'
+                        ? 'bg-yellow-600 text-black border border-yellow-600 ring-1 ring-yellow-600/20' 
+                        : 'bg-gray-800 text-gray-100 border border-yellow-500/50 ring-1 ring-yellow-500/30'
                     }`}
                   >
-                    <p className="text-base leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                    <p className="text-base leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
                   </div>
                 </div>
               ))}
@@ -108,7 +109,7 @@ const MainConsole = () => {
                   <div className="max-w-[75%] bg-gray-800 border border-gray-700 rounded-2xl px-5 py-4">
                     <div className="w-full bg-gray-700 rounded-full h-2.5 mb-2">
                       <div 
-                        className="bg-blue-500 h-2.5 rounded-full transition-all duration-300" 
+                        className="bg-yellow-500 h-2.5 rounded-full transition-all duration-300" 
                         style={{ width: `${progress}%` }}
                       ></div>
                     </div>
@@ -128,7 +129,7 @@ const MainConsole = () => {
       {/* Input Area - Fixed at Bottom, Centered and Spacious */}
       <div className="border-t border-gray-800 bg-gray-900/98 backdrop-blur-sm">
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-5">
-          <div className="flex items-end gap-3 bg-gray-800 border border-gray-700 rounded-2xl px-5 py-4 focus-within:ring-2 focus-within:ring-blue-500 transition-all">
+          <div className="flex items-end gap-3 bg-gray-800 border border-gray-700 rounded-2xl px-5 py-4 focus-within:ring-2 focus-within:ring-yellow-500 transition-all">
             {/* Textarea */}
             <textarea
               ref={textareaRef}
@@ -158,7 +159,7 @@ const MainConsole = () => {
               
               <button 
                 onClick={handleFileClick} 
-                className="p-2.5 text-gray-400 hover:text-blue-400 hover:bg-gray-700 rounded-lg transition-colors" 
+                className="p-2.5 text-gray-400 hover:text-yellow-400 hover:bg-gray-700 rounded-lg transition-colors" 
                 disabled={isProcessing}
                 title="Attach File"
               >
@@ -170,7 +171,7 @@ const MainConsole = () => {
                 className={`p-2.5 rounded-lg transition-colors ${
                   isListening 
                     ? 'text-red-500 bg-red-500/10 animate-pulse' 
-                    : 'text-gray-400 hover:text-blue-400 hover:bg-gray-700'
+                    : 'text-gray-400 hover:text-yellow-400 hover:bg-gray-700'
                 }`}
                 disabled={isProcessing}
                 title="Voice Input"
@@ -190,7 +191,7 @@ const MainConsole = () => {
                 <button 
                   onClick={handleSend} 
                   disabled={!input.trim()} 
-                  className="p-2.5 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="p-2.5 text-black bg-yellow-600 hover:bg-yellow-700 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   title="Send Message"
                 >
                   <FiSend size={20} />
@@ -199,13 +200,14 @@ const MainConsole = () => {
             </div>
           </div>
           
-          {/* Helper Text */}
-          <p className="text-xs text-gray-500 text-center mt-3">
-            Joe can make mistakes. Consider checking important information.
-          </p>
-        </div>
+        {/* Helper Text */}
+        <p className="text-xs text-gray-500 text-center mt-3">
+          Joe can make mistakes. Consider checking important information.
+        </p>
+        {/* Robot moved to Joe page and enhanced */}
       </div>
     </div>
+  </div>
   );
 };
 

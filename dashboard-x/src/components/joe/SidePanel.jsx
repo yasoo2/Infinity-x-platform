@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { FiPlus, FiMessageSquare, FiEdit2, FiTrash2, FiMoreVertical } from 'react-icons/fi';
 
-const SidePanel = ({ conversations, onConversationSelect, onNewConversation, currentConversationId, onRenameConversation, onDeleteConversation, onPinToggle, onDuplicate, onClear }) => {
+const SidePanel = ({ conversations, onConversationSelect, onNewConversation, currentConversationId, onRenameConversation, onDeleteConversation, onPinToggle, onDuplicate, onClear, lang = 'ar' }) => {
   const [openMenuId, setOpenMenuId] = useState(null);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const menuRef = useRef(null);
@@ -33,11 +33,11 @@ const SidePanel = ({ conversations, onConversationSelect, onNewConversation, cur
   return (
     <div className="bg-gray-900 w-full flex-shrink-0 p-3 flex flex-col" style={{ gridArea: 'side' }}>
       <div className="flex items-center justify-between mb-4 px-2">
-        <h2 className="text-sm font-semibold text-gray-200 uppercase tracking-wider">Chats</h2>
+        <h2 className="text-sm font-semibold text-yellow-400 tracking-wider">{lang === 'ar' ? 'المحادثات' : 'Chats'}</h2>
         <button 
           onClick={onNewConversation}
-          className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-md"
-          title="New Chat"
+          className="p-2 text-black bg-yellow-600 hover:bg-yellow-700 rounded-md"
+          title={lang === 'ar' ? 'محادثة جديدة' : 'New Chat'}
         >
           <FiPlus size={20} />
         </button>
@@ -50,7 +50,7 @@ const SidePanel = ({ conversations, onConversationSelect, onNewConversation, cur
             onClick={() => { setOpenMenuId(null); onConversationSelect(convo.id); }}
             className={`relative flex items-center px-4 py-2.5 mx-2 my-1 rounded-md cursor-pointer transition-colors duration-200 ${
               currentConversationId === convo.id 
-                ? 'bg-indigo-600 text-white' 
+                ? 'bg-yellow-600 text-black' 
                 : 'text-gray-300 hover:bg-gray-700/50'
             }`}>
             <FiMessageSquare className="mr-3 flex-shrink-0" size={16} />
@@ -63,12 +63,12 @@ const SidePanel = ({ conversations, onConversationSelect, onNewConversation, cur
               <FiMoreVertical size={16} />
             </button>
             {openMenuId === convo.id && (
-              <div ref={menuRef} className="fixed z-40 w-44 bg-gray-800 border border-gray-700 rounded-md shadow-lg" style={{ top: menuPos.top, left: menuPos.left }}>
-                <button onClick={(e)=>{ e.stopPropagation(); onPinToggle(convo.id); setOpenMenuId(null); }} className="w-full text-left px-3 py-2 hover:bg-gray-700 text-sm">{convo.pinned ? 'Unpin' : 'Pin'}</button>
-                <button onClick={(e)=>{ e.stopPropagation(); const t = prompt('Rename conversation', convo.title || ''); if (t!=null) onRenameConversation(convo.id, t); setOpenMenuId(null); }} className="w-full text-left px-3 py-2 hover:bg-gray-700 text-sm">Rename</button>
-                <button onClick={(e)=>{ e.stopPropagation(); onDuplicate(convo.id); setOpenMenuId(null); }} className="w-full text-left px-3 py-2 hover:bg-gray-700 text-sm">Duplicate</button>
-                <button onClick={(e)=>{ e.stopPropagation(); if (confirm('Clear messages?')) onClear(convo.id); setOpenMenuId(null); }} className="w-full text-left px-3 py-2 hover:bg-gray-700 text-sm">Clear Messages</button>
-                <button onClick={(e)=>{ e.stopPropagation(); if (confirm('Delete conversation?')) onDeleteConversation(convo.id); setOpenMenuId(null); }} className="w-full text-left px-3 py-2 hover:bg-gray-700 text-sm text-red-400">Delete</button>
+              <div ref={menuRef} className="fixed z-40 w-48 bg-gray-900 text-white border border-yellow-600 rounded-lg shadow-2xl" style={{ top: menuPos.top, left: menuPos.left }}>
+                <button onClick={(e)=>{ e.stopPropagation(); onPinToggle(convo.id); setOpenMenuId(null); }} className="w-full text-left px-3 py-2 hover:bg-yellow-600 hover:text-black text-sm">{lang === 'ar' ? (convo.pinned ? 'إلغاء التثبيت' : 'تثبيت') : (convo.pinned ? 'Unpin' : 'Pin')}</button>
+                <button onClick={(e)=>{ e.stopPropagation(); const t = prompt(lang === 'ar' ? 'إعادة تسمية المحادثة' : 'Rename conversation', convo.title || ''); if (t!=null) onRenameConversation(convo.id, t); setOpenMenuId(null); }} className="w-full text-left px-3 py-2 hover:bg-yellow-600 hover:text:black text-sm">{lang === 'ar' ? 'إعادة تسمية' : 'Rename'}</button>
+                <button onClick={(e)=>{ e.stopPropagation(); onDuplicate(convo.id); setOpenMenuId(null); }} className="w-full text-left px-3 py-2 hover:bg-yellow-600 hover:text:black text-sm">{lang === 'ar' ? 'نسخ' : 'Duplicate'}</button>
+                <button onClick={(e)=>{ e.stopPropagation(); if (confirm(lang === 'ar' ? 'مسح الرسائل؟' : 'Clear messages?')) onClear(convo.id); setOpenMenuId(null); }} className="w-full text-left px-3 py-2 hover:bg-yellow-600 hover:text:black text-sm">{lang === 'ar' ? 'مسح الرسائل' : 'Clear Messages'}</button>
+                <button onClick={(e)=>{ e.stopPropagation(); if (confirm(lang === 'ar' ? 'حذف المحادثة؟' : 'Delete conversation?')) onDeleteConversation(convo.id); setOpenMenuId(null); }} className="w-full text-left px-3 py-2 hover:bg-red-700 text-sm text-red-400">{lang === 'ar' ? 'حذف' : 'Delete'}</button>
               </div>
             )}
           </div>
