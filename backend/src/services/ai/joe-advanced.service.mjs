@@ -22,6 +22,9 @@ import MANUS_STYLE_PROMPT from '../../prompts/manusStylePrompt.mjs';
 // --- Client Configuration ---
 // Clients will be instantiated per-request from runtime configuration
 
+let _dependencies = {};
+function init(dependencies) { _dependencies = dependencies || {}; }
+
 // =========================
 // 🎯 Event System
 // =========================
@@ -63,7 +66,8 @@ function adaptToolsForGemini(openAITools) {
  * @returns {Promise<object>} - The final response and metadata.
  */
 async function processMessage(userId, message, sessionId, { model = 'gpt-4o' } = {}) {
-    const { memoryManager } = this.dependencies;
+    const { memoryManager } = _dependencies;
+    if (!memoryManager) { throw new Error('MemoryManager not initialized'); }
     const startTime = Date.now();
     console.log(`
 🤖 JOE v9 "Gemini-Phoenix" [${model}] Processing: "${message.substring(0, 80)}..." for User: ${userId}`);
@@ -184,7 +188,8 @@ async function processMessage(userId, message, sessionId, { model = 'gpt-4o' } =
 // 📤 Exports
 // =========================
 export { processMessage, joeEvents };
-export default { processMessage, events: joeEvents, version: '9.0.0', name: 'JOE Advanced Engine - Gemini-Phoenix Edition' };
+export { init };
+export default { processMessage, events: joeEvents, version: '9.0.0', name: 'JOE Advanced Engine - Gemini-Phoenix Edition', init };
 
 console.log('🚀 JOE Advanced Engine v9.0.0 "Gemini-Phoenix" Loaded Successfully!');
 console.log('🧠 Integrated with Advanced Memory Manager.');

@@ -1,5 +1,6 @@
   import React, { useEffect, useRef, useState, useCallback } from 'react';
   import { Play, Copy, Trash2, Loader2, Wifi, WifiOff, RefreshCcw } from 'lucide-react';
+  import { useSessionToken } from '../hooks/useSessionToken';
 
   // افتراض أن هذه الدوال موجودة في ملفات utils/websocket.ts و utils/api.ts
   // ويجب أن تكون متوافقة مع التوقيعات التالية:
@@ -15,9 +16,14 @@
     // يجب عليك تعديل هذا الجزء ليتناسب مع طريقة اتصالك بـ WebSocket
     // مثال:
     // تم تصحيح المسار ليتطابق مع مسار خادم Joe Agent
-    const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://api.xelitesolutions.com';
+    const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4001';
     const wsBase = apiBase.replace(/^http/, 'ws');
-    const wsUrl = `${wsBase}/ws/joe-agent`; // لا حاجة لتوكين هنا
+    const token = (typeof window !== 'undefined') ? (localStorage.getItem('sessionToken') || '') : '';
+    if (!token) {
+      console.warn('AgentPanel: لا يوجد توكن جلسة، لن يتم الاتصال بـ Joe Agent WS');
+      return null;
+    }
+    const wsUrl = `${wsBase}/ws/joe-agent?token=${encodeURIComponent(token)}`;
     const ws = new WebSocket(wsUrl);
     ws.onopen = onOpen;
     ws.onmessage = (event) => {
@@ -75,7 +81,7 @@
    * }} props
    */
   const AgentPanel = ({
-    apiPath = '/joe/chat-advanced',
+    apiPath = '/api/v1/joe-chat-advanced',
     defaultCode = '// اكتب تعليماتك أو كودك هنا ثم نفّذ',
     autoReconnect = true,
     persistOutput = true,
@@ -87,6 +93,8 @@
     const [error, setError] = useState(null);
     const [wsConnected, setWsConnected] = useState(false);
     const [wsAttempt, setWsAttempt] = useState(0);
+    const { token } = useSessionToken();
+    const sessionRef = useRef(`session_${Date.now()}`);
 
     const outputRef = useRef(null);
     const wsRef = useRef(null); // لتخزين مثيل WebSocket
@@ -154,19 +162,21 @@
       setLoading(true);
       setError(null);
       try {
-        const result = await apiRequest(apiPath, {
+        const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4001';
+        const url = apiPath.startsWith('http') ? apiPath : `${apiBase}${apiPath}`;
+        const result = await apiRequest(url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             ...requestHeaders,
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify({ code: payload }),
+          body: JSON.stringify({ message: String(payload), sessionId: sessionRef.current }),
         });
-        // في حال API يعيد output لحظياً
-        if (result?.output) {
-          setOutput((prev) => (prev ? prev + '\n' : '') + String(result.output));
-        } else if (!result?.streaming) { // إذا لم يكن هناك بث ولم يكن هناك إخراج فوري
-          setOutput((prev) => (prev ? prev + '\n' : '') + 'لا يوجد إخراج مباشر من API');
+        if (result?.response) {
+          setOutput((prev) => (prev ? prev + '\n' : '') + String(result.response));
+        } else {
+          setOutput((prev) => (prev ? prev + '\n' : '') + 'تم التنفيذ بدون ردّ نصي');
         }
       } catch (err) {
         const msg = err?.message || 'حدث خطأ أثناء التنفيذ';

@@ -12,6 +12,7 @@ export class JoeAgentWebSocketServer {
   constructor(server, dependencies) {
     this.dependencies = dependencies;
     this.wss = new WebSocketServer({ server, path: '/ws/joe-agent' });
+    joeAdvanced.init(dependencies);
     console.log('🤖 Joe Agent WebSocket Server v2.0 "Unified" Initialized.');
     this.setupWebSocketServer();
     this.setupEventListeners();
@@ -83,7 +84,10 @@ export class JoeAgentWebSocketServer {
             const userId = ws.userId; 
 
             const sessionId = data.sessionId || ws.sessionId;
-            await joeAdvanced.processMessage(userId, data.message, sessionId, { model });
+            const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model });
+            if (ws.readyState === ws.OPEN) {
+              ws.send(JSON.stringify({ type: 'response', response: result.response, toolsUsed: result.toolsUsed, sessionId }));
+            }
 
           } else if (data.action === 'cancel') {
             // Handle cancel action if needed
