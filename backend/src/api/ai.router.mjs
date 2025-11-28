@@ -10,15 +10,15 @@ const aiRouterFactory = ({ optionalAuth, requireRole }) => {
   const router = express.Router();
   router.use(optionalAuth);
 
-  // Soft role guards to tolerate dev tokens without DB users
-  const allowAdmin = (req, res, next) => {
-    if (req.user) return requireAdmin(req, res, next);
+  // Allow any authenticated user (user/admin/super_admin)
+  const allowLoggedIn = (req, res, next) => {
+    if (req.user) return next();
     try {
       const authHeader = req.headers['authorization'];
       const token = authHeader && authHeader.split(' ')[1];
       if (!token) return res.status(403).json({ ok: false, error: 'ACCESS_DENIED' });
       const decoded = jwt.verify(token, JWT_SECRET);
-      if (decoded?.role === 'admin' || decoded?.role === 'super_admin') return next();
+      if (decoded?.userId) return next();
       return res.status(403).json({ ok: false, error: 'ACCESS_DENIED' });
     } catch {
       return res.status(403).json({ ok: false, error: 'ACCESS_DENIED' });
@@ -67,7 +67,7 @@ const aiRouterFactory = ({ optionalAuth, requireRole }) => {
     { id: 'snowflake-cortex', name: 'Snowflake Cortex', createUrl: 'https://www.snowflake.com/en/data-cloud/cortex/', defaultModel: 'snowflake/llm' },
   ];
 
-  router.get('/providers', allowAdmin, (req, res) => {
+  router.get('/providers', allowLoggedIn, (req, res) => {
     const status = providers.map(p => ({
       ...p,
       isActive: p.id === activeProvider,
@@ -92,7 +92,7 @@ const aiRouterFactory = ({ optionalAuth, requireRole }) => {
     return res.json({ ok: true, activeProvider, activeModel });
   });
 
-  router.post('/validate', allowAdmin, async (req, res) => {
+  router.post('/validate', allowLoggedIn, async (req, res) => {
     try {
       const { provider, apiKey } = req.body || {};
       if (!provider || !apiKey) {
