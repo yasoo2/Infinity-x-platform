@@ -7,9 +7,7 @@
 import OpenAI from 'openai';
 import { getDB } from '../services/db.mjs'; // Assuming db.mjs is in services
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
 
 class ContinuousLearningSystem {
   constructor() {
@@ -86,6 +84,9 @@ class ContinuousLearningSystem {
     `;
 
     try {
+        if (!openai) {
+            return [];
+        }
         const response = await openai.chat.completions.create({
             model: 'gpt-4o',
             messages: [

@@ -9,7 +9,7 @@ import { createClient } from 'redis';
 import OpenAI from 'openai';
 import { getDB } from '../services/db.mjs'; // Assuming db service
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
 
 class RealTimeCollaborationSystem {
   constructor() {
@@ -102,6 +102,10 @@ class RealTimeCollaborationSystem {
       if (!room) return;
 
       const prompt = `You are a pair programming assistant. Based on the current code and the user request, provide a helpful response, suggestion, or code block.\n\nCurrent Code:\n${room.code}\n\nUser Request: ${data.request}`;
+      if (!openai) {
+          this.io.to(userInfo.roomId).emit('ai_response', { response: 'AI assistance is disabled.' });
+          return;
+      }
       const response = await openai.chat.completions.create({
           model: 'gpt-4o',
           messages: [{ role: 'system', content: 'You are a helpful pair programming assistant.' }, { role: 'user', content: prompt }]

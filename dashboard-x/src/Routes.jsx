@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import DashboardLayout from './components/DashboardLayout'; // Use the existing DashboardLayout
 import useAuth from './hooks/useAuth'; // Use the newly created useAuth hook
+import { useSessionToken } from './hooks/useSessionToken';
 
 // Import all discovered pages
 import Activity from './pages/Activity';
@@ -22,20 +23,20 @@ import Users from './pages/Users';
 
 // Helper component for protected routes
 const ProtectedRoute = ({ children, allowedRoles }) => {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { token, isAuthenticated: hasToken } = useSessionToken();
+  const { user, isLoading } = useAuth();
 
-  if (isLoading) {
-    return <div>Loading...</div>; // Or a proper loading spinner
+  // إذا لم يوجد توكن، نوجّه فوراً
+  if (!hasToken()) {
+    return <Navigate to="/" replace />;
   }
 
-  if (!isAuthenticated) {
-    // Redirect to the external login page/card
-    // Assuming the external login is handled by the root domain or a specific path
-    return <Navigate to="/" replace />; 
-  }
-
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/overview" replace />; // Redirect unauthorized users
+  // عند تقييد الأدوار، ننتظر تحميل معلومات المستخدم
+  if (allowedRoles) {
+    if (isLoading) return <div>Loading...</div>;
+    if (!user || !allowedRoles.includes(user.role)) {
+      return <Navigate to="/dashboard/overview" replace />;
+    }
   }
 
   return children;

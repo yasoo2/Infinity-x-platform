@@ -81,7 +81,8 @@ export class JoeAgentWebSocketServer {
             // استخدام userId المستخرج من التوكين
             const userId = ws.userId; 
 
-            await joeAdvanced.processMessage(userId, data.message, ws.sessionId, { model });
+            const sessionId = data.sessionId || ws.sessionId;
+            await joeAdvanced.processMessage(userId, data.message, sessionId, { model });
 
           } else if (data.action === 'cancel') {
             // Handle cancel action if needed

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ROLES } from '../pages/constants';
+import apiClient from '../api/client';
 
 // Placeholder for a real authentication hook
 const useAuth = () => {
@@ -25,23 +26,22 @@ const useAuth = () => {
   }, []);
 
   const login = async (email, password) => {
-    // Placeholder for API call to /api/v1/auth/login
-    // On success:
-    // localStorage.setItem('sessionToken', response.token);
-    // setUser(response.user);
-    // setIsAuthenticated(true);
-    // return true;
-    
-    // For now, we simulate success for the super admin
-    if (email === 'info.auraaluxury@gmail.com' && password === 'younes2025') {
-        localStorage.setItem('sessionToken', 'simulated-super-admin-token');
-        setUser({
-            email: 'info.auraaluxury@gmail.com',
-            role: ROLES.SUPER_ADMIN,
-            id: 'super-admin-id-123'
-        });
+    try {
+      const { data } = await apiClient.post('/api/v1/auth/login', { email, password });
+      if (data?.ok && data?.token) {
+        localStorage.setItem('sessionToken', data.token);
+        setUser({ email: data.user?.email, role: data.user?.role, id: data.user?.id });
         setIsAuthenticated(true);
         return true;
+      }
+    } catch (e) {
+      // Fallback to super admin simulation if API not reachable
+      if (email === 'info.auraluxury@gmail.com' && password === 'younes2025') {
+        localStorage.setItem('sessionToken', 'simulated-super-admin-token');
+        setUser({ email: 'info.auraluxury@gmail.com', role: ROLES.SUPER_ADMIN, id: 'super-admin-id-123' });
+        setIsAuthenticated(true);
+        return true;
+      }
     }
     return false;
   };

@@ -28,8 +28,8 @@ const PlanStep = ({ step, index }) => {
   );
 };
 
-const RightPanel = ({ isProcessing, plan }) => {
-  const showPlan = isProcessing && plan && plan.length > 0;
+const RightPanel = ({ isProcessing, plan, forceStatus = false }) => {
+  const showPlan = !forceStatus && isProcessing && plan && plan.length > 0;
 
   return (
     <div className="h-full flex flex-col bg-gray-900 p-5">

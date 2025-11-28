@@ -4,6 +4,41 @@ import { v4 as uuidv4 } from 'uuid';
 
 const JOE_CHAT_HISTORY = 'joeChatHistory';
 
+const normalizeTitle = (text) => {
+    if (!text) return 'New Conversation';
+    const cleaned = String(text).trim().replace(/\s+/g, ' ');
+    return cleaned.length > 60 ? cleaned.slice(0, 60) + '…' : cleaned;
+};
+
+const normalizeConversationsData = (raw) => {
+    try {
+        if (!raw) return {};
+        // If it's already an object map
+        if (typeof raw === 'object' && !Array.isArray(raw)) {
+            return raw;
+        }
+        // If it's an array, convert to object keyed by id
+        if (Array.isArray(raw)) {
+            const obj = {};
+            raw.forEach((c) => {
+                if (c && c.id) {
+                    obj[c.id] = {
+                        id: c.id,
+                        title: c.title || 'New Conversation',
+                        messages: Array.isArray(c.messages) ? c.messages : [],
+                        lastModified: c.lastModified || Date.now(),
+                        pinned: !!c.pinned,
+                    };
+                }
+            });
+            return obj;
+        }
+        return {};
+    } catch {
+        return {};
+    }
+};
+
 const chatReducer = (state, action) => {
     const { currentConversationId, conversations } = state;
     const currentConvo = conversations[currentConversationId];
@@ -17,7 +52,7 @@ const chatReducer = (state, action) => {
             if (!currentConversationId) return state;
             const newMessage = { type: 'user', content: action.payload, id: uuidv4() };
             const updatedMessages = [...(currentConvo?.messages || []), newMessage];
-            const title = currentConvo?.title === 'New Conversation' ? action.payload.substring(0, 40) + '...' : currentConvo.title;
+            const title = (!currentConvo?.title || currentConvo?.title === 'New Conversation') ? normalizeTitle(action.payload) : currentConvo.title;
             const updatedConvo = { ...currentConvo, messages: updatedMessages, title, lastModified: Date.now() };
             
             return {
@@ -29,6 +64,35 @@ const chatReducer = (state, action) => {
                 conversations: { ...conversations, [currentConversationId]: updatedConvo },
                 plan: [], // CLEAR_PLAN on start
             };
+        }
+
+        case 'SEND_MESSAGE': {
+            const inputText = action.payload;
+            let nextState = { ...state };
+            let convoId = nextState.currentConversationId;
+            // Ensure a conversation exists
+            if (!convoId) {
+                convoId = uuidv4();
+                nextState.conversations = {
+                    ...nextState.conversations,
+                    [convoId]: { id: convoId, title: 'New Conversation', messages: [], lastModified: Date.now(), pinned: false },
+                };
+                nextState.currentConversationId = convoId;
+            }
+            const convo = nextState.conversations[convoId];
+            const newMessage = { type: 'user', content: inputText, id: uuidv4() };
+            const updatedMessages = [...(convo?.messages || []), newMessage];
+            const title = (!convo?.title || convo?.title === 'New Conversation') ? normalizeTitle(inputText) : convo.title;
+            nextState.conversations = {
+                ...nextState.conversations,
+                [convoId]: { ...convo, messages: updatedMessages, title, lastModified: Date.now() },
+            };
+            nextState.input = '';
+            nextState.isProcessing = true;
+            nextState.progress = 0;
+            nextState.currentStep = 'Processing...';
+            nextState.plan = [];
+            return nextState;
         }
 
         case 'APPEND_MESSAGE': {
@@ -43,6 +107,9 @@ const chatReducer = (state, action) => {
             }
 
             const updatedConvo = { ...currentConvo, messages: updatedMessages, lastModified: Date.now() };
+            if (currentConvo.title === 'New Conversation' && action.payload.type === 'joe') {
+                updatedConvo.title = normalizeTitle(currentConvo.messages.find(m => m.type === 'user')?.content || 'New Conversation');
+            }
             return {
                 ...state,
                 conversations: { ...conversations, [currentConversationId]: updatedConvo },
@@ -82,7 +149,7 @@ const chatReducer = (state, action) => {
             };
             const newConversations = {
                 ...conversations,
-                [newId]: { id: newId, title: 'New Conversation', messages: [welcomeMessage], lastModified: Date.now() },
+                [newId]: { id: newId, title: 'New Conversation', messages: [welcomeMessage], lastModified: Date.now(), pinned: false },
             };
             const newState = {
                 ...state,
@@ -102,6 +169,54 @@ const chatReducer = (state, action) => {
         
         case 'CLEAR_PLAN':
             return { ...state, plan: [] };
+
+        case 'RENAME_CONVERSATION': {
+            const { id, title } = action.payload;
+            const convo = state.conversations[id];
+            if (!convo) return state;
+            const updated = { ...convo, title: normalizeTitle(title), lastModified: Date.now() };
+            return { ...state, conversations: { ...state.conversations, [id]: updated } };
+        }
+
+        case 'DELETE_CONVERSATION': {
+            const { id } = action.payload;
+            if (!state.conversations[id]) return state;
+            const { [id]: _, ...rest } = state.conversations;
+            const ids = Object.keys(rest);
+            if (ids.length === 0) {
+                const newId = uuidv4();
+                const welcomeMessage = { type: 'joe', content: 'Welcome to Joe AI Assistant! 👋', id: uuidv4() };
+                const newConversations = { [newId]: { id: newId, title: 'New Conversation', messages: [welcomeMessage], lastModified: Date.now(), pinned: false } };
+                return { ...state, conversations: newConversations, currentConversationId: newId, input: '', isProcessing: false, progress: 0, currentStep: '', plan: [] };
+            }
+            const nextId = ids.sort((a, b) => (rest[b].lastModified || 0) - (rest[a].lastModified || 0))[0];
+            return { ...state, conversations: rest, currentConversationId: nextId, input: '', isProcessing: false, progress: 0, currentStep: '', plan: [] };
+        }
+
+        case 'PIN_TOGGLE': {
+            const { id } = action.payload;
+            const convo = state.conversations[id];
+            if (!convo) return state;
+            const updated = { ...convo, pinned: !convo.pinned, lastModified: Date.now() };
+            return { ...state, conversations: { ...state.conversations, [id]: updated } };
+        }
+
+        case 'DUPLICATE_CONVERSATION': {
+            const { id } = action.payload;
+            const source = state.conversations[id];
+            if (!source) return state;
+            const newId = uuidv4();
+            const copy = { ...source, id: newId, title: normalizeTitle(`${source.title} (copy)`), lastModified: Date.now() };
+            return { ...state, conversations: { ...state.conversations, [newId]: copy }, currentConversationId: newId };
+        }
+
+        case 'CLEAR_MESSAGES': {
+            const { id } = action.payload;
+            const convo = state.conversations[id];
+            if (!convo) return state;
+            const cleared = { ...convo, messages: [], lastModified: Date.now() };
+            return { ...state, conversations: { ...state.conversations, [id]: cleared } };
+        }
 
         default:
             return state;
@@ -130,14 +245,24 @@ export const useJoeChat = () => {
     dispatch({ type: 'NEW_CONVERSATION', payload: selectNew });
   }, []);
 
+  const renameConversation = useCallback((id, title) => {
+    dispatch({ type: 'RENAME_CONVERSATION', payload: { id, title } });
+  }, []);
+
+  const deleteConversation = useCallback((id) => {
+    dispatch({ type: 'DELETE_CONVERSATION', payload: { id } });
+  }, []);
+
   useEffect(() => {
     try {
       const savedHistory = localStorage.getItem(JOE_CHAT_HISTORY);
       if (savedHistory) {
-        const { conversations, currentConversationId } = JSON.parse(savedHistory);
-        if (conversations && Object.keys(conversations).length > 0) {
-          dispatch({ type: 'SET_CONVERSATIONS', payload: conversations });
-          dispatch({ type: 'SELECT_CONVERSATION', payload: currentConversationId || Object.keys(conversations).sort((a, b) => conversations[b].lastModified - conversations[a].lastModified)[0] });
+        const parsed = JSON.parse(savedHistory);
+        const normalized = normalizeConversationsData(parsed?.conversations);
+        if (normalized && Object.keys(normalized).length > 0) {
+          dispatch({ type: 'SET_CONVERSATIONS', payload: normalized });
+          const sortedIds = Object.keys(normalized).sort((a, b) => (normalized[b].lastModified || 0) - (normalized[a].lastModified || 0));
+          dispatch({ type: 'SELECT_CONVERSATION', payload: parsed?.currentConversationId || sortedIds[0] });
         } else {
           handleNewConversation();
         }
@@ -159,7 +284,11 @@ export const useJoeChat = () => {
         currentConversationId: state.currentConversationId,
       };
       console.log('[useEffect] Saving to localStorage:', { conversationCount: Object.keys(dataToSave.conversations).length, currentId: dataToSave.currentConversationId });
-      localStorage.setItem(JOE_CHAT_HISTORY, JSON.stringify(dataToSave));
+      try {
+        localStorage.setItem(JOE_CHAT_HISTORY, JSON.stringify(dataToSave));
+      } catch (e) {
+        console.warn('Failed to save chat history:', e);
+      }
     }
   }, [state.conversations, state.currentConversationId]);
 
@@ -175,13 +304,9 @@ export const useJoeChat = () => {
         const baseWsUrl = import.meta.env.VITE_WS_URL.replace(/\/ws.*$/, ''); // إزالة أي مسار موجود
         wsUrl = `${baseWsUrl}/ws/joe-agent?token=${sessionToken}`;
       } else {
-        // Fallback: build from API base URL
-        // استخدام api.xelitesolutions.com بشكل افتراضي
-        // FINAL FIX: Hardcode the WebSocket URL to the confirmed API domain to bypass any incorrect environment variable injection.
-        const apiBase = 'https://api.xelitesolutions.com';
+        // Build from API base URL (dev/local friendly)
+        const apiBase = import.meta.env.VITE_API_BASE_URL || window.location.origin;
         const wsBase = apiBase.replace(/^https/, 'wss').replace(/^http/, 'ws');
-
-        // Use the correct API base for the WebSocket connection
         wsUrl = `${wsBase}/ws/joe-agent?token=${sessionToken}`;
       }
       // Diagnostic log to verify WebSocket URL
@@ -229,20 +354,19 @@ export const useJoeChat = () => {
   }, []);
 
   const handleSend = useCallback(() => {
-    if (state.input.trim() && state.currentConversationId) {
-      // 1. Dispatch START_PROCESSING to update state (add user message, set processing, update title if 'New Conversation')
-      dispatch({ type: 'START_PROCESSING', payload: state.input }); 
+    const inputText = state.input.trim();
+    if (!inputText) return;
+    // Single action ensures conversation creation, title update, and message append
+    dispatch({ type: 'SEND_MESSAGE', payload: inputText });
 
-      // 2. Send message via WebSocket
-      if (ws.current?.readyState === WebSocket.OPEN) {
-        ws.current.send(JSON.stringify({ action: 'instruct', message: state.input }));
-      } else {
-        // 3. If WS is not open, append an error message
-        dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: 'WebSocket not connected. Please wait.' } });
-        dispatch({ type: 'STOP_PROCESSING' }); // Stop processing state if no connection
-      }
+    // Send via WebSocket
+    if (ws.current?.readyState === WebSocket.OPEN) {
+      ws.current.send(JSON.stringify({ action: 'instruct', message: inputText, sessionId: state.currentConversationId }));
+    } else {
+      dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: 'WebSocket not connected. Please wait.' } });
+      dispatch({ type: 'STOP_PROCESSING' });
     }
-  }, [state.input, state.currentConversationId]);
+  }, [state.input]);
 
   const stopProcessing = useCallback(() => {
     if (ws.current?.readyState === WebSocket.OPEN) {
@@ -279,7 +403,11 @@ export const useJoeChat = () => {
 
   return {
     // ... (all existing returned values)
-    conversations: Object.values(state.conversations).sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0)),
+    conversations: Object.values(state.conversations).sort((a, b) => {
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+      return (b.lastModified || 0) - (a.lastModified || 0);
+    }),
     currentConversationId: state.currentConversationId,
     currentConversation: state.conversations[state.currentConversationId] || null,
     messages: state.conversations[state.currentConversationId]?.messages || [],
@@ -296,6 +424,11 @@ export const useJoeChat = () => {
     handleNewConversation,
     handleConversationSelect,
     handleVoiceInput,
+    renameConversation,
+    deleteConversation,
+    pinToggle: (id) => dispatch({ type: 'PIN_TOGGLE', payload: { id } }),
+    duplicateConversation: (id) => dispatch({ type: 'DUPLICATE_CONVERSATION', payload: { id } }),
+    clearMessages: (id) => dispatch({ type: 'CLEAR_MESSAGES', payload: { id } }),
     // NEWLY EXPORTED STATE
     plan: state.plan,
   };

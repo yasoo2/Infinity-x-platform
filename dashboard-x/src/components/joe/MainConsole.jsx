@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { FiMic, FiPaperclip, FiSend, FiStopCircle, FiCompass } from 'react-icons/fi';
-import { useJoeChat } from '../../hooks/useJoeChat.js';
+import { useJoeChatContext } from '../../context/JoeChatContext.jsx';
 
 const WelcomeScreen = () => (
   <div className="flex flex-col items-center justify-center h-full text-center px-6">
@@ -41,7 +41,7 @@ const MainConsole = () => {
     messages, isProcessing, progress, currentStep, 
     input, setInput, isListening, handleSend, stopProcessing, 
     handleVoiceInput, transcript, currentConversation
-  } = useJoeChat();
+  } = useJoeChatContext();
 
   // Auto-scroll to the latest message
   useEffect(() => {
@@ -80,7 +80,7 @@ const MainConsole = () => {
     <div className="flex flex-col h-full bg-gray-900">
       {/* Messages Area - Spacious and Centered */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-5xl mx-auto px-8 py-6">
+        <div className="max-w-5xl mx-auto px-4 md:px-8 py-6">
           {messages.length === 0 || (messages.length === 1 && messages[0].type === 'joe' && messages[0].content.includes('Welcome to Joe AI Assistant')) ? (
             <WelcomeScreen />
           ) : (
@@ -125,7 +125,7 @@ const MainConsole = () => {
 
       {/* Input Area - Fixed at Bottom, Centered and Spacious */}
       <div className="border-t border-gray-800 bg-gray-900/98 backdrop-blur-sm">
-        <div className="max-w-5xl mx-auto px-8 py-5">
+        <div className="max-w-5xl mx-auto px-4 md:px-8 py-5">
           <div className="flex items-end gap-3 bg-gray-800 border border-gray-700 rounded-2xl px-5 py-4 focus-within:ring-2 focus-within:ring-blue-500 transition-all">
             {/* Textarea */}
             <textarea

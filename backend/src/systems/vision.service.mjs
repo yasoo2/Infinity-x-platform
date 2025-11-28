@@ -9,9 +9,7 @@ import axios from 'axios';
 import { promises as fs } from 'fs';
 import path from 'path';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
 
 // Define a consistent storage path for generated/uploaded images
 const VISION_STORAGE_PATH = 'public/uploads/vision';
@@ -86,6 +84,9 @@ class AdvancedVisionSystem {
   }
 
   async basicAnalysis(imageUrl) {
+    if (!openai) {
+      return '';
+    }
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [
@@ -101,6 +102,9 @@ class AdvancedVisionSystem {
   }
 
   async detectObjects(imageUrl) {
+    if (!openai) {
+      return {};
+    }
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [
@@ -112,6 +116,9 @@ class AdvancedVisionSystem {
   }
 
   async extractText(imageUrl) {
+    if (!openai) {
+      return { text: '' };
+    }
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [
@@ -123,6 +130,9 @@ class AdvancedVisionSystem {
 
   async generateImage(prompt, options = {}) {
     const enhancedPrompt = await this.enhancePrompt(prompt);
+    if (!openai) {
+      return { url: '', revisedPrompt: enhancedPrompt };
+    }
     const image = await openai.images.generate({
       model: 'dall-e-3',
       prompt: enhancedPrompt,
@@ -134,6 +144,9 @@ class AdvancedVisionSystem {
   }
 
   async enhancePrompt(prompt) {
+    if (!openai) {
+      return prompt;
+    }
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
@@ -151,6 +164,9 @@ class AdvancedVisionSystem {
   
   async editImage(imageUrl, instruction) {
     const imageBuffer = await this.downloadImage(imageUrl);
+    if (!openai) {
+      return imageUrl;
+    }
     const response = await openai.images.edit({
         image: imageBuffer,
         prompt: instruction,
@@ -160,6 +176,9 @@ class AdvancedVisionSystem {
   
   async createVariations(imageUrl, count = 1) {
     const imageBuffer = await this.downloadImage(imageUrl);
+    if (!openai) {
+      return [];
+    }
     const response = await openai.images.createVariation({
         image: imageBuffer,
         n: count,
@@ -169,6 +188,9 @@ class AdvancedVisionSystem {
   }
 
   async compareImages(image1Url, image2Url) {
+      if (!openai) {
+        return { comparison: '' };
+      }
       const response = await openai.chat.completions.create({
           model: 'gpt-4o',
           messages: [

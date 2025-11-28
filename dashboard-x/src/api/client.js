@@ -31,9 +31,9 @@
   // Request interceptor: attach session token and correct headers
   apiClient.interceptors.request.use(
     (config) => {
-      const token = localStorage.getItem('sessionToken'); // Consider HttpOnly cookie on server instead
+      const token = localStorage.getItem('sessionToken');
       if (token) {
-        config.headers['x-session-token'] = token;
+        config.headers['Authorization'] = `Bearer ${token}`;
       }
       // Let axios set JSON content-type; ensure we don't override FormData headers
       if (!isFormData(config.data) && !config.headers['Content-Type']) {

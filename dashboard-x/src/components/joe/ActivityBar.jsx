@@ -1,14 +1,16 @@
 
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FiHome, FiMessageSquare, FiTool, FiBriefcase, FiClipboard, FiSettings } from 'react-icons/fi';
 
-const ActivityBar = ({ onChatClick, isSidePanelOpen }) => {
+const ActivityBar = ({ onChatClick, isSidePanelOpen, onToggleRight, onToggleBottom }) => {
+  const navigate = useNavigate();
   const icons = [
-    { icon: <FiHome />, label: 'Home', action: () => {}, active: false },
+    { icon: <FiHome />, label: 'Home', action: () => navigate('/dashboard/overview'), active: false },
     { icon: <FiMessageSquare />, label: 'Chats', action: onChatClick, active: isSidePanelOpen },
-    { icon: <FiTool />, label: 'Tools', action: () => {}, active: false },
+    { icon: <FiTool />, label: 'Tools', action: onToggleRight, active: false },
     { icon: <FiBriefcase />, label: 'Jobs', action: () => {}, active: false },
-    { icon: <FiClipboard />, label: 'Logs', action: () => {}, active: false },
+    { icon: <FiClipboard />, label: 'Logs', action: onToggleBottom, active: false },
     // Settings icon will likely be at the bottom in many UIs
   ];
 

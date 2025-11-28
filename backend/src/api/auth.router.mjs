@@ -56,6 +56,35 @@ const authRouterFactory = ({ db }) => {
         }
     });
 
+    /**
+     * @route POST /api/v1/auth/login
+     * @description Authenticates a user and returns a JWT token
+     * @access Public
+     */
+    router.post('/login', async (req, res) => {
+        try {
+            const { email, password } = req.body;
+            if (!email || !password) {
+                return res.status(400).json({ ok: false, error: 'EMAIL_PASSWORD_REQUIRED' });
+            }
+            const user = await User.findOne({ email: email.toLowerCase() });
+            if (!user) {
+                return res.status(404).json({ ok: false, error: 'USER_NOT_FOUND' });
+            }
+            const valid = await bcrypt.compare(password, user.password);
+            if (!valid) {
+                return res.status(401).json({ ok: false, error: 'INVALID_CREDENTIALS' });
+            }
+            user.lastLoginAt = new Date();
+            await user.save();
+            const token = generateToken(user);
+            res.json({ ok: true, token, user: { id: user._id, email: user.email, role: user.role } });
+        } catch (error) {
+            console.error('❌ Login endpoint error:', error);
+            res.status(500).json({ ok: false, error: 'INTERNAL_ERROR' });
+        }
+    });
+
 
 
     return router;

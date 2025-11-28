@@ -10,7 +10,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 
 const execAsync = promisify(exec);
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
 
 class AutomatedTestingSystem {
 
@@ -38,6 +38,9 @@ ${fileContent}
     Respond with ONLY the raw code for the test file.
     `;
 
+    if (!openai) {
+      return { testFilePath: null, testCode: '', framework };
+    }
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [{ role: 'system', content: 'You are a world-class QA engineer.' }, { role: 'user', content: prompt }],
@@ -111,6 +114,9 @@ ${stderr}
 
     JSON format: { "summary": { "total": ..., "passed": ..., "failed": ... }, "failures": [ { "testName": "...", "reason": "..." } ] }
       `;
+      if (!openai) {
+        return { summary: { total: 0, passed: 0, failed: 0 }, failures: [] };
+      }
       const response = await openai.chat.completions.create({
           model: 'gpt-4o-mini',
           messages: [{ role: 'user', content: prompt }],

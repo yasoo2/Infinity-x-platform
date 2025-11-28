@@ -1,10 +1,10 @@
 import React from 'react';
-import { FiTerminal, FiMaximize2, FiLogOut } from 'react-icons/fi'; // Replaced FiSidebar with FiLogOut
+import { FiTerminal, FiMaximize2, FiLogOut, FiSidebar, FiActivity, FiSliders } from 'react-icons/fi';
 
 import { useSessionToken } from '../../hooks/useSessionToken'; // Import hook for token clearing
 import { useNavigate } from 'react-router-dom'; // Import hook for navigation
 
-const TopBar = ({ onToggleRight, onToggleBottom, isRightOpen, isBottomOpen }) => {
+const TopBar = ({ onToggleRight, onToggleBottom, isRightOpen, isBottomOpen, onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onToggleBorderSettings, isBorderSettingsOpen }) => {
   const { clearToken } = useSessionToken();
   const navigate = useNavigate();
 
@@ -24,6 +24,30 @@ const TopBar = ({ onToggleRight, onToggleBottom, isRightOpen, isBottomOpen }) =>
 
       {/* Right: Control Buttons */}
       <div className="flex items-center gap-2">
+        <button
+          onClick={onToggleLeft}
+          className={`p-2 rounded-lg transition-colors ${
+            isLeftOpen 
+              ? 'bg-blue-600 text-white hover:bg-blue-700' 
+              : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+          }`}
+          title={isLeftOpen ? "Hide Chats Panel" : "Show Chats Panel"}
+        >
+          <FiSidebar size={18} />
+        </button>
+
+        {/* Toggle System Status Panel */}
+        <button
+          onClick={onToggleStatus}
+          className={`p-2 rounded-lg transition-colors ${
+            isStatusOpen 
+              ? 'bg-green-600 text-white hover:bg-green-700' 
+              : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+          }`}
+          title={isStatusOpen ? "Hide System Status" : "Show System Status"}
+        >
+          <FiActivity size={18} />
+        </button>
         {/* Exit Button (Replaces Toggle Right Panel) */}
         <button
           onClick={handleExit}
@@ -31,6 +55,18 @@ const TopBar = ({ onToggleRight, onToggleBottom, isRightOpen, isBottomOpen }) =>
           title="Exit to Home (Logout)"
         >
           <FiLogOut size={18} />
+        </button>
+
+        <button
+          onClick={onToggleBorderSettings}
+          className={`p-2 rounded-lg transition-colors ${
+            isBorderSettingsOpen 
+              ? 'bg-purple-600 text-white hover:bg-purple-700' 
+              : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+          }`}
+          title={isBorderSettingsOpen ? "Hide Border Settings" : "Show Border Settings"}
+        >
+          <FiSliders size={18} />
         </button>
 
         {/* Toggle Bottom Panel */}
