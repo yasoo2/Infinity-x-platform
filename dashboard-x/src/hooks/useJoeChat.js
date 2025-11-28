@@ -498,7 +498,8 @@ export const useJoeChat = () => {
     // Send via WebSocket
     if (ws.current?.readyState === WebSocket.OPEN) {
       const selectedModel = localStorage.getItem('aiSelectedModel') || 'gpt-4o';
-      ws.current.send(JSON.stringify({ action: 'instruct', message: inputText, sessionId: state.currentConversationId, model: selectedModel }));
+      const lang = getLang();
+      ws.current.send(JSON.stringify({ action: 'instruct', message: inputText, sessionId: state.currentConversationId, model: selectedModel, lang }));
     } else {
       const lang = getLang();
       const msg = lang === 'ar' ? 'اتصال WebSocket غير متاح حالياً، جارِ إعادة الاتصال بالخادم...' : 'WebSocket is not connected yet. Reconnecting...';

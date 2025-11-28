@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { FiMic, FiPaperclip, FiSend, FiStopCircle, FiCompass } from 'react-icons/fi';
+import { FiMic, FiPaperclip, FiSend, FiStopCircle, FiCompass, FiArrowDown } from 'react-icons/fi';
 import { useJoeChatContext } from '../../context/JoeChatContext.jsx';
 
 const WelcomeScreen = () => (
@@ -36,6 +36,12 @@ const MainConsole = () => {
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
+  const scrollContainerRef = useRef(null);
+  const showScrollRef = useRef(false);
+  const [showScrollButton, setShowScrollButton] = React.useState(false);
+  const [lang, setLang] = React.useState(() => {
+    try { return localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'; } catch { return 'ar'; }
+  });
 
   const { 
     messages, isProcessing, progress, currentStep, 
@@ -46,6 +52,8 @@ const MainConsole = () => {
   // Auto-scroll to the latest message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Hide scroll-to-bottom when new messages push to bottom
+    setShowScrollButton(false);
   }, [messages, currentConversation]);
 
   // Auto-resize textarea
@@ -61,6 +69,32 @@ const MainConsole = () => {
       setInput(transcript);
     }
   }, [transcript, setInput]);
+
+  useEffect(() => {
+    const onLang = () => {
+      try { setLang(localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'); } catch {}
+    };
+    window.addEventListener('joe:lang', onLang);
+    return () => window.removeEventListener('joe:lang', onLang);
+  }, []);
+
+  const checkScroll = () => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const threshold = 80;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
+    showScrollRef.current = !atBottom;
+    setShowScrollButton(!atBottom);
+  };
+
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    el.addEventListener('scroll', checkScroll);
+    // initial check
+    checkScroll();
+    return () => el.removeEventListener('scroll', checkScroll);
+  }, []);
 
   const handleFileClick = () => fileInputRef.current.click();
 
@@ -80,7 +114,7 @@ const MainConsole = () => {
   return (
     <div className="flex flex-col h-full bg-gray-900">
       {/* Messages Area - Spacious and Centered */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto" ref={scrollContainerRef}>
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-6">
           {messages.length === 0 || (messages.length === 1 && messages[0].type === 'joe' && messages[0].content.includes('Welcome to Joe AI Assistant')) ? (
             <WelcomeScreen />
@@ -122,6 +156,22 @@ const MainConsole = () => {
             </div>
           )}
         </div>
+        {/* Scroll To Bottom - Floating Button */}
+        <button
+          onClick={() => {
+            const el = scrollContainerRef.current;
+            if (!el) return;
+            el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            setShowScrollButton(false);
+          }}
+          title={lang==='ar'?'إلى الأسفل':'Scroll to Bottom'}
+          className={`fixed bottom-40 right-6 z-50 ${showScrollButton ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'} transition-opacity`}
+        >
+          <span className="w-10 h-10 inline-flex items-center justify-center rounded-full bg-yellow-600 text-black hover:bg-yellow-700 border border-yellow-600 shadow-lg">
+            <FiArrowDown size={18} />
+          </span>
+        </button>
       </div>
 
       {/* Conversations strip removed to avoid duplication with left SidePanel */}
