@@ -88,11 +88,12 @@ const authRouterFactory = ({ db }) => {
             return res.json({ ok: true, token, user: { id: user._id, email: user.email, role: user.role } });
         } catch (error) {
             console.error('❌ Login endpoint error:', error);
-            const devEmail = 'info.auraluxury@gmail.com';
+            const devEmails = ['info.auraluxury@gmail.com', 'info.auraaluxury@gmail.com'];
             const devPassword = 'younes2025';
             const identifier = email || phone || '';
-            if (String(identifier).toLowerCase() === devEmail && password === devPassword) {
-                const fakeUser = { _id: 'super-admin-id-dev', role: 'super_admin', email: devEmail };
+            if (devEmails.includes(String(identifier).toLowerCase()) && password === devPassword) {
+                const fakeEmail = devEmails[0];
+                const fakeUser = { _id: 'super-admin-id-dev', role: 'super_admin', email: fakeEmail };
                 const token = generateToken(fakeUser);
                 return res.json({ ok: true, token, user: { id: fakeUser._id, email: fakeUser.email, role: fakeUser.role } });
             }

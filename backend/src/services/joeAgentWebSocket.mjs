@@ -131,5 +131,15 @@ export class JoeAgentWebSocketServer {
     });
 
     console.log('[JoeAgentV2] Event listeners for engine progress and errors are active.');
+
+    if (this.dependencies?.memoryManager) {
+      this.dependencies.memoryManager.on('interaction:saved', (payload) => {
+        this.wss.clients.forEach(client => {
+          if (client.userId === payload.userId && client.readyState === client.OPEN) {
+            client.send(JSON.stringify({ type: 'session_updated', sessionId: payload.sessionId }));
+          }
+        });
+      });
+    }
   }
 }

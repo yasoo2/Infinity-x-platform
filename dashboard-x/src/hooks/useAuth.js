@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { ROLES } from '../pages/constants';
 import apiClient from '../api/client';
 
 // Placeholder for a real authentication hook
@@ -9,41 +8,79 @@ const useAuth = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // In a real app, this would check for a JWT token in localStorage or cookies
-    // and validate it against the backend.
     const token = localStorage.getItem('sessionToken');
     if (token) {
-      // For now, we simulate a successful login with the Super Admin credentials
-      // This should be replaced with a proper token validation API call
-      setUser({
-        email: 'info.auraaluxury@gmail.com',
-        role: ROLES.SUPER_ADMIN,
-        id: 'super-admin-id-123'
-      });
       setIsAuthenticated(true);
     }
     setIsLoading(false);
   }, []);
 
-  const login = async (email, password) => {
+  const login = async (email, password, remember = false) => {
     try {
-      const { data } = await apiClient.post('/api/v1/auth/login', { email, password });
-      if (data?.ok && data?.token) {
-        localStorage.setItem('sessionToken', data.token);
-        setUser({ email: data.user?.email, role: data.user?.role, id: data.user?.id });
+      const { data } = await apiClient.post('/auth/login', { email, password });
+      if (data?.token) {
+        try {
+          localStorage.setItem('sessionToken', data.token);
+        } catch {}
+        const usr = { email: data.user?.email, role: data.user?.role, id: data.user?.id };
+        setUser(usr);
         setIsAuthenticated(true);
+        if (remember) {
+          try {
+            const identifier = usr.email || email || usr.id || '';
+            const mapRaw = localStorage.getItem('rememberedSessions');
+            const map = mapRaw ? JSON.parse(mapRaw) : {};
+            map[String(identifier).toLowerCase()] = data.token;
+            localStorage.setItem('rememberedSessions', JSON.stringify(map));
+          } catch {}
+        }
         return true;
       }
     } catch (e) {
-      // Fallback to super admin simulation if API not reachable
-      if (email === 'info.auraluxury@gmail.com' && password === 'younes2025') {
-        localStorage.setItem('sessionToken', 'simulated-super-admin-token');
-        setUser({ email: 'info.auraluxury@gmail.com', role: ROLES.SUPER_ADMIN, id: 'super-admin-id-123' });
-        setIsAuthenticated(true);
-        return true;
-      }
+      // Swallow, return false for UI message
     }
     return false;
+  };
+
+  const listRemembered = () => {
+    try {
+      const raw = localStorage.getItem('rememberedSessions');
+      const map = raw ? JSON.parse(raw) : {};
+      return Object.keys(map);
+    } catch {
+      return [];
+    }
+  };
+
+  const loginWithRemembered = (identifier) => {
+    try {
+      const raw = localStorage.getItem('rememberedSessions');
+      const map = raw ? JSON.parse(raw) : {};
+      const key = String(identifier).toLowerCase();
+      const tok = map[key];
+      if (!tok) return false;
+      localStorage.setItem('sessionToken', tok);
+      setIsAuthenticated(true);
+      setUser({ email: identifier });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const removeRemembered = (identifier) => {
+    try {
+      const raw = localStorage.getItem('rememberedSessions');
+      const map = raw ? JSON.parse(raw) : {};
+      const key = String(identifier).toLowerCase();
+      if (map[key]) {
+        delete map[key];
+        localStorage.setItem('rememberedSessions', JSON.stringify(map));
+      }
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   // const logout = () => { // Removed as per user request
@@ -57,6 +94,9 @@ const useAuth = () => {
     user,
     isLoading,
     login,
+    listRemembered,
+    loginWithRemembered,
+    removeRemembered,
     // logout, // Removed as per user request
   };
 };

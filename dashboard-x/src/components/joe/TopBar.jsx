@@ -1,7 +1,6 @@
 import React from 'react';
 import { FiTerminal, FiMaximize2, FiLogOut, FiSidebar, FiActivity, FiUsers } from 'react-icons/fi';
 import { Sparkles, Key, CheckCircle, XCircle, ExternalLink, Search as SearchIcon } from 'lucide-react';
-import ReactDOM from 'react-dom';
 import { getAIProviders, validateAIKey, activateAIProvider } from '../../api/system';
 
 const DEFAULT_AI_PROVIDERS = [
@@ -54,6 +53,62 @@ const TopBar = ({ onToggleRight, onToggleBottom, isRightOpen, isBottomOpen, onTo
   const { clearToken } = useSessionToken();
   const navigate = useNavigate();
   const [userMenuOpen, setUserMenuOpen] = React.useState(false);
+  const brandRef = React.useRef(null);
+  const [eyeOffset, setEyeOffset] = React.useState({ x: 0, y: 0 });
+  const [activity, setActivity] = React.useState('idle');
+  const [outfit, setOutfit] = React.useState('suit');
+  const [lang, setLang] = React.useState(() => {
+    try { return localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'; } catch { return 'en'; }
+  });
+  React.useEffect(() => {
+    const onLang = () => {
+      try { setLang(localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'); } catch {}
+    };
+    window.addEventListener('joe:lang', onLang);
+    return () => window.removeEventListener('joe:lang', onLang);
+  }, []);
+  const toggleLang = () => {
+    const next = lang === 'ar' ? 'en' : 'ar';
+    try { localStorage.setItem('lang', next); } catch {}
+    setLang(next);
+    try { window.dispatchEvent(new CustomEvent('joe:lang', { detail: { lang: next } })); } catch {}
+  };
+  const onBrandMouseMove = (e) => {
+    if (!brandRef.current) return;
+    const rect = brandRef.current.getBoundingClientRect();
+    const dx = e.clientX - (rect.left + rect.width / 2);
+    const dy = e.clientY - (rect.top + rect.height / 2);
+    const scaleX = 8 / rect.width;
+    const scaleY = 8 / rect.height;
+    const x = Math.max(-3, Math.min(3, dx * scaleX));
+    const y = Math.max(-3, Math.min(3, dy * scaleY));
+    setEyeOffset({ x, y });
+  };
+
+  React.useEffect(() => {
+    const activities = ['idle', 'build', 'layout', 'deploy', 'think', 'walk', 'dance'];
+    let i = 0;
+    const timer = setInterval(() => {
+      i = (i + 1) % activities.length;
+      setActivity(activities[i]);
+    }, 14000);
+    const outfits = ['suit', 'sport', 'casual'];
+    let oi = 0;
+    const outfitTimer = setInterval(() => {
+      oi = (oi + 1) % outfits.length;
+      setOutfit(outfits[oi]);
+    }, 45000);
+    const onProc = (e) => {
+      const p = e.detail?.processing;
+      if (p) setActivity('think'); else setActivity('idle');
+    };
+    window.addEventListener('joe:processing', onProc);
+    return () => {
+      clearInterval(timer);
+      clearInterval(outfitTimer);
+      window.removeEventListener('joe:processing', onProc);
+    };
+  }, []);
 
   const handleExit = () => {
     clearToken();
@@ -68,20 +123,158 @@ const TopBar = ({ onToggleRight, onToggleBottom, isRightOpen, isBottomOpen, onTo
           .joe-brand { display:flex; align-items:center; gap:8px; }
           .joe-brand .text { font-size: 24px; font-weight: 800; color: #fff; text-transform: lowercase; letter-spacing: 0.02em; }
           .joe-brand .text span { color: #eab308; }
-          .joe-brand .cube { width: 56px; height: 56px; background: linear-gradient(135deg, #eab308, #fbbf24); position: relative; border-radius: 12px; transform-style: preserve-3d; animation: cubeSpin 4s infinite linear; box-shadow: 0 0 22px rgba(234, 179, 8, 0.5); }
+          .joe-brand .cube { width: 56px; height: 56px; background: linear-gradient(135deg, #eab308, #fbbf24); position: relative; border-radius: 12px; transform-style: preserve-3d; animation: cubeSpin 4s infinite linear, cubeBounce 3s infinite ease-in-out; box-shadow: 0 0 22px rgba(234, 179, 8, 0.6); overflow: visible; }
           .joe-brand .eyes { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; gap: 8px; z-index: 10; }
-          .joe-brand .eye { width: 6px; height: 6px; background: #000; border-radius: 50%; animation: goldPulse 1.5s infinite; }
+          .joe-brand .eye { width: 14px; height: 14px; background: #fff; border: 2px solid #eab308; border-radius: 50%; display: grid; place-items: center; }
+          .joe-brand .pupil { width: 5px; height: 5px; background: #000; border-radius: 50%; transform: translate(var(--eyeX, 0), var(--eyeY, 0)); animation: pupilWander 4s infinite ease-in-out; }
+          .joe-brand .limbs { position: absolute; inset: 0; pointer-events: none; }
+          .joe-brand .arm { position: absolute; width: 22px; height: 6px; background: #eab308; border-radius: 3px; }
+          .joe-brand .arm.left { left: -10px; top: 20px; transform-origin: right center; }
+          .joe-brand .arm.right { right: -10px; top: 20px; transform-origin: left center; }
+          .joe-brand .watch { position: absolute; width: 8px; height: 8px; background: #1f2937; border: 2px solid #fff; border-radius: 50%; right: 4px; top: -2px; box-shadow: 0 0 8px rgba(255,255,255,0.4); }
+          .joe-brand .hand { width: 6px; height: 6px; background: #eab308; border-radius: 50%; position: absolute; right: -3px; top: -1px; }
+          .joe-brand .leg { position: absolute; width: 8px; height: 20px; background: #eab308; border-radius: 3px; bottom: -6px; }
+          .joe-brand .leg.left { left: 16px; transform-origin: top center; }
+          .joe-brand .leg.right { right: 16px; transform-origin: top center; }
+          .joe-brand .shoe { position: absolute; width: 12px; height: 6px; background: #111; border: 2px solid #fff; border-radius: 3px; bottom: -8px; }
+          .joe-brand .shoe.left { left: 12px; }
+          .joe-brand .shoe.right { right: 12px; }
+          .joe-brand .mouth { position: absolute; top: 34px; left: 50%; transform: translateX(-50%); width: 10px; height: 6px; background: #000; border-radius: 0 0 6px 6px; z-index: 11; }
+          .joe-brand .snack { position: absolute; width: 8px; height: 8px; background: #fbbf24; border-radius: 2px; top: -6px; left: 50%; transform: translateX(-50%); display: none; }
+          .joe-brand .cup { position: absolute; width: 12px; height: 16px; background: #8b5cf6; border: 2px solid #eab308; border-radius: 2px; top: -10px; right: -18px; display: none; }
+          .joe-brand .steam { position: absolute; width: 2px; height: 10px; background: linear-gradient(180deg, rgba(255,255,255,0.8), rgba(255,255,255,0)); top: -10px; left: 3px; opacity: 0; }
+          .joe-brand .steam.two { left: 7px; }
+          .joe-brand .ball { position: absolute; width: 10px; height: 10px; background: #111; border: 2px solid #fff; border-radius: 50%; bottom: -6px; left: 6px; display: none; }
+          .joe-brand .shirt { position: absolute; bottom: 0; left: 0; right: 0; height: 26px; border-radius: 0 0 12px 12px; }
+          .joe-brand .tie { position: absolute; top: 22px; left: 50%; transform: translateX(-50%); width: 6px; height: 20px; background: #c026d3; border-radius: 3px; }
+          .joe-brand .headband { position: absolute; top: 10px; left: 8px; right: 8px; height: 6px; background: #0ea5e9; border-radius: 6px; }
+          .joe-brand .badge { position: absolute; top: 28px; right: 8px; width: 10px; height: 10px; background: #22c55e; border-radius: 50%; }
           @keyframes cubeSpin { 0% { transform: rotateX(0deg) rotateY(0deg); } 100% { transform: rotateX(360deg) rotateY(360deg); } }
-          @keyframes goldPulse { 0%, 100% { box-shadow: 0 0 0 0 #eab308; } 50% { box-shadow: 0 0 12px 4px #eab308; } }
+          @keyframes cubeBounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+          @keyframes pupilWander { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(2px, 1px); } 50% { transform: translate(-1px, -2px); } 75% { transform: translate(1px, -1px); } }
+          @keyframes waveRight { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(35deg); } }
+          @keyframes waveLeft { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-35deg); } }
+          @keyframes stepLeft { 0%, 100% { transform: rotate(0deg) translateY(0); } 50% { transform: rotate(-12deg) translateY(2px); } }
+          @keyframes stepRight { 0%, 100% { transform: rotate(0deg) translateY(0); } 50% { transform: rotate(12deg) translateY(-2px); } }
+          @keyframes walkPath { 0% { transform: translateX(0); } 50% { transform: translateX(60px); } 100% { transform: translateX(0); } }
+          @keyframes ballMove { 0% { left: 6px; } 50% { left: 40px; } 100% { left: 6px; } }
+          @keyframes snackToMouth { 0% { top: -6px; } 50% { top: 30px; } 100% { top: -6px; } }
+          @keyframes drinkToMouth { 0% { top: -8px; right: -16px; } 50% { top: 26px; right: 8px; } 100% { top: -8px; right: -16px; } }
+          @keyframes thinkGlow { 0%,100% { box-shadow: 0 0 26px rgba(234,179,8,0.6); } 50% { box-shadow: 0 0 40px rgba(234,179,8,0.9); } }
+          @keyframes steamUp { 0% { opacity: 0; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-8px); } 100% { opacity: 0; transform: translateY(-14px); } }
+          @keyframes watchGlow { 0%, 100% { box-shadow: 0 0 8px rgba(255,255,255,0.4); } 50% { box-shadow: 0 0 16px rgba(255,255,255,0.8); } }
+          .joe-brand[data-activity='wave'] .arm.left { animation: waveLeft 2s infinite ease-in-out; }
+          .joe-brand[data-activity='wave'] .arm.right { animation: waveRight 2s infinite ease-in-out; }
+          .joe-brand[data-activity='dance'] .leg.left { animation: stepLeft 1.2s infinite ease-in-out; }
+          .joe-brand[data-activity='dance'] .leg.right { animation: stepRight 1.2s infinite ease-in-out; }
+          .joe-brand[data-activity='dance'] .cube { animation-duration: 3s; }
+          .joe-brand[data-activity='walk'] .cube { animation: walkPath 6s infinite linear; }
+          .joe-brand[data-activity='workout'] .arm.left, .joe-brand[data-activity='workout'] .arm.right { animation: waveRight 1.2s infinite alternate ease-in-out; }
+          .joe-brand[data-activity='football'] .ball { animation: ballMove 2s infinite linear; display: block; }
+          .joe-brand[data-activity='eat'] .snack { animation: snackToMouth 2.2s infinite ease-in-out; display: block; }
+          .joe-brand[data-activity='drink'] .cup { animation: drinkToMouth 2.2s infinite ease-in-out; display: block; }
+          .joe-brand[data-activity='coffee'] .cup { animation: drinkToMouth 2.2s infinite ease-in-out; display: block; }
+          .joe-brand[data-activity='coffee'] .steam { animation: steamUp 1.6s infinite; }
+          .joe-brand[data-activity='watch'] .arm.right { transform: rotate(40deg); }
+          .joe-brand[data-activity='watch'] .watch { animation: watchGlow 2s infinite; }
+          .joe-brand[data-activity='think'] .cube { animation: cubeSpin 6s infinite linear, cubeBounce 3s infinite ease-in-out, thinkGlow 2.5s infinite; }
+          .joe-brand[data-activity='sit'] .chair { display: block; }
+          .joe-brand[data-activity='sit'] .leg.left { transform: rotate(70deg) translateY(2px); }
+          .joe-brand[data-activity='sit'] .leg.right { transform: rotate(-70deg) translateY(2px); }
+          .joe-brand[data-outfit='suit'] .shirt { background: linear-gradient(180deg, #111, #1f2937); }
+          .joe-brand[data-outfit='suit'] .tie { display: block; }
+          .joe-brand[data-outfit='suit'] .headband { display: none; }
+          .joe-brand[data-outfit='suit'] .badge { display: none; }
+          .joe-brand[data-outfit='sport'] .shirt { background: linear-gradient(180deg, #0ea5e9, #1d4ed8); }
+          .joe-brand[data-outfit='sport'] .headband { display: block; }
+          .joe-brand[data-outfit='sport'] .tie { display: none; }
+          .joe-brand[data-outfit='sport'] .badge { display: none; }
+          .joe-brand[data-outfit='casual'] .shirt { background: linear-gradient(180deg, #f59e0b, #f97316); }
+          .joe-brand[data-outfit='casual'] .badge { display: block; }
+          .joe-brand[data-outfit='casual'] .tie, .joe-brand[data-outfit='casual'] .headband { display: none; }
+          .joe-brand .cat { width: 42px; height: 42px; position: relative; border-radius: 12px; background: radial-gradient(circle at 30% 30%, #ffffff 0 16px, transparent 16px), radial-gradient(circle at 70% 60%, #b45309 0 14px, transparent 14px), linear-gradient(135deg, #ffffff, #b45309); box-shadow: 0 0 18px rgba(234, 179, 8, 0.6); overflow: visible; }
+          .joe-brand .ear { position: absolute; width: 12px; height: 12px; background: #b45309; top: -6px; border-radius: 2px; transform: rotate(45deg); }
+          .joe-brand .ear.left { left: 2px; }
+          .joe-brand .ear.right { right: 2px; }
+          .joe-brand .face { position: absolute; inset: 6px; border-radius: 10px; }
+          .joe-brand .whiskers { position: absolute; width: 22px; height: 10px; top: 26px; }
+          .joe-brand .whiskers.left { left: -10px; }
+          .joe-brand .whiskers.right { right: -10px; }
+          .joe-brand .whiskers span { position: absolute; width: 12px; height: 2px; background: #fff; }
+          .joe-brand .whiskers span:nth-child(1) { top: 0; }
+          .joe-brand .whiskers span:nth-child(2) { top: 4px; }
+          .joe-brand .whiskers span:nth-child(3) { top: 8px; }
+          .joe-brand .tail { position: absolute; width: 26px; height: 6px; background: #b45309; border-radius: 6px; right: -16px; bottom: 8px; transform-origin: left center; }
+          @keyframes tailSway { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(20deg); } }
+          .joe-brand[data-activity='wave'] .tail { animation: tailSway 2s infinite ease-in-out; }
+          .joe-brand[data-activity='walk'] .cat { animation: walkPath 6s infinite linear; }
+          .joe-brand[data-activity='dance'] .cat { animation-duration: 3s; }
+          .joe-brand[data-activity='think'] .cat { animation: cubeBounce 3s infinite ease-in-out, thinkGlow 2.5s infinite; }
+
+          .joe-brand .cube { width: 42px; height: 42px; border-radius: 10px; box-shadow: 0 0 18px rgba(234, 179, 8, 0.6); }
+          .joe-brand .eye { width: 12px; height: 12px; }
+          .joe-brand .arm { width: 20px; height: 5px; }
+          .joe-brand .arm.left { left: -8px; top: 16px; }
+          .joe-brand .arm.right { right: -8px; top: 16px; }
+          .joe-brand .leg { width: 7px; height: 16px; bottom: -6px; }
+          .joe-brand .leg.left { left: 12px; }
+          .joe-brand .leg.right { right: 12px; }
+          .joe-brand .shoe { position: absolute; width: 12px; height: 6px; background: #111; border: 2px solid #fff; border-radius: 3px; bottom: -8px; }
+          .joe-brand .shoe.left { left: 8px; }
+          .joe-brand .shoe.right { right: 8px; }
+          .joe-brand .phone { position: absolute; width: 12px; height: 18px; background: #111; border: 2px solid #fff; border-radius: 3px; top: -6px; right: -20px; display: none; }
+          .joe-brand .laptop { position: absolute; width: 40px; height: 20px; background: #1f2937; border: 2px solid #0ea5e9; border-radius: 4px; bottom: -20px; left: -6px; display: none; }
+          .joe-brand .laptop .lid { position: absolute; width: 38px; height: 2px; background: #0ea5e9; top: -2px; left: 1px; transform-origin: left center; }
+          .joe-brand .pillow { position: absolute; width: 48px; height: 14px; background: #e5e7eb; border: 2px solid #9ca3af; border-radius: 8px; bottom: -14px; left: -4px; display: none; }
+          .joe-brand .zzz { position: absolute; top: -8px; right: -6px; width: 20px; height: 20px; display: none; }
+          .joe-brand .zzz span { position: absolute; width: 6px; height: 6px; color: #fff; }
+          @keyframes steamUp { 0% { opacity: 0; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-8px); } 100% { opacity: 0; transform: translateY(-14px); } }
+          @keyframes phoneToEar { 0% { top: -6px; right: -20px; } 50% { top: 12px; right: 4px; } 100% { top: -6px; right: -20px; } }
+          @keyframes laptopOpen { 0% { transform: rotate(0deg); } 100% { transform: rotate(50deg); } }
+          @keyframes sleepZ { 0% { opacity: 0; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-8px); } 100% { opacity: 0; transform: translateY(-16px); } }
+          .joe-brand[data-activity='coffee'] .cup { animation: drinkToMouth 2.2s infinite ease-in-out; display: block; }
+          .joe-brand[data-activity='coffee'] .steam { animation: steamUp 1.6s infinite; }
+          .joe-brand[data-activity='phone'] .phone { display: block; animation: phoneToEar 2.2s infinite ease-in-out; }
+          .joe-brand[data-activity='laptop'] .laptop { display: block; }
+          .joe-brand[data-activity='laptop'] .laptop .lid { animation: laptopOpen 1.8s infinite alternate ease-in-out; }
+          .joe-brand[data-activity='sleep'] .pillow { display: block; }
+          .joe-brand[data-activity='sleep'] .zzz { display: block; }
+          .joe-brand[data-activity='sleep'] .zzz span { animation: sleepZ 1.6s infinite; }
+          .joe-brand[data-activity='sleep'] .pupil { display: none; }
+          .joe-brand[data-activity='sleep'] .eye { height: 4px; background: #000; border-radius: 6px; }
+          
         `}</style>
-        <div className="joe-brand">
+        <style>{`
+          .joe-brand .mascot { width:48px; height:48px; position:relative; border-radius:12px; background: radial-gradient(circle at 50% 50%, #0b1220 40%, #111827 100%); box-shadow: 0 0 18px rgba(234,179,8,0.55); display:grid; place-items:center; margin-right:4px; }
+          .joe-brand .mascot .ring { position:absolute; inset:-2px; border-radius:50%; border:2px solid transparent; background: conic-gradient(from 0deg, #eab308, #fbbf24) border-box; -webkit-mask: linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0); -webkit-mask-composite: destination-out; mask-composite: exclude; }
+          .joe-brand .mascot .face { position:relative; width:32px; height:18px; display:flex; justify-content:space-between; align-items:center; }
+          .joe-brand .mascot .eye { width:12px; height:12px; background:#fff; border:2px solid #eab308; border-radius:50%; display:grid; place-items:center; overflow:hidden; }
+          .joe-brand .mascot .eye::after { content:''; position:absolute; top:-12px; left:0; right:0; height:12px; background:#0b1220; border-bottom:2px solid #eab308; animation: blink 6s infinite; }
+          .joe-brand .mascot .pupil { width:5px; height:5px; background:#000; border-radius:50%; transform: translate(var(--eyeX,0), var(--eyeY,0)); transition: transform 80ms linear; }
+          .joe-brand .mascot .mouth { position:absolute; bottom:-2px; left:50%; transform: translateX(-50%); width:12px; height:6px; background:#111; border:2px solid #eab308; border-radius:0 0 8px 8px; }
+          @keyframes blink { 0%, 10%, 12%, 100% { transform: translateY(0); } 11% { transform: translateY(12px); } }
+          @keyframes ringGlow { 0%,100% { filter: drop-shadow(0 0 10px rgba(234,179,8,0.6)); } 50% { filter: drop-shadow(0 0 18px rgba(234,179,8,0.9)); } }
+          @keyframes walk { 0% { transform: translateX(0); } 50% { transform: translateX(60px); } 100% { transform: translateX(0); } }
+          @keyframes pulse { 0%,100% { opacity: 0.85; transform: scale(1); } 50% { opacity: 1; transform: scale(1.06); } }
+          @keyframes dance { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-6deg); } 75% { transform: rotate(6deg); } }
+          .joe-brand[data-activity='think'] .mascot .ring { animation: ringGlow 2.2s ease-in-out infinite; }
+          .joe-brand[data-activity='walk'] .mascot { animation: walk 6s linear infinite; }
+          .joe-brand[data-activity='deploy'] .mascot .ring { animation: pulse 1.6s ease-in-out infinite; }
+          .joe-brand[data-activity='dance'] .mascot { animation: dance 1.4s ease-in-out infinite; }
+          .joe-brand[data-activity='build'] .mascot .mouth { animation: pulse 1.2s ease-in-out infinite; }
+          @keyframes layout { 0%,100% { transform: scale(1); } 50% { transform: scale(1.04); } }
+          .joe-brand[data-activity='layout'] .mascot .face { animation: layout 2s ease-in-out infinite; }
+        `}</style>
+        <div className="joe-brand" ref={brandRef} onMouseMove={onBrandMouseMove} style={{ '--eyeX': `${eyeOffset.x}px`, '--eyeY': `${eyeOffset.y}px` }} data-activity={activity} data-outfit={outfit}>
           <div className="text">
             jo<span>e</span>
           </div>
-          <div className="cube">
-            <div className="eyes">
-              <div className="eye"></div>
-              <div className="eye"></div>
+          <div className="mascot">
+            <div className="ring"></div>
+            <div className="face">
+              <div className="eye left"><div className="pupil"></div></div>
+              <div className="eye right"><div className="pupil"></div></div>
+              <div className="mouth"></div>
             </div>
           </div>
         </div>
@@ -112,14 +305,6 @@ const TopBar = ({ onToggleRight, onToggleBottom, isRightOpen, isBottomOpen, onTo
           title={isStatusOpen ? "Hide System Status" : "Show System Status"}
         >
           <FiActivity size={18} />
-        </button>
-        {/* Exit Button (Replaces Toggle Right Panel) */}
-        <button
-          onClick={handleExit}
-          className={`p-2 rounded-lg transition-colors bg-red-600 text-white hover:bg-red-700`}
-          title="Exit to Home (Logout)"
-        >
-          <FiLogOut size={18} />
         </button>
 
         {isSuperAdmin && (
@@ -163,6 +348,15 @@ const TopBar = ({ onToggleRight, onToggleBottom, isRightOpen, isBottomOpen, onTo
         {/* AI Providers Button */}
         <AIMenuButton />
 
+        {/* Language Toggle */}
+        <button
+          onClick={toggleLang}
+          className="px-3 py-2 rounded-lg bg-gray-800 text-white border border-gray-700 hover:bg-gray-700 transition-colors"
+          title={lang === 'ar' ? 'AR' : 'EN'}
+        >
+          {lang === 'ar' ? 'AR' : 'EN'}
+        </button>
+
         {/* Toggle Bottom Panel */}
         <button
           onClick={onToggleBottom}
@@ -189,6 +383,14 @@ const TopBar = ({ onToggleRight, onToggleBottom, isRightOpen, isBottomOpen, onTo
           title="Toggle Fullscreen"
         >
           <FiMaximize2 size={18} />
+        </button>
+
+        <button
+          onClick={handleExit}
+          className={`p-2 rounded-lg transition-colors bg-red-600 text-white hover:bg-red-700`}
+          title="Exit to Home (Logout)"
+        >
+          <FiLogOut size={18} />
         </button>
       </div>
     </div>

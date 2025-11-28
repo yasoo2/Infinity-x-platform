@@ -90,6 +90,8 @@ class MemoryManager extends EventEmitter {
             this.addToShortTermMemory(userId, interaction);
             this.addToConversationMemory(userId, interaction);
 
+            this.emit('interaction:saved', { userId, sessionId: interaction.metadata.sessionId, interaction });
+
             return { success: true, interactionId: interaction._id };
 
         } catch (error) {

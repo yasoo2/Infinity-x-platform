@@ -5,6 +5,7 @@
   const joe = (p) => v1(`/joe${p}`);
   const admin = (p) => v1(`/admin${p}`);
   const system = (p) => v1(`/system${p}`);
+  const chatHistory = (p) => v1(`/chat-history${p}`);
 
   // Unified call wrapper to normalize errors and support AbortSignal
   /**
@@ -146,3 +147,15 @@ export const getSystemStatus = (opts) =>
 
   export const activateAIProvider = (provider, model) =>
     call(() => apiClient.post(v1('/ai/activate'), { provider, model }));
+
+  export const getChatSessions = () =>
+    call(() => apiClient.get(chatHistory('/sessions')));
+
+  export const getChatSessionById = (id) =>
+    call(() => apiClient.get(chatHistory(`/sessions/${id}`)));
+
+  export const deleteChatSession = (id) =>
+    call(() => apiClient.delete(chatHistory(`/sessions/${id}`)));
+
+  export const getUserContext = (params) =>
+    call(() => apiClient.get(chatHistory('/user-context'), { params: { limit: params?.limit } }));

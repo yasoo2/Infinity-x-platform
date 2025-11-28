@@ -1,8 +1,18 @@
 
 import { useReducer, useEffect, useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { getChatSessions, getChatSessionById } from '../api/system';
 
 const JOE_CHAT_HISTORY = 'joeChatHistory';
+
+const getLang = () => {
+  try {
+    const v = localStorage.getItem('lang');
+    return v === 'ar' ? 'ar' : 'en';
+  } catch {
+    return 'en';
+  }
+};
 
 const normalizeTitle = (text) => {
     if (!text) return 'New Conversation';
@@ -142,11 +152,10 @@ const chatReducer = (state, action) => {
             const selectNew = action.payload !== false;
             const newId = uuidv4();
             console.log('[NEW_CONVERSATION] Creating new conversation with ID:', newId);
-            const welcomeMessage = {
-                type: 'joe',
-                content: 'Welcome to Joe AI Assistant! 👋\n\nYour AI-powered engineering partner with 82 tools and functions.\n\nI can help you with:\n💬 Chat & Ask - Get instant answers and explanations\n🛠️ Build & Create - Generate projects and applications\n🔍 Analyze & Process - Work with data and generate insights\n\nStart by typing an instruction below, attaching a file, or using your voice.',
-                id: uuidv4()
-            };
+            const lang = getLang();
+            const welcomeEn = 'Welcome to Joe AI Assistant! 👋\n\nYour AI-powered engineering partner with 82 tools and functions.\n\nI can help you with:\n💬 Chat & Ask - Get instant answers and explanations\n🛠️ Build & Create - Generate projects and applications\n🔍 Analyze & Process - Work with data and generate insights\n\nStart by typing an instruction below, attaching a file, or using your voice.';
+            const welcomeAr = 'مرحبًا بك في مساعد جو الذكي! 👋\n\nشريكك الهندسي المدعوم بالذكاء مع 82 أداة ووظيفة.\n\nأستطيع مساعدتك في:\n💬 المحادثة والسؤال - إجابات وشروحات فورية\n🛠️ البناء والإنشاء - توليد مشاريع وتطبيقات\n🔍 التحليل والمعالجة - العمل مع البيانات وتوليد رؤى\n\nابدأ بكتابة تعليماتك أدناه أو إرفاق ملف أو استخدام الصوت.';
+            const welcomeMessage = { type: 'joe', content: lang === 'ar' ? welcomeAr : welcomeEn, id: uuidv4() };
             const newConversations = {
                 ...conversations,
                 [newId]: { id: newId, title: 'New Conversation', messages: [welcomeMessage], lastModified: Date.now(), pinned: false },
@@ -275,6 +284,61 @@ export const useJoeChat = () => {
     }
   }, [handleNewConversation]);
 
+  const mapSessionToConversation = useCallback((session) => {
+    const messages = [];
+    for (const i of session.interactions || []) {
+      if (i?.command) messages.push({ type: 'user', content: i.command, id: uuidv4() });
+      if (i?.result) messages.push({ type: 'joe', content: i.result, id: uuidv4() });
+    }
+    const last = (session.interactions || []).at(-1);
+    const lastModified = last?.metadata?.timestamp ? new Date(last.metadata.timestamp).getTime() : Date.now();
+    const title = normalizeTitle(messages.find(m => m.type === 'user')?.content || 'New Conversation');
+    return { id: session.id, title, messages, lastModified, pinned: false };
+  }, []);
+
+  const syncBackendSessions = useCallback(async () => {
+    try {
+      const s = await getChatSessions();
+      const list = s?.sessions || [];
+      const convs = { ...state.conversations };
+      for (const sess of list) {
+        if (!sess?.id) continue;
+        const detail = await getChatSessionById(sess.id);
+        if (detail?.success && detail?.session) {
+          const mapped = mapSessionToConversation(detail.session);
+          convs[mapped.id] = mapped;
+        }
+      }
+      if (Object.keys(convs).length > 0) {
+        dispatch({ type: 'SET_CONVERSATIONS', payload: convs });
+        const ids = Object.keys(convs).sort((a, b) => (convs[b].lastModified || 0) - (convs[a].lastModified || 0));
+        if (!state.currentConversationId) {
+          dispatch({ type: 'SELECT_CONVERSATION', payload: ids[0] });
+        }
+      }
+    } catch {}
+  }, [state.conversations, state.currentConversationId, mapSessionToConversation]);
+
+  useEffect(() => {
+    syncBackendSessions();
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      syncBackendSessions();
+    }, 20000);
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        syncBackendSessions();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [syncBackendSessions]);
+
   useEffect(() => {
     // Save only when conversations change, not just when currentConversationId changes,
     // and ensure we don't save an empty state if no conversations exist.
@@ -291,6 +355,13 @@ export const useJoeChat = () => {
       }
     }
   }, [state.conversations, state.currentConversationId]);
+
+  useEffect(() => {
+    try {
+      const event = new CustomEvent('joe:processing', { detail: { processing: state.isProcessing, step: state.currentStep, progress: state.progress } });
+      window.dispatchEvent(event);
+    } catch {}
+  }, [state.isProcessing, state.currentStep, state.progress]);
 
   useEffect(() => {
     const connect = () => {
@@ -313,8 +384,10 @@ export const useJoeChat = () => {
       console.log('[Joe Agent] Connecting to WebSocket:', wsUrl.replace(/token=.*/, 'token=***'));
       ws.current = new WebSocket(wsUrl);
       ws.current.onopen = () => dispatch({ type: 'ADD_WS_LOG', payload: '[WS] Connection established' });
-      ws.current.onclose = () => {
-        dispatch({ type: 'ADD_WS_LOG', payload: '[WS] Connection closed. Reconnecting...' });
+      ws.current.onclose = (e) => {
+        const code = e?.code;
+        const reason = e?.reason || '';
+        dispatch({ type: 'ADD_WS_LOG', payload: `[WS] Connection closed (code=${code} reason=${reason}). Reconnecting...` });
         setTimeout(connect, 3000);
       };
       ws.current.onerror = (err) => dispatch({ type: 'ADD_WS_LOG', payload: `[WS] Error: ${err.message}` });
@@ -332,6 +405,10 @@ export const useJoeChat = () => {
             break;
           case 'task_complete':
             dispatch({ type: 'STOP_PROCESSING' });
+            syncBackendSessions();
+            break;
+          case 'session_updated':
+            syncBackendSessions();
             break;
           // MODIFIED: Handle plan steps
           case 'thought':
@@ -364,7 +441,9 @@ export const useJoeChat = () => {
       const selectedModel = localStorage.getItem('aiSelectedModel') || 'gpt-4o';
       ws.current.send(JSON.stringify({ action: 'instruct', message: inputText, sessionId: state.currentConversationId, model: selectedModel }));
     } else {
-      dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: 'WebSocket not connected. Please wait.' } });
+      const lang = getLang();
+      const msg = lang === 'ar' ? 'اتصال WebSocket غير متاح حالياً، جارِ إعادة الاتصال بالخادم...' : 'WebSocket is not connected yet. Reconnecting...';
+      dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: msg } });
       dispatch({ type: 'STOP_PROCESSING' });
     }
   }, [state.input]);

@@ -14,6 +14,9 @@ import useAuth from '../hooks/useAuth';
 
 const JoeContent = () => {
   const navigate = useNavigate();
+  const [lang, setLang] = useState(() => {
+    try { return localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'; } catch { return 'en'; }
+  });
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(true);
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
   const [isBottomPanelOpen, setIsBottomPanelOpen] = useState(false);
@@ -96,6 +99,21 @@ const JoeContent = () => {
   }, []);
 
   useEffect(() => {
+    const onLang = () => {
+      try { setLang(localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'); } catch {}
+    };
+    window.addEventListener('joe:lang', onLang);
+    return () => window.removeEventListener('joe:lang', onLang);
+  }, []);
+
+  const toggleLang = () => {
+    const next = lang === 'ar' ? 'en' : 'ar';
+    try { localStorage.setItem('lang', next); } catch {}
+    setLang(next);
+    try { window.dispatchEvent(new CustomEvent('joe:lang', { detail: { lang: next } })); } catch {}
+  };
+
+  useEffect(() => {
     if (isMobile) {
       setIsSidePanelOpen(false);
       setIsRightPanelOpen(false);
@@ -135,10 +153,10 @@ const JoeContent = () => {
     } catch {}
   }, [leftWidth, rightWidth]);
 
-  const { 
-    conversations: conversationsList, 
-    currentConversationId, 
-    handleConversationSelect, 
+  const {
+    conversations: conversationsList,
+    currentConversationId,
+    handleConversationSelect,
     handleNewConversation,
     isProcessing,
     plan,
@@ -149,6 +167,29 @@ const JoeContent = () => {
     duplicateConversation,
     clearMessages,
   } = useJoeChatContext();
+
+  const robotRef = React.useRef(null);
+  const pupilLeftRef = React.useRef(null);
+  const pupilRightRef = React.useRef(null);
+  const [robotActive, setRobotActive] = useState(false);
+  useEffect(() => {
+    const onMouseMove = (e) => {
+      const el = robotRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dx = e.clientX - cx;
+      const dy = e.clientY - cy;
+      const max = 4;
+      const tx = Math.max(-max, Math.min(max, (dx / rect.width) * 16));
+      const ty = Math.max(-max, Math.min(max, (dy / rect.height) * 16));
+      if (pupilLeftRef.current) pupilLeftRef.current.style.transform = `translate(${tx}px, ${ty}px)`;
+      if (pupilRightRef.current) pupilRightRef.current.style.transform = `translate(${tx}px, ${ty}px)`;
+    };
+    window.addEventListener('mousemove', onMouseMove);
+    return () => window.removeEventListener('mousemove', onMouseMove);
+  }, []);
 
   const toggleSidePanel = () => setIsSidePanelOpen(!isSidePanelOpen);
   const toggleRightPanel = () => setIsRightPanelOpen(!isRightPanelOpen);
@@ -270,6 +311,7 @@ const JoeContent = () => {
 
   return (
     <div className="h-screen w-screen flex flex-col bg-gray-900 text-white overflow-hidden">
+      
         {/* Top Bar - Enhanced */}
       <TopBar 
         onToggleRight={toggleRightPanel}
@@ -441,7 +483,6 @@ const JoeContent = () => {
             <RightPanel isProcessing={isProcessing} plan={plan} forceStatus={isStatusPanelOpen} />
             <div
               onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setDragRight(true); }}
-              onSelectStart={(e) => e.preventDefault()}
               className="absolute top-0 left-0 h-full cursor-col-resize z-20 select-none"
               style={{ width: '2px', background: 'rgba(107,114,128,0.5)' }}
             />
@@ -454,6 +495,52 @@ const JoeContent = () => {
             </div>
           </div>
         )}
+      </div>
+      <style>{`
+        #joe-container { position: fixed; bottom: 30px; left: 30px; width: 120px; height: 140px; cursor: pointer; z-index: 1000; transition: transform 0.3s ease; }
+        #joe-container:hover { transform: scale(1.1); }
+        #joe-container .chat-bubble { position: absolute; bottom: 140px; left: 0; background: #fff; padding: 10px 15px; border-radius: 15px 15px 15px 0; box-shadow: 0 5px 15px rgba(0,0,0,0.1); font-size: 14px; color: #333; opacity: 0; transform: translateY(10px); transition: all 0.3s ease; pointer-events: none; width: 180px; text-align: center; }
+        #joe-container:hover .chat-bubble, #joe-container.active .chat-bubble { opacity: 1; transform: translateY(0); }
+        #joe-container svg { width: 100%; height: 100%; overflow: visible; }
+        .floating-body { animation: float 3s ease-in-out infinite; }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+        .eye-lids { animation: blink 4s infinite; transform-origin: center; }
+        @keyframes blink { 0%, 96% { transform: scaleY(1); } 98% { transform: scaleY(0.1); } 100% { transform: scaleY(1); } }
+        .arm-right { transform-origin: 15% 15%; animation: wave 3s ease-in-out infinite; }
+        @keyframes wave { 0% { transform: rotate(0deg); } 50% { transform: rotate(-15deg); } 100% { transform: rotate(0deg); } }
+        .thinking .pupil { fill: #00ff00; }
+        .thinking .antenna-light { animation: pulse 0.5s infinite alternate; }
+        @keyframes pulse { from { fill: #ff4d4d; opacity: 0.5; } to { fill: #ff0000; opacity: 1; } }
+      `}</style>
+      <div id="joe-container" ref={robotRef} onClick={()=>setRobotActive(v=>!v)} className={(robotActive || isProcessing) ? 'active' : ''}>
+        <div className="chat-bubble">{lang === 'ar' ? 'مرحباً! أنا Joe المهندس. هل تحتاج مساعدة في الكود؟' : "Hello! I'm Joe the engineer. Need help with code?"}</div>
+        <svg viewBox="0 0 200 240" className={(robotActive || isProcessing) ? 'thinking' : ''}>
+          <g className="floating-body">
+            <rect x="40" y="150" width="20" height="50" rx="10" fill="#BDC3C7"/>
+            <g className="arm-right" transform="translate(140, 150)">
+              <rect x="0" y="0" width="20" height="50" rx="10" fill="#BDC3C7"/>
+            </g>
+            <rect x="50" y="140" width="100" height="90" rx="20" fill="#F1C40F"/>
+            <rect x="50" y="210" width="100" height="20" rx="10" fill="#F39C12"/>
+            <rect x="110" y="160" width="30" height="35" rx="5" fill="#D35400" opacity="0.2"/>
+            <rect x="115" y="155" width="5" height="25" rx="2" fill="#ECF0F1"/>
+            <rect x="85" y="130" width="30" height="15" fill="#7F8C8D"/>
+            <rect x="40" y="40" width="120" height="100" rx="25" fill="#ECF0F1"/>
+            <line x1="100" y1="40" x2="100" y2="15" stroke="#7F8C8D" strokeWidth="5"/>
+            <circle className="antenna-light" cx="100" cy="15" r="8" fill="#E74C3C"/>
+            <g>
+              <circle cx="75" cy="90" r="15" fill="#2C3E50"/>
+              <circle ref={pupilLeftRef} className="pupil" cx="75" cy="90" r="5" fill="white"/>
+              <circle cx="125" cy="90" r="15" fill="#2C3E50"/>
+              <circle ref={pupilRightRef} className="pupil" cx="125" cy="90" r="5" fill="white"/>
+              <path d="M 85 115 Q 100 125 115 115" stroke="#2C3E50" strokeWidth="3" fill="none" strokeLinecap="round"/>
+              <g className="eye-lids">
+                <rect x="55" y="70" width="40" height="40" fill="#ECF0F1" transform="scale(1, 0)"/>
+                <rect x="105" y="70" width="40" height="40" fill="#ECF0F1" transform="scale(1, 0)"/>
+              </g>
+            </g>
+          </g>
+        </svg>
       </div>
     </div>
   );
