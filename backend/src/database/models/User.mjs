@@ -4,10 +4,11 @@ import mongoose from 'mongoose';
 const userSchema = new mongoose.Schema({
   email: {
     type: String,
-    required: true,
+    required: false,
     unique: true,
     trim: true,
     lowercase: true,
+    sparse: true,
   },
   password: {
     type: String,
@@ -21,6 +22,8 @@ const userSchema = new mongoose.Schema({
   phone: {
     type: String,
     default: null,
+    unique: true,
+    sparse: true,
   },
   isVerified: {
     type: Boolean,

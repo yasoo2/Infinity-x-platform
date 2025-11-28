@@ -73,7 +73,15 @@
 
   // Response interceptor
   apiClient.interceptors.response.use(
-    (response) => response,
+    (response) => {
+      try {
+        const newToken = response.headers?.['x-new-token'] || response.headers?.['X-New-Token'];
+        if (newToken) {
+          localStorage.setItem('sessionToken', newToken);
+        }
+      } catch {}
+      return response;
+    },
     async (error) => {
       // Optional retry
       if (shouldRetry(error)) {

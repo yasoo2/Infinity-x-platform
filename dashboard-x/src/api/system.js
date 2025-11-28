@@ -36,8 +36,18 @@
    * Get system status and health metrics
    * @param {{ signal?: AbortSignal }=} opts
    */
-  export const getSystemStatus = (opts) =>
-    call(() => apiClient.get(system('/metrics'), { signal: opts?.signal }));
+export const getSystemStatus = (opts) =>
+  call(() =>
+    apiClient
+      .get(system('/status'), { signal: opts?.signal })
+      .catch((err) => {
+        const s = err?.status ?? err?.response?.status;
+        if (s === 404) {
+          return apiClient.get(system('/metrics'), { signal: opts?.signal });
+        }
+        throw err;
+      })
+  );
 
   /**
    * Get activity/events stream (polling JSON). For SSE, use EventSource instead.
@@ -80,6 +90,28 @@
     );
 
   /**
+   * Create admin/user
+   * @param {{ email: string, password: string, phone?: string, role?: 'user'|'admin'|'super_admin' }} payload
+   */
+  export const createAdminUser = (payload) =>
+    call(() => apiClient.post(admin('/users'), payload));
+
+  /**
+   * Update admin/user by id
+   * @param {string} id
+   * @param {{ email?: string, password?: string, phone?: string|null, role?: 'user'|'admin'|'super_admin' }} payload
+   */
+  export const updateAdminUser = (id, payload) =>
+    call(() => apiClient.put(admin(`/users/${id}`), payload));
+
+  /**
+   * Delete admin/user by id
+   * @param {string} id
+   */
+  export const deleteAdminUser = (id) =>
+    call(() => apiClient.delete(admin(`/users/${id}`)));
+
+  /**
    * Get Joe suggestions
    * @param {{ limit?: number, signal?: AbortSignal }=} params
    */
@@ -104,3 +136,13 @@
     const controller = new AbortController();
     return { controller, signal: controller.signal };
   };
+
+  // AI Providers Management
+  export const getAIProviders = () =>
+    call(() => apiClient.get(v1('/ai/providers')));
+
+  export const validateAIKey = (provider, apiKey) =>
+    call(() => apiClient.post(v1('/ai/validate'), { provider, apiKey }));
+
+  export const activateAIProvider = (provider, model) =>
+    call(() => apiClient.post(v1('/ai/activate'), { provider, model }));

@@ -11,6 +11,7 @@
 
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getConfig } from './runtime-config.mjs';
 import { EventEmitter } from 'events';
 
 // --- Core System Components ---
@@ -19,19 +20,7 @@ import toolManager from '../tools/tool-manager.service.mjs';
 import MANUS_STYLE_PROMPT from '../../prompts/manusStylePrompt.mjs';
 
 // --- Client Configuration ---
-let openai;
-if (process.env.OPENAI_API_KEY) {
-  openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-} else {
-  console.warn('⚠️ OPENAI_API_KEY is missing. OpenAI functionalities will be disabled.');
-}
-
-let genAI;
-if (process.env.GOOGLE_API_KEY) {
-  genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-} else {
-  console.warn('⚠️ GOOGLE_API_KEY is missing. Gemini functionalities will be disabled.');
-}
+// Clients will be instantiated per-request from runtime configuration
 
 // =========================
 // 🎯 Event System
@@ -102,9 +91,20 @@ async function processMessage(userId, message, sessionId, { model = 'gpt-4o' } =
     let usage = {};
 
     // 3. Model-Specific Execution
-    if (model.startsWith('gemini') && genAI) {
+    // Prepare clients from runtime config
+    const cfg = getConfig();
+    let openaiClient = null;
+    let geminiClient = null;
+    if (cfg.keys.openai) {
+      openaiClient = new OpenAI({ apiKey: cfg.keys.openai });
+    }
+    if (cfg.keys.gemini) {
+      geminiClient = new GoogleGenerativeAI(cfg.keys.gemini);
+    }
+
+    if (model.startsWith('gemini') && geminiClient) {
         // --- GEMINI EXECUTION PATH ---
-        const geminiModel = genAI.getGenerativeModel({
+        const geminiModel = geminiClient.getGenerativeModel({
             model: model,
             systemInstruction: MANUS_STYLE_PROMPT,
             tools: [{ functionDeclarations: adaptToolsForGemini(availableTools) }]
@@ -135,9 +135,9 @@ async function processMessage(userId, message, sessionId, { model = 'gpt-4o' } =
             finalContent = response.text();
         }
 
-    } else if (openai) {
+    } else if (openaiClient) {
         // --- OPENAI EXECUTION PATH ---
-        const response = await openai.chat.completions.create({ model, messages: messagesForOpenAI, tools: availableTools, tool_choice: 'auto' });
+        const response = await openaiClient.chat.completions.create({ model, messages: messagesForOpenAI, tools: availableTools, tool_choice: 'auto' });
         const messageResponse = response.choices[0].message;
         usage = response.usage;
 
@@ -154,14 +154,14 @@ async function processMessage(userId, message, sessionId, { model = 'gpt-4o' } =
                 toolCalls.push(toolCall); // For logging
             }
             console.log('🔄 OpenAI Synthesizing tool results...');
-            const secondResponse = await openai.chat.completions.create({ model, messages: [...messagesForOpenAI, ...toolMessages] });
+            const secondResponse = await openaiClient.chat.completions.create({ model, messages: [...messagesForOpenAI, ...toolMessages] });
             finalContent = secondResponse.choices[0].message.content;
             usage.total_tokens += secondResponse.usage.total_tokens;
         } else {
             finalContent = messageResponse.content;
         }
     } else {
-        throw new Error('No AI models are configured. Please set OPENAI_API_KEY or GOOGLE_API_KEY.');
+        throw new Error('No AI models are configured. Please configure provider keys in AI menu.');
     }
 
     const duration = Date.now() - startTime;

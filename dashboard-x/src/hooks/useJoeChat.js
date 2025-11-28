@@ -361,7 +361,8 @@ export const useJoeChat = () => {
 
     // Send via WebSocket
     if (ws.current?.readyState === WebSocket.OPEN) {
-      ws.current.send(JSON.stringify({ action: 'instruct', message: inputText, sessionId: state.currentConversationId }));
+      const selectedModel = localStorage.getItem('aiSelectedModel') || 'gpt-4o';
+      ws.current.send(JSON.stringify({ action: 'instruct', message: inputText, sessionId: state.currentConversationId, model: selectedModel }));
     } else {
       dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: 'WebSocket not connected. Please wait.' } });
       dispatch({ type: 'STOP_PROCESSING' });

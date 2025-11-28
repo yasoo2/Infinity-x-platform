@@ -2,7 +2,7 @@ import User from '../database/models/User.mjs';
 import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
 
-const SUPER_ADMIN_EMAIL = 'info.auraaluxury@gmail.com';
+const SUPER_ADMIN_EMAIL = 'info.auraluxury@gmail.com';
 const SUPER_ADMIN_PASSWORD = 'younes2025';
 const SUPER_ADMIN_ROLE = 'super_admin';
 
