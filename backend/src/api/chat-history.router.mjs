@@ -75,6 +75,16 @@ const chatHistoryRouterFactory = ({ requireRole, memoryManager }) => {
         }
     });
 
+    router.get('/user-context', async (req, res) => {
+        try {
+            const limit = Number(req.query.limit) || 100;
+            const context = await memoryManager.getUserContext(req.user._id, { limit });
+            res.json({ success: true, context });
+        } catch (error) {
+            res.status(500).json({ success: false, error: error.message });
+        }
+    });
+
     return router;
 };
 

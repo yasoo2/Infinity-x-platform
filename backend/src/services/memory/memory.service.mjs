@@ -131,6 +131,73 @@ class MemoryManager extends EventEmitter {
         history.push(interaction);
         this.conversations.set(userId, history);
     }
+
+    async listSessions(userId) {
+        try {
+            const db = this._getDB();
+            const pipeline = [
+                { $match: { userId } },
+                { $match: { 'metadata.deleted': { $ne: true } } },
+                { $group: { _id: '$metadata.sessionId', lastModified: { $max: '$metadata.timestamp' }, count: { $sum: 1 } } },
+                { $sort: { lastModified: -1 } }
+            ];
+            const groups = await db.collection('joe_interactions').aggregate(pipeline).toArray();
+            const sessions = groups
+                .filter(g => g._id)
+                .map(g => ({ id: g._id, lastModified: g.lastModified, count: g.count }));
+            return sessions;
+        } catch (error) {
+            console.error('listSessions error:', error);
+            return [];
+        }
+    }
+
+    async getSession(sessionId, userId) {
+        try {
+            const db = this._getDB();
+            const interactions = await db.collection('joe_interactions')
+                .find({ userId, 'metadata.sessionId': sessionId, 'metadata.deleted': { $ne: true } })
+                .sort({ 'metadata.timestamp': 1 })
+                .toArray();
+            if (!interactions || interactions.length === 0) return null;
+            return { id: sessionId, interactions };
+        } catch (error) {
+            console.error('getSession error:', error);
+            return null;
+        }
+    }
+
+    async deleteSession(sessionId, userId) {
+        try {
+            const db = this._getDB();
+            const result = await db.collection('joe_interactions').updateMany(
+                { userId, 'metadata.sessionId': sessionId },
+                { $set: { 'metadata.deleted': true } }
+            );
+            if (!result.matchedCount) {
+                return { success: false, error: 'NOT_FOUND' };
+            }
+            return { success: true };
+        } catch (error) {
+            console.error('deleteSession error:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    async getUserContext(userId, { limit = 100 } = {}) {
+        try {
+            const db = this._getDB();
+            const interactions = await db.collection('joe_interactions')
+                .find({ userId })
+                .sort({ 'metadata.timestamp': -1 })
+                .limit(limit)
+                .toArray();
+            return interactions;
+        } catch (error) {
+            console.error('getUserContext error:', error);
+            return [];
+        }
+    }
 }
 
 // Export the class, not an instance.
