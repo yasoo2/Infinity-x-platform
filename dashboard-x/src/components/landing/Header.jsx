@@ -40,9 +40,9 @@ const Header = () => {
     setLoggingIn(false);
   };
 
-  const refreshRemembered = () => {
+  const refreshRemembered = React.useCallback(() => {
     setRememberedList(listRemembered());
-  };
+  }, [listRemembered]);
 
   const handleLoginRemembered = async (id) => {
     if (loggingIn) return;
@@ -62,10 +62,9 @@ const Header = () => {
     refreshRemembered();
   };
 
-  const refreshRememberedCb = React.useCallback(() => { refreshRemembered(); }, [refreshRemembered]);
   React.useEffect(() => {
-    if (showLogin) refreshRememberedCb();
-  }, [showLogin, refreshRememberedCb]);
+    if (showLogin) refreshRemembered();
+  }, [showLogin, refreshRemembered]);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-black/30 backdrop-blur-lg border-b border-gray-800">

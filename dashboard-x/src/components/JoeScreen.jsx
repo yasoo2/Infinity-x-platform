@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Draggable from 'react-draggable';
 import { ResizableBox } from 'react-resizable';
-import { Terminal, Code, Cpu, Globe, Monitor, ChevronDown, ChevronUp, RefreshCw, MousePointer, Maximize2 } from 'lucide-react';
+import { Terminal, Cpu, Globe, Monitor, ChevronDown, ChevronUp, RefreshCw, MousePointer, Maximize2 } from 'lucide-react';
 import PropTypes from 'prop-types';
 import useBrowserWebSocket from '../hooks/useBrowserWebSocket';
 import FullScreenBrowser from './FullScreenBrowser';
@@ -71,14 +71,12 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
     
     if (e.key === 'Enter') {
       pressKey('Enter');
-      setInputText('');
     } else if (e.key === 'Backspace') {
       pressKey('Backspace');
     } else if (e.key === 'Tab') {
       pressKey('Tab');
     } else if (e.key.length === 1) {
       type(e.key);
-      setInputText(prev => prev + e.key);
     }
   };
 
@@ -192,7 +190,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
               {/* Content Area */}
               <div className="flex-1 overflow-hidden">
                 {activeTab === 'browser' ? (
-                  <div className="h-full flex flex-col bg-gray-900">
+                  <div className="h-full flex flex-col bg-gray-900" tabIndex={0} onKeyDown={handleKeyDown}>
                     {/* Browser Address Bar */}
                     <div className="flex items-center gap-2 p-2 bg-gray-800 border-b border-gray-700">
                       <Globe className="w-4 h-4 text-purple-400" />
