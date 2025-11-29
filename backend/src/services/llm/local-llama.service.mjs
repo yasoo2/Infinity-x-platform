@@ -8,28 +8,54 @@ class LocalLlamaService {
     this.context = null
     this.chat = null
     this.initialized = false
+    this.loading = false
+    this.loadingStage = ''
+    this.loadingPercent = 0
   }
 
   async initialize() {
     try {
+      this.loading = true
+      this.loadingStage = 'init'
+      this.loadingPercent = 5
       const { getLlama, LlamaChatSession } = await import('node-llama-cpp')
       const gpu = process.env.LLAMA_METAL ? 'metal' : undefined
       const threads = Number(process.env.LLAMA_THREADS || 0) || undefined
       const llama = await getLlama({ gpu, numThreads: threads })
+      this.loadingStage = 'load_model'
+      this.loadingPercent = 35
       const model = await llama.loadModel({ modelPath: this.modelPath })
+      this.loadingStage = 'create_context'
+      this.loadingPercent = 65
       const context = await model.createContext()
+      this.loadingStage = 'create_session'
+      this.loadingPercent = 85
       const chat = new LlamaChatSession({ contextSequence: context.getSequence() })
       this.llama = llama
       this.model = model
       this.context = context
       this.chat = chat
       this.initialized = true
+      this.loadingStage = 'done'
+      this.loadingPercent = 100
+      this.loading = false
       return true
     } catch (e) {
       try { console.error('local-llama initialize error:', e?.message || e) } catch {}
       this.initialized = false
+      this.loadingStage = 'error'
+      this.loading = false
       return false
     }
+  }
+
+  startInitialize() {
+    if (this.loading || this.isReady()) return true
+    this.loading = true
+    this.loadingStage = 'init'
+    this.loadingPercent = 1
+    ;(async () => { await this.initialize() })()
+    return true
   }
 
   isReady() {

@@ -18,10 +18,23 @@ export class JoeAgentWebSocketServer {
     console.log('🤖 Joe Agent WebSocket Server v2.0 "Unified" Initialized.');
     this.setupWebSocketServer();
     this.setupEventListeners();
+    // Heartbeat to keep connections alive and detect broken sockets
+    this.heartbeat = setInterval(() => {
+      this.wss.clients.forEach((client) => {
+        if (client.isAlive === false) {
+          try { client.terminate(); } catch { /* noop */ }
+          return;
+        }
+        client.isAlive = false;
+        try { client.ping(); } catch { /* noop */ }
+      });
+    }, 30000);
   }
 
   setupWebSocketServer() {
     this.wss.on('connection', (ws, req) => {
+      ws.isAlive = true;
+      ws.on('pong', () => { ws.isAlive = true; });
       // 1. استخراج التوكين من URL
       const urlParams = new URLSearchParams(req.url.split('?')[1]);
       const token = urlParams.get('token');

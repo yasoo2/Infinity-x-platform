@@ -477,8 +477,10 @@ export const useJoeChat = () => {
       });
     };
     connect();
-    return () => ws.current?.close();
-  }, [syncBackendSessions]);
+    return () => {
+      try { ws.current?.close(); } catch { /* noop */ }
+    };
+  }, []);
 
   useEffect(() => {
     const onForbidden = () => {
@@ -493,20 +495,25 @@ export const useJoeChat = () => {
   const handleSend = useCallback(() => {
     const inputText = state.input.trim();
     if (!inputText) return;
-    // Single action ensures conversation creation, title update, and message append
     dispatch({ type: 'SEND_MESSAGE', payload: inputText });
 
-    // Send via WebSocket
-    if (ws.current?.readyState === WebSocket.OPEN) {
-      const selectedModel = localStorage.getItem('aiSelectedModel') || 'gpt-4o';
-      const lang = getLang();
-      ws.current.send(JSON.stringify({ action: 'instruct', message: inputText, sessionId: state.currentConversationId, model: selectedModel, lang }));
-    } else {
+    const trySend = (attempt = 0) => {
+      if (ws.current?.readyState === WebSocket.OPEN) {
+        const selectedModel = localStorage.getItem('aiSelectedModel') || 'gpt-4o';
+        const lang = getLang();
+        ws.current.send(JSON.stringify({ action: 'instruct', message: inputText, sessionId: state.currentConversationId, model: selectedModel, lang }));
+        return;
+      }
+      if (attempt < 6) {
+        setTimeout(() => trySend(attempt + 1), 500);
+        return;
+      }
       const lang = getLang();
       const msg = lang === 'ar' ? 'اتصال WebSocket غير متاح حالياً، جارِ إعادة الاتصال بالخادم...' : 'WebSocket is not connected yet. Reconnecting...';
       dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: msg } });
       dispatch({ type: 'STOP_PROCESSING' });
-    }
+    };
+    trySend();
   }, [state.input, state.currentConversationId]);
 
   const stopProcessing = useCallback(() => {

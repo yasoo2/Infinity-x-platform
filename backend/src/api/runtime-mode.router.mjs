@@ -7,7 +7,7 @@ const runtimeModeRouterFactory = ({ optionalAuth }) => {
   if (optionalAuth) router.use(optionalAuth)
 
   router.get('/status', (req, res) => {
-    res.json({ success: true, mode: getMode(), offlineReady: localLlamaService.isReady() })
+    res.json({ success: true, mode: getMode(), offlineReady: localLlamaService.isReady(), loading: localLlamaService.loading, stage: localLlamaService.loadingStage, percent: localLlamaService.loadingPercent })
   })
 
   router.post('/toggle', (req, res) => {
@@ -22,8 +22,8 @@ const runtimeModeRouterFactory = ({ optionalAuth }) => {
 
   router.post('/load', async (req, res) => {
     try {
-      const ok = await localLlamaService.initialize()
-      res.json({ success: ok, offlineReady: localLlamaService.isReady() })
+      localLlamaService.startInitialize()
+      res.json({ success: true, started: true, loading: localLlamaService.loading, stage: localLlamaService.loadingStage, percent: localLlamaService.loadingPercent })
     } catch (e) {
       res.status(500).json({ success: false, error: e?.message || 'INIT_FAILED' })
     }

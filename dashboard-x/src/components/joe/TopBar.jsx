@@ -65,6 +65,10 @@ const TopBar = ({ onToggleBottom, onToggleLeft, isLeftOpen, onToggleStatus, isSt
   });
   const [factoryMode, setFactoryMode] = React.useState('online');
   const [offlineReady, setOfflineReady] = React.useState(false);
+  const [loadingModel, setLoadingModel] = React.useState(false);
+  const [loadingSeconds, setLoadingSeconds] = React.useState(0);
+  const [loadingStage, setLoadingStage] = React.useState('');
+  const [loadingPercent, setLoadingPercent] = React.useState(0);
   
   React.useEffect(() => {
     const onLang = () => {
@@ -90,9 +94,48 @@ const TopBar = ({ onToggleBottom, onToggleLeft, isLeftOpen, onToggleStatus, isSt
   }, []);
   const toggleFactoryMode = async () => {
     try {
-      if (factoryMode !== 'offline' && !offlineReady) return;
+      const getStatus = async () => {
+        const { data } = await apiClient.get('/api/v1/runtime-mode/status');
+        return { mode: data?.mode, ready: Boolean(data?.offlineReady), loading: !!data?.loading, stage: data?.stage || '', percent: Number(data?.percent || 0) };
+      };
+
+      // If switching to offline and not ready, load then poll readiness
+      if (factoryMode !== 'offline') {
+        const status = await getStatus();
+        if (!status.ready) {
+          setLoadingModel(true);
+          setLoadingSeconds(0);
+          const start = Date.now();
+          const timer = setInterval(() => {
+            setLoadingSeconds(Math.floor((Date.now() - start) / 1000));
+          }, 500);
+          try {
+            await apiClient.post('/api/v1/runtime-mode/load');
+            let attempts = 0;
+            while (attempts < 120) {
+              const s = await getStatus();
+              setOfflineReady(s.ready);
+              setLoadingStage(s.stage);
+              setLoadingPercent(s.percent);
+              if (s.ready) break;
+              await new Promise((r) => setTimeout(r, 1000));
+              attempts++;
+            }
+          } finally {
+            clearInterval(timer);
+            setLoadingModel(false);
+          }
+        }
+      }
+
       const { data } = await apiClient.post('/api/v1/runtime-mode/toggle');
-      if (data?.success) setFactoryMode(data.mode);
+      if (data?.success) {
+        setFactoryMode(data.mode);
+        // Refresh offlineReady and mode to reflect backend state
+        const status = await getStatus();
+        setFactoryMode(status.mode || data.mode);
+        setOfflineReady(status.ready);
+      }
     } catch (e) { void e; }
   };
   const handleLoadModel = async () => {
@@ -315,11 +358,21 @@ const TopBar = ({ onToggleBottom, onToggleLeft, isLeftOpen, onToggleStatus, isSt
       <div className="flex items-center gap-2">
         <button
           onClick={toggleFactoryMode}
-          className={`p-2 px-3 h-9 inline-flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${factoryMode==='offline' ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-800 text-gray-200 hover:bg-gray-700 border border-yellow-600/40'} ${(!offlineReady && factoryMode!=='offline') ? 'opacity-60 cursor-not-allowed' : ''}`}
+          className={`p-2 px-3 h-9 inline-flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${loadingModel ? 'bg-blue-600 text-white hover:bg-blue-700' : (factoryMode==='offline' ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-800 text-gray-200 hover:bg-gray-700 border border-yellow-600/40')}`}
           title={factoryMode==='offline' ? 'وضع المصنع الذاتي مفعل' : 'الوضع الحالي'}
-          disabled={!offlineReady && factoryMode!=='offline'}
+          disabled={loadingModel}
         >
-          {factoryMode==='offline' ? 'مصنع ذاتي' : 'النظام الحالي'}
+          {loadingModel ? (
+            <span className="inline-flex items-center gap-2">
+              <span>{lang==='ar' ? 'جاري تحميل النموذج' : 'Loading model'}</span>
+              <span>{loadingSeconds}s</span>
+              {!!loadingStage && <span>{lang==='ar' ? loadingStage : loadingStage}</span>}
+              <span>{Math.max(0, Math.min(100, loadingPercent))}%</span>
+              <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            </span>
+          ) : (
+            factoryMode==='offline' ? 'مصنع ذاتي' : 'النظام الحالي'
+          )}
         </button>
         <button
           onClick={onToggleLeft}
@@ -330,15 +383,7 @@ const TopBar = ({ onToggleBottom, onToggleLeft, isLeftOpen, onToggleStatus, isSt
         >
           <FiSidebar size={18} />
         </button>
-        {!offlineReady && (
-          <button
-            onClick={handleLoadModel}
-            className={`px-3 h-9 inline-flex items-center justify-center rounded-lg text-sm font-medium transition-colors bg-blue-600 text-white hover:bg-blue-700`}
-            title={lang==='ar'?'تحميل النموذج المحلي':'Load local model'}
-          >
-            {lang==='ar'?'تحميل النموذج':'Load Model'}
-          </button>
-        )}
+
 
         {/* Toggle System Status Panel */}
         <button
