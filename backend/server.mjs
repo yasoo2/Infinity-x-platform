@@ -14,7 +14,6 @@ if (process.env.NODE_ENV !== 'production') {
 
 // --- Import modules ---
 import express from 'express';
-import cors from 'cors';
 import helmet from 'helmet';
 import http from 'http';
 import fs from 'fs';
@@ -80,20 +79,7 @@ const isAllowedOrigin = (origin) => {
   }
 };
 
-app.use(cors({
-  origin: (origin, callback) => {
-    if (isAllowedOrigin(origin)) {
-      callback(null, origin || true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
-  preflightContinue: false,
-  optionsSuccessStatus: 204
-}));
+// Removed cors() middleware in favor of a single, deterministic CORS layer below
 
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
