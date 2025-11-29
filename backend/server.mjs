@@ -66,13 +66,24 @@ const whitelist = [...new Set([...defaultWhitelist, ...envOrigins])];
 console.log('📋 CORS whitelist configured:', whitelist);
 
 // --- Apply standard 'cors' middleware ---
-// NOTE: We are reverting to a more secure, whitelist-based CORS policy.
-// The previous permissive '*' setting was for testing only.
-// We must ensure the admin subdomain is included in the whitelist.
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true;
+  try {
+    const u = new URL(origin);
+    const host = u.host;
+    const protocol = u.protocol;
+    if (host.startsWith('localhost')) return true;
+    if (host.endsWith('xelitesolutions.com')) return protocol === 'https:';
+    return whitelist.includes(origin);
+  } catch {
+    return whitelist.includes(origin);
+  }
+};
+
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || whitelist.includes(origin)) {
-      callback(null, true);
+    if (isAllowedOrigin(origin)) {
+      callback(null, origin || true);
     } else {
       callback(new Error('Not allowed by CORS'));
     }

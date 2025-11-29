@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { FiMic, FiPaperclip, FiSend, FiStopCircle, FiCompass, FiArrowDown, FiCloud, FiCpu } from 'react-icons/fi';
+import { FiMic, FiPaperclip, FiSend, FiStopCircle, FiCompass, FiArrowDown, FiCloud, FiCpu, FiLink, FiGitBranch } from 'react-icons/fi';
 import { useJoeChatContext } from '../../context/JoeChatContext.jsx';
 import apiClient from '../../api/client';
 
@@ -47,6 +47,17 @@ const MainConsole = () => {
   });
   const [factoryMode, setFactoryMode] = React.useState('online');
   const [modeLoading, setModeLoading] = React.useState(false);
+  const [uploadPct, setUploadPct] = React.useState(0);
+  const [linkLoading, setLinkLoading] = React.useState(false);
+  const [showGithub, setShowGithub] = React.useState(false);
+  const [ghUrl, setGhUrl] = React.useState('');
+  const [ghBranch, setGhBranch] = React.useState('main');
+  const [ghToken, setGhToken] = React.useState(() => {
+    try { return localStorage.getItem('githubToken') || ''; } catch { return ''; }
+  });
+  const ghPanelRef = useRef(null);
+  const [ghCommitMessage, setGhCommitMessage] = React.useState('Update by JOE AI');
+  const [dragActive, setDragActive] = React.useState(false);
 
   const { 
     messages, isProcessing, progress, currentStep, 
@@ -121,6 +132,22 @@ const MainConsole = () => {
     })();
   }, []);
 
+  useEffect(() => {
+    if (!ghToken) {
+      try { setGhToken(localStorage.getItem('githubToken') || ''); } catch { void 0; }
+    }
+  }, [ghUrl, ghToken]);
+
+  useEffect(() => {
+    const onDocClick = (e) => {
+      if (!showGithub) return;
+      const el = ghPanelRef.current;
+      if (el && !el.contains(e.target)) setShowGithub(false);
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [showGithub]);
+
   const handleToggleMode = async () => {
     try {
       setModeLoading(true);
@@ -155,6 +182,10 @@ const MainConsole = () => {
     };
   }, []);
 
+  useEffect(() => {
+    try { document.documentElement.style.setProperty('--joe-input-h', `${inputAreaHeight}px`); } catch { void 0; }
+  }, [inputAreaHeight]);
+
   const checkScroll = () => {
     const el = scrollContainerRef.current;
     if (!el) return;
@@ -179,10 +210,176 @@ const MainConsole = () => {
     const form = new FormData();
     for (const f of files) form.append('files', f);
     try {
-      const { data } = await apiClient.post('/api/v1/file/upload', form);
+      const { data } = await apiClient.post('/api/v1/file/upload', form, {
+        onUploadProgress: (evt) => {
+          const total = evt.total || 1;
+          const pct = Math.round((evt.loaded / total) * 100);
+          setUploadPct(pct);
+        },
+      });
       return data;
-    } catch (e) {
-      return { success: false, error: e?.message || 'upload_failed' };
+    } catch {
+      return { success: false, error: 'upload_failed' };
+    }
+  };
+
+  const collectDroppedFiles = async (items) => {
+    const entries = [];
+    try {
+      for (const it of items) {
+        if (it.kind === 'file' && typeof it.webkitGetAsEntry === 'function') {
+          const en = it.webkitGetAsEntry();
+          if (en) entries.push(en);
+        }
+      }
+    } catch { /* ignore */ }
+    if (!entries.length) {
+      return [];
+    }
+    const readEntry = async (entry) => {
+      return new Promise((resolve) => {
+        try {
+          if (entry.isFile) {
+            entry.file((f) => resolve([f]));
+          } else if (entry.isDirectory) {
+            const dirReader = entry.createReader();
+            const all = [];
+            const readBatch = () => {
+              try {
+                dirReader.readEntries(async (ents) => {
+                  if (!ents.length) return resolve(all);
+                  const results = await Promise.all(ents.map(readEntry));
+                  for (const r of results) all.push(...r);
+                  readBatch();
+                });
+              } catch { resolve(all); }
+            };
+            readBatch();
+          } else {
+            resolve([]);
+          }
+        } catch { resolve([]); }
+      });
+    };
+    const nested = await Promise.all(entries.map(readEntry));
+    return nested.flat();
+  };
+
+  const onDropFiles = async (e) => {
+    e.preventDefault();
+    setDragActive(false);
+    try {
+      let files = [];
+      const items = e.dataTransfer?.items;
+      if (items && items.length) {
+        const collected = await collectDroppedFiles(items);
+        files = collected.length ? collected : Array.from(e.dataTransfer?.files || []);
+      } else {
+        files = Array.from(e.dataTransfer?.files || []);
+      }
+      if (!files.length) return;
+      const data = await uploadFiles(files);
+      if (data?.success) {
+        const list = (data.results || []).map((r, i) => {
+          const name = r?.fileName || files[i]?.name || `file-${i+1}`;
+          const size = files[i]?.size ? `${Math.round(files[i].size/1024)}KB` : '';
+          const type = files[i]?.type || '';
+          return `- ${name} ${size} ${type}`.trim();
+        }).join('\n');
+        const header = lang==='ar' ? 'تحليل المرفقات:' : 'Analyze attachments:';
+        setInput(`${header}\n${list}`);
+      } else {
+        const err = lang==='ar' ? 'فشل رفع الملفات' : 'File upload failed';
+        setInput(err);
+      }
+    } catch {
+      const err = lang==='ar' ? 'فشل رفع الملفات' : 'File upload failed';
+      setInput(err);
+    }
+  };
+
+  const extractUrls = (text) => {
+    const re = /(https?:\/\/[^\s]+)/g;
+    const m = text.match(re) || [];
+    // unique
+    return Array.from(new Set(m));
+  };
+
+  const fetchLinksFromInput = async () => {
+    const urls = extractUrls(input);
+    if (!urls.length) return;
+    try {
+      setLinkLoading(true);
+      const summaries = [];
+      for (const u of urls) {
+        try {
+          const { data } = await apiClient.post('/api/v1/file/fetch-url', { url: u, deep: true, maxDepth: 4, maxItems: 20000 });
+          summaries.push(`${u} → ${data?.mode==='github' ? (lang==='ar'?'تم استنساخ مخزن جيت هاب':'GitHub repo cloned') : (lang==='ar'?'تم تنزيل وتحليل المحتوى':'Fetched and analyzed')}`);
+        } catch {
+          summaries.push(`${u} → ${lang==='ar'?'فشل الجلب':'Fetch failed'}`);
+        }
+      }
+      const header = lang==='ar' ? 'نتائج جلب الروابط:' : 'Link fetch results:';
+      setInput(`${header}\n${summaries.join('\n')}`);
+      handleSend();
+    } catch { /* ignore */ }
+    finally { setLinkLoading(false); }
+  };
+
+  const handleGithubAnalyze = async () => {
+    const url = ghUrl.trim();
+    if (!url) return;
+    try {
+      setLinkLoading(true);
+      const { data } = await apiClient.post('/api/v1/file/fetch-url', { url, deep: true, maxDepth: 4, maxItems: 20000, token: ghToken, branch: ghBranch });
+      const msg = data?.mode==='github'
+        ? (lang==='ar' ? `تم استنساخ وتحليل المستودع: ${url}` : `Repository cloned and analyzed: ${url}`)
+        : (lang==='ar' ? `تم جلب وتحليل المحتوى: ${url}` : `Fetched and analyzed: ${url}`);
+      setInput(msg);
+      handleSend();
+      setShowGithub(false);
+    } catch {
+      const err = lang==='ar' ? 'فشل تحليل مستودع GitHub' : 'GitHub analysis failed';
+      setInput(err);
+      handleSend();
+    } finally {
+      setLinkLoading(false);
+    }
+  };
+
+  const handleGithubCommit = async () => {
+    const url = ghUrl.trim();
+    if (!url) return;
+    try {
+      setLinkLoading(true);
+      const { data } = await apiClient.post('/api/v1/file/github/commit', { url, message: ghCommitMessage, branch: ghBranch, token: ghToken });
+      const msg = data?.success === false ? (lang==='ar'?'فشل الكومِت':'Commit failed') : (lang==='ar'?'تم تنفيذ الكومِت':'Commit executed');
+      setInput(`${msg}`);
+      handleSend();
+    } catch {
+      const err = lang==='ar' ? 'فشل الكومِت' : 'Commit failed';
+      setInput(err);
+      handleSend();
+    } finally {
+      setLinkLoading(false);
+    }
+  };
+
+  const handleGithubPush = async () => {
+    const url = ghUrl.trim();
+    if (!url) return;
+    try {
+      setLinkLoading(true);
+      const { data } = await apiClient.post('/api/v1/file/github/push', { url, branch: ghBranch, token: ghToken });
+      const msg = data?.success === false ? (lang==='ar'?'فشل الدفع':'Push failed') : (lang==='ar'?'تم الدفع إلى الفرع':'Pushed to branch');
+      setInput(`${msg} ${ghBranch}`);
+      handleSend();
+    } catch {
+      const err = lang==='ar' ? 'فشل الدفع' : 'Push failed';
+      setInput(err);
+      handleSend();
+    } finally {
+      setLinkLoading(false);
     }
   };
 
@@ -199,11 +396,9 @@ const MainConsole = () => {
       }).join('\n');
       const header = lang==='ar' ? 'تحليل المرفقات:' : 'Analyze attachments:';
       setInput(`${header}\n${list}`);
-      handleSend();
     } else {
       const err = lang==='ar' ? 'فشل رفع الملفات' : 'File upload failed';
       setInput(err);
-      handleSend();
     }
   };
 
@@ -277,7 +472,18 @@ const MainConsole = () => {
       {/* Input Area - Fixed at Bottom, Centered and Spacious */}
       <div className="border-t border-gray-800 bg-gray-900/98 backdrop-blur-sm" ref={inputAreaRef}>
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-3">
-          <div className="flex items-end gap-3 bg-gray-800 border border-gray-700 rounded-2xl px-4 py-3 focus-within:ring-2 focus-within:ring-yellow-500 transition-all">
+          <div 
+            className={`flex items-end gap-3 bg-gray-900 border border-gray-700 rounded-2xl px-4 py-3 transition-all relative ${dragActive ? 'ring-2 ring-yellow-500/70' : 'focus-within:ring-2 focus-within:ring-yellow-500'}`}
+            onDragEnter={(e) => { e.preventDefault(); setDragActive(true); }}
+            onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+            onDragLeave={(e) => { if (e.currentTarget.contains(e.relatedTarget)) return; setDragActive(false); }}
+            onDrop={onDropFiles}
+          >
+            {dragActive && (
+              <div className="absolute inset-0 rounded-2xl border-2 border-yellow-500/60 bg-yellow-500/5 flex items-center justify-center text-xs text-yellow-300 pointer-events-none">
+                {lang==='ar' ? 'اسحب الملفات وافلت هنا' : 'Drop files here'}
+              </div>
+            )}
             {/* Textarea */}
             <textarea
               ref={textareaRef}
@@ -290,7 +496,7 @@ const MainConsole = () => {
                 }
               }}
               placeholder="Message Joe... (Shift+Enter for new line)"
-              className="flex-1 bg-transparent outline-none resize-none text-white placeholder-gray-500 text-sm leading-relaxed"
+              className="flex-1 bg-transparent outline-none resize-none text-white placeholder-gray-500 text-sm leading-relaxed border border-gray-700 rounded-md px-2"
               rows={1}
               style={{ height: '42px', minHeight: '42px', maxHeight: '42px' }}
               disabled={isProcessing}
@@ -298,9 +504,25 @@ const MainConsole = () => {
 
             {/* Action Buttons */}
             <div className="flex items-center gap-2">
+              <button 
+                onClick={fetchLinksFromInput}
+                className="p-2.5 text-gray-400 hover:text-yellow-400 hover:bg-gray-700 rounded-lg transition-colors border border-gray-700"
+                disabled={isProcessing}
+                title={lang==='ar'?'جلب الروابط من النص':'Fetch links from input'}
+              >
+                <FiLink size={18} />
+              </button>
+              <button
+                onClick={() => setShowGithub(v => !v)}
+                className="p-2.5 text-gray-400 hover:text-yellow-400 hover:bg-gray-700 rounded-lg transition-colors border border-gray-700"
+                disabled={isProcessing}
+                title={lang==='ar'?'لوحة GitHub':'GitHub Panel'}
+              >
+                <FiGitBranch size={18} />
+              </button>
               <button
                 onClick={handleToggleMode}
-                className={`w-7 h-7 md:w-8 md:h-8 inline-flex items-center justify-center rounded-lg ${modeLoading ? 'bg-blue-600 text-white' : (factoryMode==='offline' ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-200 hover:bg-gray-600')} border border-yellow-600/30`}
+                className={`w-7 h-7 md:w-8 md:h-8 inline-flex items-center justify-center rounded-lg ${modeLoading ? 'bg-blue-600 text-white' : (factoryMode==='offline' ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-200 hover:bg-gray-600')} border border-gray-700`}
                 title={factoryMode==='offline' ? (lang==='ar'?'مصنع ذاتي':'Offline') : (lang==='ar'?'الوضع السحابي':'Cloud')}
                 disabled={modeLoading}
               >
@@ -321,12 +543,15 @@ const MainConsole = () => {
               
               <button 
                 onClick={handleFileClick} 
-                className="p-2.5 text-gray-400 hover:text-yellow-400 hover:bg-gray-700 rounded-lg transition-colors" 
+                className="p-2.5 text-gray-400 hover:text-yellow-400 hover:bg-gray-700 rounded-lg transition-colors border border-gray-700" 
                 disabled={isProcessing}
                 title="Attach File"
               >
                 <FiPaperclip size={20} />
               </button>
+              {uploadPct > 0 && uploadPct < 100 && (
+                <span className="text-[10px] text-yellow-300">{uploadPct}%</span>
+              )}
               
               <button 
                 onClick={handleVoiceInput} 
@@ -361,11 +586,73 @@ const MainConsole = () => {
               )}
             </div>
           </div>
+          {linkLoading && (
+            <div className="absolute right-3 top-3 flex items-center gap-2">
+              <span className="w-3 h-3 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin" />
+              <span className="text-[10px] text-yellow-300">{lang==='ar'?'جلب الروابط':'Fetching links'}</span>
+            </div>
+          )}
+          {showGithub && (
+            <div ref={ghPanelRef} className="absolute right-3 bottom-14 w-64 bg-gray-900 border border-gray-700 rounded-xl shadow-lg p-3">
+              <p className="text-xs text-gray-300 mb-2">{lang==='ar'?'تحليل مستودع GitHub':'Analyze GitHub Repo'}</p>
+              <input
+                type="text"
+                value={ghUrl}
+                onChange={(e) => setGhUrl(e.target.value)}
+                placeholder={lang==='ar'?'رابط المستودع':'Repository URL'}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-xs text-white placeholder-gray-500 mb-2"
+              />
+              <input
+                type="password"
+                value={ghToken}
+                onChange={(e) => { setGhToken(e.target.value); try { localStorage.setItem('githubToken', e.target.value); } catch { void 0; } }}
+                placeholder={lang==='ar'?'التوكن':'Token'}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-xs text-white placeholder-gray-500 mb-2"
+              />
+              <input
+                type="text"
+                value={ghBranch}
+                onChange={(e) => setGhBranch(e.target.value)}
+                placeholder={lang==='ar'?'الفرع (افتراضي main)':'Branch (default main)'}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-xs text-white placeholder-gray-500 mb-2"
+              />
+              <input
+                type="text"
+                value={ghCommitMessage}
+                onChange={(e) => setGhCommitMessage(e.target.value)}
+                placeholder={lang==='ar'?'رسالة الكومِت':'Commit message'}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-xs text-white placeholder-gray-500 mb-2"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setShowGithub(false)}
+                  className="px-2 py-1 text-xs rounded-lg bg-gray-700 text-gray-200 hover:bg-gray-600"
+                >
+                  {lang==='ar'?'إلغاء':'Cancel'}
+                </button>
+                <button
+                  onClick={handleGithubAnalyze}
+                  className="px-2 py-1 text-xs rounded-lg bg-yellow-600 text-black hover:bg-yellow-700"
+                >
+                  {lang==='ar'?'استنساخ وتحليل':'Clone & Analyze'}
+                </button>
+                <button
+                  onClick={handleGithubCommit}
+                  className="px-2 py-1 text-xs rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  {lang==='ar'?'كومِت':'Commit'}
+                </button>
+                <button
+                  onClick={handleGithubPush}
+                  className="px-2 py-1 text-xs rounded-lg bg-green-600 text-white hover:bg-green-700"
+                >
+                  {lang==='ar'?'دفع':'Push'}
+                </button>
+              </div>
+              <p className="text-[10px] text-gray-500 mt-2">{lang==='ar'?'للخاصة: يلزم GITHUB_TOKEN':'Private repos require GITHUB_TOKEN'}</p>
+            </div>
+          )}
           
-        {/* Helper Text */}
-        <p className="text-xs text-gray-500 text-center mt-3">
-          Joe can make mistakes. Consider checking important information.
-        </p>
         {/* Robot moved to Joe page and enhanced */}
       </div>
       {/* Reconnect Mini Chip - Fixed at bottom-right */}

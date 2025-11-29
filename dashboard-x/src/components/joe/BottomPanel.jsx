@@ -31,7 +31,7 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
   return (
     <div className="h-full flex flex-col bg-gray-950 p-5 border border-gray-800 rounded-t-xl">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 border-b border-gray-800 pb-3">
         <div className="flex items-center gap-3">
           <FiTerminal className="text-blue-500" size={20} />
           <h2 className="text-lg font-bold text-white">WebSocket Live Log</h2>
@@ -41,19 +41,19 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
           </div>
         </div>
           <div className="flex items-center gap-3">
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-gray-500 border border-gray-700 rounded px-2 py-0.5">
               {logs?.length || 0} messages
             </div>
             <button
               onClick={() => onAddAllLogs && onAddAllLogs()}
-              className="px-2 py-1 rounded bg-yellow-600 text-black text-xs hover:bg-yellow-700"
+              className="px-2 py-1 rounded border border-yellow-600/40 bg-yellow-600 text-black text-xs hover:bg-yellow-700"
               title="Add all to chat"
             >
               Add All to Chat
             </button>
             <button
               onClick={() => onToggleCollapse && onToggleCollapse()}
-              className="p-1.5 rounded bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white transition"
+              className="p-1.5 rounded border border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white transition"
               title={collapsed ? 'إظهار البانيل' : 'إخفاء البانيل'}
             >
               {collapsed ? <FiChevronUp size={16} /> : <FiChevronDown size={16} />}
@@ -76,7 +76,7 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
                 const color = getLogColor(type);
                 const text = typeof log === 'string' ? log : (log?.text || JSON.stringify(log));
                 return (
-                  <div key={index} className="flex items-start gap-3 hover:bg-gray-800/50 px-2 py-1 rounded transition-colors">
+                  <div key={index} className="flex items-start gap-3 hover:bg-gray-800/50 px-2 py-1 rounded transition-colors border border-gray-800">
                     <span className="text-gray-600 text-xs mt-0.5 flex-shrink-0">
                       {String(index + 1).padStart(3, '0')}
                     </span>
@@ -85,7 +85,7 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
                     </span>
                     <button
                       onClick={() => onAddLogToChat && onAddLogToChat(log)}
-                      className="ml-auto px-2 py-1 rounded bg-blue-600 text-white text-[10px] hover:bg-blue-700"
+                      className="ml-auto px-2 py-1 rounded border border-blue-400/40 bg-blue-600 text-white text-[10px] hover:bg-blue-700"
                       title="Add to chat"
                     >
                       Add to Chat
@@ -106,16 +106,16 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
       )}
 
       {collapsed && (
-        <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-40 select-none pointer-events-none">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-950/90 border border-gray-800 shadow-lg">
+        <div className="fixed left-4 z-40 select-none pointer-events-none" style={{ bottom: 'calc(var(--joe-input-h, 56px) + env(safe-area-inset-bottom, 0px) + 4px)' }}>
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-900/80 border border-gray-700 shadow-md backdrop-blur-sm">
             <button
               onClick={() => onToggleCollapse && onToggleCollapse()}
-              className="p-1 rounded bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white transition pointer-events-auto"
+              className="p-1 rounded border border-gray-700 bg-gray-800/80 text-gray-300 hover:bg-gray-700 hover:text-white transition pointer-events-auto"
               title="إظهار اللوجز"
             >
               <FiChevronUp size={16} />
             </button>
-            <span className="max-w-[60vw] md:max-w-[40vw] lg:max-w-[30vw] truncate text-xs text-gray-300">
+            <span className="max-w-[50vw] md:max-w-[38vw] lg:max-w-[28vw] truncate text-[11px] text-gray-300/90">
               {(() => {
                 const last = Array.isArray(logs) && logs.length ? logs[logs.length - 1] : '';
                 if (typeof last === 'string') return last;

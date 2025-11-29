@@ -37,7 +37,7 @@ const SidePanel = ({ conversations, onConversationSelect, onNewConversation, cur
         <h2 className="text-sm font-semibold text-yellow-400 tracking-wider">{lang === 'ar' ? 'المحادثات' : 'Chats'}</h2>
         <button 
           onClick={onNewConversation}
-          className="p-2 text-black bg-yellow-600 hover:bg-yellow-700 rounded-md"
+          className="p-2 text-black bg-yellow-600 hover:bg-yellow-700 rounded-md border border-yellow-600/40"
           title={lang === 'ar' ? 'محادثة جديدة' : 'New Chat'}
         >
           <FiPlus size={20} />
@@ -49,10 +49,10 @@ const SidePanel = ({ conversations, onConversationSelect, onNewConversation, cur
           <div 
             key={convo.id}
             onClick={() => { setOpenMenuId(null); onConversationSelect(convo.id); }}
-            className={`relative flex items-center px-4 py-2.5 mx-2 my-1 rounded-md cursor-pointer transition-colors duration-200 ${
+            className={`relative flex items-center px-4 py-2.5 mx-2 my-1 rounded-md cursor-pointer transition-colors duration-200 border ${
               currentConversationId === convo.id 
-                ? 'bg-yellow-600 text-black' 
-                : 'text-gray-300 hover:bg-gray-700/50'
+                ? 'bg-yellow-600 text-black border-yellow-600' 
+                : 'text-gray-300 hover:bg-gray-700/50 border-gray-700'
             }`}>
             <FiMessageSquare className="mr-3 flex-shrink-0" size={16} />
             <span className="text-sm font-medium truncate flex-1">{convo.title || 'New Conversation'}</span>

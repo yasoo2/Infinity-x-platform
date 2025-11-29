@@ -74,9 +74,9 @@ const RightPanel = ({ isProcessing, plan, forceStatus = false, wsConnected = fal
   }, []);
 
   return (
-    <div className="h-full flex flex-col bg-gray-900 p-5 border border-gray-800 rounded-lg">
+    <div className="h-full flex flex-col bg-gray-900 p-5 border border-gray-700 rounded-lg">
       {/* Header */}
-      <div className="mb-5">
+      <div className="mb-5 border-b border-gray-700 pb-3">
         <div className="flex items-center gap-3 mb-2">
           {showPlan ? <FiZap className="text-blue-500" size={24} /> : <FiActivity className="text-green-500" size={24} />}
           <h2 className="text-xl font-bold text-white">
