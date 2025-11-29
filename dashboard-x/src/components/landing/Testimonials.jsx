@@ -58,7 +58,7 @@ const Testimonials = () => {
                 <div className="flex mb-4">
                     {[...Array(5)].map((_, i) => <Star key={i} className="text-yellow-400 fill-current"/>)}
                 </div>
-              <p className="text-gray-300 flex-grow"><em>"{testimonial.quote}"</em></p>
+              <p className="text-gray-300 flex-grow"><em>{testimonial.quote}</em></p>
               <div className="mt-6 flex items-center">
                 <img src={testimonial.avatar} alt={testimonial.author} className="w-12 h-12 rounded-full object-cover border-2 border-blue-400" />
                 <div className="ml-4">
@@ -75,4 +75,3 @@ const Testimonials = () => {
 };
 
 export default Testimonials;
-

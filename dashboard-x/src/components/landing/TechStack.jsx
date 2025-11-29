@@ -1,5 +1,5 @@
 
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Float, OrbitControls, Text } from '@react-three/drei';
 import { SiJavascript, SiTypescript, SiPython, SiReact, SiNodedotjs, SiNextdotjs, SiVuedotjs, SiGooglecloud, SiAmazon, SiDocker, SiKubernetes } from 'react-icons/si';
@@ -22,13 +22,24 @@ const IconCloud = () => {
   return (
     <Canvas camera={{ position: [0, 0, 10], fov: 75 }}>
       <Suspense fallback={null}>
-        <ambientLight intensity={0.8} />
-        <pointLight intensity={1} position={[10, 10, 10]} />
+        {(() => {
+          const ALight = () => {
+            const ref = useRef();
+            useEffect(() => { if (ref.current) ref.current.intensity = 0.8; }, []);
+            return (<ambientLight ref={ref} />);
+          };
+          const PLight = () => {
+            const ref = useRef();
+            useEffect(() => { if (ref.current) { ref.current.position.set(10, 10, 10); ref.current.intensity = 1; } }, []);
+            return (<pointLight ref={ref} />);
+          };
+          return (<><ALight /><PLight /></>);
+        })()}
         {techIcons.map((tech, i) => (
           <Float key={i} speed={1.5} rotationIntensity={1} floatIntensity={2}>
             <mesh position={[(Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15]}>
               <boxGeometry args={[1, 1, 1]} />
-              <meshStandardMaterial color={tech.color} emissive={tech.color} emissiveIntensity={0.5} roughness={0.5} />
+              <meshStandardMaterial color={tech.color} />
               <Text position={[0, -0.7, 0]} fontSize={0.2} color="white" anchorX="center" anchorY="middle">
                 {tech.name}
               </Text>
@@ -57,4 +68,3 @@ const TechStack = () => {
 };
 
 export default TechStack;
-

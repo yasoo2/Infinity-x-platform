@@ -9,7 +9,7 @@ const Footer = () => {
         <div className="grid md:grid-cols-2 gap-12 items-center">
           <div>
             <h2 className="text-4xl font-extrabold text-white leading-tight">Ready to Build the Future?</h2>
-            <p className="mt-4 text-lg text-gray-400">Let's connect. We're here to help you achieve your technology goals. Fill out the form or send us an email to start the conversation.</p>
+            <p className="mt-4 text-lg text-gray-400">Let&apos;s connect. We&apos;re here to help you achieve your technology goals. Fill out the form or send us an email to start the conversation.</p>
             <a href="mailto:contact@infinity-x.com" className="mt-8 inline-block bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold py-4 px-10 rounded-full hover:scale-105 transition-transform duration-300 shadow-lg shadow-blue-500/20">
               Contact Us
             </a>

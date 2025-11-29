@@ -41,7 +41,7 @@ export default function Activity() {
     let intervalId;
     if (isAutoRefreshing) {
       intervalId = setInterval(() => {
-        console.log("Auto-refreshing activity stream...");
+        console.warn("Auto-refreshing activity stream...");
         fetchActivity();
       }, AUTO_REFRESH_INTERVAL);
     }
