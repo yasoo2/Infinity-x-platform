@@ -419,6 +419,16 @@ const AIMenuButton = () => {
   const [valid, setValid] = React.useState({});
   const [validationError, setValidationError] = React.useState({});
   const [activationError, setActivationError] = React.useState({});
+  const [closing, setClosing] = React.useState(false);
+  const [logoError, setLogoError] = React.useState({});
+
+  const handlePanelClose = React.useCallback(() => {
+    setClosing(true);
+    setTimeout(() => {
+      setOpen(false);
+      setClosing(false);
+    }, 180);
+  }, []);
 
   const loadProviders = async () => {
     setLoading(true);
@@ -455,6 +465,7 @@ const AIMenuButton = () => {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [open, handlePanelClose]);
+
 
   const onKeyChange = (id, value) => {
     const next = { ...keys, [id]: value };
@@ -526,7 +537,19 @@ const AIMenuButton = () => {
               <div className="p-4 border-b border-yellow-600/20 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <a href={p.createUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:opacity-90">
-                    {p.logo ? <img src={p.logo} alt={p.name} className="w-6 h-6 rounded"/> : <span className="text-xl" style={{color:p.color}}>{p.icon || '🤖'}</span>}
+                    {(!logoError[p.id] && p.logo) ? (
+                      <img
+                        src={p.logo}
+                        alt={p.name}
+                        className="w-6 h-6 rounded"
+                        referrerPolicy="no-referrer"
+                        crossOrigin="anonymous"
+                        loading="lazy"
+                        onError={() => setLogoError(e => ({ ...e, [p.id]: true }))}
+                      />
+                    ) : (
+                      <span className="text-xl" style={{ color: p.color }}>{p.icon || '🤖'}</span>
+                    )}
                     <span className="text-white font-semibold underline decoration-dotted">{p.name}</span>
                   </a>
                 </div>
@@ -584,10 +607,3 @@ const AIMenuButton = () => {
 };
 
 export default TopBar;
-  const handlePanelClose = React.useCallback(() => {
-    setClosing(true);
-    setTimeout(() => {
-      setOpen(false);
-      setClosing(false);
-    }, 180);
-  }, []);
