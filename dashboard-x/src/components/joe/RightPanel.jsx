@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { FiZap, FiTool, FiCheckCircle, FiActivity, FiCpu } from 'react-icons/fi';
 
@@ -38,11 +38,43 @@ PlanStep.propTypes = {
   index: PropTypes.number.isRequired,
 };
 
-const RightPanel = ({ isProcessing, plan, forceStatus = false }) => {
+const RightPanel = ({ isProcessing, plan, forceStatus = false, wsConnected = false }) => {
   const showPlan = !forceStatus && isProcessing && plan && plan.length > 0;
+  const [health, setHealth] = useState(null);
+  const [runtime, setRuntime] = useState(null);
+  const [ai, setAi] = useState(null);
+  const formatUptime = (s) => {
+    if (!s && s !== 0) return '';
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = Math.floor(s % 60);
+    if (h > 0) return `${h}h ${m}m`;
+    if (m > 0) return `${m}m ${sec}s`;
+    return `${sec}s`;
+  };
+
+  useEffect(() => {
+    const fetchAll = async () => {
+      try {
+        const h = await fetch('/api/v1/health');
+        if (h.ok) setHealth(await h.json());
+      } catch { void 0; }
+      try {
+        const r = await fetch('/api/v1/runtime-mode/status');
+        if (r.ok) setRuntime(await r.json());
+      } catch { void 0; }
+      try {
+        let t = null;
+        try { t = localStorage.getItem('sessionToken'); } catch { void 0; }
+        const p = await fetch('/api/v1/ai/providers', { headers: t ? { Authorization: `Bearer ${t}` } : undefined });
+        if (p.ok) setAi(await p.json());
+      } catch { void 0; }
+    };
+    fetchAll();
+  }, []);
 
   return (
-    <div className="h-full flex flex-col bg-gray-900 p-5">
+    <div className="h-full flex flex-col bg-gray-900 p-5 border border-gray-800 rounded-lg">
       {/* Header */}
       <div className="mb-5">
         <div className="flex items-center gap-3 mb-2">
@@ -66,21 +98,24 @@ const RightPanel = ({ isProcessing, plan, forceStatus = false }) => {
           </div>
         ) : (
           <div className="space-y-3">
-            {/* System Status Cards */}
             <div className="p-4 bg-gray-800 rounded-lg border border-gray-700">
               <div className="flex items-center gap-3 mb-2">
-                <FiCheckCircle className="text-green-500" size={20} />
+                <FiCheckCircle className={wsConnected ? 'text-green-500' : 'text-red-500'} size={20} />
                 <h4 className="font-semibold text-white">WebSocket</h4>
               </div>
-              <p className="text-sm text-gray-400">Connection stable and active</p>
+              <p className="text-sm text-gray-400">{wsConnected ? 'Connection active' : 'Disconnected'}</p>
             </div>
 
             <div className="p-4 bg-gray-800 rounded-lg border border-gray-700">
               <div className="flex items-center gap-3 mb-2">
-                <FiCheckCircle className="text-green-500" size={20} />
+                <FiCheckCircle className={(health?.success && health?.status === 'ok') ? 'text-green-500' : 'text-red-500'} size={20} />
                 <h4 className="font-semibold text-white">API Backend</h4>
               </div>
-              <p className="text-sm text-gray-400">All services operational</p>
+              <p className="text-sm text-gray-400">{(health?.success && health?.status === 'ok') ? 'All services operational' : 'Service unavailable'}</p>
+              <div className="mt-2 text-xs text-gray-500">
+                <div>DB: {health?.db || 'unknown'}</div>
+                <div>Uptime: {formatUptime(health?.uptime)}</div>
+              </div>
             </div>
 
             <div className="p-4 bg-gray-800 rounded-lg border border-gray-700">
@@ -88,7 +123,12 @@ const RightPanel = ({ isProcessing, plan, forceStatus = false }) => {
                 <FiCpu className="text-blue-500" size={20} />
                 <h4 className="font-semibold text-white">AI Engine</h4>
               </div>
-              <p className="text-sm text-gray-400">Gemini 2.5 Flash • Ready</p>
+              <p className="text-sm text-gray-400">
+                {ai?.ok ? `${ai.activeProvider || ''} • ${ai.activeModel || ''}` : (runtime?.success ? `${runtime.mode} • ${runtime.offlineReady ? 'Ready' : 'Not Ready'}` : 'Unknown')}
+              </p>
+              {runtime?.success && runtime.loading && (
+                <div className="mt-2 text-xs text-blue-400">Loading: {runtime.stage || 'Starting'} • {runtime.percent || 0}%</div>
+              )}
             </div>
 
             <div className="p-4 bg-gray-800 rounded-lg border border-gray-700">
@@ -96,7 +136,7 @@ const RightPanel = ({ isProcessing, plan, forceStatus = false }) => {
                 <FiTool className="text-purple-500" size={20} />
                 <h4 className="font-semibold text-white">Tools Available</h4>
               </div>
-              <p className="text-sm text-gray-400">82 tools and functions loaded</p>
+              <p className="text-sm text-gray-400">{typeof health?.toolsCount === 'number' ? `${health.toolsCount} tools loaded` : 'Detecting...'}</p>
             </div>
 
             {/* Waiting State */}
@@ -117,6 +157,7 @@ RightPanel.propTypes = {
   isProcessing: PropTypes.bool.isRequired,
   plan: PropTypes.array,
   forceStatus: PropTypes.bool,
+  wsConnected: PropTypes.bool,
 };
 
 export default RightPanel;

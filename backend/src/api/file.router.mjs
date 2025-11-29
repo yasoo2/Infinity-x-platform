@@ -19,7 +19,7 @@ const fileRouterFactory = ({ requireRole, fileProcessingService }) => {
     // Configure Multer for temporary disk storage
     const upload = multer({
         dest: path.join(os.tmpdir(), 'infinity-uploads'),
-        limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
+        limits: { fileSize: 500 * 1024 * 1024 },
     });
 
     router.use(isServiceAvailable);
@@ -29,18 +29,25 @@ const fileRouterFactory = ({ requireRole, fileProcessingService }) => {
      * @description Uploads a file for processing and knowledge extraction.
      * @access USER
      */
-    router.post('/upload', requireRole('USER'), upload.single('file'), async (req, res) => {
+    router.post('/upload', requireRole('USER'), upload.array('files'), async (req, res) => {
         try {
-            if (!req.file) {
-                return res.status(400).json({ success: false, error: 'No file was uploaded.' });
+            const files = req.files;
+            if (!files || files.length === 0) {
+                return res.status(400).json({ success: false, error: 'No files were uploaded.' });
             }
 
             const userId = req.user._id;
+            const results = [];
+            for (const f of files) {
+                try {
+                    const r = await fileProcessingService.processUploadedFile({ file: f, userId });
+                    results.push({ success: true, ...r });
+                } catch (e) {
+                    results.push({ success: false, error: e.message, fileName: f?.originalname });
+                }
+            }
 
-            // Delegate processing to the dedicated service
-            const result = await fileProcessingService.processUploadedFile({ file: req.file, userId });
-
-            res.json(result);
+            res.json({ success: true, count: results.length, results });
 
         } catch (error) {
             console.error('❌ File upload router error:', error);

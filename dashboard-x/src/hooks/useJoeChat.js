@@ -141,6 +141,32 @@ const chatReducer = (state, action) => {
         case 'ADD_WS_LOG':
             return { ...state, wsLog: [...state.wsLog, action.payload] };
 
+        case 'ADD_PENDING_LOG': {
+            const id = action.payload;
+            const list = state.pendingHandledLogIds || [];
+            return { ...state, pendingHandledLogIds: list.includes(id) ? list : [...list, id] };
+        }
+
+        case 'REMOVE_PENDING_LOGS': {
+            const ids = new Set(state.pendingHandledLogIds || []);
+            const remaining = (state.wsLog || []).filter(l => {
+                const lid = typeof l === 'object' && l && typeof l.id !== 'undefined' ? l.id : null;
+                return !ids.has(lid);
+            });
+            return { ...state, wsLog: remaining, pendingHandledLogIds: [] };
+        }
+
+        case 'SET_WS_CONNECTED':
+            return { ...state, wsConnected: action.payload };
+
+        case 'SET_RECONNECT_STATE': {
+            const { active, attempt, delayMs, etaTs } = action.payload;
+            return { ...state, reconnectActive: active, reconnectAttempt: attempt, reconnectDelayMs: delayMs, reconnectEtaTs: etaTs, reconnectRemainingMs: delayMs };
+        }
+
+        case 'SET_RECONNECT_REMAINING':
+            return { ...state, reconnectRemainingMs: action.payload };
+
         case 'SET_CONVERSATIONS':
             return { ...state, conversations: action.payload };
 
@@ -236,6 +262,13 @@ const chatReducer = (state, action) => {
 export const useJoeChat = () => {
   const ws = useRef(null);
   const recognition = useRef(null);
+  const keepListeningRef = useRef(false);
+  const isListeningRef = useRef(false);
+  const reconnectAttempts = useRef(0);
+  const reconnectTimer = useRef(null);
+  const isConnectingRef = useRef(false);
+  const syncRef = useRef(null);
+  const reconnectCountdownInterval = useRef(null);
 
   const [state, dispatch] = useReducer(chatReducer, {
     conversations: {},
@@ -247,8 +280,63 @@ export const useJoeChat = () => {
     isListening: false,
     transcript: '',
     wsLog: [],
+    pendingHandledLogIds: [],
     plan: [], // Initial state for the plan
+    wsConnected: false,
+    reconnectActive: false,
+    reconnectAttempt: 0,
+    reconnectDelayMs: 0,
+    reconnectEtaTs: 0,
+    reconnectRemainingMs: 0,
   });
+
+  useEffect(() => {
+    const c = globalThis && globalThis.console ? globalThis.console : null;
+    const origLog = c && c['log'] ? c['log'] : null;
+    const origWarn = c && c['warn'] ? c['warn'] : null;
+    const origError = c && c['error'] ? c['error'] : null;
+    if (c && origLog) c['log'] = (...args) => {
+      try { dispatch({ type: 'ADD_WS_LOG', payload: { id: Date.now(), type: 'info', text: args.map(a=>typeof a==='string'?a:JSON.stringify(a)).join(' ') } }); } catch { void 0; }
+      return args.length, undefined;
+    };
+    if (c && origWarn) c['warn'] = (...args) => {
+      try { dispatch({ type: 'ADD_WS_LOG', payload: { id: Date.now(), type: 'warning', text: args.map(a=>typeof a==='string'?a:JSON.stringify(a)).join(' ') } }); } catch { void 0; }
+      return args.length, undefined;
+    };
+    if (c && origError) c['error'] = (...args) => {
+      try {
+        const text = args.map(a=>typeof a==='string'?a:JSON.stringify(a)).join(' ');
+        const lid = Date.now();
+        dispatch({ type: 'ADD_WS_LOG', payload: { id: lid, type: 'error', text } });
+        if (/ERR_ABORTED|TypeError|Failed to fetch/i.test(text)) {
+          dispatch({ type: 'SEND_MESSAGE', payload: `Analyze and fix error: ${text}` });
+          dispatch({ type: 'ADD_PENDING_LOG', payload: lid });
+        }
+      } catch { void 0; }
+      return args.length, undefined;
+    };
+    const onWindowError = (e) => {
+      try { dispatch({ type: 'ADD_WS_LOG', payload: { id: Date.now(), type: 'error', text: String(e.message || e.error || 'Error') } }); } catch { void 0; }
+    };
+    const onRejection = (e) => {
+      try { dispatch({ type: 'ADD_WS_LOG', payload: { id: Date.now(), type: 'error', text: String(e.reason || 'Unhandled rejection') } }); } catch { void 0; }
+    };
+    const onAuthUnauthorized = () => { try { dispatch({ type: 'ADD_WS_LOG', payload: { id: Date.now(), type: 'warning', text: 'Unauthorized: redirecting to login' } }); } catch { void 0; } };
+    const onAuthForbidden = (ev) => { try { dispatch({ type: 'ADD_WS_LOG', payload: { id: Date.now(), type: 'warning', text: `Forbidden: ${JSON.stringify(ev.detail||{})}` } }); } catch { void 0; } };
+    window.addEventListener('error', onWindowError);
+    window.addEventListener('unhandledrejection', onRejection);
+    window.addEventListener('auth:unauthorized', onAuthUnauthorized);
+    window.addEventListener('auth:forbidden', onAuthForbidden);
+    return () => {
+      if (c && origLog) c['log'] = origLog;
+      if (c && origWarn) c['warn'] = origWarn;
+      if (c && origError) c['error'] = origError;
+      window.removeEventListener('error', onWindowError);
+      window.removeEventListener('unhandledrejection', onRejection);
+      window.removeEventListener('auth:unauthorized', onAuthUnauthorized);
+      window.removeEventListener('auth:forbidden', onAuthForbidden);
+    };
+  }, []);
 
   // ... (useEffect for localStorage loading remains the same)
   const handleNewConversation = useCallback((selectNew = true) => {
@@ -342,12 +430,16 @@ export const useJoeChat = () => {
   }, [syncBackendSessions]);
 
   useEffect(() => {
+    syncRef.current = syncBackendSessions;
+  }, [syncBackendSessions]);
+
+  useEffect(() => {
     const interval = setInterval(() => {
-      syncBackendSessions();
+      if (syncRef.current) syncRef.current();
     }, 20000);
     const onVisibility = () => {
       if (document.visibilityState === 'visible') {
-        syncBackendSessions();
+        if (syncRef.current) syncRef.current();
       }
     };
     document.addEventListener('visibilitychange', onVisibility);
@@ -383,48 +475,97 @@ export const useJoeChat = () => {
 
   useEffect(() => {
     const connect = () => {
-      let sessionToken = localStorage.getItem('sessionToken');
-      const ensureToken = async () => {
-        if (!sessionToken) {
+      if (isConnectingRef.current) return;
+      if (ws.current && (ws.current.readyState === WebSocket.OPEN || ws.current.readyState === WebSocket.CONNECTING)) return;
+      const validateToken = async () => {
+        let t = localStorage.getItem('sessionToken');
+        const needsRefresh = () => {
+          if (!t) return true;
+          try {
+            const p = JSON.parse(atob((t.split('.')[1]) || ''));
+            const exp = p?.exp;
+            return typeof exp === 'number' ? (Date.now() / 1000) >= (exp - 30) : false;
+          } catch {
+            return false;
+          }
+        };
+        if (needsRefresh()) {
           try {
             const r = await getGuestToken();
             if (r?.ok && r?.token) {
               localStorage.setItem('sessionToken', r.token);
-              sessionToken = r.token;
+              t = r.token;
             }
           } catch { void 0; }
         }
+        return t || null;
       };
-      // Ensure token before attempting connection
-      ensureToken().then(() => {
-        if (!sessionToken) return;
+      isConnectingRef.current = true;
+      validateToken().then((sessionToken) => {
+        if (!sessionToken) {
+          isConnectingRef.current = false;
+          return;
+        }
         // Use VITE_WS_URL if defined, otherwise build from VITE_API_BASE_URL
         let wsUrl;
         if (import.meta.env.VITE_WS_URL) {
-          // Use predefined WebSocket URL and append token
-          // التأكد من استخدام المسار الصحيح /ws/joe-agent حتى لو كان VITE_WS_URL مُعرفًا
-          const baseWsUrl = import.meta.env.VITE_WS_URL.replace(/\/ws.*$/, ''); // إزالة أي مسار موجود
+          const baseWsUrl = import.meta.env.VITE_WS_URL.replace(/\/ws.*$/, '');
           wsUrl = `${baseWsUrl}/ws/joe-agent?token=${sessionToken}`;
         } else {
-          // Build from API base URL (dev/local friendly)
           const apiBase = import.meta.env.VITE_API_BASE_URL || window.location.origin;
           const wsBase = apiBase.replace(/^https/, 'wss').replace(/^http/, 'ws');
           wsUrl = `${wsBase}/ws/joe-agent?token=${sessionToken}`;
         }
-        // Diagnostic log to verify WebSocket URL
         console.warn('[Joe Agent] Connecting to WebSocket:', wsUrl.replace(/token=.*/, 'token=***'));
         ws.current = new WebSocket(wsUrl);
-        ws.current.onopen = () => dispatch({ type: 'ADD_WS_LOG', payload: '[WS] Connection established' });
+        const connectionTimeout = setTimeout(() => {
+          if (ws.current && ws.current.readyState !== WebSocket.OPEN) {
+            try { ws.current.close(); } catch { void 0; }
+          }
+        }, 10000);
+        ws.current.onopen = () => {
+          clearTimeout(connectionTimeout);
+          reconnectAttempts.current = 0;
+          isConnectingRef.current = false;
+          if (reconnectTimer.current) {
+            clearTimeout(reconnectTimer.current);
+            reconnectTimer.current = null;
+          }
+          if (reconnectCountdownInterval.current) {
+            clearInterval(reconnectCountdownInterval.current);
+            reconnectCountdownInterval.current = null;
+          }
+          dispatch({ type: 'SET_WS_CONNECTED', payload: true });
+          dispatch({ type: 'SET_RECONNECT_STATE', payload: { active: false, attempt: 0, delayMs: 0, etaTs: 0 } });
+          dispatch({ type: 'ADD_WS_LOG', payload: '[WS] Connection established' });
+        };
         ws.current.onclose = (e) => {
+          clearTimeout(connectionTimeout);
+          isConnectingRef.current = false;
           const code = e?.code;
           const reason = e?.reason || '';
           dispatch({ type: 'ADD_WS_LOG', payload: `[WS] Connection closed (code=${code} reason=${reason}). Reconnecting...` });
-          // If policy violation or invalid token, clear token and fetch a new guest token before reconnecting
           const shouldResetToken = code === 1008 || /invalid token|malformed|signature/i.test(reason);
           if (shouldResetToken) {
             try { localStorage.removeItem('sessionToken'); } catch { void 0; }
           }
-          setTimeout(async () => {
+          dispatch({ type: 'SET_WS_CONNECTED', payload: false });
+          const attempt = (reconnectAttempts.current || 0) + 1;
+          reconnectAttempts.current = attempt;
+          const jitter = Math.floor(Math.random() * 500);
+          let delay = Math.min(30000, 1000 * Math.pow(2, attempt)) + jitter;
+          if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+            delay = Math.max(delay, 5000);
+          }
+          const eta = Date.now() + delay;
+          dispatch({ type: 'SET_RECONNECT_STATE', payload: { active: true, attempt, delayMs: delay, etaTs: eta } });
+          if (reconnectCountdownInterval.current) clearInterval(reconnectCountdownInterval.current);
+          reconnectCountdownInterval.current = setInterval(() => {
+            const remaining = Math.max(0, eta - Date.now());
+            dispatch({ type: 'SET_RECONNECT_REMAINING', payload: remaining });
+          }, 250);
+          if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+          reconnectTimer.current = setTimeout(async () => {
             if (shouldResetToken) {
               try {
                 const r = await getGuestToken();
@@ -432,7 +573,7 @@ export const useJoeChat = () => {
               } catch { void 0; }
             }
             connect();
-          }, 1000);
+          }, delay);
         };
         ws.current.onerror = (err) => {
           dispatch({ type: 'ADD_WS_LOG', payload: `[WS] Error: ${err.message}` });
@@ -455,10 +596,11 @@ export const useJoeChat = () => {
             break;
           case 'task_complete':
             dispatch({ type: 'STOP_PROCESSING' });
-            syncBackendSessions();
+            dispatch({ type: 'REMOVE_PENDING_LOGS' });
+            if (syncRef.current) syncRef.current();
             break;
           case 'session_updated':
-            syncBackendSessions();
+            if (syncRef.current) syncRef.current();
             break;
           // MODIFIED: Handle plan steps
           case 'thought':
@@ -477,9 +619,26 @@ export const useJoeChat = () => {
         };
       });
     };
+    
     connect();
+    const onOnline = () => {
+      if (!ws.current || ws.current.readyState === WebSocket.CLOSED) {
+        reconnectAttempts.current = 0;
+        connect();
+      }
+    };
+    window.addEventListener('online', onOnline);
     return () => {
-      try { ws.current?.close(); } catch { /* noop */ }
+      window.removeEventListener('online', onOnline);
+      if (reconnectTimer.current) {
+        clearTimeout(reconnectTimer.current);
+        reconnectTimer.current = null;
+      }
+      if (reconnectCountdownInterval.current) {
+        clearInterval(reconnectCountdownInterval.current);
+        reconnectCountdownInterval.current = null;
+      }
+      try { ws.current?.close(); } catch { void 0; }
     };
   }, []);
 
@@ -530,24 +689,46 @@ export const useJoeChat = () => {
   }, []);
 
   const handleVoiceInput = useCallback(() => {
-    // ... (voice logic remains unchanged)
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;
     if (state.isListening) {
-        recognition.current?.stop();
-        return;
+      keepListeningRef.current = false;
+      try { recognition.current?.stop(); } catch { void 0; }
+      dispatch({ type: 'SET_LISTENING', payload: false });
+      return;
     }
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
-    recognition.current = new SpeechRecognition();
+    try { recognition.current?.stop(); } catch { void 0; }
+    recognition.current = new SR();
     recognition.current.continuous = true;
     recognition.current.interimResults = true;
-    recognition.current.lang = 'en-US';
-    recognition.current.onstart = () => dispatch({ type: 'SET_LISTENING', payload: true });
-    recognition.current.onend = () => dispatch({ type: 'SET_LISTENING', payload: false });
-    recognition.current.onresult = (event) => {
-      const transcript = Array.from(event.results).map(r => r[0]).map(r => r.transcript).join('');
-      dispatch({ type: 'SET_TRANSCRIPT', payload: transcript });
+    recognition.current.lang = getLang() === 'ar' ? 'ar-SA' : 'en-US';
+    keepListeningRef.current = true;
+    recognition.current.onstart = () => { isListeningRef.current = true; dispatch({ type: 'SET_LISTENING', payload: true }); };
+    recognition.current.onend = () => {
+      isListeningRef.current = false;
+      if (keepListeningRef.current) {
+        try { recognition.current?.start(); } catch { void 0; }
+      } else {
+        dispatch({ type: 'SET_LISTENING', payload: false });
+      }
     };
-    recognition.current.start();
+    recognition.current.onerror = () => {
+      if (keepListeningRef.current) {
+        setTimeout(() => { try { recognition.current?.start(); } catch { void 0; } }, 400);
+      } else {
+        dispatch({ type: 'SET_LISTENING', payload: false });
+      }
+    };
+    recognition.current.onresult = (event) => {
+      let finalTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
+      }
+      const interim = event.results[event.results.length - 1]?.[0]?.transcript || '';
+      const text = (finalTranscript || interim).trim();
+      if (text) dispatch({ type: 'SET_TRANSCRIPT', payload: text });
+    };
+    try { recognition.current.start(); } catch { void 0; }
   }, [state.isListening]);
 
   return {
@@ -568,6 +749,11 @@ export const useJoeChat = () => {
     isListening: state.isListening,
     transcript: state.transcript,
     wsLog: state.wsLog,
+    wsConnected: state.wsConnected,
+    reconnectActive: state.reconnectActive,
+    reconnectAttempt: state.reconnectAttempt,
+    reconnectRemainingMs: state.reconnectRemainingMs,
+    reconnectDelayMs: state.reconnectDelayMs,
     handleSend,
     stopProcessing,
     handleNewConversation,
@@ -580,5 +766,18 @@ export const useJoeChat = () => {
     clearMessages: (id) => dispatch({ type: 'CLEAR_MESSAGES', payload: { id } }),
     // NEWLY EXPORTED STATE
     plan: state.plan,
+    addLogToChat: (log) => {
+      const text = typeof log === 'string' ? log : (log?.text || JSON.stringify(log));
+      const prefix = getLang() === 'ar' ? 'حل واصل العمل: ' : 'Diagnose and continue: ';
+      dispatch({ type: 'SEND_MESSAGE', payload: `${prefix}${text}` });
+      if (log && typeof log === 'object' && typeof log.id !== 'undefined') {
+        dispatch({ type: 'ADD_PENDING_LOG', payload: log.id });
+      }
+    },
+    addAllLogsToChat: () => {
+      const lines = (state.wsLog || []).slice(-50).map(l => (typeof l === 'string') ? l : (l?.text || JSON.stringify(l))).join('\n');
+      const header = getLang() === 'ar' ? 'سجل النظام الأخير:\n' : 'Recent system logs:\n';
+      dispatch({ type: 'SEND_MESSAGE', payload: `${header}${lines}` });
+    },
   };
 };

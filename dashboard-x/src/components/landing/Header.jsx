@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import useAuth from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
@@ -40,7 +40,7 @@ const Header = () => {
     setLoggingIn(false);
   };
 
-  const refreshRemembered = React.useCallback(() => {
+  const refreshRemembered = useCallback(() => {
     setRememberedList(listRemembered());
   }, [listRemembered]);
 
@@ -63,8 +63,8 @@ const Header = () => {
   };
 
   React.useEffect(() => {
-    if (showLogin) refreshRemembered();
-  }, [showLogin, refreshRemembered]);
+    if (showLogin) setRememberedList(listRemembered());
+  }, [showLogin, listRemembered]);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-black/30 backdrop-blur-lg border-b border-gray-800">

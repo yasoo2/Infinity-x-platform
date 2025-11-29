@@ -1,5 +1,5 @@
-import React from 'react';
-import { FiTerminal, FiMaximize2, FiLogOut, FiSidebar, FiActivity, FiUsers } from 'react-icons/fi';
+import React, { useCallback } from 'react';
+import { FiMaximize2, FiLogOut, FiSidebar, FiActivity, FiUsers } from 'react-icons/fi';
 import { Sparkles, Key, CheckCircle, XCircle, ExternalLink, Search as SearchIcon } from 'lucide-react';
 import { getAIProviders, validateAIKey, activateAIProvider } from '../../api/system';
 import apiClient from '../../api/client';
@@ -51,7 +51,7 @@ import PropTypes from 'prop-types';
 import { useSessionToken } from '../../hooks/useSessionToken';
 import { useNavigate } from 'react-router-dom';
 
-const TopBar = ({ onToggleBottom, onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onToggleBorderSettings, isBorderSettingsOpen, isSuperAdmin, onToggleRight: _onToggleRight, isRightOpen: _isRightOpen, isBottomOpen }) => {
+const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onToggleBorderSettings, isBorderSettingsOpen, isSuperAdmin, onToggleRight: _onToggleRight, isRightOpen: _isRightOpen }) => {
   const { clearToken } = useSessionToken();
   const navigate = useNavigate();
   const [userMenuOpen, setUserMenuOpen] = React.useState(false);
@@ -63,12 +63,7 @@ const TopBar = ({ onToggleBottom, onToggleLeft, isLeftOpen, onToggleStatus, isSt
   const [lang, setLang] = React.useState(() => {
     try { return localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'; } catch { return 'en'; }
   });
-  const [factoryMode, setFactoryMode] = React.useState('online');
   const [offlineReady, setOfflineReady] = React.useState(false);
-  const [loadingModel, setLoadingModel] = React.useState(false);
-  const [loadingSeconds, setLoadingSeconds] = React.useState(0);
-  const [loadingStage, setLoadingStage] = React.useState('');
-  const [loadingPercent, setLoadingPercent] = React.useState(0);
   
   React.useEffect(() => {
     const onLang = () => {
@@ -87,57 +82,10 @@ const TopBar = ({ onToggleBottom, onToggleLeft, isLeftOpen, onToggleStatus, isSt
     (async () => {
       try {
         const { data } = await apiClient.get('/api/v1/runtime-mode/status');
-        if (data?.success && data?.mode) setFactoryMode(data.mode);
         setOfflineReady(Boolean(data?.offlineReady));
       } catch (e) { void e; }
     })();
   }, []);
-  const toggleFactoryMode = async () => {
-    try {
-      const getStatus = async () => {
-        const { data } = await apiClient.get('/api/v1/runtime-mode/status');
-        return { mode: data?.mode, ready: Boolean(data?.offlineReady), loading: !!data?.loading, stage: data?.stage || '', percent: Number(data?.percent || 0) };
-      };
-
-      // If switching to offline and not ready, load then poll readiness
-      if (factoryMode !== 'offline') {
-        const status = await getStatus();
-        if (!status.ready) {
-          setLoadingModel(true);
-          setLoadingSeconds(0);
-          const start = Date.now();
-          const timer = setInterval(() => {
-            setLoadingSeconds(Math.floor((Date.now() - start) / 1000));
-          }, 500);
-          try {
-            await apiClient.post('/api/v1/runtime-mode/load');
-            let attempts = 0;
-            while (attempts < 120) {
-              const s = await getStatus();
-              setOfflineReady(s.ready);
-              setLoadingStage(s.stage);
-              setLoadingPercent(s.percent);
-              if (s.ready) break;
-              await new Promise((r) => setTimeout(r, 1000));
-              attempts++;
-            }
-          } finally {
-            clearInterval(timer);
-            setLoadingModel(false);
-          }
-        }
-      }
-
-      const { data } = await apiClient.post('/api/v1/runtime-mode/toggle');
-      if (data?.success) {
-        setFactoryMode(data.mode);
-        // Refresh offlineReady and mode to reflect backend state
-        const status = await getStatus();
-        setFactoryMode(status.mode || data.mode);
-        setOfflineReady(status.ready);
-      }
-    } catch (e) { void e; }
-  };
   const handleLoadModel = async () => {
     try {
       const { data } = await apiClient.post('/api/v1/runtime-mode/load');
@@ -356,24 +304,7 @@ const TopBar = ({ onToggleBottom, onToggleLeft, isLeftOpen, onToggleStatus, isSt
 
         {/* Right: Control Buttons */}
       <div className="flex items-center gap-2">
-        <button
-          onClick={toggleFactoryMode}
-          className={`p-2 px-3 h-9 inline-flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${loadingModel ? 'bg-blue-600 text-white hover:bg-blue-700' : (factoryMode==='offline' ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-800 text-gray-200 hover:bg-gray-700 border border-yellow-600/40')}`}
-          title={factoryMode==='offline' ? 'وضع المصنع الذاتي مفعل' : 'الوضع الحالي'}
-          disabled={loadingModel}
-        >
-          {loadingModel ? (
-            <span className="inline-flex items-center gap-2">
-              <span>{lang==='ar' ? 'جاري تحميل النموذج' : 'Loading model'}</span>
-              <span>{loadingSeconds}s</span>
-              {!!loadingStage && <span>{lang==='ar' ? loadingStage : loadingStage}</span>}
-              <span>{Math.max(0, Math.min(100, loadingPercent))}%</span>
-              <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            </span>
-          ) : (
-            factoryMode==='offline' ? 'مصنع ذاتي' : 'النظام الحالي'
-          )}
-        </button>
+        
         <button
           onClick={onToggleLeft}
           className={`p-2 w-9 h-9 inline-flex items-center justify-center rounded-lg transition-colors ${
@@ -453,18 +384,14 @@ const TopBar = ({ onToggleBottom, onToggleLeft, isLeftOpen, onToggleStatus, isSt
           <input type="range" min="0.8" max="1.4" step="0.02" value={mascotScale} onChange={(e)=>setMascotScale(parseFloat(e.target.value))} className="w-24" style={{ accentColor: '#eab308' }} />
         </div>
 
-        {/* Toggle Bottom Panel */}
-        <button
-          onClick={onToggleBottom}
-          className={`p-2 w-9 h-9 inline-flex items-center justify-center rounded-lg transition-colors ${
-            isBottomOpen 
-              ? 'bg-yellow-600 text-black hover:bg-yellow-700' 
-              : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-yellow-600/40'
-          }`}
-          title={isBottomOpen ? (lang==='ar'?'إخفاء لوحة السجل':'Hide Logs Panel') : (lang==='ar'?'إظهار لوحة السجل':'Show Logs Panel')}
-        >
-          <FiTerminal size={18} />
-        </button>
+        <div className="hidden md:flex items-center gap-2 px-2 py-1 bg-gray-800 text-gray-300 border border-yellow-600/40 rounded-lg" title={lang==='ar'?'حالة الأوفلاين':'Offline State'}>
+          <span className={`${offlineReady ? 'text-green-400' : 'text-gray-400'} text-xs`}>{offlineReady ? (lang==='ar'?'جاهز':'Ready') : (lang==='ar'?'غير جاهز':'Not Ready')}</span>
+          {!offlineReady && (
+            <button onClick={handleLoadModel} className="px-2 py-0.5 text-xs rounded bg-blue-600 hover:bg-blue-700 text-white">{lang==='ar'?'تحميل':'Load'}</button>
+          )}
+        </div>
+
+        
 
         {/* Fullscreen Toggle (Optional) */}
         <button
@@ -495,9 +422,7 @@ const TopBar = ({ onToggleBottom, onToggleLeft, isLeftOpen, onToggleStatus, isSt
 
 TopBar.propTypes = {
   onToggleRight: PropTypes.func.isRequired,
-  onToggleBottom: PropTypes.func.isRequired,
   isRightOpen: PropTypes.bool.isRequired,
-  isBottomOpen: PropTypes.bool.isRequired,
   onToggleLeft: PropTypes.func.isRequired,
   isLeftOpen: PropTypes.bool.isRequired,
   onToggleStatus: PropTypes.func.isRequired,
@@ -521,7 +446,7 @@ const AIMenuButton = () => {
   const [closing, setClosing] = React.useState(false);
   const [logoError, setLogoError] = React.useState({});
 
-  const handlePanelClose = React.useCallback(() => {
+  const handlePanelClose = useCallback(() => {
     setClosing(true);
     setTimeout(() => {
       setOpen(false);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Terminal, Cpu, Maximize2, Minimize2, Pause, Play, Mic, Grid3x3 } from 'lucide-react';
+import { Terminal, Cpu, Maximize2, Minimize2, Pause, Play, Mic, Grid3x3, ChevronDown, ChevronUp } from 'lucide-react';
 import PropTypes from 'prop-types';
 
 /**
@@ -18,6 +18,7 @@ const JoeDesktopView = ({ isProcessing, progress, wsLog, onVoiceInput }) => {
   const [isListening, setIsListening] = useState(false);
   const [gridSize] = useState(20);
   const logEndRef = React.useRef(null);
+  const [isLogsCollapsed, setIsLogsCollapsed] = useState(false);
 
   // Scroll to bottom
   const scrollToBottom = () => {
@@ -81,6 +82,13 @@ const JoeDesktopView = ({ isProcessing, progress, wsLog, onVoiceInput }) => {
           <span className="text-xs text-gray-400 ml-4">
             {isProcessing ? `جاري المعالجة...` : isFrozen ? 'متجمد' : 'جاهز'}
           </span>
+          <button
+            onClick={() => setIsLogsCollapsed((v) => !v)}
+            className="ml-2 p-1.5 rounded bg-gray-700/50 text-gray-300 hover:bg-gray-700 hover:text-white transition"
+            title={isLogsCollapsed ? 'إظهار اللوجز' : 'إخفاء اللوجز'}
+          >
+            {isLogsCollapsed ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
         </div>
 
         {/* Control buttons */}
@@ -152,36 +160,42 @@ const JoeDesktopView = ({ isProcessing, progress, wsLog, onVoiceInput }) => {
         )}
 
         {/* Log/Terminal area */}
-        <div className="h-full p-4 overflow-y-auto text-xs font-mono bg-gray-950/50 relative z-10">
-          {wsLog && wsLog.length > 0 ? (
-            wsLog.map((entry, index) => (
-              <div 
-                key={entry.id || index} 
-                className={`flex gap-2 mb-1 ${
-                  entry.type === 'system' 
-                    ? 'text-gray-500' 
-                    : entry.type === 'error' 
-                    ? 'text-red-400' 
-                    : entry.type === 'success'
-                    ? 'text-green-400'
-                    : 'text-cyan-400'
-                }`}
-              >
-                <span className="text-fuchsia-400 flex-shrink-0">
-                  [{new Date(entry.id || Date.now()).toLocaleTimeString('ar-SA')}]
-                </span>
-                <span className="flex-1">{entry.text}</span>
+        {isLogsCollapsed ? (
+          <div className="h-8 flex items-center justify-center bg-gray-950/40 text-xxs text-gray-400 relative z-10">
+            تم إخفاء اللوجز
+          </div>
+        ) : (
+          <div className="h-full p-4 overflow-y-auto text-xs font-mono bg-gray-950/50 relative z-10">
+            {wsLog && wsLog.length > 0 ? (
+              wsLog.map((entry, index) => (
+                <div 
+                  key={entry.id || index} 
+                  className={`flex gap-2 mb-1 ${
+                    entry.type === 'system' 
+                      ? 'text-gray-500' 
+                      : entry.type === 'error' 
+                      ? 'text-red-400' 
+                      : entry.type === 'success'
+                      ? 'text-green-400'
+                      : 'text-cyan-400'
+                  }`}
+                >
+                  <span className="text-fuchsia-400 flex-shrink-0">
+                    [{new Date(entry.id || Date.now()).toLocaleTimeString('ar-SA')}]
+                  </span>
+                  <span className="flex-1">{entry.text}</span>
+                </div>
+              ))
+            ) : (
+              <div className="text-center text-gray-500 py-8">
+                <Terminal className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p>جاهز للعمل...</p>
+                <p className="text-xs mt-2">استخدم الميكروفون أو اكتب الأوامر</p>
               </div>
-            ))
-          ) : (
-            <div className="text-center text-gray-500 py-8">
-              <Terminal className="w-8 h-8 mx-auto mb-2 opacity-50" />
-              <p>جاهز للعمل...</p>
-              <p className="text-xs mt-2">استخدم الميكروفون أو اكتب الأوامر</p>
-            </div>
-          )}
-          <div ref={logEndRef} />
-        </div>
+            )}
+            <div ref={logEndRef} />
+          </div>
+        )}
 
         {/* Frozen overlay */}
         {isFrozen && (

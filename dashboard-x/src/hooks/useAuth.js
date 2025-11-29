@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import apiClient from '../api/client';
 
 // Placeholder for a real authentication hook
@@ -42,7 +42,7 @@ const useAuth = () => {
     return false;
   };
 
-  const listRemembered = () => {
+  const listRemembered = useCallback(() => {
     try {
       const raw = localStorage.getItem('rememberedSessions');
       const map = raw ? JSON.parse(raw) : {};
@@ -50,9 +50,9 @@ const useAuth = () => {
     } catch {
       return [];
     }
-  };
+  }, []);
 
-  const loginWithRemembered = (identifier) => {
+  const loginWithRemembered = useCallback((identifier) => {
     try {
       const raw = localStorage.getItem('rememberedSessions');
       const map = raw ? JSON.parse(raw) : {};
@@ -66,9 +66,9 @@ const useAuth = () => {
     } catch {
       return false;
     }
-  };
+  }, []);
 
-  const removeRemembered = (identifier) => {
+  const removeRemembered = useCallback((identifier) => {
     try {
       const raw = localStorage.getItem('rememberedSessions');
       const map = raw ? JSON.parse(raw) : {};
@@ -81,7 +81,7 @@ const useAuth = () => {
     } catch {
       return false;
     }
-  };
+  }, []);
 
   // const logout = () => { // Removed as per user request
   //   localStorage.removeItem('sessionToken');

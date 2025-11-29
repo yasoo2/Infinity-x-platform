@@ -15,6 +15,8 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [boxSize, setBoxSize] = useState({ width: 700, height: 500 });
+  const [isLogCollapsed, setIsLogCollapsed] = useState(false);
   const imageRef = useRef(null);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -137,6 +139,20 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
     scrollToBottom();
   }, [log]);
 
+  useEffect(() => {
+    const computeSize = () => {
+      const vw = typeof window !== 'undefined' ? window.innerWidth : 1024;
+      const vh = typeof window !== 'undefined' ? window.innerHeight : 768;
+      const width = Math.min(700, Math.max(320, vw - 32));
+      const height = Math.min(500, Math.max(240, vh - 120));
+      setBoxSize({ width, height });
+    };
+    computeSize();
+    const onResize = () => computeSize();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   const getStatusIcon = () => {
     if (isProcessing || isLoading) return <Cpu className="w-4 h-4 text-purple-400 animate-pulse" />;
     if (!isConnected) return <Monitor className="w-4 h-4 text-red-400" />;
@@ -155,14 +171,14 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
       {isFullScreen && (
         <FullScreenBrowser onClose={() => setIsFullScreen(false)} />
       )}
-      <Draggable handle=".handle">
+      <Draggable handle=".handle" bounds="body">
         <ResizableBox
-        width={700}
-        height={isCollapsed ? 50 : 500}
-        minConstraints={[500, 50]}
-        maxConstraints={[1200, 900]}
-        className="absolute bottom-4 right-4 z-50"
-      >
+          width={boxSize.width}
+          height={isCollapsed ? 50 : boxSize.height}
+          minConstraints={[Math.min(500, Math.max(300, (typeof window!=='undefined'?window.innerWidth:800)-120)), 50]}
+          maxConstraints={[Math.max(600, (typeof window!=='undefined'?window.innerWidth:800)-40), Math.max(400, (typeof window!=='undefined'?window.innerHeight:600)-120)]}
+          className="absolute bottom-4 right-4 z-50"
+        >
         <div className="w-full h-full flex flex-col bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border-2 border-purple-500/30 rounded-xl shadow-2xl shadow-purple-900/50 overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between p-3 bg-gradient-to-r from-gray-800/90 to-gray-900/90 border-b-2 border-purple-500/30 flex-shrink-0">
@@ -341,39 +357,59 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
                     )}
                   </div>
                 ) : (
-                  <div className="h-full p-3 overflow-y-auto text-xs font-mono bg-black/40 backdrop-blur-sm">
-                    {isTakeoverActive && (
-                      <div className="absolute inset-0 bg-black/70 flex items-center justify-center text-white text-lg font-bold z-10 backdrop-blur-sm">
-                        <div className="text-center">
-                          <Monitor className="w-12 h-12 mx-auto mb-2 text-purple-400 animate-pulse" />
-                          <p>User Control Active</p>
-                          <button
-                            onClick={handleRelease}
-                            className="mt-4 bg-red-500 hover:bg-red-600 text-white text-sm px-4 py-2 rounded transition-all duration-200"
+                  <div className="h-full flex flex-col bg-black/40 backdrop-blur-sm">
+                    <div className="flex items-center justify-between px-2 py-1 bg-gray-800/60 border-b border-gray-700/50 text-xs">
+                      <span className="text-gray-300">Logs</span>
+                      <button
+                        onClick={() => setIsLogCollapsed((v) => !v)}
+                        className="text-gray-400 hover:text-white transition-colors"
+                        title={isLogCollapsed ? 'Expand' : 'Collapse'}
+                      >
+                        {isLogCollapsed ? (
+                          <ChevronUp className="w-4 h-4" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                    {isLogCollapsed ? (
+                      <div className="px-3 py-2 text-xs text-gray-500">Collapsed</div>
+                    ) : (
+                      <div className="flex-1 p-3 overflow-y-auto text-xs font-mono relative">
+                        {isTakeoverActive && (
+                          <div className="absolute inset-0 bg-black/70 flex items-center justify-center text-white text-lg font-bold z-10">
+                            <div className="text-center">
+                              <Monitor className="w-12 h-12 mx-auto mb-2 text-purple-400 animate-pulse" />
+                              <p>User Control Active</p>
+                              <button
+                                onClick={handleRelease}
+                                className="mt-4 bg-red-500 hover:bg-red-600 text-white text-sm px-4 py-2 rounded transition-all duration-200"
+                              >
+                                Release Control
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        {log.map((entry, index) => (
+                          <div
+                            key={entry.id || index}
+                            className={`flex gap-2 mb-1 ${
+                              entry.type === 'system'
+                                ? 'text-gray-400'
+                                : entry.type === 'error'
+                                ? 'text-red-400'
+                                : 'text-blue-300'
+                            }`}
                           >
-                            Release Control
-                          </button>
-                        </div>
+                            <span className="text-purple-400">
+                              [{new Date(entry.id || Date.now()).toLocaleTimeString()}]
+                            </span>
+                            <span>{entry.text}</span>
+                          </div>
+                        ))}
+                        <div ref={logEndRef} />
                       </div>
                     )}
-                    {log.map((entry, index) => (
-                      <div
-                        key={entry.id || index}
-                        className={`flex gap-2 mb-1 ${
-                          entry.type === 'system'
-                            ? 'text-gray-400'
-                            : entry.type === 'error'
-                            ? 'text-red-400'
-                            : 'text-blue-300'
-                        }`}
-                      >
-                        <span className="text-purple-400">
-                          [{new Date(entry.id || Date.now()).toLocaleTimeString()}]
-                        </span>
-                        <span>{entry.text}</span>
-                      </div>
-                    ))}
-                    <div ref={logEndRef} />
                   </div>
                 )}
               </div>

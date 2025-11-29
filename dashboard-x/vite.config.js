@@ -5,7 +5,8 @@ import react from '@vitejs/plugin-react';
 // https://vitejs.dev/config/
 export default defineConfig({
   define: {
-   'import.meta.env.VITE_API_BASE_URL': JSON.stringify(process.env.VITE_API_BASE_URL || '/api/v1'),
+   'import.meta.env.VITE_API_BASE_URL': JSON.stringify(process.env.VITE_API_BASE_URL || ''),
+   'import.meta.env.VITE_WS_URL': JSON.stringify(process.env.VITE_WS_URL || ''),
   },
   plugins: [
     react(),
@@ -35,12 +36,12 @@ export default defineConfig({
     // ✅ إضافة البروكسي للـ API والـ WebSocket أثناء التطوير
     proxy: {
       '/api': {
-        target: 'http://localhost:4000',
+        target: 'http://localhost:4001',
         changeOrigin: true,
         secure: false,
       },
       '/ws': {
-        target: 'ws://localhost:4000',
+        target: 'ws://localhost:4001',
         ws: true,
         changeOrigin: true,
         secure: false,

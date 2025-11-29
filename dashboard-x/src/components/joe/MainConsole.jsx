@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
-import { FiMic, FiPaperclip, FiSend, FiStopCircle, FiCompass, FiArrowDown } from 'react-icons/fi';
+import { FiMic, FiPaperclip, FiSend, FiStopCircle, FiCompass, FiArrowDown, FiCloud, FiCpu } from 'react-icons/fi';
 import { useJoeChatContext } from '../../context/JoeChatContext.jsx';
+import apiClient from '../../api/client';
 
 const WelcomeScreen = () => (
   <div className="flex flex-col items-center justify-center h-full text-center px-6">
@@ -39,34 +40,63 @@ const MainConsole = () => {
   const scrollContainerRef = useRef(null);
   const showScrollRef = useRef(false);
   const [showScrollButton, setShowScrollButton] = React.useState(false);
+  const inputAreaRef = useRef(null);
+  const [inputAreaHeight, setInputAreaHeight] = React.useState(0);
   const [lang, setLang] = React.useState(() => {
     try { return localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'; } catch { return 'ar'; }
   });
+  const [factoryMode, setFactoryMode] = React.useState('online');
+  const [modeLoading, setModeLoading] = React.useState(false);
 
   const { 
     messages, isProcessing, progress, currentStep, 
     input, setInput, isListening, handleSend, stopProcessing, 
-    handleVoiceInput, transcript, currentConversation
+    handleVoiceInput, transcript, currentConversation,
+    wsConnected, reconnectActive, reconnectAttempt, reconnectRemainingMs, reconnectDelayMs
   } = useJoeChatContext();
 
-  // Auto-scroll فقط إذا كان المستخدم في الأسفل بالفعل؛ واستخدم ضبط مباشر للتمرير لتقليل الاهتزاز
-  useEffect(() => {
+  const lastContent = messages[messages.length - 1]?.content || '';
+  const scrollToBottomIfNeeded = () => {
     const el = scrollContainerRef.current;
     if (!el) return;
     const atBottom = (el.scrollHeight - el.scrollTop - el.clientHeight) <= 80;
     if (atBottom) {
-      el.scrollTop = el.scrollHeight;
-      setShowScrollButton(false);
+      requestAnimationFrame(() => {
+        el.scrollTop = el.scrollHeight;
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        setShowScrollButton(false);
+      });
     }
-  }, [messages.length, currentConversation]);
+  };
+  
+  const prevMsgCountRef = useRef(messages.length);
+  const lastSenderRef = useRef(messages[messages.length - 1]?.type);
 
-  // Auto-resize textarea
+  // Auto-scroll فقط إذا كان المستخدم في الأسفل بالفعل؛ واستخدم ضبط مباشر للتمرير لتقليل الاهتزاز
   useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 180) + 'px';
+    scrollToBottomIfNeeded();
+  }, [messages.length, lastContent, currentConversation]);
+
+  useEffect(() => {
+    if (messages.length > prevMsgCountRef.current) {
+      const last = messages[messages.length - 1];
+      if (last?.type === 'user') {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            const el = scrollContainerRef.current;
+            if (!el) return;
+            el.scrollTop = el.scrollHeight;
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            setShowScrollButton(false);
+          });
+        });
+      }
+      prevMsgCountRef.current = messages.length;
+      lastSenderRef.current = last?.type;
     }
-  }, [input]);
+  }, [messages]);
+
+  
 
   useEffect(() => {
     if (transcript) {
@@ -80,6 +110,49 @@ const MainConsole = () => {
     };
     window.addEventListener('joe:lang', onLang);
     return () => window.removeEventListener('joe:lang', onLang);
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await apiClient.get('/api/v1/runtime-mode/status');
+        if (data?.success && data?.mode) setFactoryMode(data.mode);
+      } catch { /* ignore */ }
+    })();
+  }, []);
+
+  const handleToggleMode = async () => {
+    try {
+      setModeLoading(true);
+      const status = await apiClient.get('/api/v1/runtime-mode/status').then(r => r.data || {});
+      const current = status.mode || factoryMode;
+      if (current !== 'offline' && !status.offlineReady) {
+        try {
+          await apiClient.post('/api/v1/runtime-mode/load');
+        } catch { /* ignore */ }
+      }
+      const { data } = await apiClient.post('/api/v1/runtime-mode/toggle');
+      if (data?.success) {
+        setFactoryMode(data.mode);
+      }
+    } catch { /* ignore */ }
+    finally { setModeLoading(false); }
+  };
+
+  useEffect(() => {
+    const el = inputAreaRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      setInputAreaHeight(el.offsetHeight || 0);
+    });
+    ro.observe(el);
+    setInputAreaHeight(el.offsetHeight || 0);
+    const onResize = () => setInputAreaHeight(el.offsetHeight || 0);
+    window.addEventListener('resize', onResize);
+    return () => {
+      try { ro.disconnect(); } catch { void 0; }
+      window.removeEventListener('resize', onResize);
+    };
   }, []);
 
   const checkScroll = () => {
@@ -102,16 +175,36 @@ const MainConsole = () => {
 
   const handleFileClick = () => fileInputRef.current.click();
 
-  const handleFileChange = (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const content = e.target.result;
-      const fileInfo = `Attached file: ${file.name}\n\n\`\`\`\n${content}\n\`\`\``;
-      setInput(prev => prev ? `${prev}\n${fileInfo}` : fileInfo);
-    };
-    reader.readAsText(file);
+  const uploadFiles = async (files) => {
+    const form = new FormData();
+    for (const f of files) form.append('files', f);
+    try {
+      const { data } = await apiClient.post('/api/v1/file/upload', form);
+      return data;
+    } catch (e) {
+      return { success: false, error: e?.message || 'upload_failed' };
+    }
+  };
+
+  const handleFileChange = async (event) => {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+    const data = await uploadFiles(files);
+    if (data?.success) {
+      const list = (data.results || []).map((r, i) => {
+        const name = r?.fileName || files[i]?.name || `file-${i+1}`;
+        const size = files[i]?.size ? `${Math.round(files[i].size/1024)}KB` : '';
+        const type = files[i]?.type || '';
+        return `- ${name} ${size} ${type}`.trim();
+      }).join('\n');
+      const header = lang==='ar' ? 'تحليل المرفقات:' : 'Analyze attachments:';
+      setInput(`${header}\n${list}`);
+      handleSend();
+    } else {
+      const err = lang==='ar' ? 'فشل رفع الملفات' : 'File upload failed';
+      setInput(err);
+      handleSend();
+    }
   };
 
 
@@ -119,7 +212,7 @@ const MainConsole = () => {
     <div className="flex flex-col h-full bg-gray-900">
       {/* Messages Area - Spacious and Centered */}
       <div className="flex-1 overflow-y-auto" ref={scrollContainerRef} style={{ scrollBehavior: 'auto', overscrollBehavior: 'contain', overflowAnchor: 'none' }}>
-        <div className="max-w-5xl mx-auto px-4 md:px-8 py-6">
+        <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 border border-gray-800 rounded-xl" style={{ paddingBottom: Math.max(24, inputAreaHeight + 24) }}>
           {messages.length === 0 || (messages.length === 1 && messages[0].type === 'joe' && messages[0].content.includes('Welcome to Joe AI Assistant')) ? (
             <WelcomeScreen />
           ) : (
@@ -170,7 +263,8 @@ const MainConsole = () => {
             setShowScrollButton(false);
           }}
           title={lang==='ar'?'إلى الأسفل':'Scroll to Bottom'}
-          className={`fixed bottom-40 right-6 z-50 ${showScrollButton ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'} transition-opacity`}
+          className={`fixed right-6 z-50 ${showScrollButton ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'} transition-opacity hidden sm:block`}
+          style={{ bottom: Math.max(16, inputAreaHeight + 16) }}
         >
           <span className="w-10 h-10 inline-flex items-center justify-center rounded-full bg-yellow-600 text-black hover:bg-yellow-700 border border-yellow-600 shadow-lg">
             <FiArrowDown size={18} />
@@ -181,9 +275,9 @@ const MainConsole = () => {
       {/* Conversations strip removed to avoid duplication with left SidePanel */}
 
       {/* Input Area - Fixed at Bottom, Centered and Spacious */}
-      <div className="border-t border-gray-800 bg-gray-900/98 backdrop-blur-sm">
-        <div className="max-w-5xl mx-auto px-4 md:px-8 py-5">
-          <div className="flex items-end gap-3 bg-gray-800 border border-gray-700 rounded-2xl px-5 py-4 focus-within:ring-2 focus-within:ring-yellow-500 transition-all">
+      <div className="border-t border-gray-800 bg-gray-900/98 backdrop-blur-sm" ref={inputAreaRef}>
+        <div className="max-w-5xl mx-auto px-4 md:px-8 py-3">
+          <div className="flex items-end gap-3 bg-gray-800 border border-gray-700 rounded-2xl px-4 py-3 focus-within:ring-2 focus-within:ring-yellow-500 transition-all">
             {/* Textarea */}
             <textarea
               ref={textareaRef}
@@ -196,18 +290,32 @@ const MainConsole = () => {
                 }
               }}
               placeholder="Message Joe... (Shift+Enter for new line)"
-              className="flex-1 bg-transparent outline-none resize-none text-white placeholder-gray-500 text-base leading-relaxed"
+              className="flex-1 bg-transparent outline-none resize-none text-white placeholder-gray-500 text-sm leading-relaxed"
               rows={1}
-              style={{ minHeight: '28px', maxHeight: '180px' }}
+              style={{ height: '42px', minHeight: '42px', maxHeight: '42px' }}
               disabled={isProcessing}
             />
 
             {/* Action Buttons */}
             <div className="flex items-center gap-2">
+              <button
+                onClick={handleToggleMode}
+                className={`w-7 h-7 md:w-8 md:h-8 inline-flex items-center justify-center rounded-lg ${modeLoading ? 'bg-blue-600 text-white' : (factoryMode==='offline' ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-200 hover:bg-gray-600')} border border-yellow-600/30`}
+                title={factoryMode==='offline' ? (lang==='ar'?'مصنع ذاتي':'Offline') : (lang==='ar'?'الوضع السحابي':'Cloud')}
+                disabled={modeLoading}
+              >
+                {modeLoading ? (
+                  <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  factoryMode==='offline' ? <FiCpu size={14} /> : <FiCloud size={14} />
+                )}
+              </button>
               <input 
                 type="file" 
                 ref={fileInputRef} 
                 onChange={handleFileChange} 
+                multiple
+                accept="*/*"
                 className="hidden" 
               />
               
@@ -260,6 +368,23 @@ const MainConsole = () => {
         </p>
         {/* Robot moved to Joe page and enhanced */}
       </div>
+      {/* Reconnect Mini Chip - Fixed at bottom-right */}
+      {(!wsConnected && reconnectActive) && (
+        <div className="fixed right-6 z-50 select-none pointer-events-none" style={{ bottom: Math.max(12, inputAreaHeight + 12) }}>
+          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-gray-900/85 border border-yellow-500/40 shadow-lg backdrop-blur-sm">
+            <span className="text-[10px] font-medium text-yellow-300">
+              {lang==='ar' ? 'إعادة الاتصال' : 'Reconnect'} {Math.ceil((reconnectRemainingMs||0)/1000)}s
+            </span>
+            <div className="w-16 h-1 bg-gray-700 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-yellow-500 transition-all"
+                style={{ width: `${Math.max(0, Math.min(100, 100 - ((reconnectRemainingMs||0) / Math.max(1, reconnectDelayMs||1))*100))}%` }}
+              />
+            </div>
+            <span className="text-[10px] text-gray-400">#{reconnectAttempt}</span>
+          </div>
+        </div>
+      )}
     </div>
   </div>
   );

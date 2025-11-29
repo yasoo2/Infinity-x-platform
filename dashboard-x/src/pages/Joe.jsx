@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -82,7 +82,15 @@ const JoeContent = () => {
   });
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(true);
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
-  const [isBottomPanelOpen, setIsBottomPanelOpen] = useState(false);
+  const [isBottomPanelOpen, setIsBottomPanelOpen] = useState(() => {
+    try {
+      const v = localStorage.getItem('joeBottomOpen');
+      return v ? v === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+  const [isBottomCollapsed, setIsBottomCollapsed] = useState(false);
   const [isStatusPanelOpen, setIsStatusPanelOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isBorderSettingsOpen, setIsBorderSettingsOpen] = useState(false);
@@ -92,7 +100,7 @@ const JoeContent = () => {
   const [usersError, setUsersError] = useState('');
   const [editUser, setEditUser] = useState(null);
   const [newUser, setNewUser] = useState({ email: '', phone: '', password: '', role: 'admin' });
-  
+  const toggleBottomPanel = () => setIsBottomPanelOpen(!isBottomPanelOpen);
   const [leftWidth, setLeftWidth] = useState(288);
   const [rightWidth, setRightWidth] = useState(320);
   const [dragLeft, setDragLeft] = useState(false);
@@ -155,6 +163,10 @@ const JoeContent = () => {
     } catch { void 0; }
   }, [leftWidth, rightWidth]);
 
+  useEffect(() => {
+    try { localStorage.setItem('joeBottomOpen', String(isBottomPanelOpen)); } catch { void 0; }
+  }, [isBottomPanelOpen]);
+
   const {
     conversations: conversationsList,
     currentConversationId,
@@ -163,12 +175,15 @@ const JoeContent = () => {
     isProcessing,
     plan,
     wsLog,
+    wsConnected,
     renameConversation,
     deleteConversation,
     pinToggle,
     duplicateConversation,
     clearMessages,
     setInput,
+    addLogToChat,
+    addAllLogsToChat,
   } = useJoeChatContext();
 
   const robotRef = React.useRef(null);
@@ -215,7 +230,7 @@ const JoeContent = () => {
     return () => window.removeEventListener('mousemove', onMouseMove);
   }, []);
 
-  const computeRobotSize = React.useCallback(() => {
+  const computeRobotSize = useCallback(() => {
     const vw = window.innerWidth;
     let base = { w: 120, h: 140 };
     if (vw < 640) base = { w: 88, h: 104 };
@@ -226,7 +241,7 @@ const JoeContent = () => {
     };
   }, [robotScale]);
 
-  const getRectForCorner = React.useCallback((corner) => {
+  const getRectForCorner = useCallback((corner) => {
     const vw = window.innerWidth; const vh = window.innerHeight;
     const { w, h } = robotSize;
     if (corner === 'bl') return { left: ROBOT_MARGIN, top: vh - h - ROBOT_MARGIN, right: ROBOT_MARGIN + w, bottom: vh - ROBOT_MARGIN };
@@ -241,7 +256,7 @@ const JoeContent = () => {
     return xOverlap * yOverlap;
   };
 
-  const findBestCorner = React.useCallback(() => {
+  const findBestCorner = useCallback(() => {
     const candidates = ['bl','br','tl','tr'];
     const elements = Array.from(document.querySelectorAll('button,a,input,textarea,select,[role="dialog"],[data-joe-important="true"]'));
     const vis = elements.filter(el => {
@@ -348,7 +363,7 @@ const JoeContent = () => {
 
   const toggleSidePanel = () => setIsSidePanelOpen(!isSidePanelOpen);
   const toggleRightPanel = () => setIsRightPanelOpen(!isRightPanelOpen);
-  const toggleBottomPanel = () => setIsBottomPanelOpen(!isBottomPanelOpen);
+  
   const toggleStatusPanel = () => {
     setIsRightPanelOpen(prev => {
       const next = !prev;
@@ -468,9 +483,7 @@ const JoeContent = () => {
         {/* Top Bar - Enhanced */}
       <TopBar 
         onToggleRight={toggleRightPanel}
-        onToggleBottom={toggleBottomPanel}
         isRightOpen={isRightPanelOpen}
-        isBottomOpen={isBottomPanelOpen}
         onToggleLeft={toggleSidePanel}
         isLeftOpen={isSidePanelOpen}
         onToggleStatus={toggleStatusPanel}
@@ -608,8 +621,15 @@ const JoeContent = () => {
 
           {/* Bottom Panel - Logs (Collapsible) */}
           {isBottomPanelOpen && (
-            <div className="h-48 border-t border-gray-800 bg-gray-900 flex-shrink-0">
-              <BottomPanel logs={wsLog} />
+            <div className={`${isBottomCollapsed ? 'h-0' : 'h-48'} border-t border-gray-800 bg-gray-900 flex-shrink-0 overflow-hidden`}
+            >
+              <BottomPanel 
+                logs={wsLog} 
+                collapsed={isBottomCollapsed}
+                onToggleCollapse={() => setIsBottomCollapsed(v => !v)}
+                onAddLogToChat={(log) => addLogToChat(log)}
+                onAddAllLogs={() => addAllLogsToChat()}
+              />
             </div>
           )}
         </div>
@@ -617,7 +637,7 @@ const JoeContent = () => {
         {/* Right Panel - Plan & Tools (Collapsible) */}
         {isRightPanelOpen && !isMobile && (
           <div className="relative z-10 bg-gray-900 flex-shrink-0" style={{ ...rightStyle, width: rightWidth }}>
-            <RightPanel isProcessing={isProcessing} plan={plan} forceStatus={isStatusPanelOpen} />
+            <RightPanel isProcessing={isProcessing} plan={plan} forceStatus={isStatusPanelOpen} wsConnected={wsConnected} />
             <div
               onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setDragRight(true); }}
               className="absolute top-0 left-0 h-full cursor-col-resize z-20 select-none"
@@ -628,7 +648,7 @@ const JoeContent = () => {
         {isRightPanelOpen && isMobile && (
           <div className="fixed inset-0 z-40" onClick={()=>setIsRightPanelOpen(false)}>
             <div className="absolute right-0 top-14 bottom-0 w-[85%] max-w-xs bg-gray-900" style={rightStyle} onClick={(e)=>e.stopPropagation()}>
-              <RightPanel isProcessing={isProcessing} plan={plan} forceStatus={isStatusPanelOpen} />
+              <RightPanel isProcessing={isProcessing} plan={plan} forceStatus={isStatusPanelOpen} wsConnected={wsConnected} />
             </div>
           </div>
         )}

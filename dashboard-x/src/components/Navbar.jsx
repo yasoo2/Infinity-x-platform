@@ -73,10 +73,10 @@ export default function Navbar({ onToggleJoeScreen }) {
             <button
               onClick={toggleFactoryMode}
               className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${factoryMode==='offline' ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-800 text-gray-200 hover:bg-gray-700'} ${(!offlineReady && factoryMode!=='offline') ? 'opacity-60 cursor-not-allowed' : ''}`}
-              title={factoryMode==='offline' ? 'وضع المصنع الذاتي مفعل' : 'الوضع الحالي'}
+              title={factoryMode==='offline' ? 'وضع المصنع الذاتي مفعل' : 'الوضع السحابي'}
               disabled={!offlineReady && factoryMode!=='offline'}
             >
-              {factoryMode==='offline' ? 'مصنع ذاتي' : 'النظام الحالي'}
+              {factoryMode==='offline' ? 'مصنع ذاتي' : 'الوضع السحابي'}
             </button>
             <button
               onClick={onToggleJoeScreen}

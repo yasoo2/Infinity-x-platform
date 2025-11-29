@@ -32,7 +32,7 @@ const SidePanel = ({ conversations, onConversationSelect, onNewConversation, cur
     return () => document.removeEventListener('mousedown', onDocClick, true);
   }, [openMenuId]);
   return (
-    <div className="bg-gray-900 w-full flex-shrink-0 p-3 flex flex-col" style={{ gridArea: 'side' }}>
+    <div className="bg-gray-900 w-full flex-shrink-0 p-3 flex flex-col border border-gray-800 rounded-lg" style={{ gridArea: 'side' }}>
       <div className="flex items-center justify-between mb-4 px-2">
         <h2 className="text-sm font-semibold text-yellow-400 tracking-wider">{lang === 'ar' ? 'المحادثات' : 'Chats'}</h2>
         <button 

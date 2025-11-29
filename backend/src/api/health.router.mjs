@@ -2,6 +2,8 @@ import express from 'express'
 import os from 'os'
 import { getMode } from '../core/runtime-mode.mjs'
 import { localLlamaService } from '../services/llm/local-llama.service.mjs'
+import toolManager from '../services/tools/tool-manager.service.mjs'
+import { getConfig } from '../services/ai/runtime-config.mjs'
 
 const healthRouterFactory = ({ db, optionalAuth }) => {
   const router = express.Router()
@@ -10,6 +12,7 @@ const healthRouterFactory = ({ db, optionalAuth }) => {
   router.get('/', async (req, res) => {
     const mode = getMode()
     const offlineReady = localLlamaService.isReady()
+    const { activeProvider, activeModel } = getConfig()
     let dbOk = false
     try {
       if (db) {
@@ -26,6 +29,8 @@ const healthRouterFactory = ({ db, optionalAuth }) => {
       mode,
       offlineReady,
       db: dbOk ? 'up' : 'down',
+      toolsCount: Array.isArray(toolManager.getToolSchemas?.()) ? toolManager.getToolSchemas().length : 0,
+      ai: { activeProvider, activeModel },
       uptime: process.uptime(),
       loadavg: os.loadavg(),
       memory: process.memoryUsage(),
