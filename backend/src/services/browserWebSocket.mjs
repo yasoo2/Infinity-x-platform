@@ -54,85 +54,85 @@ class BrowserWebSocketServer {
 
     switch (type) {
       case 'navigate':
-        const navResult = await this.browserController.navigate(payload.url);
-        ws.send(JSON.stringify({ type: 'navigate_result', payload: navResult }));
-        
-        // Send initial screenshot after navigation
-        setTimeout(async () => {
-          const screenshot = await this.browserController.getScreenshot();
-          const pageInfo = await this.browserController.getPageInfo();
-          ws.send(JSON.stringify({ 
-            type: 'screenshot', 
-            payload: { screenshot, pageInfo } 
-          }));
-        }, 1000);
-        break;
+        {
+          const navResult = await this.browserController.navigate(payload.url);
+          ws.send(JSON.stringify({ type: 'navigate_result', payload: navResult }));
+          setTimeout(async () => {
+            const screenshot = await this.browserController.getScreenshot();
+            const pageInfo = await this.browserController.getPageInfo();
+            ws.send(JSON.stringify({ type: 'screenshot', payload: { screenshot, pageInfo } }));
+          }, 1000);
+          break;
+        }
 
       case 'click':
-        const clickResult = await this.browserController.click(payload.x, payload.y);
-        ws.send(JSON.stringify({ type: 'click_result', payload: clickResult }));
-        
-        // Send screenshot after click
-        setTimeout(async () => {
-          const screenshot = await this.browserController.getScreenshot();
-          ws.send(JSON.stringify({ type: 'screenshot', payload: { screenshot } }));
-        }, 500);
-        break;
+        {
+          const clickResult = await this.browserController.click(payload.x, payload.y);
+          ws.send(JSON.stringify({ type: 'click_result', payload: clickResult }));
+          setTimeout(async () => {
+            const screenshot = await this.browserController.getScreenshot();
+            ws.send(JSON.stringify({ type: 'screenshot', payload: { screenshot } }));
+          }, 500);
+          break;
+        }
 
       case 'type':
-        const typeResult = await this.browserController.type(payload.text);
-        ws.send(JSON.stringify({ type: 'type_result', payload: typeResult }));
-        break;
+        {
+          const typeResult = await this.browserController.type(payload.text);
+          ws.send(JSON.stringify({ type: 'type_result', payload: typeResult }));
+          break;
+        }
 
       case 'scroll':
-        const scrollResult = await this.browserController.scroll(payload.deltaY);
-        ws.send(JSON.stringify({ type: 'scroll_result', payload: scrollResult }));
-        
-        // Send screenshot after scroll
-        setTimeout(async () => {
-          const screenshot = await this.browserController.getScreenshot();
-          ws.send(JSON.stringify({ type: 'screenshot', payload: { screenshot } }));
-        }, 300);
-        break;
+        {
+          const scrollResult = await this.browserController.scroll(payload.deltaY);
+          ws.send(JSON.stringify({ type: 'scroll_result', payload: scrollResult }));
+          setTimeout(async () => {
+            const screenshot = await this.browserController.getScreenshot();
+            ws.send(JSON.stringify({ type: 'screenshot', payload: { screenshot } }));
+          }, 300);
+          break;
+        }
 
       case 'press_key':
-        const keyResult = await this.browserController.pressKey(payload.key);
-        ws.send(JSON.stringify({ type: 'press_key_result', payload: keyResult }));
-        break;
+        {
+          const keyResult = await this.browserController.pressKey(payload.key);
+          ws.send(JSON.stringify({ type: 'press_key_result', payload: keyResult }));
+          break;
+        }
 
       case 'get_screenshot':
-        const screenshot = await this.browserController.getScreenshot();
-        const pageInfo = await this.browserController.getPageInfo();
-        ws.send(JSON.stringify({ 
-          type: 'screenshot', 
-          payload: { screenshot, pageInfo } 
-        }));
-        break;
+        {
+          const screenshot = await this.browserController.getScreenshot();
+          const pageInfo = await this.browserController.getPageInfo();
+          ws.send(JSON.stringify({ type: 'screenshot', payload: { screenshot, pageInfo } }));
+          break;
+        }
 
       case 'start_streaming':
-        // Start continuous screenshot streaming
-        if (!this.screenshotInterval) {
-          this.screenshotInterval = setInterval(async () => {
-            try {
-              const screenshot = await this.browserController.getScreenshot();
-              const pageInfo = await this.browserController.getPageInfo();
-              this.broadcast({ 
-                type: 'screenshot', 
-                payload: { screenshot, pageInfo } 
-              });
-            } catch (error) {
-              console.error('Screenshot streaming error:', error);
-            }
-          }, 500); // Update every 0.5 seconds for better responsiveness
+        {
+          if (!this.screenshotInterval) {
+            this.screenshotInterval = setInterval(async () => {
+              try {
+                const screenshot = await this.browserController.getScreenshot();
+                const pageInfo = await this.browserController.getPageInfo();
+                this.broadcast({ type: 'screenshot', payload: { screenshot, pageInfo } });
+              } catch (error) {
+                console.error('Screenshot streaming error:', error);
+              }
+            }, 500);
+          }
+          break;
         }
-        break;
 
       case 'stop_streaming':
-        if (this.screenshotInterval) {
-          clearInterval(this.screenshotInterval);
-          this.screenshotInterval = null;
+        {
+          if (this.screenshotInterval) {
+            clearInterval(this.screenshotInterval);
+            this.screenshotInterval = null;
+          }
+          break;
         }
-        break;
 
       default:
         ws.send(JSON.stringify({ type: 'error', message: 'Unknown message type' }));

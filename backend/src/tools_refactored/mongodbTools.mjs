@@ -103,6 +103,7 @@ class MongoDBTools {
       await this.ensureConnection();
       
       const collection = this.db.collection(collectionName);
+      void collection;
       const limit = options.limit || 100;
       const sort = options.sort || {};
       

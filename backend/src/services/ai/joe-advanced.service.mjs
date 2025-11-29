@@ -103,7 +103,7 @@ async function processMessage(userId, message, sessionId, { model = 'gpt-4o' } =
       if (db && userId) {
         userCfg = await db.collection('ai_user_config').findOne({ userId });
       }
-    } catch {}
+    } catch { void 0 }
     let openaiClient = null;
     let geminiClient = null;
     const effectiveKeys = {

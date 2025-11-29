@@ -56,7 +56,7 @@ async function main() {
             console.log(`Server process exited with code ${code}`);
         });
 
-        async function runEvolutionCycle() {
+        const runEvolutionCycle = async () => {
             try {
                 console.log('\n----------------------------------');
                 console.log('🚀 STARTING EVOLUTION CYCLE 🚀');

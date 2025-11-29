@@ -1,10 +1,5 @@
 // Using native fetch (available in Node.js 18+)
-import { fileURLToPath } from 'url';
-import path from 'path';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const PROJECT_ROOT = path.join(__dirname, '..', '..', '..');
+// Removed unused path helpers
 
 /**
  * ⚙️ DynamicEnvironmentTool - Enables JOE to interact with live external APIs and manage environment secrets.

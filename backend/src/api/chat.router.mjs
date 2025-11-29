@@ -85,7 +85,7 @@ const chatRouterFactory = ({ optionalAuth }) => {
       try {
         res.write(`event: error\n`)
         res.write(`data: ${error.message}\n\n`)
-      } catch {}
+      } catch { void 0 }
       res.end()
     }
   })
@@ -93,7 +93,7 @@ const chatRouterFactory = ({ optionalAuth }) => {
   function summarize(q, items) {
     const key = q.toLowerCase().split(/\s+/).filter(w => w.length > 2)
     const pick = (str) => {
-      const sents = String(str).split(/(?<=[.!؟\?])\s+/).slice(0, 50)
+      const sents = String(str).split(/(?<=[.!؟?])\s+/).slice(0, 50)
       const scored = sents.map(s => ({ s, score: key.reduce((a, k) => a + (s.toLowerCase().includes(k) ? 1 : 0), 0) + Math.min(s.length / 80, 2) }))
       return scored.sort((a,b)=>b.score-a.score).slice(0, 5).map(x=>x.s)
     }

@@ -1,10 +1,5 @@
-import { fileURLToPath } from 'url';
-import path from 'path';
 import { chromium } from 'playwright';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const PROJECT_ROOT = path.join(__dirname, '..', '..', '..');
 
 /**
  * 🧪 AdvancedTestingTool - Enables JOE to perform complex, user-simulated testing and performance analysis.
@@ -97,12 +92,14 @@ class AdvancedTestingTool {
                             details = `Navigated to: ${step.selector}`;
                             break;
                         case "check_text":
-                            const isVisible = await page.isVisible(`text=${step.expectedText}`, { timeout: timeout });
-                            if (!isVisible) {
-                                throw new Error(`Expected text "${step.expectedText}" not found.`);
+                            {
+                                const isVisible = await page.isVisible(`text=${step.expectedText}`, { timeout: timeout });
+                                if (!isVisible) {
+                                    throw new Error(`Expected text "${step.expectedText}" not found.`);
+                                }
+                                details = `Verified text: "${step.expectedText}" is visible.`;
+                                break;
                             }
-                            details = `Verified text: "${step.expectedText}" is visible.`;
-                            break;
                         default:
                             status = "FAILURE";
                             details = `Unknown action: ${step.action}`;

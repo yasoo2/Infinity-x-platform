@@ -38,8 +38,20 @@ class FunctionCallingManager {
         console.log('✅ Unified Function Calling Manager initialized (Corrected)');
     }
 
-    getCachedResult(key) { /* ... */ }
-    setCachedResult(key, result, ttl) { /* ... */ }
+    getCachedResult(key) {
+        const expiresAt = this.cacheTTL.get(key);
+        if (expiresAt && expiresAt < Date.now()) {
+            this.cacheTTL.delete(key);
+            this.cache.delete(key);
+            return null;
+        }
+        return this.cache.get(key) ?? null;
+    }
+    setCachedResult(key, result, ttl) {
+        const maxAge = typeof ttl === 'number' ? ttl : this.cacheMaxAge;
+        this.cache.set(key, result);
+        this.cacheTTL.set(key, Date.now() + maxAge);
+    }
 
     async executeFunction(functionName, args, options = {}) {
         const executionId = `${functionName}-${Date.now()}`;
@@ -132,7 +144,15 @@ class FunctionCallingManager {
         } 
     }
     
-    updateExecutionStats(functionName, executionTime, success) { /* ... */ }
+    updateExecutionStats(functionName, executionTime, success) {
+        const prevAvg = this.stats.averageExecutionTime || 0;
+        const count = this.stats.totalCalls || 0;
+        this.stats.averageExecutionTime = Math.round(((prevAvg * count) + executionTime) / (count + 1));
+        this.stats.lastExecutionTime = executionTime;
+        const usage = this.stats.toolUsageCount[functionName] || 0;
+        this.stats.toolUsageCount[functionName] = usage + 1;
+        if (success) this.stats.successfulCalls++; else this.stats.failedCalls++;
+    }
     async logExecution(executionId, functionName, args, result, executionTime, success, error = null) {
         try {
             const db = getDB();

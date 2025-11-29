@@ -1,12 +1,8 @@
-import { fileURLToPath } from 'url';
-import path from 'path';
 import fs from 'fs/promises';
 import { parse } from 'csv-parse/sync';
 import { stringify } from 'csv-stringify/sync';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const PROJECT_ROOT = path.join(__dirname, '..', '..', '..');
+// Removed unused path helpers
 
 /**
  * 📊 LocalDataProcessingTool - Grants JOE autonomy by handling complex, deterministic data processing and analysis tasks locally,
@@ -133,6 +129,7 @@ class LocalDataProcessingTool {
     }
 
     async jsonToMarkdown({ inputFilePath, outputFilePath }) {
+        void inputFilePath;
         // NOTE: Implementation would go here, using a local library to convert JSON to a Markdown table.
         return {
             success: true,

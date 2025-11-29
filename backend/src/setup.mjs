@@ -1,13 +1,12 @@
 #!/usr/bin/env node
 // backend/src/setup.js - سكريبت التثبيت التلقائي لـ Joe
 
-import { exec } from 'child_process';
-import { promisify } from 'util';
+// Removed unused exec/promisify imports
 import fs from 'fs/promises';
 import path from 'path';
 import { getDB } from './db.mjs';
 
-const execAsync = promisify(exec);
+// execAsync removed (unused)
 
 console.log('🚀 Starting Joe Advanced System Setup...');
 
@@ -77,7 +76,7 @@ class JoeSetup {
         if (missingVars.length > 0) {
             console.log('⚠️ Missing environment variables:', missingVars);
             console.log('📝 Creating .env.example file...');
-            await this.createEnvExample(missingVars);
+            await this.createEnvExample();
         }
 
         // التحقق من Node.js version
@@ -553,7 +552,7 @@ server {
         return services;
     }
 
-    createEnvExample(missingVars) {
+    createEnvExample() {
         const envExample = `
 # Joe AI System Environment Variables
 

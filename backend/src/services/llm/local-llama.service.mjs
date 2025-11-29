@@ -41,7 +41,7 @@ class LocalLlamaService {
       this.loading = false
       return true
     } catch (e) {
-      try { console.error('local-llama initialize error:', e?.message || e) } catch {}
+      try { console.error('local-llama initialize error:', e?.message || e) } catch { void 0 }
       this.initialized = false
       this.loadingStage = 'error'
       this.loading = false

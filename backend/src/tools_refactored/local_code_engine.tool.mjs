@@ -1,10 +1,5 @@
-import { fileURLToPath } from 'url';
-import path from 'path';
 import fs from 'fs/promises';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const PROJECT_ROOT = path.join(__dirname, '..', '..', '..');
 
 /**
  * 🤖 LocalCodeEngineTool - Grants JOE autonomy by handling deterministic, repeatable code tasks locally,
@@ -92,7 +87,7 @@ router.delete('/:id', delete${name});
 
 export default router;
 `;
-            case "MONGOOSE_SCHEMA":
+            case "MONGOOSE_SCHEMA": {
                 if (!fields) return "// Error: Fields are required for MONGOOSE_SCHEMA template.";
                 const schemaFields = fields.split(',').map(f => {
                     const [key, type] = f.trim().split(':');
@@ -110,6 +105,7 @@ const ${name} = mongoose.model('${name}', ${name}Schema);
 
 export default ${name};
 `;
+            }
             case "BASIC_HTML":
                 return `
 <!DOCTYPE html>

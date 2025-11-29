@@ -5,7 +5,7 @@ import path from 'path';
 import os from 'os';
 import axios from 'axios';
 import { promises as fs } from 'fs';
-import cheerio from 'cheerio';
+import { load } from 'cheerio';
 import GitHubTools from '../tools_refactored/githubTools.mjs';
 
 // This factory function receives the instantiated file service.
@@ -91,7 +91,7 @@ const fileRouterFactory = ({ requireRole, fileProcessingService }) => {
                 saved.push({ url: link, filePath, contentType: ct });
                 count++;
                 if (deep && ct.includes('text/html') && depth < maxDepth) {
-                    const $ = cheerio.load(resp.data.toString());
+                    const $ = load(resp.data.toString());
                     const links = [];
                     $('a[href]').each((_, el) => links.push($(el).attr('href')));
                     $('img[src],script[src],link[href]').each((_, el) => {

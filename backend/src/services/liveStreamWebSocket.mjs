@@ -1,4 +1,4 @@
-import { WebSocketServer } from 'ws';
+import { WebSocketServer, WebSocket } from 'ws';
 import { liveStreamingService } from './liveStreamingService.mjs';
 
 /**
@@ -16,7 +16,7 @@ export class LiveStreamWebSocketServer {
    * إعداد خادم WebSocket
    */
   setupWebSocketServer() {
-    this.wss.on('connection', (ws, req) => {
+    this.wss.on('connection', (ws) => {
       console.log('عميل جديد متصل بالبث الحي');
       this.clients.add(ws);
 

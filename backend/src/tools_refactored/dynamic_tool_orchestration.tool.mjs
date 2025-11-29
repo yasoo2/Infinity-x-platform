@@ -1,4 +1,4 @@
-import fs from 'fs/promises';
+// Removed unused fs import
 
 /**
  * 🧠 DynamicToolOrchestrationTool - The ultimate tool for JOE's autonomy, enabling self-correction and dynamic tool generation.
@@ -81,20 +81,7 @@ The self-correction mechanism has been activated. A detailed, multi-step plan ha
         // This is the fully autonomous, template-based temporary tool generator. It uses a library
 // of pre-written, highly parameterized functions to fulfill the request without LLM generation.
         
-        const tempToolCode = `
-// Generated code for: ${codeDescription}
-function generatedTool(input) {
-    // ... actual generated code ...
-    // Use a rule-based approach to fulfill common requests
-    if (codeDescription.toLowerCase().includes('sha256')) {
-        // Placeholder for a local crypto library call
-        return \`SHA256 hash of \${input} is: \${Math.random().toString(36).substring(2, 15)}\`;
-    } else if (codeDescription.toLowerCase().includes('sort')) {
-        return \`Sorted input: \${input.split(',').sort().join(',')}\`;
-    }
-    return \`Processed \${input} using generated tool for: \${codeDescription}\`;
-}
-`;
+        // Removed unused tempToolCode
         return {
             success: true,
             message: "Temporary tool generated and executed successfully.",

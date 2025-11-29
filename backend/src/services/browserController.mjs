@@ -125,9 +125,7 @@ class BrowserController {
     }
 
     try {
-      await this.page.evaluate((delta) => {
-        window.scrollBy(0, delta);
-      }, deltaY);
+      await this.page.evaluate('window.scrollBy(0, arguments[0])', deltaY);
       
       // Wait for scroll to complete
       await this.page.waitForTimeout(300);
