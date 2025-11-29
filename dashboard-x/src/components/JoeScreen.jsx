@@ -11,7 +11,7 @@ import apiClient from '../api/client';
 const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
   const [isTakeoverActive, setIsTakeoverActive] = useState(false);
   const [activeTab, setActiveTab] = useState('browser'); // 'terminal' or 'browser'
-  const [browserUrl, setBrowserUrl] = useState('https://xelitesolutions.com');
+  const [browserUrl, setBrowserUrl] = useState('https://www.xelitesolutions.com');
   const [isCollapsed, setIsCollapsed] = useState(false);
   
   const [isFullScreen, setIsFullScreen] = useState(false);
