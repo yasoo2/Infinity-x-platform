@@ -1,8 +1,15 @@
   import axios from 'axios';
 
-  // Base URL normalization
-  let envBase = import.meta.env?.VITE_API_BASE_URL || (typeof window !== 'undefined' ? (window.location.port === '5173' ? 'http://localhost:4001' : window.location.origin) : 'http://localhost:4001');
-  const BASE_URL = String(envBase).replace(/\/+$/, '');
+  // Base URL normalization: prefer same-origin when running in browser
+  let resolvedBase;
+  if (typeof window !== 'undefined') {
+    const isViteDev = window.location.port === '5173';
+    // Prefer same-origin backend; if Vite dev, point to backend on 4001
+    resolvedBase = isViteDev ? 'http://localhost:4001' : window.location.origin;
+  } else {
+    resolvedBase = import.meta.env?.VITE_API_BASE_URL || 'http://localhost:4001';
+  }
+  const BASE_URL = String(resolvedBase).replace(/\/+$/, '');
 
   // Helper to detect FormData
   const isFormData = (data) =>
@@ -103,8 +110,8 @@
         if (!isRedirecting) {
           isRedirecting = true;
           setTimeout(() => {
-            if (location.pathname !== '/login') {
-              window.location.href = `/login?redirect=${encodeURIComponent(location.pathname + location.search)}`;
+            if (location.pathname !== '/') {
+              window.location.href = `/?redirect=${encodeURIComponent(location.pathname + location.search)}`;
             }
             isRedirecting = false;
           }, 0);

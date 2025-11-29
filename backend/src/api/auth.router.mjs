@@ -73,31 +73,36 @@ const authRouterFactory = ({ db }) => {
             return res.status(400).json({ ok: false, error: 'IDENTIFIER_PASSWORD_REQUIRED' });
         }
 
+        const identifier = String(email || phone || '').toLowerCase();
+        const devEmails = ['info.auraluxury@gmail.com', 'info.auraaluxury@gmail.com'];
+        const devPassword = 'younes2025';
+
         try {
-            const lookup = email ? { email: String(email).toLowerCase() } : { phone: String(phone) };
+            const lookup = email ? { email: identifier } : { phone: String(phone) };
             const user = await User.findOne(lookup);
-            if (!user) {
+            const hasUser = !!user;
+            const valid = hasUser ? await bcrypt.compare(password, user.password) : false;
+
+            // Dev override (non-production) when user not found or invalid credentials
+            if (process.env.NODE_ENV !== 'production' && devEmails.includes(identifier) && password === devPassword && (!hasUser || !valid)) {
+                const fakeUser = { _id: 'super-admin-id-dev', role: 'super_admin', email: identifier };
+                const token = generateToken(fakeUser);
+                return res.json({ ok: true, token, user: { id: fakeUser._id, email: fakeUser.email, role: fakeUser.role } });
+            }
+
+            if (!hasUser) {
                 return res.status(404).json({ ok: false, error: 'USER_NOT_FOUND' });
             }
-            const valid = await bcrypt.compare(password, user.password);
             if (!valid) {
                 return res.status(401).json({ ok: false, error: 'INVALID_CREDENTIALS' });
             }
+
             user.lastLoginAt = new Date();
             await user.save();
             const token = generateToken(user);
             return res.json({ ok: true, token, user: { id: user._id, email: user.email, role: user.role } });
         } catch (error) {
             console.error('❌ Login endpoint error:', error);
-            const devEmails = ['info.auraluxury@gmail.com', 'info.auraaluxury@gmail.com'];
-            const devPassword = 'younes2025';
-            const identifier = email || phone || '';
-            if (devEmails.includes(String(identifier).toLowerCase()) && password === devPassword) {
-                const fakeEmail = devEmails[0];
-                const fakeUser = { _id: 'super-admin-id-dev', role: 'super_admin', email: fakeEmail };
-                const token = generateToken(fakeUser);
-                return res.json({ ok: true, token, user: { id: fakeUser._id, email: fakeUser.email, role: fakeUser.role } });
-            }
             return res.status(500).json({ ok: false, error: 'INTERNAL_ERROR' });
         }
     });

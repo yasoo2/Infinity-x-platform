@@ -31,7 +31,8 @@ const Header = () => {
     if (loggingIn) return;
     setLoggingIn(true);
     setError('');
-    const ok = await login(email, password, remember);
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const ok = await login(normalizedEmail, password, remember);
     if (ok) {
       navigate('/dashboard/joe');
     } else {
