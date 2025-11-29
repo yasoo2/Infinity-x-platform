@@ -106,6 +106,21 @@ app.use(helmet({
 
 app.use(express.json({ limit: '50mb' }));
 
+// --- Extra CORS hardening: echo exact Origin, set Vary, handle preflight ---
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (isAllowedOrigin(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Vary', 'Origin');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    const reqHeaders = req.headers['access-control-request-headers'];
+    if (reqHeaders) res.header('Access-Control-Allow-Headers', reqHeaders);
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS');
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+  }
+  next();
+});
+
 // --- Serve Static Frontend Files ---
 const publicSitePath = path.join(__dirname, '..', 'public-site');
 const dashboardPath = path.join(__dirname, '..', 'dashboard-x');
