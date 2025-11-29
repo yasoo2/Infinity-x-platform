@@ -1,4 +1,5 @@
   import React, { useState, useEffect, useCallback } from 'react';
+  import PropTypes from 'prop-types';
   import { Plus, Trash2, MessageSquare, Loader2, ChevronLeft, ChevronRight, History } from 'lucide-react'; // أيقونات Lucide
   import apiClient from '../api/client'; // تأكد من المسار الصحيح لـ apiClient
 
@@ -27,8 +28,7 @@
       if (userId) {
         loadConversations();
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [userId]);
+    }, [userId, loadConversations]);
 
     const loadConversations = useCallback(async () => {
       setIsLoading(true);
@@ -41,7 +41,7 @@
           setConversations(response.data.conversations);
         }
       } catch (error) {
-        console.error('Load conversations error:', error);
+        console.warn('Load conversations error:', error);
         // يمكن إضافة إشعار للمستخدم هنا
       } finally {
         setIsLoading(false);
@@ -65,7 +65,7 @@
           }
         }
       } catch (error) {
-        console.error('Delete conversation error:', error);
+        console.warn('Delete conversation error:', error);
         // يمكن إضافة إشعار للمستخدم هنا
       }
     };
@@ -227,3 +227,11 @@
       </div>
     );
   }
+
+  ChatSidebar.propTypes = {
+    userId: PropTypes.string,
+    currentConversationId: PropTypes.string,
+    onSelectConversation: PropTypes.func.isRequired,
+    onNewConversation: PropTypes.func.isRequired,
+    onCollapse: PropTypes.func,
+  };

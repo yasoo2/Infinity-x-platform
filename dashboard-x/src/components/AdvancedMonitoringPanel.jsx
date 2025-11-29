@@ -1,4 +1,5 @@
-  import React, { useState, useEffect, useMemo } from 'react';
+  import React, { useState, useEffect, useMemo, useCallback } from 'react';
+  import PropTypes from 'prop-types';
   import { Activity, Cpu, HardDrive, Zap, AlertCircle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
   import axios from 'axios';
 
@@ -68,7 +69,7 @@
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    const fetchStats = async (signal) => {
+    const fetchStats = useCallback(async (signal) => {
       try {
         setError(null);
         const { data } = await axios.get(`${API_BASE}/api/live-stream/status`, { signal });
@@ -92,7 +93,7 @@
       } finally {
         setIsLoading(false);
       }
-    };
+    }, [API_BASE, mockMode]);
 
     useEffect(() => {
       const controller = new AbortController();
@@ -103,7 +104,7 @@
         controller.abort();
         clearInterval(id);
       };
-    }, [API_BASE, refreshMs, mockMode]);
+    }, [fetchStats, refreshMs]);
 
     // بيانات Mock للأنشطة والتنبيهات (يمكن استبدالها بمصدر حقيقي)
     useEffect(() => {
@@ -246,3 +247,24 @@
       </div>
     );
   }
+
+  StatBar.propTypes = {
+    label: PropTypes.string.isRequired,
+    value: PropTypes.number.isRequired,
+    max: PropTypes.number,
+    color: PropTypes.string,
+  };
+
+  StatCard.propTypes = {
+    icon: PropTypes.elementType.isRequired,
+    label: PropTypes.string.isRequired,
+    value: PropTypes.oneOfType([PropTypes.number, PropTypes.string]).isRequired,
+    unit: PropTypes.string,
+    color: PropTypes.string,
+  };
+
+  AdvancedMonitoringPanel.propTypes = {
+    apiBase: PropTypes.string,
+    refreshMs: PropTypes.number,
+    mockMode: PropTypes.bool,
+  };
