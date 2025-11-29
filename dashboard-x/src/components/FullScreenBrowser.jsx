@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import PropTypes from 'prop-types';
 import { X, RefreshCw, ArrowLeft, ArrowRight, Maximize2, Minimize2, Monitor, Cpu, Activity, AlertCircle } from 'lucide-react';
 import useBrowserWebSocket from '../hooks/useBrowserWebSocket'; // افترض وجود هذا الـ Hook
 
@@ -33,7 +34,7 @@ const FullScreenBrowser = ({ onClose }) => {
       setInputUrl(pageInfo.url);
       setUrl(pageInfo.url); // تحديث URL الحالي المعروض
     }
-  }, [pageInfo?.url]);
+  }, [pageInfo?.url, inputUrl]);
 
   // رسم لقطة الشاشة على Canvas
   useEffect(() => {
@@ -273,7 +274,7 @@ const FullScreenBrowser = ({ onClose }) => {
         <div className="flex items-center gap-4 text-sm text-gray-300">
           <div className="flex items-center gap-2">
             <Cpu size={14} className="text-purple-400" />
-            <span>JOE's Browser</span>
+            <span>JOE&apos;s Browser</span>
           </div>
           <div className="text-gray-500">|</div>
           <span className="text-gray-400 truncate max-w-xs">{pageInfo?.url || url}</span>
@@ -289,6 +290,10 @@ const FullScreenBrowser = ({ onClose }) => {
       </div>
     </div>
   );
+};
+
+FullScreenBrowser.propTypes = {
+  onClose: PropTypes.func.isRequired,
 };
 
 export default FullScreenBrowser;

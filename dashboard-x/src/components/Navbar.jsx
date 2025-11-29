@@ -1,4 +1,5 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import PropTypes from 'prop-types';
 import React from 'react';
 import { useSessionToken } from '../hooks/useSessionToken';
 
@@ -22,12 +23,12 @@ export default function Navbar({ onToggleJoeScreen }) {
 
   const toggleLang = () => {
     const next = lang === 'ar' ? 'en' : 'ar';
-    try { localStorage.setItem('lang', next); } catch {}
+    try { localStorage.setItem('lang', next); } catch { void 0; }
     setLang(next);
-    try { window.dispatchEvent(new CustomEvent('joe:lang', { detail: { lang: next } })); } catch {}
+    try { window.dispatchEvent(new CustomEvent('joe:lang', { detail: { lang: next } })); } catch { void 0; }
   };
 
-  const navLinks = [];
+  
 
   return (
     <nav className="bg-cardDark border-b border-textDim/20">
@@ -77,3 +78,7 @@ export default function Navbar({ onToggleJoeScreen }) {
     </nav>
   );
 }
+
+Navbar.propTypes = {
+  onToggleJoeScreen: PropTypes.func.isRequired,
+};

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Terminal, Code, Cpu, Maximize2, Minimize2, Pause, Play, Mic, Grid3x3, Settings } from 'lucide-react';
+import { Terminal, Cpu, Maximize2, Minimize2, Pause, Play, Mic, Grid3x3 } from 'lucide-react';
+import PropTypes from 'prop-types';
 
 /**
  * JoeDesktopView - نظام عرض سطح المكتب المتقدم لـ Joe
@@ -15,7 +16,7 @@ const JoeDesktopView = ({ isProcessing, progress, wsLog, onVoiceInput }) => {
   const [isGridVisible, setIsGridVisible] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [gridSize, setGridSize] = useState(20);
+  const [gridSize] = useState(20);
   const logEndRef = React.useRef(null);
 
   // Scroll to bottom
@@ -208,3 +209,10 @@ const JoeDesktopView = ({ isProcessing, progress, wsLog, onVoiceInput }) => {
 };
 
 export default JoeDesktopView;
+
+JoeDesktopView.propTypes = {
+  isProcessing: PropTypes.bool.isRequired,
+  progress: PropTypes.number.isRequired,
+  wsLog: PropTypes.array.isRequired,
+  onVoiceInput: PropTypes.func,
+};

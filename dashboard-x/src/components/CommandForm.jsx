@@ -1,12 +1,11 @@
-  import React, { useState } from 'react';
+  import React from 'react';
+  import PropTypes from 'prop-types';
   import { useForm } from 'react-hook-form';
   import { zodResolver } from '@hookform/resolvers/zod';
   import * as z from 'zod';
   import { Send, Volume2, Globe, MessageSquareText, Loader2 } from 'lucide-react';
 
   import { Button } from "@/components/ui/button";
-  import { Input } from "@/components/ui/input";
-  import { Label } from "@/components/ui/label";
   import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
   import { Switch } from "@/components/ui/switch";
   import { Textarea } from "@/components/ui/textarea"; // استخدام Textarea من shadcn/ui
@@ -152,3 +151,8 @@
       </Form>
     );
   }
+
+  CommandForm.propTypes = {
+    onSubmit: PropTypes.func.isRequired,
+    loading: PropTypes.bool,
+  };

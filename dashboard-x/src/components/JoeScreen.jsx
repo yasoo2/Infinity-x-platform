@@ -132,7 +132,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
             <div className="flex items-center gap-3 handle cursor-move">
               {getStatusIcon()}
               <span className="text-sm font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-                JOE's Computer
+                JOE&apos;s Computer
               </span>
               <div className="flex items-center gap-1 ml-4 text-gray-400">
                 <Monitor className="w-3 h-3" />

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Send, Maximize2, Minimize2, RefreshCw, Home, ChevronLeft, ChevronRight, Zap } from 'lucide-react';
+import { Send, Maximize2, Minimize2, ChevronRight, Zap } from 'lucide-react';
 import axios from 'axios';
 
 export default function EnhancedBrowserControl() {
