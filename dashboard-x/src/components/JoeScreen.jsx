@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Draggable from 'react-draggable';
 import { ResizableBox } from 'react-resizable';
-import { Terminal, Cpu, Globe, Monitor, ChevronDown, ChevronUp, RefreshCw, MousePointer, Maximize2 } from 'lucide-react';
+import { Terminal, Cpu, Globe, Monitor, ChevronDown, ChevronUp, RefreshCw, MousePointer, Maximize2, Search } from 'lucide-react';
 import PropTypes from 'prop-types';
 import useBrowserWebSocket from '../hooks/useBrowserWebSocket';
 import FullScreenBrowser from './FullScreenBrowser';
+import SearchPanel from './SearchPanel';
+import apiClient from '../api/client';
 
 const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
   const [isTakeoverActive, setIsTakeoverActive] = useState(false);
@@ -14,6 +16,12 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
   
   const [isFullScreen, setIsFullScreen] = useState(false);
   const imageRef = useRef(null);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState('');
+  const [showSearchPanel, setShowSearchPanel] = useState(false);
 
   const {
     screenshot,
@@ -51,6 +59,36 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
   const handleNavigate = () => {
     if (browserUrl) {
       navigate(browserUrl);
+    }
+  };
+
+  const runSearch = async () => {
+    const q = String(searchQuery || '').trim();
+    if (!q) return;
+    try {
+      setSearchLoading(true);
+      setSearchError('');
+      const { data } = await apiClient.post('/api/v1/web/search', { query: q, images: true });
+      if (data?.success) {
+        setSearchResults(data.results || []);
+        setShowSearchPanel(true);
+      } else {
+        setSearchError(data?.error || 'فشل البحث');
+        setShowSearchPanel(true);
+      }
+    } catch (e) {
+      setSearchError(e?.response?.data?.error || e?.message || 'خطأ غير متوقع');
+      setShowSearchPanel(true);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const openFromSearch = (url) => {
+    if (url) {
+      setBrowserUrl(url);
+      setShowSearchPanel(false);
+      navigate(url);
     }
   };
 
@@ -210,6 +248,24 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
                       >
                         Go
                       </button>
+                      <div className="w-px h-5 bg-gray-700 mx-2" />
+                      <Search className="w-4 h-4 text-blue-400" />
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && runSearch()}
+                        className="w-48 bg-gray-900 text-gray-300 text-xs px-3 py-1.5 rounded border border-gray-700 focus:border-blue-500 focus:outline-none"
+                        placeholder="بحث..."
+                        disabled={isLoading}
+                      />
+                      <button
+                        onClick={runSearch}
+                        disabled={isLoading}
+                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        بحث
+                      </button>
                       <button
                         onClick={getScreenshot}
                         disabled={!isConnected}
@@ -230,6 +286,15 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
 
                     {/* Browser Content Area - Real Screenshot */}
                     <div className="flex-1 bg-white overflow-auto relative">
+                      {showSearchPanel && (
+                        <SearchPanel
+                          results={searchResults}
+                          loading={searchLoading}
+                          error={searchError}
+                          onClose={() => setShowSearchPanel(false)}
+                          onOpen={openFromSearch}
+                        />
+                      )}
                       {screenshot ? (
                         <div className="relative w-full h-full">
                           <img
