@@ -49,11 +49,17 @@ class LocalLlamaService {
     const prompt = Array.isArray(messages) ? messages.map(m => `${m.role}: ${m.content}`).join('\n') : String(messages || '')
     const temp = opts.temperature ?? 0.7
     const maxTokens = opts.maxTokens ?? 1024
+    if (this.model && typeof this.model.createCompletionStream === 'function') {
+      const iter = await this.model.createCompletionStream({ prompt, temperature: temp, maxTokens })
+      for await (const t of iter) {
+        const piece = String(t?.text || '')
+        if (piece) onToken(piece)
+      }
+      return
+    }
     const full = await this.chat.prompt(prompt, { temperature: temp, maxTokens })
     const chunks = String(full || '').match(/.{1,64}/g) || []
-    for (const c of chunks) {
-      onToken(c)
-    }
+    for (const c of chunks) onToken(c)
   }
 }
 
