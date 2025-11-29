@@ -7,12 +7,7 @@ const runtimeModeRouterFactory = ({ optionalAuth }) => {
   if (optionalAuth) router.use(optionalAuth)
 
   router.get('/status', (req, res) => {
-    (async () => {
-      if (!localLlamaService.isReady()) {
-        try { await localLlamaService.initialize() } catch { /* ignore */ }
-      }
-      res.json({ success: true, mode: getMode(), offlineReady: localLlamaService.isReady() })
-    })()
+    res.json({ success: true, mode: getMode(), offlineReady: localLlamaService.isReady() })
   })
 
   router.post('/toggle', (req, res) => {
