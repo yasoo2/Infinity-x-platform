@@ -96,6 +96,7 @@ app.use((req, res, next) => {
     res.header('Vary', 'Origin');
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Expose-Headers', 'X-New-Token, x-new-token');
+    res.header('Access-Control-Max-Age', '86400');
     const defaultAllowedHeaders = 'Content-Type, Authorization, X-Requested-With, Accept, Origin';
     const reqHeaders = req.headers['access-control-request-headers'];
     res.header('Access-Control-Allow-Headers', reqHeaders ? reqHeaders : defaultAllowedHeaders);
@@ -103,6 +104,22 @@ app.use((req, res, next) => {
     if (req.method === 'OPTIONS') return res.sendStatus(204);
   }
   next();
+});
+
+app.options('*', (req, res) => {
+  const origin = req.headers.origin;
+  if (isAllowedOrigin(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Expose-Headers', 'X-New-Token, x-new-token');
+    res.header('Access-Control-Max-Age', '86400');
+    const reqHeaders = req.headers['access-control-request-headers'];
+    const defaultAllowedHeaders = 'Content-Type, Authorization, X-Requested-With, Accept, Origin';
+    res.header('Access-Control-Allow-Headers', reqHeaders ? reqHeaders : defaultAllowedHeaders);
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS');
+    return res.sendStatus(204);
+  }
+  return res.sendStatus(403);
 });
 
 // --- Serve Static Frontend Files ---
