@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 const authRouterFactory = ({ db }) => {
     const router = express.Router();
+    void db;
 
     /**
      * @route POST /api/v1/auth/register

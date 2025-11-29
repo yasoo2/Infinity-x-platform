@@ -95,6 +95,7 @@ ${fileContent}
   }
 
   getTestFilePath(originalPath, framework) {
+      void framework;
       const dir = path.dirname(originalPath);
       const name = path.basename(originalPath, path.extname(originalPath));
       return path.join(dir, `${name}.test.js`); // Simplistic

@@ -84,6 +84,7 @@ async function processMessage(userId, message, sessionId, { model = 'gpt-4o' } =
 
     const messagesForOpenAI = [systemPrompt, ...conversationHistory.map(item => item.command).reverse(), userMessage];
     const messagesForGemini = [...history, { role: 'user', parts: [{ text: message }] }];
+    void messagesForGemini;
 
     // 2. Dynamic Tool Discovery
     const availableTools = toolManager.getToolSchemas();

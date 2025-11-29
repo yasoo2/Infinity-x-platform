@@ -397,6 +397,7 @@ class AdvancedBrowserManager {
   async closeAll() {
     try {
       for (const [sessionId, session] of this.pages) {
+        void sessionId;
         await session.page.close();
       }
 

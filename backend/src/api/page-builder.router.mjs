@@ -32,6 +32,7 @@ const pageBuilderRouterFactory = ({ requireRole }) => {
     router.post('/create-and-deploy', requireRole('ADMIN'), async (req, res) => {
         try {
             const { description, projectType = 'page', repoName } = req.body;
+            void projectType;
             const user = req.user; // Assumes user info is attached by auth middleware
 
             if (!description || !repoName) {

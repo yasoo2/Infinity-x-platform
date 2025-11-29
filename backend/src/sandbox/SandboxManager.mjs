@@ -22,6 +22,7 @@ class SandboxManager {
     });
     this.isRedisConnected = false;
     console.log('⚛️ Sandbox Manager v3.1 (Fortress w/ Workspaces) Initialized.');
+    void options;
   }
 
   async initializeConnections() {
@@ -152,6 +153,8 @@ class SandboxManager {
   }
 
   async executeBrowserTask(script, options = {}) {
+    void script;
+    void options;
     console.log('🚧 Browser task execution is planned but not yet implemented.');
     return Promise.resolve({ success: false, reason: 'Not implemented' });
   }

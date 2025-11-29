@@ -7,12 +7,13 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs/promises';
 import path from 'path';
-import axios from 'axios';
+// Removed unused axios import
 
 const execAsync = promisify(exec);
 
 class VercelDeployer {
   async deploy(projectPath, deployment) {
+    void deployment;
     const token = process.env.VERCEL_TOKEN;
     if (!token) throw new Error('VERCEL_TOKEN is not set');
 
@@ -25,6 +26,7 @@ class VercelDeployer {
 
 class RailwayDeployer {
   async deploy(projectPath, deployment) {
+    void deployment;
     const token = process.env.RAILWAY_TOKEN;
     if (!token) throw new Error('RAILWAY_TOKEN is not set');
 
@@ -50,6 +52,7 @@ class AdvancedAutoDeploymentSystem {
 
   async deploy(projectPath, options = {}) {
     const { platform = 'vercel', autoTest = true } = options;
+    void autoTest;
     const deployer = this.platforms[platform];
     if (!deployer) throw new Error(`Unsupported platform: ${platform}`);
 

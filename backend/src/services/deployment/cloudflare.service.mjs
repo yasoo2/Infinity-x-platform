@@ -387,6 +387,7 @@ export class CloudflareDeployer {
    * 📁 تحضير الملفات للنشر
    */
   async prepareFiles(projectPath, options = {}) {
+    void options;
     const files = await this.readDirectoryRecursive(projectPath);
     
     // 🔍 تصفية الملفات
@@ -439,6 +440,7 @@ export class CloudflareDeployer {
    * 🗜️ إنشاء أرشيف ZIP
    */
   async createZipArchive(files, basePath) {
+    void basePath;
     return new Promise((resolve, reject) => {
       const chunks = [];
       const archive = archiver('zip', {

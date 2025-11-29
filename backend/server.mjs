@@ -133,7 +133,7 @@ app.get('/dashboard*', (req, res) => {
     if (fs.existsSync(indexPath)) {
         res.sendFile(indexPath);
     } else {
-        res.sendFile(path.join(__dirname, '..', 'dashboard-x', 'index.html'));
+        res.sendFile(path.join(dashboardPath, 'index.html'));
     }
 });
 
@@ -217,7 +217,8 @@ async function startServer() {
     await applyRoutes(dependencies);
     
     app.use((req, res) => res.status(404).json({ error: 'NOT_FOUND' }));
-    app.use((err, req, res, next) => {
+    app.use((err, req, res, _next) => {
+        void _next;
         console.error('❌ Global Error:', err);
         res.status(500).json({ error: 'SERVER_ERROR', message: err.message });
     });

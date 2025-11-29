@@ -19,6 +19,7 @@ class ContinuousLearningSystem {
     const db = await getDB();
     // 1. Record the interaction
     const record = await this.recordInteraction(interaction, db);
+    void record;
 
     // 2. Analyze the outcome
     const analysis = await this.analyzeOutcome(interaction, db);
@@ -58,6 +59,7 @@ class ContinuousLearningSystem {
   }
 
   async analyzeOutcome(interaction, db) {
+    void db;
     return {
       successRate: interaction.success ? 100 : 0,
       efficiency: interaction.executionTime,
@@ -69,7 +71,6 @@ class ContinuousLearningSystem {
   }
 
   async extractPatterns(analysis) {
-    const patterns = [];
     const prompt = `
     Analyze the following data and extract meaningful patterns for system improvement:
     ${JSON.stringify(analysis, null, 2)}

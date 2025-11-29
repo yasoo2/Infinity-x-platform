@@ -1,12 +1,12 @@
 import express from 'express';
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { getConfig, setActive, setKey } from '../services/ai/runtime-config.mjs';
+import { getConfig } from '../services/ai/runtime-config.mjs';
 import { requireAdmin } from '../middleware/auth.mjs';
 import jwt from 'jsonwebtoken';
 const JWT_SECRET = process.env.JWT_SECRET || 'a-very-weak-secret-for-dev';
 
-const aiRouterFactory = ({ optionalAuth, requireRole, db }) => {
+const aiRouterFactory = ({ optionalAuth, db }) => {
   const router = express.Router();
   router.use(optionalAuth);
 
@@ -25,19 +25,7 @@ const aiRouterFactory = ({ optionalAuth, requireRole, db }) => {
     }
   };
 
-  const allowSuperAdmin = (req, res, next) => {
-    if (req.user?.role === 'super_admin') return next();
-    try {
-      const authHeader = req.headers['authorization'];
-      const token = authHeader && authHeader.split(' ')[1];
-      if (!token) return res.status(403).json({ ok: false, error: 'ACCESS_DENIED' });
-      const decoded = jwt.verify(token, JWT_SECRET);
-      if (decoded?.role === 'super_admin') return next();
-      return res.status(403).json({ ok: false, error: 'ACCESS_DENIED' });
-    } catch {
-      return res.status(403).json({ ok: false, error: 'ACCESS_DENIED' });
-    }
-  };
+  
 
   // In-memory active provider and model
   let { activeProvider, activeModel } = getConfig();

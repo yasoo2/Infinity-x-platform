@@ -5,6 +5,7 @@ import express from 'express';
 
 const storeIntegrationRouterFactory = ({ db, requireRole, storeIntegrationService }) => {
     const router = express.Router();
+    void db;
 
     const isServiceAvailable = (req, res, next) => {
         if (!storeIntegrationService) {

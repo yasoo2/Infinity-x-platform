@@ -1,5 +1,4 @@
 import express from 'express';
-import { requireRole } from '../middleware/auth.mjs';
 import { ROLES } from '../../../shared/roles.js';
 
 const schedulingRouterFactory = ({ schedulingSystem, requireRole }) => {

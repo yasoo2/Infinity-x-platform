@@ -39,6 +39,7 @@ class FullStackProjectFactory {
     }
 
     async createProject({ projectName, projectDescription, features = [] }) {
+        void projectDescription;
         // Placeholder for project scaffolding logic (e.g., using a custom CLI or template engine)
         const projectPath = `/home/joe/projects/${projectName}`;
         return {

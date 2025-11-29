@@ -150,6 +150,7 @@ class AIEngineService {
      * Generate content using Gemini
      */
     async generateWithGemini(prompt, options = {}) {
+        void options;
         if (!this.models.gemini) {
             throw new Error('Gemini is not initialized.');
         }
@@ -166,6 +167,7 @@ class AIEngineService {
      * Generate content using Grok
      */
     async generateWithGrok(prompt, options = {}) {
+        void options;
         if (!this.models.grok) {
             throw new Error('Grok is not initialized.');
         }

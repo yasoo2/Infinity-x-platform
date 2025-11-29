@@ -104,11 +104,13 @@ export const generateToken = (user) => {
 // This function is not used in the file, but it was in the original app.mjs
 // I'm adding it here to keep the auth logic together.
 export const setupAuth = (db) => {
+    void db;
     // In a real app, you might use the db to configure passport strategies
     console.log('Auth setup complete.');
 };
 
 export const requireRole = (db) => (role) => (req, res, next) => {
+    void db;
     const required = String(role).toLowerCase();
     const actual = String(req?.user?.role || '').toLowerCase();
     if (!req.user || actual !== required) {
@@ -118,6 +120,7 @@ export const requireRole = (db) => (role) => (req, res, next) => {
 };
 
 export const optionalAuth = (db) => async (req, res, next) => {
+    void db;
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
