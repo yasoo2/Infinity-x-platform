@@ -46,8 +46,6 @@ const defaultWhitelist = [
   'https://xelitesolutions.com',
   'https://www.xelitesolutions.com',
   // 'https://backend-api.onrender.com', // Removed: Old backend URL
-  'https://api.xelitesolutions.com',
-  'https://admin.xelitesolutions.com',
   'http://localhost:3000',
   'http://localhost:5173',
   'http://localhost:4000',
@@ -70,9 +68,7 @@ const isAllowedOrigin = (origin) => {
   try {
     const u = new URL(origin);
     const host = u.host;
-    const protocol = u.protocol;
     if (host.startsWith('localhost')) return true;
-    if (host.endsWith('xelitesolutions.com')) return protocol === 'https:';
     return whitelist.includes(origin);
   } catch {
     return whitelist.includes(origin);
@@ -100,8 +96,9 @@ app.use((req, res, next) => {
     res.header('Vary', 'Origin');
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Expose-Headers', 'X-New-Token, x-new-token');
+    const defaultAllowedHeaders = 'Content-Type, Authorization, X-Requested-With, Accept, Origin';
     const reqHeaders = req.headers['access-control-request-headers'];
-    if (reqHeaders) res.header('Access-Control-Allow-Headers', reqHeaders);
+    res.header('Access-Control-Allow-Headers', reqHeaders ? reqHeaders : defaultAllowedHeaders);
     res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS');
     if (req.method === 'OPTIONS') return res.sendStatus(204);
   }

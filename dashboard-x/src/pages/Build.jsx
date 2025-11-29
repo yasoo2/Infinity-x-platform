@@ -14,7 +14,7 @@ import {
   ExternalLink,
 } from 'lucide-react'; // استيراد أيقونات إضافية
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://admin.xelitesolutions.com';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://api.xelitesolutions.com';
 
 // Reducer for build process state
 const buildReducer = (state, action) => {

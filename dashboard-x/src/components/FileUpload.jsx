@@ -43,7 +43,8 @@ export default function FileUpload({ onFileAnalyzed }) {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('https://admin.xelitesolutions.com/api/file/upload', {
+      const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+      const response = await fetch(`${base}/api/file/upload`, {
         method: 'POST',
         body: formData
       });

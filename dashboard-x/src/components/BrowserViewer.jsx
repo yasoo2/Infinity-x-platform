@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import apiClient from '../api/client'; // Make sure this path is correct
 import { Loader2, X, MousePointer2, Keyboard, Globe } from 'lucide-react';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://admin.xelitesolutions.com';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://api.xelitesolutions.com';
 
 /**
  * Interactive browser viewer that allows full user control.

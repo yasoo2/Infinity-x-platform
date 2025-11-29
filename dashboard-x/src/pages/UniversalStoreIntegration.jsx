@@ -2,7 +2,7 @@
   import { Store, ShoppingCart, TrendingUp, AlertCircle, CheckCircle, Loader, BarChart3, Package, Search, Download } from 'lucide-react';
 
   // API Configuration
-  const API_BASE = import.meta.env?.VITE_API_BASE || 'https://admin.xelitesolutions.com';
+  const API_BASE = import.meta.env?.VITE_API_BASE_URL || 'https://api.xelitesolutions.com';
 
   // State Management with useReducer
   const initialState = {

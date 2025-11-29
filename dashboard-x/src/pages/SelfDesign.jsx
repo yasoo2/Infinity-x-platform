@@ -18,7 +18,7 @@ import {
   Terminal,
 } from 'lucide-react';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://admin.xelitesolutions.com';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://api.xelitesolutions.com';
 
 // Reducer for the self-design process state
 const selfDesignReducer = (state, action) => {
