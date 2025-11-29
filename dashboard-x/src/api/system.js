@@ -4,7 +4,7 @@
   const v1 = (p) => `/api/v1${p}`;
   const joe = (p) => v1(`/joe${p}`);
   const admin = (p) => v1(`/admin${p}`);
-  const system = (p) => v1(`/system${p}`);
+  
   const chatHistory = (p) => v1(`/chat-history${p}`);
 
   // Unified call wrapper to normalize errors and support AbortSignal
@@ -38,17 +38,7 @@
    * @param {{ signal?: AbortSignal }=} opts
    */
 export const getSystemStatus = (opts) =>
-  call(() =>
-    apiClient
-      .get(system('/status'), { signal: opts?.signal })
-      .catch((err) => {
-        const s = err?.status ?? err?.response?.status;
-        if (s === 404) {
-          return apiClient.get(system('/metrics'), { signal: opts?.signal });
-        }
-        throw err;
-      })
-  );
+  call(() => apiClient.get(v1('/health'), { signal: opts?.signal }));
 
   /**
    * Get activity/events stream (polling JSON). For SSE, use EventSource instead.
@@ -148,18 +138,18 @@ export const getSystemStatus = (opts) =>
   export const activateAIProvider = (provider, model) =>
     call(() => apiClient.post(v1('/ai/activate'), { provider, model }));
 
-  export const getChatSessions = () =>
-    call(() => apiClient.get(chatHistory('/sessions')));
+  export const getChatSessions = (opts) =>
+    call(() => apiClient.get(chatHistory('/sessions'), { signal: opts?.signal }));
 
-  export const getChatSessionById = (id) =>
-    call(() => apiClient.get(chatHistory(`/sessions/${id}`)));
+  export const getChatSessionById = (id, opts) =>
+    call(() => apiClient.get(chatHistory(`/sessions/${id}`), { signal: opts?.signal }));
 
-  export const deleteChatSession = (id) =>
-    call(() => apiClient.delete(chatHistory(`/sessions/${id}`)));
+  export const deleteChatSession = (id, opts) =>
+    call(() => apiClient.delete(chatHistory(`/sessions/${id}`), { signal: opts?.signal }));
 
   export const getUserContext = (params) =>
-    call(() => apiClient.get(chatHistory('/user-context'), { params: { limit: params?.limit } }));
+    call(() => apiClient.get(chatHistory('/user-context'), { params: { limit: params?.limit }, signal: params?.signal }));
 
   // Guest token issuance
-  export const getGuestToken = () =>
-    call(() => apiClient.post(v1('/auth/guest-token')));
+  export const getGuestToken = (opts) =>
+    call(() => apiClient.post(v1('/auth/guest-token'), undefined, { signal: opts?.signal }));

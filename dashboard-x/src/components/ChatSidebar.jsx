@@ -1,7 +1,7 @@
-  import React, { useState, useEffect, useCallback } from 'react';
+  import React, { useState, useEffect, useCallback, useRef } from 'react';
   import PropTypes from 'prop-types';
   import { Plus, Trash2, MessageSquare, Loader2, ChevronLeft, ChevronRight, History } from 'lucide-react'; // أيقونات Lucide
-  import { getChatSessions, deleteChatSession, getGuestToken } from '../api/system';
+  import { getChatSessions, deleteChatSession, getGuestToken, withAbort } from '../api/system';
 
   // API base غير مستخدم بعد التحويل إلى دوال system.js
 
@@ -15,6 +15,7 @@
     const [conversations, setConversations] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false); // حالة داخلية للطي
+    const lastAbortRef = useRef(null);
 
     // دالة لتبديل حالة الطي
     const toggleCollapse = () => {
@@ -41,9 +42,14 @@
     }, [userId, loadConversations]);
 
     const loadConversations = useCallback(async () => {
+      if (lastAbortRef.current) {
+        try { lastAbortRef.current.abort(); } catch { /* ignore */ }
+      }
+      const { controller, signal } = withAbort();
+      lastAbortRef.current = controller;
       setIsLoading(true);
       try {
-        const data = await getChatSessions();
+        const data = await getChatSessions({ signal });
         if (data?.success) {
           // توحيد البنية للاستخدام الحالي
           const sessions = (data.sessions || []).map((s) => ({
@@ -60,6 +66,13 @@
       } finally {
         setIsLoading(false);
       }
+      return undefined;
+    }, []);
+
+    useEffect(() => {
+      return () => {
+        try { lastAbortRef.current?.abort(); } catch { /* ignore */ }
+      };
     }, []);
 
     const handleDelete = async (conversationId, e) => {
@@ -68,7 +81,8 @@
       if (!confirm('هل أنت متأكد أنك تريد حذف هذه المحادثة؟')) return;
 
       try {
-        const resp = await deleteChatSession(conversationId);
+        const { signal } = withAbort();
+        const resp = await deleteChatSession(conversationId, { signal });
         if (resp?.success) {
           setConversations(prev => prev.filter(c => c._id !== conversationId));
           if (currentConversationId === conversationId) onNewConversation();

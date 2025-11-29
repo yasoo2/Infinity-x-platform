@@ -1,15 +1,17 @@
 import React, { useEffect, useRef } from 'react';
+import PropTypes from 'prop-types';
 import { FiMic, FiPaperclip, FiSend, FiStopCircle, FiCompass, FiArrowDown, FiCloud, FiCpu, FiLink, FiGitBranch } from 'react-icons/fi';
 import { useJoeChatContext } from '../../context/JoeChatContext.jsx';
 import apiClient from '../../api/client';
+import { getSystemStatus } from '../../api/system';
 
-const WelcomeScreen = () => (
+const WelcomeScreen = ({ toolsCount }) => (
   <div className="flex flex-col items-center justify-center h-full text-center px-6">
     <div className="max-w-3xl">
       <FiCompass size={72} className="mb-6 text-blue-500 mx-auto" />
       <h1 className="text-3xl font-bold text-white mb-4">Welcome to Joe AI Assistant</h1>
       <p className="text-lg text-gray-400 mb-8">
-        Your AI-powered engineering partner with 82 tools and functions. 
+        Your AI-powered engineering partner with {Number(toolsCount)||0} tools and functions. 
         Start by typing an instruction below, attaching a file, or using your voice.
       </p>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
@@ -32,6 +34,10 @@ const WelcomeScreen = () => (
     </div>
   </div>
 );
+
+WelcomeScreen.propTypes = {
+  toolsCount: PropTypes.number,
+};
 
 const MainConsole = () => {
   const fileInputRef = useRef(null);
@@ -63,6 +69,7 @@ const MainConsole = () => {
   const [builderRepoName, setBuilderRepoName] = React.useState('my-autonomous-project');
   const [builderProjectType, setBuilderProjectType] = React.useState('page');
   const [builderLoading, setBuilderLoading] = React.useState(false);
+  const [toolsCount, setToolsCount] = React.useState(0);
 
   const { 
     messages, isProcessing, progress, currentStep, 
@@ -133,6 +140,16 @@ const MainConsole = () => {
       try {
         const { data } = await apiClient.get('/api/v1/runtime-mode/status');
         if (data?.success && data?.mode) setFactoryMode(data.mode);
+      } catch { /* ignore */ }
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const status = await getSystemStatus();
+        const cnt = Number(status?.toolsCount || 0);
+        if (!Number.isNaN(cnt)) setToolsCount(cnt);
       } catch { /* ignore */ }
     })();
   }, []);
@@ -458,10 +475,10 @@ const MainConsole = () => {
   return (
     <div className="flex flex-col h-full bg-gray-900">
       {/* Messages Area - Spacious and Centered */}
-      <div className="flex-1 overflow-y-auto" ref={scrollContainerRef} style={{ scrollBehavior: 'auto', overscrollBehavior: 'contain', overflowAnchor: 'none' }}>
+      <div className="flex-1 overflow-y-auto relative" ref={scrollContainerRef} style={{ scrollBehavior: 'auto', overscrollBehavior: 'contain', overflowAnchor: 'none' }}>
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 border border-gray-800 rounded-xl" style={{ paddingBottom: Math.max(24, inputAreaHeight + 24) }}>
           {messages.length === 0 || (messages.length === 1 && messages[0].type === 'joe' && messages[0].content.includes('Welcome to Joe AI Assistant')) ? (
-            <WelcomeScreen />
+            <WelcomeScreen toolsCount={toolsCount} />
           ) : (
             <div className="space-y-5">
               {messages.map((msg, index) => (
@@ -510,8 +527,11 @@ const MainConsole = () => {
             setShowScrollButton(false);
           }}
           title={lang==='ar'?'إلى الأسفل':'Scroll to Bottom'}
-          className={`fixed right-6 z-50 ${showScrollButton ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'} transition-opacity hidden sm:block`}
-          style={{ bottom: Math.max(16, inputAreaHeight + 16) }}
+          className={`fixed z-50 ${showScrollButton ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'} transition-opacity hidden sm:block`}
+          style={{ 
+            bottom: 'calc(var(--joe-input-h, 56px) + env(safe-area-inset-bottom, 0px) + 16px)',
+            right: 'var(--joe-input-right, 16px)'
+          }}
         >
           <span className="w-10 h-10 inline-flex items-center justify-center rounded-full bg-yellow-600 text-black hover:bg-yellow-700 border border-yellow-600 shadow-lg">
             <FiArrowDown size={18} />

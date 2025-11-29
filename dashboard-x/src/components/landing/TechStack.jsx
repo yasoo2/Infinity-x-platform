@@ -3,6 +3,7 @@ import React, { Suspense, useEffect, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Float, OrbitControls, Text, Box } from '@react-three/drei';
 import { SiJavascript, SiTypescript, SiPython, SiReact, SiNodedotjs, SiNextdotjs, SiVuedotjs, SiGooglecloud, SiAmazon, SiDocker, SiKubernetes } from 'react-icons/si';
+import kenPixelFontUrl from 'three/examples/fonts/ttf/kenpixel.ttf?url';
 
 const techIcons = [
   { icon: SiJavascript, name: 'JavaScript', color: '#F7DF1E' },
@@ -39,7 +40,7 @@ const IconCloud = () => {
           <Float key={i} speed={1.5} rotationIntensity={1} floatIntensity={2}>
             <Box position={[(Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15]} args={[1, 1, 1]}>
               <meshStandardMaterial color={tech.color} />
-              <Text position={[0, -0.7, 0]} fontSize={0.2} color="white" anchorX="center" anchorY="middle">
+              <Text position={[0, -0.7, 0]} fontSize={0.2} color="white" anchorX="center" anchorY="middle" font={kenPixelFontUrl}>
                 {tech.name}
               </Text>
             </Box>

@@ -30,9 +30,16 @@ class ToolManager {
 
         const toolFilesV2 = await fs.readdir(TOOLS_DIR_V2);
         const toolFilesV1 = await fs.readdir(TOOLS_DIR_V1);
+        let toolFilesV3 = [];
+        try {
+            toolFilesV3 = await fs.readdir(TOOLS_DIR_V3);
+        } catch {
+            toolFilesV3 = [];
+        }
         const allToolFiles = [
             ...toolFilesV2.map(file => ({ file, dir: TOOLS_DIR_V2 })),
-            ...toolFilesV1.map(file => ({ file, dir: TOOLS_DIR_V1 }))
+            ...toolFilesV1.map(file => ({ file, dir: TOOLS_DIR_V1 })),
+            ...toolFilesV3.map(file => ({ file, dir: TOOLS_DIR_V3 })),
         ];
 
         for (const { file, dir } of allToolFiles) {

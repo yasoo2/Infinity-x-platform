@@ -7,7 +7,9 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
 
   useEffect(() => {
     if (!collapsed && scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      const el = scrollRef.current;
+      const atBottom = (el.scrollHeight - el.scrollTop - el.clientHeight) <= 80;
+      if (atBottom) el.scrollTop = el.scrollHeight;
     }
   }, [logs, collapsed]);
 
@@ -68,6 +70,7 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
         <div 
           ref={scrollRef} 
           className="flex-1 overflow-y-auto bg-gray-900 rounded-lg border border-gray-800 p-4 font-mono text-sm"
+          style={{ overscrollBehavior: 'contain', overflowAnchor: 'none' }}
         >
           {logs && logs.length > 0 ? (
             <div className="space-y-1.5">
@@ -76,7 +79,7 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
                 const color = getLogColor(type);
                 const text = typeof log === 'string' ? log : (log?.text || JSON.stringify(log));
                 return (
-                  <div key={index} className="flex items-start gap-3 hover:bg-gray-800/50 px-2 py-1 rounded transition-colors border border-gray-800">
+                  <div key={log?.id ?? index} className="flex items-start gap-3 hover:bg-gray-800/50 px-2 py-1 rounded transition-colors border border-gray-800">
                     <span className="text-gray-600 text-xs mt-0.5 flex-shrink-0">
                       {String(index + 1).padStart(3, '0')}
                     </span>
