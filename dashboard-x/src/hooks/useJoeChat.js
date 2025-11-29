@@ -457,6 +457,8 @@ export const useJoeChat = () => {
 
   useEffect(() => {
     const interval = setInterval(() => {
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+      if (document.visibilityState !== 'visible') return;
       if (syncRef.current) syncRef.current();
     }, 20000);
     const onVisibility = () => {
@@ -490,6 +492,13 @@ export const useJoeChat = () => {
       }, 400);
     }
   }, [state.conversations, state.currentConversationId]);
+
+  // Abort any in-flight sync when this hook unmounts to avoid dangling requests
+  useEffect(() => {
+    return () => {
+      try { syncAbortRef.current?.abort(); } catch { void 0; }
+    };
+  }, []);
 
   useEffect(() => {
     try {
