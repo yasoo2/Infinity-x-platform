@@ -1,16 +1,14 @@
   import axios from 'axios';
 
-  // Base URL normalization: prefer explicit env, then dev heuristics, then same-origin
+  // Base URL normalization: prefer explicit env; otherwise use same-origin
   let resolvedBase;
   const envBase = typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL;
   if (envBase && String(envBase).trim().length > 0) {
     resolvedBase = envBase;
   } else if (typeof window !== 'undefined') {
-    const isViteDev = window.location.port === '5173';
-    // If running Vite dev on 5173, default backend port to 4000 (matches backend .env)
-    resolvedBase = isViteDev ? 'http://localhost:4000' : window.location.origin;
+    resolvedBase = window.location.origin;
   } else {
-    resolvedBase = 'http://localhost:4000';
+    resolvedBase = 'http://localhost:5173';
   }
   const BASE_URL = String(resolvedBase).replace(/\/+$/, '');
 

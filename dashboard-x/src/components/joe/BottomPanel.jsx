@@ -41,92 +41,40 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
             <FiCircle className="text-green-500 animate-pulse" size={8} fill="currentColor" />
             <span className="text-xs text-gray-400">Live</span>
           </div>
-          <div className="flex items-center gap-2 ml-2">
-            <button
-              onClick={() => {
-                const last = Array.isArray(logs) && logs.length ? logs[logs.length - 1] : '';
-                const value = typeof last === 'string' ? last : (last && typeof last === 'object' ? (last.text || JSON.stringify(last)) : '');
-                try { navigator.clipboard.writeText(value); } catch { /* noop */ }
-              }}
-              className="px-2 py-1 rounded border border-yellow-600/40 bg-yellow-600 text-black text-[10px] hover:bg-yellow-700 flex items-center gap-1"
-              title="نسخ آخر لوج"
-            >
-              <FiCopy size={12} /> <span>نسخ الأخير</span>
-            </button>
-            <button
-              onClick={() => {
-                const text = (logs || []).map((log) => {
-                  if (typeof log === 'string') return log;
-                  if (log && typeof log === 'object') return log.text || JSON.stringify(log);
-                  return '';
-                }).join('\n');
-                try { navigator.clipboard.writeText(text); } catch { /* noop */ }
-              }}
-              className="px-2 py-1 rounded border border-yellow-600/40 bg-yellow-600 text-black text-[10px] hover:bg-yellow-700 flex items-center gap-1"
-              title="نسخ جميع اللوجز"
-            >
-              <FiCopy size={12} /> <span>نسخ الكل</span>
-            </button>
-          </div>
         </div>
-          <div className="flex items-center gap-3">
-            <div className="text-xs text-gray-500 border border-gray-700 rounded px-2 py-0.5">
-              {logs?.length || 0} messages
-            </div>
-            <button
-              onClick={() => onAddAllLogs && onAddAllLogs()}
-              className="px-2 py-1 rounded border border-yellow-600/40 bg-yellow-600 text-black text-xs hover:bg-yellow-700"
-              title="إضافة كل اللوجز للمحادثة"
-            >
-              Add All to Chat
-            </button>
-            <button
-              onClick={() => {
-                const last = Array.isArray(logs) && logs.length ? logs[logs.length - 1] : '';
-                const value = typeof last === 'string' ? last : (last && typeof last === 'object' ? (last.text || JSON.stringify(last)) : '');
-                try { navigator.clipboard.writeText(value); } catch { /* noop */ }
-              }}
-              className="px-2 py-1 rounded border border-yellow-600/40 bg-yellow-600 text-black text-xs hover:bg-yellow-700 flex items-center gap-1"
-              title="نسخ آخر لوج"
-            >
-              <FiCopy size={12} /> <span>نسخ الأخير</span>
-            </button>
-            <button
-              onClick={() => {
-                const text = (logs || []).map((log) => {
-                  if (typeof log === 'string') return log;
-                  if (log && typeof log === 'object') return log.text || JSON.stringify(log);
-                  return '';
-                }).join('\n');
-                try { navigator.clipboard.writeText(text); } catch { /* noop */ }
-              }}
-              className="px-2 py-1 rounded border border-yellow-600/40 bg-yellow-600 text-black text-xs hover:bg-yellow-700 flex items-center gap-1"
-              title="نسخ جميع اللوجز"
-            >
-              <FiCopy size={12} /> <span>نسخ الكل</span>
-            </button>
-            <button
-              onClick={() => {
-                const text = (logs || []).map((log) => {
-                  if (typeof log === 'string') return log;
-                  if (log && typeof log === 'object') return log.text || JSON.stringify(log);
-                  return '';
-                }).join('\n');
-                try { navigator.clipboard.writeText(text); } catch { /* noop */ }
-              }}
-              className="px-2 py-1 rounded border border-gray-700 bg-gray-800 text-gray-200 text-xs hover:bg-gray-700 flex items-center gap-1"
-              title="نسخ جميع اللوجز"
-            >
-              <FiCopy size={14} /> <span>نسخ الكل</span>
-            </button>
-            <button
-              onClick={() => onToggleCollapse && onToggleCollapse()}
-              className="p-1.5 rounded border border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white transition"
-              title={collapsed ? 'إظهار البانيل' : 'إخفاء البانيل'}
-            >
-              {collapsed ? <FiChevronUp size={16} /> : <FiChevronDown size={16} />}
-            </button>
+        <div className="flex items-center gap-3">
+          <div className="text-xs text-gray-500 border border-gray-700 rounded px-2 py-0.5">
+            {logs?.length || 0} messages
           </div>
+          <button
+            onClick={() => onAddAllLogs && onAddAllLogs()}
+            className="px-2 py-1 rounded border border-yellow-600/40 bg-yellow-600 text-black text-xs hover:bg-yellow-700"
+            title="إضافة كل اللوجز للمحادثة"
+          >
+            Add All to Chat
+          </button>
+          <button
+            onClick={() => {
+              const text = (logs || []).map((log) => {
+                if (typeof log === 'string') return log;
+                if (log && typeof log === 'object') return log.text || JSON.stringify(log);
+                return '';
+              }).join('\n');
+              try { navigator.clipboard.writeText(text); } catch { /* noop */ }
+            }}
+            className="px-2 py-1 rounded border border-yellow-600/40 bg-yellow-600 text-black text-xs hover:bg-yellow-700 flex items-center gap-1"
+            title="نسخ جميع اللوجز"
+          >
+            <FiCopy size={12} /> <span>نسخ الكل</span>
+          </button>
+          <button
+            onClick={() => onToggleCollapse && onToggleCollapse()}
+            className="p-1.5 rounded border border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white transition"
+            title={collapsed ? 'إظهار البانيل' : 'إخفاء البانيل'}
+          >
+            {collapsed ? <FiChevronUp size={16} /> : <FiChevronDown size={16} />}
+          </button>
+        </div>
       </div>
 
       {/* Log Content */}
@@ -204,35 +152,6 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
                 return '';
               })()}
             </span>
-            <button
-              onClick={() => {
-                const value = (() => {
-                  const last = Array.isArray(logs) && logs.length ? logs[logs.length - 1] : '';
-                  if (typeof last === 'string') return last;
-                  if (last && typeof last === 'object') return last.text || JSON.stringify(last);
-                  return '';
-                })();
-                try { navigator.clipboard.writeText(value); } catch { /* noop */ }
-              }}
-              className="p-1 rounded border border-gray-700 bg-gray-800/80 text-gray-300 hover:bg-gray-700 hover:text-white transition pointer-events-auto flex items-center gap-1"
-              title="نسخ آخر لوج"
-            >
-              <FiCopy size={14} /> <span className="text-[11px]">نسخ الأخير</span>
-            </button>
-            <button
-              onClick={() => {
-                const text = (logs || []).map((log) => {
-                  if (typeof log === 'string') return log;
-                  if (log && typeof log === 'object') return log.text || JSON.stringify(log);
-                  return '';
-                }).join('\n');
-                try { navigator.clipboard.writeText(text); } catch { /* noop */ }
-              }}
-              className="p-1 rounded border border-gray-700 bg-gray-800/80 text-gray-300 hover:bg-gray-700 hover:text-white transition pointer-events-auto flex items-center gap-1"
-              title="نسخ جميع اللوجز"
-            >
-              <FiCopy size={14} /> <span className="text-[11px]">نسخ الكل</span>
-            </button>
           </div>
         </div>
       )}

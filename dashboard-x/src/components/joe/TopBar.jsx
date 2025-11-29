@@ -59,7 +59,7 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
   const [eyeOffset, setEyeOffset] = React.useState({ x: 0, y: 0 });
   const [activity, setActivity] = React.useState('ready');
   const [outfit, setOutfit] = React.useState('suit');
-  const [mascotScale, setMascotScale] = React.useState(1);
+  const [mascotScale] = React.useState(1);
   const [lang, setLang] = React.useState(() => {
     try { return localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'; } catch { return 'en'; }
   });
@@ -379,10 +379,7 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
           <span className="text-xs font-semibold">{lang === 'ar' ? 'AR' : 'EN'}</span>
         </button>
 
-        {/* Mascot Size Slider */}
-        <div className="hidden md:flex items-center px-2 py-1 bg-gray-800 text-gray-300 border border-yellow-600/40 rounded-lg" title={lang==='ar'?'حجم جو':'Joe Size'}>
-          <input type="range" min="0.8" max="1.4" step="0.02" value={mascotScale} onChange={(e)=>setMascotScale(parseFloat(e.target.value))} className="w-24" style={{ accentColor: '#eab308' }} />
-        </div>
+        {/* Mascot Size Slider removed as requested */}
 
         <div className="hidden md:flex items-center gap-2 px-2 py-1 bg-gray-800 text-gray-300 border border-yellow-600/40 rounded-lg" title={lang==='ar'?'حالة الأوفلاين':'Offline State'}>
           <span className={`${offlineReady ? 'text-green-400' : 'text-gray-400'} text-xs`}>{offlineReady ? (lang==='ar'?'جاهز':'Ready') : (lang==='ar'?'غير جاهز':'Not Ready')}</span>

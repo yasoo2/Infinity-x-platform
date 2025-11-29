@@ -226,7 +226,11 @@ const MainConsole = () => {
     };
     updateMetrics();
     window.addEventListener('resize', updateMetrics);
-    return () => window.removeEventListener('resize', updateMetrics);
+    window.addEventListener('scroll', updateMetrics, { passive: true });
+    return () => {
+      window.removeEventListener('resize', updateMetrics);
+      window.removeEventListener('scroll', updateMetrics);
+    };
   }, [inputAreaHeight]);
 
   const checkScroll = () => {
