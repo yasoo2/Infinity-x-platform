@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Draggable from 'react-draggable';
 import { ResizableBox } from 'react-resizable';
 import { Terminal, Code, Cpu, Globe, Monitor, ChevronDown, ChevronUp, RefreshCw, MousePointer, Maximize2 } from 'lucide-react';
+import PropTypes from 'prop-types';
 import useBrowserWebSocket from '../hooks/useBrowserWebSocket';
 import FullScreenBrowser from './FullScreenBrowser';
 
@@ -10,7 +11,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
   const [activeTab, setActiveTab] = useState('browser'); // 'terminal' or 'browser'
   const [browserUrl, setBrowserUrl] = useState('https://xelitesolutions.com');
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [inputText, setInputText] = useState('');
+  
   const [isFullScreen, setIsFullScreen] = useState(false);
   const imageRef = useRef(null);
 
@@ -358,3 +359,11 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
 };
 
 export default JoeScreen;
+
+JoeScreen.propTypes = {
+  isProcessing: PropTypes.bool.isRequired,
+  progress: PropTypes.number.isRequired,
+  wsLog: PropTypes.array.isRequired,
+  onTakeover: PropTypes.func.isRequired,
+  onClose: PropTypes.func.isRequired,
+};
