@@ -256,7 +256,7 @@ const JoeContent = () => {
       if (score < bestScore) { bestScore = score; best = c; }
     }
     setRobotCorner(best);
-  }, [robotSize, getRectForCorner]);
+  }, [getRectForCorner]);
 
   const findBestCornerRef = React.useRef(findBestCorner);
   useEffect(() => {
@@ -429,9 +429,7 @@ const JoeContent = () => {
 
   const leftStyle = { borderRight: `${panelStyles.left.width}px solid ${panelStyles.left.color}`, borderRadius: panelStyles.left.radius };
   const rightStyle = { borderLeft: `${panelStyles.right.width}px solid ${panelStyles.right.color}`, borderRadius: panelStyles.right.radius };
-  const setStyle = (side, key, value) => {
-    setPanelStyles(prev => ({ ...prev, [side]: { ...prev[side], [key]: value } }));
-  };
+  
 
   useEffect(() => {
     const onMove = (e) => {

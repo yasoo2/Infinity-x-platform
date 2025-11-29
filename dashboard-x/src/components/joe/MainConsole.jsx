@@ -72,7 +72,7 @@ const MainConsole = () => {
 
   useEffect(() => {
     const onLang = () => {
-      try { setLang(localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'); } catch {}
+      try { setLang(localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'); } catch { void 0; }
     };
     window.addEventListener('joe:lang', onLang);
     return () => window.removeEventListener('joe:lang', onLang);

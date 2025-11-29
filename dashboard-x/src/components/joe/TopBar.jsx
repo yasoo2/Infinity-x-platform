@@ -46,10 +46,11 @@ const DEFAULT_AI_PROVIDERS = [
   { id: 'kunlun-ai', name: 'Kunlun AI', siteUrl: 'https://www.kunlun.ai', createUrl: 'https://www.kunlun.ai/', defaultModel: 'kunlun-large', color: '#16a34a', icon: '🟢', region: 'china', logo: 'https://logo.clearbit.com/kunlun.ai' },
 ];
 
-import { useSessionToken } from '../../hooks/useSessionToken'; // Import hook for token clearing
-import { useNavigate } from 'react-router-dom'; // Import hook for navigation
+import PropTypes from 'prop-types';
+import { useSessionToken } from '../../hooks/useSessionToken';
+import { useNavigate } from 'react-router-dom';
 
-const TopBar = ({ onToggleRight, onToggleBottom, isRightOpen, isBottomOpen, onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onToggleBorderSettings, isBorderSettingsOpen, isSuperAdmin }) => {
+const TopBar = ({ onToggleBottom, onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onToggleBorderSettings, isBorderSettingsOpen, isSuperAdmin, onToggleRight: _onToggleRight, isRightOpen: _isRightOpen, isBottomOpen }) => {
   const { clearToken } = useSessionToken();
   const navigate = useNavigate();
   const [userMenuOpen, setUserMenuOpen] = React.useState(false);
@@ -61,20 +62,19 @@ const TopBar = ({ onToggleRight, onToggleBottom, isRightOpen, isBottomOpen, onTo
   const [lang, setLang] = React.useState(() => {
     try { return localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'; } catch { return 'en'; }
   });
-  const [open, setOpen] = React.useState(false);
-  const [closing, setClosing] = React.useState(false);
+  
   React.useEffect(() => {
     const onLang = () => {
-      try { setLang(localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'); } catch {}
+      try { setLang(localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'); } catch { void 0; }
     };
     window.addEventListener('joe:lang', onLang);
     return () => window.removeEventListener('joe:lang', onLang);
   }, []);
   const toggleLang = () => {
     const next = lang === 'ar' ? 'en' : 'ar';
-    try { localStorage.setItem('lang', next); } catch {}
+    try { localStorage.setItem('lang', next); } catch { void 0; }
     setLang(next);
-    try { window.dispatchEvent(new CustomEvent('joe:lang', { detail: { lang: next } })); } catch {}
+    try { window.dispatchEvent(new CustomEvent('joe:lang', { detail: { lang: next } })); } catch { void 0; }
   };
   const onBrandMouseMove = (e) => {
     if (!brandRef.current) return;
@@ -408,6 +408,20 @@ const TopBar = ({ onToggleRight, onToggleBottom, isRightOpen, isBottomOpen, onTo
   );
 };
 
+TopBar.propTypes = {
+  onToggleRight: PropTypes.func.isRequired,
+  onToggleBottom: PropTypes.func.isRequired,
+  isRightOpen: PropTypes.bool.isRequired,
+  isBottomOpen: PropTypes.bool.isRequired,
+  onToggleLeft: PropTypes.func.isRequired,
+  isLeftOpen: PropTypes.bool.isRequired,
+  onToggleStatus: PropTypes.func.isRequired,
+  isStatusOpen: PropTypes.bool.isRequired,
+  onToggleBorderSettings: PropTypes.func.isRequired,
+  isBorderSettingsOpen: PropTypes.bool.isRequired,
+  isSuperAdmin: PropTypes.bool,
+};
+
 const AIMenuButton = () => {
   const [open, setOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
@@ -437,7 +451,7 @@ const AIMenuButton = () => {
       const list = data.providers && data.providers.length ? data.providers : DEFAULT_AI_PROVIDERS;
       setProviders(list);
       setActive({ provider: data.activeProvider, model: data.activeModel });
-    } catch (e) {
+    } catch {
       setProviders(DEFAULT_AI_PROVIDERS);
     } finally { setLoading(false); }
   };
@@ -470,7 +484,7 @@ const AIMenuButton = () => {
   const onKeyChange = (id, value) => {
     const next = { ...keys, [id]: value };
     setKeys(next);
-    try { localStorage.setItem('aiProviderKeys', JSON.stringify(next)); } catch {}
+    try { localStorage.setItem('aiProviderKeys', JSON.stringify(next)); } catch { void 0; }
   };
 
   const handleValidate = async (id) => {
@@ -493,7 +507,7 @@ const AIMenuButton = () => {
       setLoading(true);
       await activateAIProvider(id, model);
       setActive({ provider: id, model });
-      try { localStorage.setItem('aiSelectedModel', model); } catch {}
+      try { localStorage.setItem('aiSelectedModel', model); } catch { void 0; }
       setActivationError(e => ({ ...e, [id]: '' }));
     } catch (err) {
       const msg = (err && err.message) ? err.message : 'فشل تفعيل المزود (يتطلب صلاحية Super Admin)';

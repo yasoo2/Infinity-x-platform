@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { FiTerminal, FiCircle } from 'react-icons/fi';
 
 const BottomPanel = ({ logs }) => {
@@ -80,3 +81,7 @@ const BottomPanel = ({ logs }) => {
 };
 
 export default BottomPanel;
+
+BottomPanel.propTypes = {
+  logs: PropTypes.array,
+};

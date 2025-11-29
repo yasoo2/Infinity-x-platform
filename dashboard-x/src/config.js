@@ -1,5 +1,5 @@
   import React, { useState, useEffect, useReducer, useCallback } from 'react';
-  import { Store, ShoppingCart, TrendingUp, AlertCircle, CheckCircle, Loader, RefreshCw, BarChart3, Package, Search, Filter, Download, Upload, Zap, Activity, Globe, Lock, Key, Server, Database, Eye, EyeOff, Sparkles, Target, Rocket, Settings } from 'lucide-react';
+  import { Store, TrendingUp, AlertCircle, CheckCircle, Loader, BarChart3, Package, Search, Download, Zap, Activity, Globe, Lock, Key, Server, Database, Eye, EyeOff, Sparkles, Target, Rocket, Settings } from 'lucide-react';
 
   // API Configuration - متوافق مع نظامك
   const getApiConfig = () => {
@@ -203,7 +203,7 @@
       if (state.customEndpoints) {
         try {
           JSON.parse(state.customEndpoints);
-        } catch (e) {
+        } catch {
           errors.customEndpoints = 'JSON غير صالح';
         }
       }

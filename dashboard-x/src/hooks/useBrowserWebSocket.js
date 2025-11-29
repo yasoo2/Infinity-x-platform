@@ -21,12 +21,10 @@ const useBrowserWebSocket = () => {
 
       wsRef.current.onopen = () => {
         setIsConnected(true);
-        console.warn('[Browser WS] Connection established');
       };
 
       wsRef.current.onclose = () => {
         setIsConnected(false);
-        console.warn('[Browser WS] Connection closed. Reconnecting in 3s...');
         setTimeout(connect, 3000);
       };
 

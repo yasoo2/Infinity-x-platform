@@ -1,5 +1,5 @@
-  import React, { useState, useEffect, useReducer, useCallback } from 'react';
-  import { Store, ShoppingCart, TrendingUp, AlertCircle, CheckCircle, Loader, RefreshCw, BarChart3, Package, Search, Filter, Download, Upload } from 'lucide-react';
+  import React, { useEffect, useReducer, useCallback } from 'react';
+  import { Store, ShoppingCart, TrendingUp, AlertCircle, CheckCircle, Loader, BarChart3, Package, Search, Download } from 'lucide-react';
 
   // API Configuration
   const API_BASE = import.meta.env?.VITE_API_BASE || 'https://admin.xelitesolutions.com';
@@ -138,7 +138,7 @@
       if (state.customEndpoints) {
         try {
           JSON.parse(state.customEndpoints);
-        } catch (e) {
+        } catch {
           errors.customEndpoints = 'JSON غير صالح';
         }
       }

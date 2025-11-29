@@ -2,7 +2,7 @@ import React, { useState, useEffect, useReducer } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, Shield, Trash2, Edit2, Plus, Lock, Unlock, Eye, EyeOff, Search, Filter,
-  Loader2, XCircle, CheckCircle, Info, UserCheck, UserX
+  Loader2, XCircle, UserCheck
 } from 'lucide-react';
 import apiClient from '../api/client';
 import toast, { Toaster } from 'react-hot-toast'; // Import react-hot-toast

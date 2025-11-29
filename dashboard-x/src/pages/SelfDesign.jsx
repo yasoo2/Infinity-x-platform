@@ -1,4 +1,4 @@
-import { useState, useCallback, useReducer, useEffect } from 'react';
+import { useState, useCallback, useReducer } from 'react';
 import axios from 'axios';
 import {
   RefreshCw,

@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { FiZap, FiTool, FiCheckCircle, FiActivity, FiCpu } from 'react-icons/fi';
 
 const PlanStep = ({ step, index }) => {
@@ -26,6 +27,15 @@ const PlanStep = ({ step, index }) => {
       </div>
     </div>
   );
+};
+
+PlanStep.propTypes = {
+  step: PropTypes.shape({
+    type: PropTypes.string,
+    content: PropTypes.any,
+    details: PropTypes.any,
+  }).isRequired,
+  index: PropTypes.number.isRequired,
 };
 
 const RightPanel = ({ isProcessing, plan, forceStatus = false }) => {
@@ -101,6 +111,12 @@ const RightPanel = ({ isProcessing, plan, forceStatus = false }) => {
       </div>
     </div>
   );
+};
+
+RightPanel.propTypes = {
+  isProcessing: PropTypes.bool.isRequired,
+  plan: PropTypes.array,
+  forceStatus: PropTypes.bool,
 };
 
 export default RightPanel;

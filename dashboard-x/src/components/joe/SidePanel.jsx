@@ -1,6 +1,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
-import { FiPlus, FiMessageSquare, FiEdit2, FiTrash2, FiMoreVertical } from 'react-icons/fi';
+import PropTypes from 'prop-types';
+import { FiPlus, FiMessageSquare, FiMoreVertical } from 'react-icons/fi';
 
 const SidePanel = ({ conversations, onConversationSelect, onNewConversation, currentConversationId, onRenameConversation, onDeleteConversation, onPinToggle, onDuplicate, onClear, lang = 'ar' }) => {
   const [openMenuId, setOpenMenuId] = useState(null);
@@ -79,3 +80,16 @@ const SidePanel = ({ conversations, onConversationSelect, onNewConversation, cur
 };
 
 export default SidePanel;
+
+SidePanel.propTypes = {
+  conversations: PropTypes.array.isRequired,
+  onConversationSelect: PropTypes.func.isRequired,
+  onNewConversation: PropTypes.func.isRequired,
+  currentConversationId: PropTypes.string,
+  onRenameConversation: PropTypes.func.isRequired,
+  onDeleteConversation: PropTypes.func.isRequired,
+  onPinToggle: PropTypes.func.isRequired,
+  onDuplicate: PropTypes.func.isRequired,
+  onClear: PropTypes.func.isRequired,
+  lang: PropTypes.string,
+};

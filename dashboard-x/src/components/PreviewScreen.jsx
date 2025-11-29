@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 
 /**
  * Preview Screen Component
@@ -160,3 +161,14 @@ export default function PreviewScreen({ currentStep, progress, actionResult, isP
     </div>
   );
 }
+
+PreviewScreen.propTypes = {
+  currentStep: PropTypes.string,
+  progress: PropTypes.number,
+  actionResult: PropTypes.shape({
+    success: PropTypes.bool,
+    message: PropTypes.string,
+    error: PropTypes.string,
+  }),
+  isProcessing: PropTypes.bool,
+};

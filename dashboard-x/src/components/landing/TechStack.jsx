@@ -1,7 +1,7 @@
 
 import React, { Suspense, useEffect, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { Float, OrbitControls, Text } from '@react-three/drei';
+import { Float, OrbitControls, Text, Box } from '@react-three/drei';
 import { SiJavascript, SiTypescript, SiPython, SiReact, SiNodedotjs, SiNextdotjs, SiVuedotjs, SiGooglecloud, SiAmazon, SiDocker, SiKubernetes } from 'react-icons/si';
 
 const techIcons = [
@@ -37,13 +37,12 @@ const IconCloud = () => {
         })()}
         {techIcons.map((tech, i) => (
           <Float key={i} speed={1.5} rotationIntensity={1} floatIntensity={2}>
-            <mesh position={[(Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15]}>
-              <boxGeometry args={[1, 1, 1]} />
+            <Box position={[(Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15]} args={[1, 1, 1]}>
               <meshStandardMaterial color={tech.color} />
               <Text position={[0, -0.7, 0]} fontSize={0.2} color="white" anchorX="center" anchorY="middle">
                 {tech.name}
               </Text>
-            </mesh>
+            </Box>
           </Float>
         ))}
         <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={0.5} />

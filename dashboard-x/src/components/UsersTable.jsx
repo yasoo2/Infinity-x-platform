@@ -1,4 +1,5 @@
 import { formatDistanceToNow } from 'date-fns';
+import PropTypes from 'prop-types';
 
 export default function UsersTable({ users, onEdit, onDelete }) {
   const formatTime = (timestamp) => {
@@ -95,3 +96,9 @@ export default function UsersTable({ users, onEdit, onDelete }) {
     </div>
   );
 }
+
+UsersTable.propTypes = {
+  users: PropTypes.array.isRequired,
+  onEdit: PropTypes.func,
+  onDelete: PropTypes.func,
+};

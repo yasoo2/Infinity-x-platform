@@ -5,22 +5,22 @@ import { Star } from 'lucide-react';
 
 const testimonialsData = [
   {
-    quote: 'Infinity-X transformed our vision into a reality. Their expertise in AI and software development is unmatched. The final product exceeded all our expectations.',
-    author: 'John Doe',
-    title: 'CEO, Tech Innovators',
-    avatar: '/assets/images/avatar1.jpg',
+    quote: "Infinity-X transformed our vision into a reality. Their expertise in AI and software development is unmatched. The final product exceeded all our expectations.",
+    author: "John Doe",
+    title: "CEO, Tech Innovators",
+    avatar: "/assets/images/avatar1.jpg",
   },
   {
-    quote: 'The team at Infinity-X is not just a vendor, but a true partner. Their commitment to quality and their agile process made the development cycle smooth and efficient.',
-    author: 'Jane Smith',
-    title: 'CTO, Future Solutions',
-    avatar: '/assets/images/avatar2.jpg',
+    quote: "The team at Infinity-X is not just a vendor, but a true partner. Their commitment to quality and their agile process made the development cycle smooth and efficient.",
+    author: "Jane Smith",
+    title: "CTO, Future Solutions",
+    avatar: "/assets/images/avatar2.jpg",
   },
   {
-    quote: 'We needed a complex data engineering solution, and Infinity-X delivered. Their insights and technical skills have been invaluable to our business.',
-    author: 'Samuel Green',
-    title: 'Head of Data, Analytics Corp',
-    avatar: '/assets/images/avatar3.jpg',
+    quote: "We needed a complex data engineering solution, and Infinity-X delivered. Their insights and technical skills have been invaluable to our business.",
+    author: "Samuel Green",
+    title: "Head of Data, Analytics Corp",
+    avatar: "/assets/images/avatar3.jpg",
   },
 ];
 

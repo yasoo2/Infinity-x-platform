@@ -1,5 +1,6 @@
 
 import React from 'react';
+import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
 import { FiHome, FiMessageSquare, FiTool, FiBriefcase, FiClipboard, FiSettings } from 'react-icons/fi';
 
@@ -42,3 +43,10 @@ const ActivityBar = ({ onChatClick, isSidePanelOpen, onToggleRight, onToggleBott
 };
 
 export default ActivityBar;
+
+ActivityBar.propTypes = {
+  onChatClick: PropTypes.func.isRequired,
+  isSidePanelOpen: PropTypes.bool.isRequired,
+  onToggleRight: PropTypes.func.isRequired,
+  onToggleBottom: PropTypes.func.isRequired,
+};

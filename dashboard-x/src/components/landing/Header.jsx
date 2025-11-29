@@ -62,7 +62,7 @@ const Header = () => {
     refreshRemembered();
   };
 
-  const refreshRememberedCb = React.useCallback(() => { refreshRemembered(); }, [listRemembered]);
+  const refreshRememberedCb = React.useCallback(() => { refreshRemembered(); }, [refreshRemembered]);
   React.useEffect(() => {
     if (showLogin) refreshRememberedCb();
   }, [showLogin, refreshRememberedCb]);
