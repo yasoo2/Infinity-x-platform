@@ -99,6 +99,7 @@ app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', origin);
     res.header('Vary', 'Origin');
     res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Expose-Headers', 'X-New-Token, x-new-token');
     const reqHeaders = req.headers['access-control-request-headers'];
     if (reqHeaders) res.header('Access-Control-Allow-Headers', reqHeaders);
     res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS');
