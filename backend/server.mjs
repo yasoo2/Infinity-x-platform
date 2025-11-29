@@ -35,7 +35,7 @@ import MemoryManager from './src/services/memory/memory.service.mjs';
 import { JoeAgentWebSocketServer } from './src/services/joeAgentWebSocket.mjs';
 
 const CONFIG = {
-  PORT: process.env.PORT || 4001,
+  PORT: process.env.PORT || 4000,
   NODE_ENV: process.env.NODE_ENV || 'development',
 };
 
