@@ -33,7 +33,7 @@ class LocalLlamaService {
   }
 
   isReady() {
-    return this.initialized && this.chat
+    return Boolean(this.initialized && this.chat)
   }
 
   async generate(prompt, options = {}) {
