@@ -1,6 +1,8 @@
 import { WebSocketServer } from 'ws';
-import joeAdvanced from './ai/joe-advanced.service.mjs'; // The ONE TRUE BRAIN
+import joeAdvanced from './ai/joe-advanced.service.mjs';
 import jwt from 'jsonwebtoken';
+import { getMode } from '../core/runtime-mode.mjs';
+import { localLlamaService } from './llm/local-llama.service.mjs';
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 /**
@@ -75,15 +77,35 @@ export class JoeAgentWebSocketServer {
 
           if (data.action === 'instruct') {
             console.log(`[JoeAgentV2] Received instruction: "${data.message}"`);
-            
-            // Directly call the unified processing engine
-            // The model can be specified in the message data, defaulting to gpt-4o
-            const model = data.model || 'gpt-4o';
-            
-            // استخدام userId المستخرج من التوكين
-            const userId = ws.userId; 
-
+            const currentMode = getMode();
+            const userId = ws.userId;
             const sessionId = data.sessionId || ws.sessionId;
+            if (currentMode === 'offline' && localLlamaService.isReady()) {
+              try {
+                if (ws.readyState === ws.OPEN) {
+                  ws.send(JSON.stringify({ type: 'status', message: 'Offline local model active' }));
+                }
+                await localLlamaService.stream(
+                  [{ role: 'user', content: data.message }],
+                  (piece) => {
+                    if (ws.readyState === ws.OPEN) {
+                      ws.send(JSON.stringify({ type: 'stream', content: piece }));
+                    }
+                  },
+                  { temperature: 0.7, maxTokens: 1024 }
+                );
+                if (ws.readyState === ws.OPEN) {
+                  ws.send(JSON.stringify({ type: 'task_complete', sessionId }));
+                }
+              } catch (err) {
+                if (ws.readyState === ws.OPEN) {
+                  ws.send(JSON.stringify({ type: 'error', message: err.message }));
+                }
+              }
+              return;
+            }
+
+            const model = data.model || 'gpt-4o';
             const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model });
             if (ws.readyState === ws.OPEN) {
               ws.send(JSON.stringify({ type: 'response', response: result.response, toolsUsed: result.toolsUsed, sessionId }));
