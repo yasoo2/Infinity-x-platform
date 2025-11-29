@@ -63,11 +63,21 @@ const authRouterFactory = ({ db }) => {
         }
     });
 
-    /**
-     * @route POST /api/v1/auth/login
-     * @description Authenticates a user and returns a JWT token
-     * @access Public
-     */
+  /**
+   * @route POST /api/v1/auth/login
+   * @description Authenticates a user and returns a JWT token
+   * @access Public
+   */
+    router.options('/login', (req, res) => {
+        const origin = req.headers.origin;
+        res.header('Access-Control-Allow-Origin', origin || '*');
+        res.header('Access-Control-Allow-Credentials', 'true');
+        res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+        const defaultAllowedHeaders = 'Content-Type, Authorization, X-Requested-With, Accept, Origin';
+        const reqHeaders = req.headers['access-control-request-headers'];
+        res.header('Access-Control-Allow-Headers', reqHeaders ? reqHeaders : defaultAllowedHeaders);
+        return res.sendStatus(204);
+    });
     router.post('/login', async (req, res) => {
         const { email, phone, password } = req.body;
         if ((!email && !phone) || !password) {
