@@ -298,6 +298,7 @@ export const useJoeChat = () => {
   }, []);
 
   const syncBackendSessions = useCallback(async () => {
+    if (state.isProcessing) return;
     try {
       let token = localStorage.getItem('sessionToken');
       if (!token) {
@@ -334,7 +335,7 @@ export const useJoeChat = () => {
         console.warn('syncBackendSessions error:', e);
       }
     }
-  }, [state.conversations, state.currentConversationId, mapSessionToConversation]);
+  }, [state.conversations, state.currentConversationId, state.isProcessing, mapSessionToConversation]);
 
   useEffect(() => {
     syncBackendSessions();

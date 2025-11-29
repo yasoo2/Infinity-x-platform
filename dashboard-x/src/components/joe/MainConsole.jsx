@@ -49,12 +49,16 @@ const MainConsole = () => {
     handleVoiceInput, transcript, currentConversation
   } = useJoeChatContext();
 
-  // Auto-scroll to the latest message
+  // Auto-scroll فقط إذا كان المستخدم في الأسفل بالفعل؛ واستخدم ضبط مباشر للتمرير لتقليل الاهتزاز
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    // Hide scroll-to-bottom when new messages push to bottom
-    setShowScrollButton(false);
-  }, [messages, currentConversation]);
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const atBottom = (el.scrollHeight - el.scrollTop - el.clientHeight) <= 80;
+    if (atBottom) {
+      el.scrollTop = el.scrollHeight;
+      setShowScrollButton(false);
+    }
+  }, [messages.length, currentConversation]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -114,7 +118,7 @@ const MainConsole = () => {
   return (
     <div className="flex flex-col h-full bg-gray-900">
       {/* Messages Area - Spacious and Centered */}
-      <div className="flex-1 overflow-y-auto" ref={scrollContainerRef}>
+      <div className="flex-1 overflow-y-auto" ref={scrollContainerRef} style={{ scrollBehavior: 'auto', overscrollBehavior: 'contain', overflowAnchor: 'none' }}>
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-6">
           {messages.length === 0 || (messages.length === 1 && messages[0].type === 'joe' && messages[0].content.includes('Welcome to Joe AI Assistant')) ? (
             <WelcomeScreen />
