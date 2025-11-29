@@ -1,9 +1,9 @@
   import React, { useState, useEffect, useCallback } from 'react';
   import PropTypes from 'prop-types';
   import { Plus, Trash2, MessageSquare, Loader2, ChevronLeft, ChevronRight, History } from 'lucide-react'; // أيقونات Lucide
-  import apiClient from '../api/client'; // تأكد من المسار الصحيح لـ apiClient
+  import { getChatSessions, deleteChatSession, getGuestToken } from '../api/system';
 
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
+  // API base غير مستخدم بعد التحويل إلى دوال system.js
 
   export default function ChatSidebar({
     userId,
@@ -25,20 +25,34 @@
     };
 
     useEffect(() => {
+      const ensureTokenAndLoad = async () => {
+        try {
+          const existing = localStorage.getItem('sessionToken');
+          if (!existing) {
+            const tok = await getGuestToken();
+            if (tok?.token) localStorage.setItem('sessionToken', tok.token);
+          }
+        } catch { /* ignore */ }
+        await loadConversations();
+      };
       if (userId) {
-        loadConversations();
+        ensureTokenAndLoad();
       }
     }, [userId, loadConversations]);
 
     const loadConversations = useCallback(async () => {
       setIsLoading(true);
       try {
-        const response = await apiClient.post(`${API_BASE}/api/chat-history/list`, {
-          userId
-        });
-
-        if (response.data.ok) {
-          setConversations(response.data.conversations);
+        const data = await getChatSessions();
+        if (data?.success) {
+          // توحيد البنية للاستخدام الحالي
+          const sessions = (data.sessions || []).map((s) => ({
+            _id: s._id || s.id || s.sessionId,
+            title: s.title || s.name || 'محادثة بدون عنوان',
+            updatedAt: s.updatedAt || s.lastUpdated || new Date().toISOString(),
+            messages: s.messages || s.interactions || [],
+          }));
+          setConversations(sessions);
         }
       } catch (error) {
         console.warn('Load conversations error:', error);
@@ -46,7 +60,7 @@
       } finally {
         setIsLoading(false);
       }
-    }, [userId]);
+    }, []);
 
     const handleDelete = async (conversationId, e) => {
       e.stopPropagation(); // منع تحديد المحادثة عند النقر على زر الحذف
@@ -54,15 +68,10 @@
       if (!confirm('هل أنت متأكد أنك تريد حذف هذه المحادثة؟')) return;
 
       try {
-        const response = await apiClient.post(`${API_BASE}/api/chat-history/delete`, {
-          conversationId
-        });
-
-        if (response.data.ok) {
+        const resp = await deleteChatSession(conversationId);
+        if (resp?.success) {
           setConversations(prev => prev.filter(c => c._id !== conversationId));
-          if (currentConversationId === conversationId) {
-            onNewConversation(); // بدء محادثة جديدة إذا تم حذف المحادثة النشطة
-          }
+          if (currentConversationId === conversationId) onNewConversation();
         }
       } catch (error) {
         console.warn('Delete conversation error:', error);

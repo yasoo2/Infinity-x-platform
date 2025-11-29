@@ -58,6 +58,11 @@ const MainConsole = () => {
   const ghPanelRef = useRef(null);
   const [ghCommitMessage, setGhCommitMessage] = React.useState('Update by JOE AI');
   const [dragActive, setDragActive] = React.useState(false);
+  const [showBuilder, setShowBuilder] = React.useState(false);
+  const [builderDescription, setBuilderDescription] = React.useState('');
+  const [builderRepoName, setBuilderRepoName] = React.useState('my-autonomous-project');
+  const [builderProjectType, setBuilderProjectType] = React.useState('page');
+  const [builderLoading, setBuilderLoading] = React.useState(false);
 
   const { 
     messages, isProcessing, progress, currentStep, 
@@ -184,6 +189,27 @@ const MainConsole = () => {
 
   useEffect(() => {
     try { document.documentElement.style.setProperty('--joe-input-h', `${inputAreaHeight}px`); } catch { void 0; }
+  }, [inputAreaHeight]);
+
+  useEffect(() => {
+    const updateMetrics = () => {
+      const el = inputAreaRef.current;
+      if (!el) return;
+      const wrapper = el.querySelector('.max-w-5xl');
+      const rect = wrapper?.getBoundingClientRect();
+      if (!rect) return;
+      try {
+        const left = Math.round(rect.left);
+        const right = Math.round(window.innerWidth - rect.right);
+        const width = Math.round(rect.width);
+        document.documentElement.style.setProperty('--joe-input-left', `${left}px`);
+        document.documentElement.style.setProperty('--joe-input-right', `${right}px`);
+        document.documentElement.style.setProperty('--joe-input-width', `${width}px`);
+      } catch { void 0; }
+    };
+    updateMetrics();
+    window.addEventListener('resize', updateMetrics);
+    return () => window.removeEventListener('resize', updateMetrics);
   }, [inputAreaHeight]);
 
   const checkScroll = () => {
@@ -324,6 +350,32 @@ const MainConsole = () => {
       handleSend();
     } catch { /* ignore */ }
     finally { setLinkLoading(false); }
+  };
+
+  const handleCreateAndDeploy = async () => {
+    try {
+      setBuilderLoading(true);
+      const { data } = await apiClient.post('/api/v1/page-builder/create-and-deploy', {
+        description: builderDescription || input || 'Autonomous build by Joe',
+        projectType: builderProjectType,
+        repoName: builderRepoName,
+      });
+      if (data?.success) {
+        const msg = (lang==='ar')
+          ? `تم بدء إنشاء ونشر المشروع\nالمستودع: ${data.repoUrl}\nالنشر: ${data.deploymentUrl}`
+          : `Project creation & deployment initiated\nRepo: ${data.repoUrl}\nDeploy: ${data.deploymentUrl}`;
+        setInput(msg);
+        setShowBuilder(false);
+      } else {
+        const err = lang==='ar' ? 'فشل إنشاء/نشر المشروع' : 'Create/Deploy failed';
+        setInput(`${err}: ${data?.error || ''}`.trim());
+      }
+    } catch {
+      const err = lang==='ar' ? 'فشل إنشاء/نشر المشروع' : 'Create/Deploy failed';
+      setInput(err);
+    } finally {
+      setBuilderLoading(false);
+    }
   };
 
   const handleGithubAnalyze = async () => {
@@ -472,8 +524,7 @@ const MainConsole = () => {
       {/* Input Area - Fixed at Bottom, Centered and Spacious */}
       <div className="border-t border-gray-800 bg-gray-900/98 backdrop-blur-sm" ref={inputAreaRef}>
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-3">
-          <div 
-            className={`flex items-end gap-3 bg-gray-900 border border-gray-700 rounded-2xl px-4 py-3 transition-all relative ${dragActive ? 'ring-2 ring-yellow-500/70' : 'focus-within:ring-2 focus-within:ring-yellow-500'}`}
+            <div className={`flex items-end gap-3 bg-gray-900 border border-gray-700 rounded-2xl px-4 py-3 transition-all relative ${dragActive ? 'ring-2 ring-yellow-500/70' : 'focus-within:ring-2 focus-within:ring-yellow-500'}`}
             onDragEnter={(e) => { e.preventDefault(); setDragActive(true); }}
             onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
             onDragLeave={(e) => { if (e.currentTarget.contains(e.relatedTarget)) return; setDragActive(false); }}
@@ -519,6 +570,14 @@ const MainConsole = () => {
                 title={lang==='ar'?'لوحة GitHub':'GitHub Panel'}
               >
                 <FiGitBranch size={18} />
+              </button>
+              <button
+                onClick={() => setShowBuilder(v => !v)}
+                className="p-2.5 text-gray-400 hover:text-yellow-400 hover:bg-gray-700 rounded-lg transition-colors border border-gray-700"
+                disabled={isProcessing}
+                title={lang==='ar'?'بناء ذاتي':'Autonomous Build'}
+              >
+                <FiCompass size={18} />
               </button>
               <button
                 onClick={handleToggleMode}
@@ -584,15 +643,15 @@ const MainConsole = () => {
                   <FiSend size={20} />
                 </button>
               )}
-            </div>
           </div>
-          {linkLoading && (
+        </div>
+        {linkLoading && (
             <div className="absolute right-3 top-3 flex items-center gap-2">
               <span className="w-3 h-3 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin" />
               <span className="text-[10px] text-yellow-300">{lang==='ar'?'جلب الروابط':'Fetching links'}</span>
             </div>
           )}
-          {showGithub && (
+        {showGithub && (
             <div ref={ghPanelRef} className="absolute right-3 bottom-14 w-64 bg-gray-900 border border-gray-700 rounded-xl shadow-lg p-3">
               <p className="text-xs text-gray-300 mb-2">{lang==='ar'?'تحليل مستودع GitHub':'Analyze GitHub Repo'}</p>
               <input
@@ -652,6 +711,49 @@ const MainConsole = () => {
               <p className="text-[10px] text-gray-500 mt-2">{lang==='ar'?'للخاصة: يلزم GITHUB_TOKEN':'Private repos require GITHUB_TOKEN'}</p>
             </div>
           )}
+        {showBuilder && (
+          <div className="absolute right-3 bottom-14 w-[320px] bg-gray-900 border border-gray-700 rounded-xl shadow-lg p-3">
+            <p className="text-xs text-gray-300 mb-2">{lang==='ar'?'إنشاء ونشر مشروع':'Create & Deploy Project'}</p>
+            <textarea
+              value={builderDescription}
+              onChange={(e) => setBuilderDescription(e.target.value)}
+              placeholder={lang==='ar'?'وصف المشروع (الوظائف والمتطلبات)':'Project description (features & requirements)'}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-xs text-white placeholder-gray-500 mb-2 resize-y"
+              rows={3}
+            />
+            <input
+              type="text"
+              value={builderRepoName}
+              onChange={(e) => setBuilderRepoName(e.target.value)}
+              placeholder={lang==='ar'?'اسم المستودع':'Repository name'}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-xs text-white placeholder-gray-500 mb-2"
+            />
+            <select
+              value={builderProjectType}
+              onChange={(e) => setBuilderProjectType(e.target.value)}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2 py-1 text-xs text-white mb-2"
+            >
+              <option value="page">{lang==='ar'?'صفحة/واجهة':'Page/UI'}</option>
+              <option value="app">{lang==='ar'?'تطبيق':'App'}</option>
+            </select>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowBuilder(false)}
+                className="px-2 py-1 text-xs rounded-lg bg-gray-700 text-gray-200 hover:bg-gray-600"
+              >
+                {lang==='ar'?'إلغاء':'Cancel'}
+              </button>
+              <button
+                onClick={handleCreateAndDeploy}
+                className="px-2 py-1 text-xs rounded-lg bg-yellow-600 text-black hover:bg-yellow-700 disabled:opacity-60"
+                disabled={builderLoading}
+              >
+                {builderLoading ? (lang==='ar'?'جاري...':'Working...') : (lang==='ar'?'إنشاء ونشر':'Create & Deploy')}
+              </button>
+            </div>
+            <p className="text-[10px] text-gray-500 mt-2">{lang==='ar'?'يتطلب صلاحيات ADMIN':'Requires ADMIN role'}</p>
+          </div>
+        )}
           
         {/* Robot moved to Joe page and enhanced */}
       </div>

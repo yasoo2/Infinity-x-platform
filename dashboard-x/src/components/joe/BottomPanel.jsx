@@ -106,8 +106,8 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
       )}
 
       {collapsed && (
-        <div className="fixed left-4 z-40 select-none pointer-events-none" style={{ bottom: 'calc(var(--joe-input-h, 56px) + env(safe-area-inset-bottom, 0px) + 4px)' }}>
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-900/80 border border-gray-700 shadow-md backdrop-blur-sm">
+        <div className="fixed z-40 select-none pointer-events-none" style={{ bottom: 'calc(var(--joe-input-h, 56px) + env(safe-area-inset-bottom, 0px) + 4px)', left: 'var(--joe-input-left, 16px)', width: 'var(--joe-input-width, 640px)' }}>
+          <div className="w-full flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-900/80 border border-gray-700 shadow-md backdrop-blur-sm">
             <button
               onClick={() => onToggleCollapse && onToggleCollapse()}
               className="p-1 rounded border border-gray-700 bg-gray-800/80 text-gray-300 hover:bg-gray-700 hover:text-white transition pointer-events-auto"
@@ -115,7 +115,7 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
             >
               <FiChevronUp size={16} />
             </button>
-            <span className="max-w-[50vw] md:max-w-[38vw] lg:max-w-[28vw] truncate text-[11px] text-gray-300/90">
+            <span className="flex-1 truncate text-[11px] text-gray-300/90">
               {(() => {
                 const last = Array.isArray(logs) && logs.length ? logs[logs.length - 1] : '';
                 if (typeof last === 'string') return last;

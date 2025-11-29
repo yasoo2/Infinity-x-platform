@@ -1,7 +1,7 @@
 
 import { useReducer, useEffect, useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { getChatSessions, getChatSessionById, getGuestToken } from '../api/system';
+import { getChatSessions, getChatSessionById, getGuestToken, getSystemStatus } from '../api/system';
 
 const JOE_CHAT_HISTORY = 'joeChatHistory';
 
@@ -175,13 +175,11 @@ const chatReducer = (state, action) => {
             return { ...state, currentConversationId: action.payload, isProcessing: false, input: '', plan: [], progress: 0, currentStep: '' };
 
         case 'NEW_CONVERSATION': {
-            const selectNew = action.payload !== false;
+            const selectNew = typeof action.payload === 'object' ? (action.payload.selectNew !== false) : (action.payload !== false);
             const newId = uuidv4();
             console.warn('[NEW_CONVERSATION] Creating new conversation with ID:', newId);
-            const lang = getLang();
-            const welcomeEn = 'Welcome to Joe AI Assistant! 👋\n\nYour AI-powered engineering partner with 82 tools and functions.\n\nI can help you with:\n💬 Chat & Ask - Get instant answers and explanations\n🛠️ Build & Create - Generate projects and applications\n🔍 Analyze & Process - Work with data and generate insights\n\nStart by typing an instruction below, attaching a file, or using your voice.';
-            const welcomeAr = 'مرحبًا بك في مساعد جو الذكي! 👋\n\nشريكك الهندسي المدعوم بالذكاء مع 82 أداة ووظيفة.\n\nأستطيع مساعدتك في:\n💬 المحادثة والسؤال - إجابات وشروحات فورية\n🛠️ البناء والإنشاء - توليد مشاريع وتطبيقات\n🔍 التحليل والمعالجة - العمل مع البيانات وتوليد رؤى\n\nابدأ بكتابة تعليماتك أدناه أو إرفاق ملف أو استخدام الصوت.';
-            const welcomeMessage = { type: 'joe', content: lang === 'ar' ? welcomeAr : welcomeEn, id: uuidv4() };
+            const dynamicText = typeof action.payload === 'object' && action.payload.welcomeMessage ? action.payload.welcomeMessage : 'Welcome to Joe AI Assistant! 👋';
+            const welcomeMessage = { type: 'joe', content: dynamicText, id: uuidv4() };
             const newConversations = {
                 ...conversations,
                 [newId]: { id: newId, title: 'New Conversation', messages: [welcomeMessage], lastModified: Date.now(), pinned: false },
@@ -339,8 +337,17 @@ export const useJoeChat = () => {
   }, []);
 
   // ... (useEffect for localStorage loading remains the same)
-  const handleNewConversation = useCallback((selectNew = true) => {
-    dispatch({ type: 'NEW_CONVERSATION', payload: selectNew });
+  const handleNewConversation = useCallback(async (selectNew = true) => {
+    let toolsCount = 0;
+    try {
+      const status = await getSystemStatus();
+      toolsCount = Number(status?.toolsCount || 0);
+    } catch { toolsCount = 0; }
+    const lang = getLang();
+    const en = `Welcome to Joe AI Assistant! 👋\n\nYour AI-powered engineering partner with ${toolsCount} tools and functions.\n\nI can help you with:\n💬 Chat & Ask - Get instant answers and explanations\n🛠️ Build & Create - Generate projects and applications\n🔍 Analyze & Process - Work with data and generate insights\n\nStart by typing an instruction below, attaching a file, or using your voice.`;
+    const ar = `مرحبًا بك في مساعد جو الذكي! 👋\n\nشريكك الهندسي المدعوم بالذكاء مع ${toolsCount} أداة ووظيفة.\n\nأستطيع مساعدتك في:\n💬 المحادثة والسؤال - إجابات وشروحات فورية\n🛠️ البناء والإنشاء - توليد مشاريع وتطبيقات\n🔍 التحليل والمعالجة - العمل مع البيانات وتوليد رؤى\n\nابدأ بكتابة تعليماتك أدناه أو إرفاق ملف أو استخدام الصوت.`;
+    const msg = lang === 'ar' ? ar : en;
+    dispatch({ type: 'NEW_CONVERSATION', payload: { selectNew, welcomeMessage: msg } });
   }, []);
 
   const renameConversation = useCallback((id, title) => {

@@ -1,7 +1,7 @@
   import axios from 'axios';
 
   // Base URL normalization
-  let envBase = import.meta.env?.VITE_API_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4001');
+  let envBase = import.meta.env?.VITE_API_BASE_URL || (typeof window !== 'undefined' ? (window.location.port === '5173' ? 'http://localhost:4001' : window.location.origin) : 'http://localhost:4001');
   const BASE_URL = String(envBase).replace(/\/+$/, '');
 
   // Helper to detect FormData
