@@ -101,7 +101,10 @@ app.use((req, res, next) => {
     const reqHeaders = req.headers['access-control-request-headers'];
     res.header('Access-Control-Allow-Headers', reqHeaders ? reqHeaders : defaultAllowedHeaders);
     res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS');
-    if (req.method === 'OPTIONS') return res.sendStatus(204);
+    if (req.method === 'OPTIONS') {
+      console.info('CORS preflight OK', { path: req.path, origin });
+      return res.sendStatus(204);
+    }
   }
   next();
 });
@@ -117,6 +120,7 @@ app.options('*', (req, res) => {
     const defaultAllowedHeaders = 'Content-Type, Authorization, X-Requested-With, Accept, Origin';
     res.header('Access-Control-Allow-Headers', reqHeaders ? reqHeaders : defaultAllowedHeaders);
     res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS');
+    console.info('Global OPTIONS handled', { path: req.path, origin });
     return res.sendStatus(204);
   }
   return res.sendStatus(403);
