@@ -9,6 +9,20 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    chunkSizeWarningLimit: 1600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom'],
+          router: ['react-router-dom'],
+          three: ['three', '@react-three/fiber', '@react-three/drei'],
+          ui: ['lucide-react', 'framer-motion'],
+          util: ['axios', 'uuid', 'zod', 'clsx']
+        }
+      }
+    }
+  },
   server: {
     port: 5173,
     proxy: {

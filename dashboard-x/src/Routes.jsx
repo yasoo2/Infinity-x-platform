@@ -1,24 +1,23 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import PropTypes from 'prop-types';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import DashboardLayout from './components/DashboardLayout'; // Use the existing DashboardLayout
-import useAuth from './hooks/useAuth'; // Use the newly created useAuth hook
+import DashboardLayout from './components/DashboardLayout';
+import useAuth from './hooks/useAuth';
 import { useSessionToken } from './hooks/useSessionToken';
 
-// Import all discovered pages
-import Activity from './pages/Activity';
-import Build from './pages/Build';
-import Command from './pages/Command';
-import Joe from './pages/Joe';
-import Home from './pages/Home';
-import MonitoringPage from './pages/MonitoringPage';
-import NotFound from './pages/NotFound';
-import Overview from './pages/Overview';
-import PageBuilder from './pages/PageBuilder';
-import SelfDesign from './pages/SelfDesign';
-import SuperAdminPanel from './pages/SuperAdminPanel';
-import UniversalStoreIntegration from './pages/UniversalStoreIntegration';
-import Users from './pages/Users';
+const Activity = React.lazy(() => import('./pages/Activity'));
+const Build = React.lazy(() => import('./pages/Build'));
+const Command = React.lazy(() => import('./pages/Command'));
+const Joe = React.lazy(() => import('./pages/Joe'));
+const Home = React.lazy(() => import('./pages/Home'));
+const MonitoringPage = React.lazy(() => import('./pages/MonitoringPage'));
+const NotFound = React.lazy(() => import('./pages/NotFound'));
+const Overview = React.lazy(() => import('./pages/Overview'));
+const PageBuilder = React.lazy(() => import('./pages/PageBuilder'));
+const SelfDesign = React.lazy(() => import('./pages/SelfDesign'));
+const SuperAdminPanel = React.lazy(() => import('./pages/SuperAdminPanel'));
+const UniversalStoreIntegration = React.lazy(() => import('./pages/UniversalStoreIntegration'));
+const Users = React.lazy(() => import('./pages/Users'));
 
 
 
@@ -51,6 +50,7 @@ ProtectedRoute.propTypes = {
 const AppRoutes = () => {
   return (
     <Router>
+      <Suspense fallback={<div>Loading...</div>}>
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<Home />} />
@@ -71,6 +71,7 @@ const AppRoutes = () => {
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>
+      </Suspense>
     </Router>
   );
 };
