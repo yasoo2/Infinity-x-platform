@@ -61,6 +61,9 @@
           setConversations(sessions);
         }
       } catch (error) {
+        if (error?.code === 'ERR_CANCELED' || /canceled|abort(ed)?/i.test(String(error?.message || ''))) {
+          return undefined;
+        }
         console.warn('Load conversations error:', error);
         // يمكن إضافة إشعار للمستخدم هنا
       } finally {

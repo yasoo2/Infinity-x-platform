@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Draggable from 'react-draggable';
 import { ResizableBox } from 'react-resizable';
-import { Terminal, Cpu, Globe, Monitor, ChevronDown, ChevronUp, RefreshCw, MousePointer, Maximize2, Search } from 'lucide-react';
+import { Terminal, Cpu, Globe, Monitor, ChevronDown, ChevronUp, RefreshCw, MousePointer, Maximize2, Search, Copy } from 'lucide-react';
 import PropTypes from 'prop-types';
 import useBrowserWebSocket from '../hooks/useBrowserWebSocket';
 import FullScreenBrowser from './FullScreenBrowser';
@@ -359,7 +359,36 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
                 ) : (
                   <div className="h-full flex flex-col bg-black/40 backdrop-blur-sm">
                     <div className="flex items-center justify-between px-2 py-1 bg-gray-800/60 border-b border-gray-700/50 text-xs">
-                      <span className="text-gray-300">Logs</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-300">Logs</span>
+                        <button
+                          onClick={() => {
+                            const last = log[log.length - 1];
+                            const value = last ? (typeof last === 'string' ? last : (last.text ?? JSON.stringify(last))) : '';
+                            try { navigator.clipboard.writeText(String(value)); } catch { /* noop */ }
+                          }}
+                          className="px-2 py-0.5 rounded border border-gray-700 bg-gray-900 text-gray-200 hover:bg-gray-700 flex items-center gap-1"
+                          title="نسخ آخر لوج"
+                        >
+                          <Copy className="w-3 h-3" />
+                          <span>Copy Last</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            const text = (log || []).map((entry) => {
+                              if (typeof entry === 'string') return entry;
+                              if (entry && typeof entry === 'object') return entry.text || JSON.stringify(entry);
+                              return '';
+                            }).join('\n');
+                            try { navigator.clipboard.writeText(text); } catch { /* noop */ }
+                          }}
+                          className="px-2 py-0.5 rounded border border-gray-700 bg-gray-900 text-gray-200 hover:bg-gray-700 flex items-center gap-1"
+                          title="نسخ جميع اللوجز"
+                        >
+                          <Copy className="w-3 h-3" />
+                          <span>Copy All</span>
+                        </button>
+                      </div>
                       <button
                         onClick={() => setIsLogCollapsed((v) => !v)}
                         className="text-gray-400 hover:text-white transition-colors"
@@ -390,23 +419,35 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
                             </div>
                           </div>
                         )}
-                        {log.map((entry, index) => (
-                          <div
-                            key={entry.id || index}
-                            className={`flex gap-2 mb-1 ${
-                              entry.type === 'system'
-                                ? 'text-gray-400'
-                                : entry.type === 'error'
-                                ? 'text-red-400'
-                                : 'text-blue-300'
-                            }`}
-                          >
-                            <span className="text-purple-400">
-                              [{new Date(entry.id || Date.now()).toLocaleTimeString()}]
-                            </span>
-                            <span>{entry.text}</span>
-                          </div>
-                        ))}
+                        {log.map((entry, index) => {
+                          const isObj = typeof entry === 'object' && entry !== null;
+                          const text = isObj ? (entry.text ?? JSON.stringify(entry)) : String(entry);
+                          return (
+                            <div
+                              key={entry.id || index}
+                              className={`flex gap-2 mb-1 items-start ${
+                                entry.type === 'system'
+                                  ? 'text-gray-400'
+                                  : entry.type === 'error'
+                                  ? 'text-red-400'
+                                  : 'text-blue-300'
+                              }`}
+                            >
+                              <span className="text-purple-400">
+                                [{new Date(entry.id || Date.now()).toLocaleTimeString()}]
+                              </span>
+                              <span className="flex-1 break-words">{text}</span>
+                              <button
+                                onClick={() => { try { navigator.clipboard.writeText(text); } catch { /* noop */ } }}
+                                className="ml-auto px-2 py-0.5 rounded border border-gray-700 bg-gray-900 text-gray-200 hover:bg-gray-700 flex items-center gap-1"
+                                title="نسخ هذا اللوج"
+                              >
+                                <Copy className="w-3 h-3" />
+                                <span>Copy</span>
+                              </button>
+                            </div>
+                          );
+                        })}
                         <div ref={logEndRef} />
                       </div>
                     )}

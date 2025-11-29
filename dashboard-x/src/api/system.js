@@ -27,7 +27,8 @@
         'حدث خطأ أثناء الاتصال بالخادم';
       const status = err?.status ?? err?.response?.status;
       const details = err?.details ?? err?.response?.data;
-      const normalized = { status, message, details };
+      const code = err?.code ?? err?.response?.data?.code;
+      const normalized = { status, code, message, details };
       // Re-throw normalized error to upper layers (UI/toasts)
       throw normalized;
     }

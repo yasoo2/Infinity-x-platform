@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { FiTerminal, FiCircle, FiChevronDown, FiChevronUp } from 'react-icons/fi';
+import { FiTerminal, FiCircle, FiChevronDown, FiChevronUp, FiCopy } from 'react-icons/fi';
 
 const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddAllLogs }) => {
   const scrollRef = useRef(null);
@@ -41,6 +41,33 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
             <FiCircle className="text-green-500 animate-pulse" size={8} fill="currentColor" />
             <span className="text-xs text-gray-400">Live</span>
           </div>
+          <div className="flex items-center gap-2 ml-2">
+            <button
+              onClick={() => {
+                const last = Array.isArray(logs) && logs.length ? logs[logs.length - 1] : '';
+                const value = typeof last === 'string' ? last : (last && typeof last === 'object' ? (last.text || JSON.stringify(last)) : '');
+                try { navigator.clipboard.writeText(value); } catch { /* noop */ }
+              }}
+              className="px-2 py-1 rounded border border-yellow-600/40 bg-yellow-600 text-black text-[10px] hover:bg-yellow-700 flex items-center gap-1"
+              title="نسخ آخر لوج"
+            >
+              <FiCopy size={12} /> <span>نسخ الأخير</span>
+            </button>
+            <button
+              onClick={() => {
+                const text = (logs || []).map((log) => {
+                  if (typeof log === 'string') return log;
+                  if (log && typeof log === 'object') return log.text || JSON.stringify(log);
+                  return '';
+                }).join('\n');
+                try { navigator.clipboard.writeText(text); } catch { /* noop */ }
+              }}
+              className="px-2 py-1 rounded border border-yellow-600/40 bg-yellow-600 text-black text-[10px] hover:bg-yellow-700 flex items-center gap-1"
+              title="نسخ جميع اللوجز"
+            >
+              <FiCopy size={12} /> <span>نسخ الكل</span>
+            </button>
+          </div>
         </div>
           <div className="flex items-center gap-3">
             <div className="text-xs text-gray-500 border border-gray-700 rounded px-2 py-0.5">
@@ -49,9 +76,48 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
             <button
               onClick={() => onAddAllLogs && onAddAllLogs()}
               className="px-2 py-1 rounded border border-yellow-600/40 bg-yellow-600 text-black text-xs hover:bg-yellow-700"
-              title="Add all to chat"
+              title="إضافة كل اللوجز للمحادثة"
             >
               Add All to Chat
+            </button>
+            <button
+              onClick={() => {
+                const last = Array.isArray(logs) && logs.length ? logs[logs.length - 1] : '';
+                const value = typeof last === 'string' ? last : (last && typeof last === 'object' ? (last.text || JSON.stringify(last)) : '');
+                try { navigator.clipboard.writeText(value); } catch { /* noop */ }
+              }}
+              className="px-2 py-1 rounded border border-yellow-600/40 bg-yellow-600 text-black text-xs hover:bg-yellow-700 flex items-center gap-1"
+              title="نسخ آخر لوج"
+            >
+              <FiCopy size={12} /> <span>نسخ الأخير</span>
+            </button>
+            <button
+              onClick={() => {
+                const text = (logs || []).map((log) => {
+                  if (typeof log === 'string') return log;
+                  if (log && typeof log === 'object') return log.text || JSON.stringify(log);
+                  return '';
+                }).join('\n');
+                try { navigator.clipboard.writeText(text); } catch { /* noop */ }
+              }}
+              className="px-2 py-1 rounded border border-yellow-600/40 bg-yellow-600 text-black text-xs hover:bg-yellow-700 flex items-center gap-1"
+              title="نسخ جميع اللوجز"
+            >
+              <FiCopy size={12} /> <span>نسخ الكل</span>
+            </button>
+            <button
+              onClick={() => {
+                const text = (logs || []).map((log) => {
+                  if (typeof log === 'string') return log;
+                  if (log && typeof log === 'object') return log.text || JSON.stringify(log);
+                  return '';
+                }).join('\n');
+                try { navigator.clipboard.writeText(text); } catch { /* noop */ }
+              }}
+              className="px-2 py-1 rounded border border-gray-700 bg-gray-800 text-gray-200 text-xs hover:bg-gray-700 flex items-center gap-1"
+              title="نسخ جميع اللوجز"
+            >
+              <FiCopy size={14} /> <span>نسخ الكل</span>
             </button>
             <button
               onClick={() => onToggleCollapse && onToggleCollapse()}
@@ -86,13 +152,25 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
                     <span className={`${color} flex-1 leading-relaxed`}>
                       {text}
                     </span>
-                    <button
-                      onClick={() => onAddLogToChat && onAddLogToChat(log)}
-                      className="ml-auto px-2 py-1 rounded border border-blue-400/40 bg-blue-600 text-white text-[10px] hover:bg-blue-700"
-                      title="Add to chat"
-                    >
-                      Add to Chat
-                    </button>
+                    <div className="ml-auto flex items-center gap-1">
+                      <button
+                        onClick={() => onAddLogToChat && onAddLogToChat(log)}
+                        className="px-2 py-1 rounded border border-blue-400/40 bg-blue-600 text-white text-[10px] hover:bg-blue-700"
+                        title="Add to chat"
+                      >
+                        Add to Chat
+                      </button>
+                      <button
+                        onClick={() => {
+                          const value = typeof log === 'string' ? log : (log?.text || JSON.stringify(log));
+                          try { navigator.clipboard.writeText(value); } catch { /* noop */ }
+                        }}
+                        className="px-2 py-1 rounded border border-yellow-600/40 bg-yellow-600 text-black text-[10px] hover:bg-yellow-700 flex items-center gap-1"
+                        title="نسخ هذا اللوج"
+                      >
+                        <FiCopy size={12} /> <span>نسخ</span>
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -109,7 +187,7 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
       )}
 
       {collapsed && (
-        <div className="fixed z-40 select-none pointer-events-none" style={{ bottom: 'calc(var(--joe-input-h, 56px) + env(safe-area-inset-bottom, 0px) + 4px)', left: 'var(--joe-input-left, 16px)', width: 'var(--joe-input-width, 640px)' }}>
+        <div className="fixed z-40 select-none pointer-events-none" style={{ bottom: 'calc(var(--joe-input-h, 56px) + env(safe-area-inset-bottom, 0px) + 4px)', left: 'var(--joe-input-left, 16px)', width: 'var(--joe-input-width, 640px)', maxWidth: 'calc(100vw - 32px)' }}>
           <div className="w-full flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-900/80 border border-gray-700 shadow-md backdrop-blur-sm">
             <button
               onClick={() => onToggleCollapse && onToggleCollapse()}
@@ -126,6 +204,35 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
                 return '';
               })()}
             </span>
+            <button
+              onClick={() => {
+                const value = (() => {
+                  const last = Array.isArray(logs) && logs.length ? logs[logs.length - 1] : '';
+                  if (typeof last === 'string') return last;
+                  if (last && typeof last === 'object') return last.text || JSON.stringify(last);
+                  return '';
+                })();
+                try { navigator.clipboard.writeText(value); } catch { /* noop */ }
+              }}
+              className="p-1 rounded border border-gray-700 bg-gray-800/80 text-gray-300 hover:bg-gray-700 hover:text-white transition pointer-events-auto flex items-center gap-1"
+              title="نسخ آخر لوج"
+            >
+              <FiCopy size={14} /> <span className="text-[11px]">نسخ الأخير</span>
+            </button>
+            <button
+              onClick={() => {
+                const text = (logs || []).map((log) => {
+                  if (typeof log === 'string') return log;
+                  if (log && typeof log === 'object') return log.text || JSON.stringify(log);
+                  return '';
+                }).join('\n');
+                try { navigator.clipboard.writeText(text); } catch { /* noop */ }
+              }}
+              className="p-1 rounded border border-gray-700 bg-gray-800/80 text-gray-300 hover:bg-gray-700 hover:text-white transition pointer-events-auto flex items-center gap-1"
+              title="نسخ جميع اللوجز"
+            >
+              <FiCopy size={14} /> <span className="text-[11px]">نسخ الكل</span>
+            </button>
           </div>
         </div>
       )}

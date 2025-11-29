@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
-import { FiMic, FiPaperclip, FiSend, FiStopCircle, FiCompass, FiArrowDown, FiCloud, FiCpu, FiLink, FiGitBranch } from 'react-icons/fi';
+import { FiMic, FiPaperclip, FiSend, FiStopCircle, FiCompass, FiArrowDown, FiCloud, FiCpu, FiLink, FiGitBranch, FiTrash2 } from 'react-icons/fi';
 import { useJoeChatContext } from '../../context/JoeChatContext.jsx';
 import apiClient from '../../api/client';
 import { getSystemStatus } from '../../api/system';
@@ -575,6 +575,14 @@ const MainConsole = () => {
 
             {/* Action Buttons */}
             <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setInput('')}
+                className="p-2.5 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded-lg transition-colors border border-gray-700"
+                disabled={isProcessing}
+                title={lang==='ar'?'مسح الكود':'Clear Code'}
+              >
+                <FiTrash2 size={18} />
+              </button>
               <button 
                 onClick={fetchLinksFromInput}
                 className="p-2.5 text-gray-400 hover:text-yellow-400 hover:bg-gray-700 rounded-lg transition-colors border border-gray-700"

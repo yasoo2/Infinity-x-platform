@@ -267,6 +267,7 @@ export const useJoeChat = () => {
   const isConnectingRef = useRef(false);
   const syncRef = useRef(null);
   const reconnectCountdownInterval = useRef(null);
+  const syncAbortRef = useRef(null);
 
   const [state, dispatch] = useReducer(chatReducer, {
     conversations: {},
@@ -304,11 +305,14 @@ export const useJoeChat = () => {
     if (c && origError) c['error'] = (...args) => {
       try {
         const text = args.map(a=>typeof a==='string'?a:JSON.stringify(a)).join(' ');
-        const lid = Date.now();
-        dispatch({ type: 'ADD_WS_LOG', payload: { id: lid, type: 'error', text } });
-        if (/ERR_ABORTED|TypeError|Failed to fetch/i.test(text)) {
-          dispatch({ type: 'SEND_MESSAGE', payload: `Analyze and fix error: ${text}` });
-          dispatch({ type: 'ADD_PENDING_LOG', payload: lid });
+        const isAbort = /(ERR_ABORTED|CanceledError|abort(ed)?)/i.test(text);
+        if (!isAbort) {
+          const lid = Date.now();
+          dispatch({ type: 'ADD_WS_LOG', payload: { id: lid, type: 'error', text } });
+          if (/(TypeError|Failed to fetch)/i.test(text)) {
+            dispatch({ type: 'SEND_MESSAGE', payload: `Analyze and fix error: ${text}` });
+            dispatch({ type: 'ADD_PENDING_LOG', payload: lid });
+          }
         }
       } catch { void 0; }
       return args.length, undefined;
@@ -395,23 +399,27 @@ export const useJoeChat = () => {
   const syncBackendSessions = useCallback(async () => {
     if (state.isProcessing) return;
     try {
+      try { syncAbortRef.current?.abort(); } catch { /* ignore */ }
+      const controller = new AbortController();
+      syncAbortRef.current = controller;
+      const signal = controller.signal;
       let token = localStorage.getItem('sessionToken');
       if (!token) {
         try {
           const r = await getGuestToken();
-          if (r?.ok && r?.token) {
+          if ((r?.success || r?.ok) && r?.token) {
             localStorage.setItem('sessionToken', r.token);
             token = r.token;
           }
         } catch { void 0; }
         if (!token) return;
       }
-      const s = await getChatSessions();
+      const s = await getChatSessions({ signal });
       const list = s?.sessions || [];
       const convs = { ...state.conversations };
       for (const sess of list) {
         if (!sess?.id) continue;
-        const detail = await getChatSessionById(sess.id);
+        const detail = await getChatSessionById(sess.id, { signal });
         if (detail?.success && detail?.session) {
           const mapped = mapSessionToConversation(detail.session);
           convs[mapped.id] = mapped;
@@ -425,7 +433,9 @@ export const useJoeChat = () => {
         }
       }
     } catch (e) {
-      // Ignore 403 Forbidden gracefully
+      if (e?.code === 'ERR_CANCELED' || /canceled|abort(ed)?/i.test(String(e?.message || ''))) {
+        return;
+      }
       if (e?.status !== 403) {
         console.warn('syncBackendSessions error:', e);
       }
