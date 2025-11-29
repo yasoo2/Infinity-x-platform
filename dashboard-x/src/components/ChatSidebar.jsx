@@ -2,7 +2,7 @@
   import { Plus, Trash2, MessageSquare, Loader2, ChevronLeft, ChevronRight, History } from 'lucide-react'; // أيقونات Lucide
   import apiClient from '../api/client'; // تأكد من المسار الصحيح لـ apiClient
 
-  const API_BASE = import.meta.env.VITE_API_BASE || 'https://admin.xelitesolutions.com';
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
 
   export default function ChatSidebar({
     userId,

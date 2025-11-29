@@ -1,6 +1,8 @@
-  import React, { useEffect, useRef, useState, useCallback } from 'react';
-  import { Play, Copy, Trash2, Loader2, Wifi, WifiOff, RefreshCcw } from 'lucide-react';
-  import { useSessionToken } from '../hooks/useSessionToken';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { Play, Copy, Trash2, Loader2, Wifi, WifiOff, RefreshCcw } from 'lucide-react';
+import { useSessionToken } from '../hooks/useSessionToken';
+import apiClient from '../api/client';
+import { connectWebSocket, disconnectWebSocket } from '../utils/websocket';
 
   // افتراض أن هذه الدوال موجودة في ملفات utils/websocket.ts و utils/api.ts
   // ويجب أن تكون متوافقة مع التوقيعات التالية:
@@ -12,47 +14,13 @@
    * @param {() => void} onClose - دالة تُستدعى عند إغلاق الاتصال.
    * @returns {WebSocket | null} مثيل WebSocket المتصل.
    */
-  const connectWebSocket = (onMessage, onOpen, onClose) => {
-    // يجب عليك تعديل هذا الجزء ليتناسب مع طريقة اتصالك بـ WebSocket
-    // مثال:
-    // تم تصحيح المسار ليتطابق مع مسار خادم Joe Agent
-    const apiBase = import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
-    const baseWsUrl = import.meta.env.VITE_WS_URL
-      ? import.meta.env.VITE_WS_URL.replace(/\/(ws.*)?$/, '')
-      : apiBase.replace(/^https/, 'wss').replace(/^http/, 'ws');
-    const token = (typeof window !== 'undefined') ? (localStorage.getItem('sessionToken') || '') : '';
-    if (!token) {
-      console.warn('AgentPanel: لا يوجد توكن جلسة، لن يتم الاتصال بـ Joe Agent WS');
-      return null;
-    }
-    const wsUrl = `${baseWsUrl}/ws/joe-agent?token=${encodeURIComponent(token)}`;
-    const ws = new WebSocket(wsUrl);
-    ws.onopen = onOpen;
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        onMessage(data);
-      } catch (e) {
-        onMessage(event.data); // في حال كانت الرسالة نصًا خامًا
-      }
-    };
-    ws.onclose = onClose;
-    ws.onerror = (error) => {
-      console.error('WebSocket Error:', error);
-      onClose(); // استدعاء onClose عند حدوث خطأ أيضًا
-    };
-    return ws;
-  };
+  // استخدام وحدة WebSocket الموحدة
 
   /**
    * يقطع اتصال WebSocket.
    * @param {WebSocket | null} ws - مثيل WebSocket لقطعه.
    */
-  const disconnectWebSocket = (ws) => {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.close();
-    }
-  };
+  // قطع الاتصال عبر الوحدة الموحدة
 
   /**
    * يرسل طلب API.
@@ -60,16 +28,7 @@
    * @param {RequestInit} options - خيارات طلب Fetch.
    * @returns {Promise<any>} استجابة API.
    */
-  const apiRequest = async (url, options) => {
-    // يجب عليك تعديل هذا الجزء ليتناسب مع طريقة طلبك لـ API
-    // مثال:
-    const response = await fetch(url, options);
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: response.statusText }));
-      throw new Error(errorData.message || 'فشل طلب API');
-    }
-    return response.json();
-  };
+  // استخدام عميل API الموحد
 
 
   /**
@@ -121,9 +80,7 @@
 
     // توصيل WebSocket مع إعادة اتصال اختيارية
     const connectWS = useCallback(() => {
-      // إغلاق أي اتصال سابق قبل إنشاء اتصال جديد
       disconnectWebSocket(wsRef.current);
-
       const ws = connectWebSocket(
         (message) => {
           // رسائل WebSocket قد تكون نصًا خامًا أو JSON
@@ -136,11 +93,11 @@
         () => {
           setWsConnected(true);
           setWsAttempt(0); // إعادة تعيين محاولات الاتصال عند النجاح
-          console.log('WebSocket connected');
+          console.warn('WebSocket connected');
         },
         () => {
           setWsConnected(false);
-          console.log('WebSocket disconnected');
+          console.warn('WebSocket disconnected');
           // إعادة الاتصال التلقائي
           if (autoReconnect) {
             const delay = Math.min(10000, 1000 * (wsAttempt + 1)); // زيادة تدريجية في التأخير
@@ -164,16 +121,9 @@
       setLoading(true);
       setError(null);
       try {
-        const apiBase = import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
-        const url = apiPath.startsWith('http') ? apiPath : `${apiBase}${apiPath}`;
-        const result = await apiRequest(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...requestHeaders,
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({ message: String(payload), sessionId: sessionRef.current }),
+        const url = apiPath.startsWith('http') ? apiPath : apiPath;
+        const { data: result } = await apiClient.post(url, { message: String(payload), sessionId: sessionRef.current }, {
+          headers: { ...requestHeaders },
         });
         if (result?.response) {
           setOutput((prev) => (prev ? prev + '\n' : '') + String(result.response));

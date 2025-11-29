@@ -61,7 +61,7 @@ export const useSpeechRecognition = () => {
           interimTranscript += event.results[i][0].transcript;
         }
       }
-      setTranscript(finalTranscript);
+      setTranscript(finalTranscript || interimTranscript);
     };
 
     recognition.onerror = (event) => {

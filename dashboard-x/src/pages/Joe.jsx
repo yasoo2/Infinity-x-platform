@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import PropTypes from 'prop-types';
 import { X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import TopBar from '../components/joe/TopBar';
@@ -11,6 +12,68 @@ import RightPanel from '../components/joe/RightPanel';
 import BottomPanel from '../components/joe/BottomPanel';
 import { JoeChatProvider, useJoeChatContext } from '../context/JoeChatContext';
 import useAuth from '../hooks/useAuth';
+
+const CountryCodePicker = ({ onSelect }) => {
+  const [open, setOpen] = useState(false);
+  const ref = React.useRef(null);
+  const codes = [
+    { code: '+1', name: 'USA/Canada', flag: '🇺🇸' },
+    { code: '+44', name: 'UK', flag: '🇬🇧' },
+    { code: '+33', name: 'France', flag: '🇫🇷' },
+    { code: '+49', name: 'Germany', flag: '🇩🇪' },
+    { code: '+39', name: 'Italy', flag: '🇮🇹' },
+    { code: '+34', name: 'Spain', flag: '🇪🇸' },
+    { code: '+91', name: 'India', flag: '🇮🇳' },
+    { code: '+971', name: 'UAE', flag: '🇦🇪' },
+    { code: '+966', name: 'Saudi', flag: '🇸🇦' },
+    { code: '+970', name: 'Palestine', flag: '🇵🇸' },
+    { code: '+20', name: 'Egypt', flag: '🇪🇬' },
+    { code: '+212', name: 'Morocco', flag: '🇲🇦' },
+    { code: '+213', name: 'Algeria', flag: '🇩🇿' },
+    { code: '+216', name: 'Tunisia', flag: '🇹🇳' },
+    { code: '+218', name: 'Libya', flag: '🇱🇾' },
+    { code: '+963', name: 'Syria', flag: '🇸🇾' },
+    { code: '+962', name: 'Jordan', flag: '🇯🇴' },
+    { code: '+973', name: 'Bahrain', flag: '🇧🇭' },
+    { code: '+974', name: 'Qatar', flag: '🇶🇦' },
+    { code: '+968', name: 'Oman', flag: '🇴🇲' },
+    { code: '+965', name: 'Kuwait', flag: '🇰🇼' },
+    { code: '+90', name: 'Turkey', flag: '🇹🇷' },
+  ];
+
+  React.useEffect(() => {
+    const onDocClick = (e) => {
+      if (!ref.current) return;
+      if (open && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDocClick, true);
+    return () => document.removeEventListener('mousedown', onDocClick, true);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button type="button" onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); setOpen((v)=>!v); }} className="px-2 py-2 bg-gray-800 text-white rounded text-xs flex items-center gap-1">
+        <span>كود الدولة</span>
+        <span className="opacity-70">📱</span>
+      </button>
+      {open && (
+        <div className="absolute z-50 mt-1 w-56 max-h-56 overflow-auto bg-gray-900 border border-gray-700 rounded-lg shadow-lg">
+          {codes.map(({ code, name, flag })=> (
+            <button key={code} type="button" onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); onSelect(code); setOpen(false); }} className="flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-white hover:bg-gray-800">
+              <span className="text-lg">{flag}</span>
+              <span className="flex-1">{name}</span>
+              <span className="text-gray-400">{code}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+CountryCodePicker.propTypes = {
+  onSelect: PropTypes.func.isRequired,
+};
 
 const JoeContent = () => {
   const navigate = useNavigate();
@@ -29,63 +92,7 @@ const JoeContent = () => {
   const [usersError, setUsersError] = useState('');
   const [editUser, setEditUser] = useState(null);
   const [newUser, setNewUser] = useState({ email: '', phone: '', password: '', role: 'admin' });
-  const CountryCodePicker = ({ onSelect }) => {
-    const [open, setOpen] = useState(false);
-    const ref = React.useRef(null);
-    const codes = [
-      { code: '+1', name: 'USA/Canada', flag: '🇺🇸' },
-      { code: '+44', name: 'UK', flag: '🇬🇧' },
-      { code: '+33', name: 'France', flag: '🇫🇷' },
-      { code: '+49', name: 'Germany', flag: '🇩🇪' },
-      { code: '+39', name: 'Italy', flag: '🇮🇹' },
-      { code: '+34', name: 'Spain', flag: '🇪🇸' },
-      { code: '+91', name: 'India', flag: '🇮🇳' },
-      { code: '+971', name: 'UAE', flag: '🇦🇪' },
-      { code: '+966', name: 'Saudi', flag: '🇸🇦' },
-      { code: '+970', name: 'Palestine', flag: '🇵🇸' },
-      { code: '+20', name: 'Egypt', flag: '🇪🇬' },
-      { code: '+212', name: 'Morocco', flag: '🇲🇦' },
-      { code: '+213', name: 'Algeria', flag: '🇩🇿' },
-      { code: '+216', name: 'Tunisia', flag: '🇹🇳' },
-      { code: '+218', name: 'Libya', flag: '🇱🇾' },
-      { code: '+963', name: 'Syria', flag: '🇸🇾' },
-      { code: '+962', name: 'Jordan', flag: '🇯🇴' },
-      { code: '+973', name: 'Bahrain', flag: '🇧🇭' },
-      { code: '+974', name: 'Qatar', flag: '🇶🇦' },
-      { code: '+968', name: 'Oman', flag: '🇴🇲' },
-      { code: '+965', name: 'Kuwait', flag: '🇰🇼' },
-      { code: '+90', name: 'Turkey', flag: '🇹🇷' },
-    ];
-
-    React.useEffect(() => {
-      const onDocClick = (e) => {
-        if (!ref.current) return;
-        if (open && !ref.current.contains(e.target)) setOpen(false);
-      };
-      document.addEventListener('mousedown', onDocClick, true);
-      return () => document.removeEventListener('mousedown', onDocClick, true);
-    }, [open]);
-
-    return (
-      <div className="relative" ref={ref}>
-        <button type="button" onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); setOpen((v)=>!v); }} className="px-2 py-2 bg-gray-800 text-white rounded text-xs flex items-center gap-1">
-          <span>كود الدولة</span>
-          <span className="opacity-70">📱</span>
-        </button>
-        {open && (
-          <div className="absolute z-50 mt-1 w-56 max-h-56 overflow-auto bg-gray-900 border border-gray-700 rounded-lg shadow-lg">
-            {codes.map(({ code, name, flag })=> (
-              <button key={code} type="button" onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); onSelect(code); setOpen(false); }} className="flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-white hover:bg-gray-800">
-                <span className="text-lg">{flag}</span>
-                <span className="flex-1">{name}</span>
-                <span className="text-gray-400">{code}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  };
+  
   const [leftWidth, setLeftWidth] = useState(288);
   const [rightWidth, setRightWidth] = useState(320);
   const [dragLeft, setDragLeft] = useState(false);
@@ -100,18 +107,13 @@ const JoeContent = () => {
 
   useEffect(() => {
     const onLang = () => {
-      try { setLang(localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'); } catch {}
+      try { setLang(localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'); } catch { void 0; }
     };
     window.addEventListener('joe:lang', onLang);
     return () => window.removeEventListener('joe:lang', onLang);
   }, []);
 
-  const toggleLang = () => {
-    const next = lang === 'ar' ? 'en' : 'ar';
-    try { localStorage.setItem('lang', next); } catch {}
-    setLang(next);
-    try { window.dispatchEvent(new CustomEvent('joe:lang', { detail: { lang: next } })); } catch {}
-  };
+  // تم استبدال وظيفة تبديل اللغة باختصار لوحة المفاتيح Ctrl/Cmd+L أدناه
 
   useEffect(() => {
     if (isMobile) {
@@ -127,13 +129,13 @@ const JoeContent = () => {
         const parsed = JSON.parse(raw);
         if (parsed?.left && parsed?.right) setPanelStyles(parsed);
       }
-    } catch {}
+    } catch { void 0; }
   }, []);
 
   useEffect(() => {
     try {
       localStorage.setItem('joePanelBorders', JSON.stringify(panelStyles));
-    } catch {}
+    } catch { void 0; }
   }, [panelStyles]);
 
   useEffect(() => {
@@ -144,13 +146,13 @@ const JoeContent = () => {
         if (parsed?.left) setLeftWidth(parsed.left);
         if (parsed?.right) setRightWidth(parsed.right);
       }
-    } catch {}
+    } catch { void 0; }
   }, []);
 
   useEffect(() => {
     try {
       localStorage.setItem('joePanelWidths', JSON.stringify({ left: leftWidth, right: rightWidth }));
-    } catch {}
+    } catch { void 0; }
   }, [leftWidth, rightWidth]);
 
   const {
@@ -224,14 +226,14 @@ const JoeContent = () => {
     };
   }, [robotScale]);
 
-  const getRectForCorner = (corner) => {
+  const getRectForCorner = React.useCallback((corner) => {
     const vw = window.innerWidth; const vh = window.innerHeight;
     const { w, h } = robotSize;
     if (corner === 'bl') return { left: ROBOT_MARGIN, top: vh - h - ROBOT_MARGIN, right: ROBOT_MARGIN + w, bottom: vh - ROBOT_MARGIN };
     if (corner === 'br') return { left: vw - w - ROBOT_MARGIN, top: vh - h - ROBOT_MARGIN, right: vw - ROBOT_MARGIN, bottom: vh - ROBOT_MARGIN };
     if (corner === 'tl') return { left: ROBOT_MARGIN, top: ROBOT_MARGIN, right: ROBOT_MARGIN + w, bottom: ROBOT_MARGIN + h };
     return { left: vw - w - ROBOT_MARGIN, top: ROBOT_MARGIN, right: vw - ROBOT_MARGIN, bottom: ROBOT_MARGIN + h };
-  };
+  }, [robotSize]);
 
   const rectOverlapArea = (a, b) => {
     const xOverlap = Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left));
@@ -254,7 +256,7 @@ const JoeContent = () => {
       if (score < bestScore) { bestScore = score; best = c; }
     }
     setRobotCorner(best);
-  }, [robotSize]);
+  }, [robotSize, getRectForCorner]);
 
   const findBestCornerRef = React.useRef(findBestCorner);
   useEffect(() => {
@@ -322,11 +324,26 @@ const JoeContent = () => {
   }, [computeRobotSize]);
 
   useEffect(() => {
-    try { localStorage.setItem('joeRobotScale', String(robotScale)); } catch {}
+    const onKey = (e) => {
+      const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+      if ((isMac ? e.metaKey : e.ctrlKey) && e.key.toLowerCase() === 'l') {
+        e.preventDefault();
+        const next = lang === 'ar' ? 'en' : 'ar';
+        try { localStorage.setItem('lang', next); } catch { void 0; }
+        setLang(next);
+        try { window.dispatchEvent(new CustomEvent('joe:lang', { detail: { lang: next } })); } catch { void 0; }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lang]);
+
+  useEffect(() => {
+    try { localStorage.setItem('joeRobotScale', String(robotScale)); } catch { void 0; }
   }, [robotScale]);
 
   useEffect(() => {
-    try { localStorage.setItem('joeRobotPos', robotPos ? JSON.stringify(robotPos) : ''); } catch {}
+    try { localStorage.setItem('joeRobotPos', robotPos ? JSON.stringify(robotPos) : ''); } catch { void 0; }
   }, [robotPos]);
 
   const toggleSidePanel = () => setIsSidePanelOpen(!isSidePanelOpen);
@@ -691,7 +708,7 @@ const JoeContent = () => {
                   <div className="grid grid-cols-2 gap-2">
                     <button onClick={(e)=>{ e.stopPropagation(); setInput(prev=>prev ? prev+"\n\n— رجاءً قدّم ملخصًا واضحًا." : '— رجاءً قدّم ملخصًا واضحًا.'); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'تلخيص':'Summarize'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); setInput('اقترح أوامر مفيدة بحسب السياق الحالي'); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'اقتراح أوامر':'Suggest cmds'}</button>
-                    <button onClick={(e)=>{ e.stopPropagation(); try { window.dispatchEvent(new CustomEvent('joe:openProviders')); } catch {} }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'مزودي الذكاء':'AI Providers'}</button>
+                    <button onClick={(e)=>{ e.stopPropagation(); try { window.dispatchEvent(new CustomEvent('joe:openProviders')); } catch { void 0; } }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?"مزودي الذكاء":"AI Providers"}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); findBestCorner(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'تحريك لمكان فارغ':'Find empty spot'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); setRobotCorner('bl'); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'نقل: يسار-أسفل':'Move BL'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); setRobotCorner('br'); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'نقل: يمين-أسفل':'Move BR'}</button>
@@ -723,3 +740,6 @@ const Joe = () => (
 );
 
 export default Joe;
+CountryCodePicker.propTypes = {
+  onSelect: PropTypes.func.isRequired,
+};

@@ -151,7 +151,7 @@ const chatReducer = (state, action) => {
         case 'NEW_CONVERSATION': {
             const selectNew = action.payload !== false;
             const newId = uuidv4();
-            console.log('[NEW_CONVERSATION] Creating new conversation with ID:', newId);
+            console.warn('[NEW_CONVERSATION] Creating new conversation with ID:', newId);
             const lang = getLang();
             const welcomeEn = 'Welcome to Joe AI Assistant! 👋\n\nYour AI-powered engineering partner with 82 tools and functions.\n\nI can help you with:\n💬 Chat & Ask - Get instant answers and explanations\n🛠️ Build & Create - Generate projects and applications\n🔍 Analyze & Process - Work with data and generate insights\n\nStart by typing an instruction below, attaching a file, or using your voice.';
             const welcomeAr = 'مرحبًا بك في مساعد جو الذكي! 👋\n\nشريكك الهندسي المدعوم بالذكاء مع 82 أداة ووظيفة.\n\nأستطيع مساعدتك في:\n💬 المحادثة والسؤال - إجابات وشروحات فورية\n🛠️ البناء والإنشاء - توليد مشاريع وتطبيقات\n🔍 التحليل والمعالجة - العمل مع البيانات وتوليد رؤى\n\nابدأ بكتابة تعليماتك أدناه أو إرفاق ملف أو استخدام الصوت.';
@@ -168,7 +168,7 @@ const chatReducer = (state, action) => {
                 isProcessing: false,
                 plan: [],
             };
-            console.log('[NEW_CONVERSATION] New state:', { conversationCount: Object.keys(newState.conversations).length, currentId: newState.currentConversationId });
+            console.warn('[NEW_CONVERSATION] New state:', { conversationCount: Object.keys(newState.conversations).length, currentId: newState.currentConversationId });
             return newState;
         }
 
@@ -190,7 +190,8 @@ const chatReducer = (state, action) => {
         case 'DELETE_CONVERSATION': {
             const { id } = action.payload;
             if (!state.conversations[id]) return state;
-            const { [id]: _, ...rest } = state.conversations;
+            const rest = { ...state.conversations };
+            delete rest[id];
             const ids = Object.keys(rest);
             if (ids.length === 0) {
                 const newId = uuidv4();
@@ -306,7 +307,7 @@ export const useJoeChat = () => {
             localStorage.setItem('sessionToken', r.token);
             token = r.token;
           }
-        } catch {}
+        } catch { void 0; }
         if (!token) return;
       }
       const s = await getChatSessions();
@@ -337,7 +338,7 @@ export const useJoeChat = () => {
 
   useEffect(() => {
     syncBackendSessions();
-  }, []);
+  }, [syncBackendSessions]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -363,7 +364,7 @@ export const useJoeChat = () => {
         conversations: state.conversations,
         currentConversationId: state.currentConversationId,
       };
-      console.log('[useEffect] Saving to localStorage:', { conversationCount: Object.keys(dataToSave.conversations).length, currentId: dataToSave.currentConversationId });
+      console.warn('[useEffect] Saving to localStorage:', { conversationCount: Object.keys(dataToSave.conversations).length, currentId: dataToSave.currentConversationId });
       try {
         localStorage.setItem(JOE_CHAT_HISTORY, JSON.stringify(dataToSave));
       } catch (e) {
@@ -376,7 +377,7 @@ export const useJoeChat = () => {
     try {
       const event = new CustomEvent('joe:processing', { detail: { processing: state.isProcessing, step: state.currentStep, progress: state.progress } });
       window.dispatchEvent(event);
-    } catch {}
+    } catch { void 0; }
   }, [state.isProcessing, state.currentStep, state.progress]);
 
   useEffect(() => {
@@ -390,7 +391,7 @@ export const useJoeChat = () => {
               localStorage.setItem('sessionToken', r.token);
               sessionToken = r.token;
             }
-          } catch {}
+          } catch { void 0; }
         }
       };
       // Ensure token before attempting connection
@@ -410,7 +411,7 @@ export const useJoeChat = () => {
           wsUrl = `${wsBase}/ws/joe-agent?token=${sessionToken}`;
         }
         // Diagnostic log to verify WebSocket URL
-        console.log('[Joe Agent] Connecting to WebSocket:', wsUrl.replace(/token=.*/, 'token=***'));
+        console.warn('[Joe Agent] Connecting to WebSocket:', wsUrl.replace(/token=.*/, 'token=***'));
         ws.current = new WebSocket(wsUrl);
         ws.current.onopen = () => dispatch({ type: 'ADD_WS_LOG', payload: '[WS] Connection established' });
         ws.current.onclose = (e) => {
@@ -420,14 +421,14 @@ export const useJoeChat = () => {
           // If policy violation or invalid token, clear token and fetch a new guest token before reconnecting
           const shouldResetToken = code === 1008 || /invalid token|malformed|signature/i.test(reason);
           if (shouldResetToken) {
-            try { localStorage.removeItem('sessionToken'); } catch {}
+            try { localStorage.removeItem('sessionToken'); } catch { void 0; }
           }
           setTimeout(async () => {
             if (shouldResetToken) {
               try {
                 const r = await getGuestToken();
                 if (r?.ok && r?.token) localStorage.setItem('sessionToken', r.token);
-              } catch {}
+              } catch { void 0; }
             }
             connect();
           }, 1000);
@@ -436,7 +437,7 @@ export const useJoeChat = () => {
           dispatch({ type: 'ADD_WS_LOG', payload: `[WS] Error: ${err.message}` });
           const m = String(err?.message || '').toLowerCase();
           if (m.includes('invalid') || m.includes('malformed') || m.includes('signature')) {
-            try { localStorage.removeItem('sessionToken'); } catch {}
+            try { localStorage.removeItem('sessionToken'); } catch { void 0; }
           }
         };
         
@@ -477,10 +478,10 @@ export const useJoeChat = () => {
     };
     connect();
     return () => ws.current?.close();
-  }, []);
+  }, [syncBackendSessions]);
 
   useEffect(() => {
-    const onForbidden = (e) => {
+    const onForbidden = () => {
       const lang = getLang();
       const m = lang === 'ar' ? 'انتهت صلاحية جلسة الدخول أو ليس لديك إذن. يرجى تسجيل الدخول مرة أخرى.' : 'Your session expired or you lack permission. Please log in again.';
       dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: m } });
@@ -506,7 +507,7 @@ export const useJoeChat = () => {
       dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: msg } });
       dispatch({ type: 'STOP_PROCESSING' });
     }
-  }, [state.input]);
+  }, [state.input, state.currentConversationId]);
 
   const stopProcessing = useCallback(() => {
     if (ws.current?.readyState === WebSocket.OPEN) {

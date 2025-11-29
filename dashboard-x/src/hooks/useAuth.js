@@ -21,7 +21,7 @@ const useAuth = () => {
       if (data?.token) {
         try {
           localStorage.setItem('sessionToken', data.token);
-        } catch {}
+        } catch { void 0; }
         const usr = { email: data.user?.email, role: data.user?.role, id: data.user?.id };
         setUser(usr);
         setIsAuthenticated(true);
@@ -32,12 +32,12 @@ const useAuth = () => {
             const map = mapRaw ? JSON.parse(mapRaw) : {};
             map[String(identifier).toLowerCase()] = data.token;
             localStorage.setItem('rememberedSessions', JSON.stringify(map));
-          } catch {}
+          } catch { void 0; }
         }
         return true;
       }
-    } catch (e) {
-      // Swallow, return false for UI message
+    } catch {
+      void 0;
     }
     return false;
   };

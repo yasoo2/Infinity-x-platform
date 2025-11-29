@@ -5,13 +5,17 @@ let ws = null;
 let reconnectInterval = null;
 
 export const connectWebSocket = (onMessage, onOpen, onClose) => {
-  const token = localStorage.getItem('sessionToken');
-  const wsUrl = `${config.wsBaseUrl}/ws/browser`;
+  const token = localStorage.getItem('sessionToken') || '';
+  const envWs = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_WS_URL) || null;
+  const baseWsUrl = envWs
+    ? envWs.replace(/\/(ws.*)?$/, '')
+    : (config.wsBaseUrl || (typeof window !== 'undefined' ? window.location.origin : 'ws://localhost:4000')).replace(/^https/, 'wss').replace(/^http/, 'ws');
+  const wsUrl = `${baseWsUrl}/ws/joe-agent${token ? `?token=${encodeURIComponent(token)}` : ''}`;
 
   ws = new WebSocket(wsUrl);
 
   ws.onopen = () => {
-    console.log('✅ WebSocket connected');
+    console.warn('WebSocket connected');
     if (onOpen) onOpen();
   };
 
@@ -20,13 +24,13 @@ export const connectWebSocket = (onMessage, onOpen, onClose) => {
   };
 
   ws.onclose = () => {
-    console.warn('❌ WebSocket disconnected');
+    console.warn('WebSocket disconnected');
     if (onClose) onClose();
 
     // إعادة الاتصال تلقائيًا بعد 5 ثواني
     clearTimeout(reconnectInterval);
     reconnectInterval = setTimeout(() => {
-      console.log('🔄 Reconnecting WebSocket...');
+      console.warn('Reconnecting WebSocket...');
       connectWebSocket(onMessage, onOpen, onClose);
     }, 5000);
   };
