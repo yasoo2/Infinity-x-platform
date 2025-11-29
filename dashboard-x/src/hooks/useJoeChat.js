@@ -268,6 +268,7 @@ export const useJoeChat = () => {
   const syncRef = useRef(null);
   const reconnectCountdownInterval = useRef(null);
   const syncAbortRef = useRef(null);
+  const syncInProgressRef = useRef(false);
   const saveTimerRef = useRef(null);
 
   const [state, dispatch] = useReducer(chatReducer, {
@@ -399,8 +400,9 @@ export const useJoeChat = () => {
 
   const syncBackendSessions = useCallback(async () => {
     if (state.isProcessing) return;
+    if (syncInProgressRef.current) return;
     try {
-      try { syncAbortRef.current?.abort(); } catch { /* ignore */ }
+      syncInProgressRef.current = true;
       const controller = new AbortController();
       syncAbortRef.current = controller;
       const signal = controller.signal;
@@ -440,6 +442,8 @@ export const useJoeChat = () => {
       if (e?.status !== 403) {
         console.warn('syncBackendSessions error:', e);
       }
+    } finally {
+      syncInProgressRef.current = false;
     }
   }, [state.conversations, state.currentConversationId, state.isProcessing, mapSessionToConversation]);
 
