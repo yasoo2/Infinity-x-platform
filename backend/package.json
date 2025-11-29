@@ -164,7 +164,8 @@
     "winston": "^3.11.0",
     "ws": "^8.16.0",
     "xss-clean": "^0.1.4",
-    "yaml": "^2.3.4"
+    "yaml": "^2.3.4",
+    "node-llama-cpp": "^3.14.2"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.23.5",

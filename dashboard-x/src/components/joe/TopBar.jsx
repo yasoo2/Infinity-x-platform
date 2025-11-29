@@ -2,6 +2,7 @@ import React from 'react';
 import { FiTerminal, FiMaximize2, FiLogOut, FiSidebar, FiActivity, FiUsers } from 'react-icons/fi';
 import { Sparkles, Key, CheckCircle, XCircle, ExternalLink, Search as SearchIcon } from 'lucide-react';
 import { getAIProviders, validateAIKey, activateAIProvider } from '../../api/system';
+import apiClient from '../../api/client';
 
 const DEFAULT_AI_PROVIDERS = [
   { id: 'openai', name: 'OpenAI', siteUrl: 'https://openai.com', createUrl: 'https://platform.openai.com/api-keys', defaultModel: 'gpt-4o', color: '#10a37f', icon: '🟢', region: 'global', logo: 'https://logo.clearbit.com/openai.com' },
@@ -62,6 +63,8 @@ const TopBar = ({ onToggleBottom, onToggleLeft, isLeftOpen, onToggleStatus, isSt
   const [lang, setLang] = React.useState(() => {
     try { return localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'; } catch { return 'en'; }
   });
+  const [factoryMode, setFactoryMode] = React.useState('online');
+  const [offlineReady, setOfflineReady] = React.useState(false);
   
   React.useEffect(() => {
     const onLang = () => {
@@ -75,6 +78,28 @@ const TopBar = ({ onToggleBottom, onToggleLeft, isLeftOpen, onToggleStatus, isSt
     try { localStorage.setItem('lang', next); } catch { void 0; }
     setLang(next);
     try { window.dispatchEvent(new CustomEvent('joe:lang', { detail: { lang: next } })); } catch { void 0; }
+  };
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await apiClient.get('/api/v1/runtime-mode/status');
+        if (data?.success && data?.mode) setFactoryMode(data.mode);
+        setOfflineReady(Boolean(data?.offlineReady));
+      } catch (e) { void e; }
+    })();
+  }, []);
+  const toggleFactoryMode = async () => {
+    try {
+      if (factoryMode !== 'offline' && !offlineReady) return;
+      const { data } = await apiClient.post('/api/v1/runtime-mode/toggle');
+      if (data?.success) setFactoryMode(data.mode);
+    } catch (e) { void e; }
+  };
+  const handleLoadModel = async () => {
+    try {
+      const { data } = await apiClient.post('/api/v1/runtime-mode/load');
+      setOfflineReady(Boolean(data?.offlineReady));
+    } catch (e) { void e; }
   };
   const onBrandMouseMove = (e) => {
     if (!brandRef.current) return;
@@ -287,18 +312,33 @@ const TopBar = ({ onToggleBottom, onToggleLeft, isLeftOpen, onToggleStatus, isSt
         </div>
 
         {/* Right: Control Buttons */}
-        <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2">
+        <button
+          onClick={toggleFactoryMode}
+          className={`p-2 px-3 h-9 inline-flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${factoryMode==='offline' ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-800 text-gray-200 hover:bg-gray-700 border border-yellow-600/40'} ${(!offlineReady && factoryMode!=='offline') ? 'opacity-60 cursor-not-allowed' : ''}`}
+          title={factoryMode==='offline' ? 'وضع المصنع الذاتي مفعل' : 'الوضع الحالي'}
+          disabled={!offlineReady && factoryMode!=='offline'}
+        >
+          {factoryMode==='offline' ? 'مصنع ذاتي' : 'النظام الحالي'}
+        </button>
         <button
           onClick={onToggleLeft}
           className={`p-2 w-9 h-9 inline-flex items-center justify-center rounded-lg transition-colors ${
-            isLeftOpen 
-              ? 'bg-yellow-600 text-black hover:bg-yellow-700' 
-              : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-yellow-600/40'
+            isLeftOpen ? 'bg-yellow-600 text-black hover:bg-yellow-700' : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-yellow-600/40'
           }`}
           title={isLeftOpen ? (lang==='ar'?'إخفاء لوحة المحادثات':'Hide Chats Panel') : (lang==='ar'?'إظهار لوحة المحادثات':'Show Chats Panel')}
         >
           <FiSidebar size={18} />
         </button>
+        {!offlineReady && (
+          <button
+            onClick={handleLoadModel}
+            className={`px-3 h-9 inline-flex items-center justify-center rounded-lg text-sm font-medium transition-colors bg-blue-600 text-white hover:bg-blue-700`}
+            title={lang==='ar'?'تحميل النموذج المحلي':'Load local model'}
+          >
+            {lang==='ar'?'تحميل النموذج':'Load Model'}
+          </button>
+        )}
 
         {/* Toggle System Status Panel */}
         <button
