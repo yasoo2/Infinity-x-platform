@@ -268,6 +268,7 @@ export const useJoeChat = () => {
   const syncRef = useRef(null);
   const reconnectCountdownInterval = useRef(null);
   const syncAbortRef = useRef(null);
+  const saveTimerRef = useRef(null);
 
   const [state, dispatch] = useReducer(chatReducer, {
     conversations: {},
@@ -467,19 +468,22 @@ export const useJoeChat = () => {
   }, [syncBackendSessions]);
 
   useEffect(() => {
-    // Save only when conversations change, not just when currentConversationId changes,
-    // and ensure we don't save an empty state if no conversations exist.
     if (Object.keys(state.conversations).length > 0) {
-      const dataToSave = {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      const payload = {
         conversations: state.conversations,
         currentConversationId: state.currentConversationId,
       };
-      console.warn('[useEffect] Saving to localStorage:', { conversationCount: Object.keys(dataToSave.conversations).length, currentId: dataToSave.currentConversationId });
-      try {
-        localStorage.setItem(JOE_CHAT_HISTORY, JSON.stringify(dataToSave));
-      } catch (e) {
-        console.warn('Failed to save chat history:', e);
-      }
+      const count = Object.keys(payload.conversations).length;
+      const id = payload.currentConversationId;
+      saveTimerRef.current = setTimeout(() => {
+        console.warn('[useEffect] Saving to localStorage:', { conversationCount: count, currentId: id });
+        try {
+          localStorage.setItem(JOE_CHAT_HISTORY, JSON.stringify(payload));
+        } catch (e) {
+          console.warn('Failed to save chat history:', e);
+        }
+      }, 400);
     }
   }, [state.conversations, state.currentConversationId]);
 
