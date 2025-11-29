@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import PropTypes from 'prop-types';
 import { Play, Copy, Trash2, Loader2, Wifi, WifiOff, RefreshCcw } from 'lucide-react';
 import { useSessionToken } from '../hooks/useSessionToken';
 import apiClient from '../api/client';
@@ -54,7 +55,7 @@ import { connectWebSocket, disconnectWebSocket } from '../utils/websocket';
     const [error, setError] = useState(null);
     const [wsConnected, setWsConnected] = useState(false);
     const [wsAttempt, setWsAttempt] = useState(0);
-    const { token } = useSessionToken();
+    useSessionToken();
     const sessionRef = useRef(`session_${Date.now()}`);
 
     const outputRef = useRef(null);
@@ -117,7 +118,7 @@ import { connectWebSocket, disconnectWebSocket } from '../utils/websocket';
     }, [connectWS]); // إعادة الاتصال عند تغيير connectWS (بسبب wsAttempt)
 
     // تنفيذ الطلب إلى الـAPI
-    const executeCode = async (payload) => {
+    const executeCode = useCallback(async (payload) => {
       setLoading(true);
       setError(null);
       try {
@@ -136,7 +137,7 @@ import { connectWebSocket, disconnectWebSocket } from '../utils/websocket';
       } finally {
         setLoading(false);
       }
-    };
+    }, [apiPath, requestHeaders]);
 
     // اختصار تنفيذ: Ctrl/Cmd + Enter
     useEffect(() => {
@@ -255,3 +256,11 @@ import { connectWebSocket, disconnectWebSocket } from '../utils/websocket';
   };
 
   export default AgentPanel;
+
+  AgentPanel.propTypes = {
+    apiPath: PropTypes.string,
+    defaultCode: PropTypes.string,
+    autoReconnect: PropTypes.bool,
+    persistOutput: PropTypes.bool,
+    requestHeaders: PropTypes.object,
+  };

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import PropTypes from 'prop-types';
 import apiClient from '../api/client'; // Make sure this path is correct
 import { Loader2, X, MousePointer2, Keyboard, Globe } from 'lucide-react';
 
@@ -299,3 +300,9 @@ export default function BrowserViewer({ sessionId, onClose, language = 'ar' }) {
     </div>
   );
 }
+
+BrowserViewer.propTypes = {
+  sessionId: PropTypes.string.isRequired,
+  onClose: PropTypes.func.isRequired,
+  language: PropTypes.oneOf(['ar', 'en']),
+};

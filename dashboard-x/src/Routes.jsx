@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import DashboardLayout from './components/DashboardLayout'; // Use the existing DashboardLayout
 import useAuth from './hooks/useAuth'; // Use the newly created useAuth hook
@@ -23,7 +24,7 @@ import Users from './pages/Users';
 
 // Helper component for protected routes
 const ProtectedRoute = ({ children, allowedRoles }) => {
-  const { token, isAuthenticated: hasToken } = useSessionToken();
+  const { isAuthenticated: hasToken } = useSessionToken();
   const { user, isLoading } = useAuth();
 
   // إذا لم يوجد توكن، نوجّه فوراً
@@ -40,6 +41,11 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   }
 
   return children;
+};
+
+ProtectedRoute.propTypes = {
+  children: PropTypes.node.isRequired,
+  allowedRoles: PropTypes.array,
 };
 
 const AppRoutes = () => {

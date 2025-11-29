@@ -1,4 +1,5 @@
   import React from 'react';
+  import PropTypes from 'prop-types';
   import { Wifi, WifiOff, Activity, Server, Users } from 'lucide-react'; // أمثلة على الأيقونات
 
   // كائن لربط اسم الأيقونة بالمكون الفعلي من lucide-react
@@ -70,3 +71,10 @@
       </div>
     );
   }
+
+  CardStat.propTypes = {
+    title: PropTypes.string.isRequired,
+    value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    status: PropTypes.oneOfType([PropTypes.bool, PropTypes.oneOf(['online', 'offline'])]),
+    iconName: PropTypes.oneOf(Object.keys(IconMap)),
+  };

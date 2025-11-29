@@ -79,7 +79,7 @@
         if (newToken) {
           localStorage.setItem('sessionToken', newToken);
         }
-      } catch {}
+      } catch { void 0; }
       return response;
     },
     async (error) => {
