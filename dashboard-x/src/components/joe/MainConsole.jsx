@@ -52,6 +52,7 @@ const MainConsole = () => {
     try { return localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'; } catch { return 'ar'; }
   });
   const [factoryMode, setFactoryMode] = React.useState('online');
+  const [offlineReady, setOfflineReady] = React.useState(false);
   const [modeLoading, setModeLoading] = React.useState(false);
   const [uploadPct, setUploadPct] = React.useState(0);
   const [linkLoading, setLinkLoading] = React.useState(false);
@@ -140,6 +141,7 @@ const MainConsole = () => {
       try {
         const { data } = await apiClient.get('/api/v1/runtime-mode/status');
         if (data?.success && data?.mode) setFactoryMode(data.mode);
+        setOfflineReady(Boolean(data?.offlineReady));
       } catch { /* ignore */ }
     })();
   }, []);
@@ -171,20 +173,33 @@ const MainConsole = () => {
   }, [showGithub]);
 
   const handleToggleMode = async () => {
+    const nextMode = factoryMode === 'online' ? 'offline' : 'online';
+    if (nextMode === 'offline' && !offlineReady) {
+      // If switching to offline and not ready, try to load the model first
+      try {
+        setModeLoading(true);
+        await apiClient.post('/api/v1/runtime-mode/load');
+        // Wait a moment for the model to start loading
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (e) {
+        // If loading fails, show error and do not proceed with toggle
+        setInput(lang === 'ar' ? `فشل تحميل نموذج الذكاء المحلي: ${e.message}` : `Failed to load local AI model: ${e.message}`);
+        setModeLoading(false);
+        return;
+      }
+    }
     try {
       setModeLoading(true);
-      const status = await apiClient.get('/api/v1/runtime-mode/status').then(r => r.data || {});
-      const current = status.mode || factoryMode;
-      if (current !== 'offline' && !status.offlineReady) {
-        try {
-          await apiClient.post('/api/v1/runtime-mode/load');
-        } catch { /* ignore */ }
-      }
       const { data } = await apiClient.post('/api/v1/runtime-mode/toggle');
       if (data?.success) {
         setFactoryMode(data.mode);
+        // Force a refresh of the status to get the latest offlineReady state
+        const status = await apiClient.get('/api/v1/runtime-mode/status').then(r => r.data || {});
+        setOfflineReady(Boolean(status?.offlineReady));
       }
-    } catch { /* ignore */ }
+    } catch (e) {
+      setInput(lang === 'ar' ? `فشل تبديل الوضع: ${e.message}` : `Failed to toggle mode: ${e.message}`);
+    }
     finally { setModeLoading(false); }
   };
 
@@ -618,9 +633,9 @@ const MainConsole = () => {
               </button>
               <button
                 onClick={handleToggleMode}
-                className={`w-7 h-7 md:w-8 md:h-8 inline-flex items-center justify-center rounded-lg ${modeLoading ? 'bg-blue-600 text-white' : (factoryMode==='offline' ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-200 hover:bg-gray-600')} border border-gray-700`}
+                className={`w-7 h-7 md:w-8 md:h-8 inline-flex items-center justify-center rounded-lg ${modeLoading ? 'bg-blue-600 text-white' : (factoryMode==='offline' ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-200 hover:bg-gray-600')} border border-gray-700 ${factoryMode === 'online' && !offlineReady ? 'opacity-50 cursor-not-allowed' : ''}`}
                 title={factoryMode==='offline' ? (lang==='ar'?'مصنع ذاتي':'Offline') : (lang==='ar'?'الوضع السحابي':'Cloud')}
-                disabled={modeLoading}
+                disabled={modeLoading || (factoryMode === 'online' && !offlineReady)}
               >
                 {modeLoading ? (
                   <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
