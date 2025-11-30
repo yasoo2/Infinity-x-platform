@@ -478,7 +478,7 @@ const JoeContent = () => {
   }, [dragLeft, dragRight]);
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-gray-900 text-white overflow-hidden">
+    <div className="h-screen w-screen flex flex-col bg-brand-gradient bg-grid-dark text-white overflow-hidden">
       
         {/* Top Bar - Enhanced */}
       <TopBar 

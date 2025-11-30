@@ -116,24 +116,25 @@ const chatReducer = (state, action) => {
         }
 
         case 'APPEND_MESSAGE': {
-            if (!currentConvo) return state;
-            const lastMessage = currentConvo.messages[currentConvo.messages.length - 1];
+            let convoId = currentConversationId;
+            let convo = currentConvo;
+            if (!convoId) {
+                convoId = uuidv4();
+            }
+            if (!convo) {
+                const firstTitle = action.payload.type === 'user' ? normalizeTitle(action.payload.content) : 'New Conversation';
+                convo = { id: convoId, title: firstTitle, messages: [], lastModified: Date.now(), pinned: false };
+            }
+            const lastMessage = convo.messages[convo.messages.length - 1];
             let updatedMessages;
-
             if (lastMessage && lastMessage.type === 'joe' && action.payload.type === 'joe') {
-                updatedMessages = [...currentConvo.messages.slice(0, -1), { ...lastMessage, content: lastMessage.content + action.payload.content }];
+                updatedMessages = [...convo.messages.slice(0, -1), { ...lastMessage, content: lastMessage.content + action.payload.content }];
             } else {
-                updatedMessages = [...currentConvo.messages, { type: action.payload.type, content: action.payload.content, id: uuidv4() }];
+                updatedMessages = [...convo.messages, { type: action.payload.type, content: action.payload.content, id: uuidv4() }];
             }
-
-            const updatedConvo = { ...currentConvo, messages: updatedMessages, lastModified: Date.now() };
-            if (currentConvo.title === 'New Conversation' && action.payload.type === 'joe') {
-                updatedConvo.title = normalizeTitle(currentConvo.messages.find(m => m.type === 'user')?.content || 'New Conversation');
-            }
-            return {
-                ...state,
-                conversations: { ...conversations, [currentConversationId]: updatedConvo },
-            };
+            const updatedConvo = { ...convo, messages: updatedMessages, lastModified: Date.now() };
+            const nextConversations = { ...conversations, [convoId]: updatedConvo };
+            return { ...state, conversations: nextConversations, currentConversationId: convoId };
         }
 
         case 'STOP_PROCESSING':
@@ -582,7 +583,10 @@ export const useJoeChat = () => {
         }
         // Use VITE_WS_URL if defined, otherwise build from VITE_API_BASE_URL
         let wsUrl;
-        if (import.meta.env.VITE_WS_URL) {
+        const isLocal = typeof window !== 'undefined' && String(window.location.hostname).startsWith('localhost');
+        if (isLocal) {
+          wsUrl = `ws://localhost:4000/ws/joe-agent?token=${sessionToken}`;
+        } else if (import.meta.env.VITE_WS_URL) {
           const baseWsUrl = import.meta.env.VITE_WS_URL.replace(/\/ws.*$/, '');
           wsUrl = `${baseWsUrl}/ws/joe-agent?token=${sessionToken}`;
         } else {

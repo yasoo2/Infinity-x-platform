@@ -548,7 +548,7 @@ const MainConsole = () => {
       {/* Input Area - Fixed at Bottom, Centered and Spacious */}
       <div className="border-t border-gray-800 bg-gray-900/98 backdrop-blur-sm" ref={inputAreaRef}>
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-3">
-            <div className={`flex items-end gap-3 bg-gray-900 border border-gray-700 rounded-2xl px-4 py-3 transition-all relative ${dragActive ? 'ring-2 ring-yellow-500/70' : 'focus-within:ring-2 focus-within:ring-yellow-500'}`}
+            <div className={`flex items-end gap-3 bg-gray-900/90 border border-gray-700 rounded-2xl px-5 py-4 transition-all relative brand-ring ${dragActive ? 'ring-2 ring-yellow-500/70' : 'focus-within:ring-2 focus-within:ring-yellow-500'}`}
             onDragEnter={(e) => { e.preventDefault(); setDragActive(true); }}
             onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
             onDragLeave={(e) => { if (e.currentTarget.contains(e.relatedTarget)) return; setDragActive(false); }}
@@ -577,7 +577,7 @@ const MainConsole = () => {
                 }
               }}
               placeholder="Message Joe... (Shift+Enter for new line)"
-              className="flex-1 bg-transparent outline-none resize-none text-white placeholder-gray-500 text-sm leading-relaxed border border-gray-700 rounded-md px-2"
+              className="flex-1 bg-transparent outline-none resize-none text-white placeholder-gray-500 text-sm leading-relaxed border border-gray-700 rounded-md px-3"
               rows={1}
               style={{ height: '42px', minHeight: '42px', maxHeight: '42px' }}
               
