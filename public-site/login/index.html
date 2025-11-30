@@ -9,23 +9,43 @@
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     :root{--bg:#0f1115;--card:#171923;--primary:#4A90E2;--accent:#50E3C2;--text:#e6e9ef;--muted:#a8b0c2;--red:#ff4d4f}
+    .theme-light{--bg:#f7f8fb;--card:#ffffff;--primary:#2563eb;--accent:#22c55e;--text:#1f2937;--muted:#6b7280}
     *{box-sizing:border-box}
-    body{margin:0;background:radial-gradient(1000px 400px at 10% -10%,rgba(80,227,194,.18),transparent 35%),radial-gradient(600px 300px at 90% -10%,rgba(74,144,226,.2),transparent 40%),#0f1115;color:var(--text);font-family:'Cairo',system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial}
+    body{margin:0;background:radial-gradient(1000px 400px at 10% -10%,rgba(80,227,194,.18),transparent 35%),radial-gradient(600px 300px at 90% -10%,rgba(74,144,226,.2),transparent 40%),var(--bg);color:var(--text);font-family:'Cairo',system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial}
     .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
-    .card{width:100%;max-width:420px;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.06);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.45)}
-    .head{padding:28px 28px 12px}
+    .card{width:100%;max-width:460px;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.06);border-radius:20px;box-shadow:0 24px 64px rgba(0,0,0,.35)}
+    .theme-light .card{border-color:rgba(0,0,0,.06);box-shadow:0 24px 64px rgba(0,0,0,.08)}
+    .head{padding:28px 28px 8px;position:relative}
+    .brand{display:flex;flex-direction:column;align-items:center;gap:12px}
+    .logo{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--accent));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:18px}
     .title{font-weight:700;font-size:22px;letter-spacing:.2px}
     .sub{margin-top:6px;color:var(--muted);font-size:14px}
+    .theme-switch{position:absolute;left:18px;top:18px;background:transparent;border:1px solid rgba(255,255,255,.12);color:var(--text);padding:6px 10px;border-radius:10px;cursor:pointer}
+    .theme-light .theme-switch{border-color:rgba(0,0,0,.12)}
     form{padding:16px 28px 24px}
     .field{margin:12px 0}
     .label{display:block;margin-bottom:8px;color:var(--muted);font-size:13px}
     .input{width:100%;background:#0f1218;border:1px solid rgba(255,255,255,.08);border-radius:12px;color:var(--text);padding:12px 14px;font-size:14px;outline:none}
+    .theme-light .input{background:#f9fafb;border-color:rgba(0,0,0,.08)}
     .input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(74,144,226,.25)}
+    .input-group{position:relative}
+    .input-group .input{padding-right:44px}
+    .password-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:#0f1218;border:1px solid rgba(255,255,255,.08);color:var(--muted);width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+    .theme-light .password-toggle{background:#f9fafb;border-color:rgba(0,0,0,.08)}
+    .input-row{display:flex;align-items:center;gap:10px}
+    .input-row .input{flex:1}
+    .password-toggle.outside{position:static;transform:none;background:transparent;border:1px solid rgba(255,255,255,.12);width:40px;height:40px}
+    .theme-light .password-toggle.outside{border-color:rgba(0,0,0,.12)}
+    .password-toggle:hover{border-color:var(--primary);color:#fff}
     .row{display:flex;align-items:center;justify-content:space-between;margin-top:6px}
     .checkbox{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px}
     .btn{width:100%;margin-top:14px;background:linear-gradient(45deg,var(--primary),var(--accent));border:none;border-radius:12px;color:#fff;font-weight:700;padding:12px;cursor:pointer;transition:transform .15s ease,box-shadow .2s ease}
     .btn:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(80,227,194,.25)}
+    .btn:disabled{opacity:.75;cursor:not-allowed}
+    .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;margin-left:8px;vertical-align:middle}
+    @keyframes spin{to{transform:rotate(360deg)}}
     .error{margin-top:10px;color:#fff;background:rgba(255,77,79,.12);border:1px solid rgba(255,77,79,.5);border-radius:12px;padding:10px 12px;font-size:13px}
+    .help{margin-top:6px;font-size:12px;color:var(--muted)}
     .hint{padding:0 28px 20px;color:var(--muted);font-size:12px;text-align:center}
   </style>
 </head>
@@ -33,23 +53,36 @@
   <div class="wrap">
     <div class="card">
       <div class="head">
-        <div class="title">تسجيل الدخول إلى نظام JOE</div>
-        <div class="sub">أدخل بريد السوبر أدمن وكلمة المرور</div>
+        <button class="theme-switch" id="themeSwitch">الوضع</button>
+        <div class="brand">
+          <div class="logo">JOE</div>
+          <div class="title">تسجيل الدخول إلى نظام JOE</div>
+          <div class="sub">مرحبًا بك، الرجاء إدخال بريد السوبر أدمن وكلمة المرور</div>
+        </div>
       </div>
       <form id="loginForm">
         <div class="field">
           <label class="label">البريد الإلكتروني</label>
           <input class="input" type="email" id="email" placeholder="name@example.com" required>
+          <div id="emailHelp" class="help"></div>
         </div>
         <div class="field">
           <label class="label">كلمة المرور</label>
-          <input class="input" type="password" id="password" placeholder="••••••••" required>
+          <div class="input-row">
+            <input class="input" type="password" id="password" placeholder="••••••••" required>
+            <button type="button" id="togglePassword" class="password-toggle outside" aria-label="عرض/إخفاء">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 5c-7.633 0-11 7-11 7s3.367 7 11 7 11-7 11-7-3.367-7-11-7zm0 12a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"></path>
+              </svg>
+            </button>
+          </div>
+          <div id="passwordHelp" class="help"></div>
         </div>
         <div class="row">
           <label class="checkbox"><input type="checkbox" id="remember"> تذكرني</label>
           <a href="/" style="color:var(--primary);font-size:13px;text-decoration:none">الصفحة الرئيسية</a>
         </div>
-        <button class="btn" type="submit">تسجيل الدخول</button>
+        <button class="btn" id="submitBtn" type="submit">تسجيل الدخول</button>
         <div id="errorBox" class="error" style="display:none"></div>
       </form>
       <div class="hint">بعد نجاح الدخول سيتم تحويلك تلقائيًا إلى لوحة التحكم.</div>
@@ -67,11 +100,48 @@
     const password = document.getElementById('password');
     const remember = document.getElementById('remember');
     const errorBox = document.getElementById('errorBox');
+    const togglePassword = document.getElementById('togglePassword');
+    const submitBtn = document.getElementById('submitBtn');
+    const emailHelp = document.getElementById('emailHelp');
+    const passwordHelp = document.getElementById('passwordHelp');
+    const themeSwitch = document.getElementById('themeSwitch');
     function showError(msg){ errorBox.textContent = msg; errorBox.style.display = 'block'; }
     function clearError(){ errorBox.style.display = 'none'; errorBox.textContent = ''; }
+    let pwVisible = false;
+    function renderEye(){
+      togglePassword.innerHTML = pwVisible
+        ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5c-7.633 0-11 7-11 7s3.367 7 11 7c2.506 0 4.593-.647 6.337-1.594l-2.38-2.38A8.63 8.63 0 0 1 12 17a5 5 0 0 1-5-5c0-1.11.361-2.137.972-2.969L5.594 6.653C7.323 5.676 9.48 5 12 5zm10.09 13.676L3.324.91 1.91 2.324l20.766 20.766 1.414-1.414z"/></svg>'
+        : '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5c-7.633 0-11 7-11 7s3.367 7 11 7 11-7 11-7-3.367-7-11-7zm0 12a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/></svg>';
+    }
+    renderEye();
+    togglePassword.addEventListener('click', () => {
+      pwVisible = !pwVisible;
+      password.type = pwVisible ? 'text' : 'password';
+      renderEye();
+    });
+    const theme = localStorage.getItem('theme');
+    if (theme === 'light') { document.body.classList.add('theme-light'); }
+    themeSwitch.addEventListener('click', () => {
+      const isLight = document.body.classList.toggle('theme-light');
+      localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    });
+    const lastEmail = localStorage.getItem('lastEmail');
+    if (lastEmail && !email.value) { email.value = lastEmail; }
+    email.addEventListener('input', () => {
+      const v = String(email.value||'');
+      if (!v.includes('@')) { emailHelp.textContent = 'الرجاء إدخال بريد إلكتروني صالح'; } else { emailHelp.textContent = ''; }
+    });
+    password.addEventListener('input', () => {
+      const v = String(password.value||'');
+      if (v.length < 6) { passwordHelp.textContent = 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'; } else { passwordHelp.textContent = ''; }
+    });
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       clearError();
+      if (!String(email.value||'').includes('@')) { showError('البريد الإلكتروني غير صالح'); return; }
+      if (String(password.value||'').length < 6) { showError('كلمة المرور قصيرة'); return; }
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = 'جاري الدخول<span class="spinner"></span>';
       const body = { email: String(email.value||'').trim().toLowerCase(), password: String(password.value||'') };
       try {
         const resp = await fetch(`${API_BASE}/api/v1/auth/login`, {
@@ -82,6 +152,8 @@
         if (!resp.ok) {
           const data = await resp.json().catch(()=>({error:'LOGIN_FAILED'}));
           showError(data.error||'فشل تسجيل الدخول، تحقق من البيانات وحاول مرة أخرى');
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'تسجيل الدخول';
           return;
         }
         const data = await resp.json();
@@ -96,6 +168,7 @@
               localStorage.setItem('rememberedSessions', JSON.stringify(map));
             } catch { }
           }
+          try { localStorage.setItem('lastEmail', body.email); } catch { }
           window.location.href = '/dashboard';
           return;
         }
@@ -103,6 +176,8 @@
       } catch (err) {
         showError('تعذر الاتصال بالخادم، تحقق من الشبكة أو أعد المحاولة لاحقًا');
       }
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'تسجيل الدخول';
     });
   </script>
 </body>
