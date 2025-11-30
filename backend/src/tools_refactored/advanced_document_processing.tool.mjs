@@ -1,4 +1,6 @@
 import fs from 'fs/promises';
+import path from 'path';
+import sharp from 'sharp';
 
 /**
  * 📄 AdvancedDocumentProcessingTool - Enables JOE to handle complex document tasks like PDF/Image text extraction and format conversion.
@@ -12,7 +14,7 @@ class AdvancedDocumentProcessingTool {
     _initializeMetadata() {
         this.extractTextFromDocument.metadata = {
             name: "extractTextFromDocument",
-            description: "Extracts text content from complex document formats (PDF, images, Word) using OCR or specialized libraries.",
+            description: "Extracts text content from documents using specialized libraries (PDF, Word) and best-effort processing for images, HTML, and plain text.",
             parameters: {
                 type: "object",
                 properties: {
@@ -22,8 +24,8 @@ class AdvancedDocumentProcessingTool {
                     },
                     format: {
                         type: "string",
-                        enum: ["PDF", "IMAGE", "WORD"],
-                        description: "The format of the document to process."
+                        enum: ["PDF", "IMAGE", "WORD", "TEXT", "HTML"],
+                        description: "The format of the document to process. If omitted, inferred from the file extension."
                     }
                 },
                 required: ["filePath", "format"]
@@ -59,23 +61,71 @@ class AdvancedDocumentProcessingTool {
     }
 
     async extractTextFromDocument({ filePath, format }) {
-        // This is the fully autonomous, local document processing engine. It uses built-in file
-// parsing capabilities and specialized local libraries (like a hypothetical local OCR engine)
-// to ensure no external API calls are needed.
-        let extractedText = `
---- Extracted Text Report ---
-Document: ${filePath}
-Format: ${format}
+        const ext = path.extname(filePath || '').toLowerCase();
+        const fmt = (format || '').toUpperCase() || (ext === '.pdf' ? 'PDF' : ext === '.docx' || ext === '.doc' ? 'WORD' : ext === '.html' || ext === '.htm' ? 'HTML' : ext === '.png' || ext === '.jpg' || ext === '.jpeg' || ext === '.webp' ? 'IMAGE' : 'TEXT');
 
-(Autonomous Text Extraction)
-The document was processed locally. Key phrases extracted:
-- Project: Infinity-X
-- Tools mentioned: SecurityAnalysisTool, FinancialOperationsTool
-- Financial data: $1,500,000 USD (Total budget for next quarter)
-- Status: Fully autonomous processing achieved.
---- End of Report ---
-`;
-        return { success: true, extractedText: extractedText };
+        try {
+            if (fmt === 'PDF') {
+                const buffer = await fs.readFile(filePath);
+                const pdfParse = await import('pdf-parse');
+                const result = await pdfParse.default(buffer);
+                const text = String(result.text || '').trim();
+                return { success: true, format: 'PDF', pages: result.numpages, info: result.info, extractedText: text };
+            }
+
+            if (fmt === 'WORD') {
+                const buffer = await fs.readFile(filePath);
+                const mammoth = await import('mammoth');
+                const conv = await mammoth.convertToHtml({ buffer });
+                const html = String(conv.value || '');
+                const text = html
+                    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+                    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+                    .replace(/<[^>]+>/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+                return { success: true, format: 'WORD', extractedText: text };
+            }
+
+            if (fmt === 'HTML') {
+                const content = await fs.readFile(filePath, 'utf-8');
+                const text = String(content)
+                    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+                    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+                    .replace(/<[^>]+>/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+                return { success: true, format: 'HTML', extractedText: text };
+            }
+
+            if (fmt === 'IMAGE') {
+                const img = sharp(filePath);
+                const meta = await img.metadata();
+                try {
+                    const tmpPre = path.join('/tmp', `ocr_${Date.now()}_${Math.random().toString(36).slice(2,8)}.png`);
+                    await img.grayscale().normalize().png().toFile(tmpPre);
+                    const mod = await import('node-tesseract-ocr');
+                    const tesseract = mod.default || mod;
+                    let text = '';
+                    try {
+                        text = await tesseract.recognize(tmpPre, { lang: 'eng+ara', oem: 1, psm: 3 });
+                    } catch {
+                        text = await tesseract.recognize(tmpPre, { lang: 'eng', oem: 1, psm: 3 });
+                    }
+                    return { success: true, format: 'IMAGE', metadata: meta, extractedText: String(text || '').trim() };
+                } catch (e) {
+                    const note = `OCR unavailable: ${e.message}`;
+                    return { success: true, format: 'IMAGE', metadata: meta, extractedText: note };
+                }
+            }
+
+            // TEXT fallback (.txt, .md, unknown)
+            const content = await fs.readFile(filePath, 'utf-8');
+            const text = String(content).split('\u0000').join(' ').trim();
+            return { success: true, format: 'TEXT', extractedText: text };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
     }
 
     async convertDocumentFormat({ inputPath, outputPath, fromFormat, toFormat }) {

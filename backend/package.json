@@ -132,6 +132,7 @@
     "joi": "^17.11.0",
     "jsonwebtoken": "^9.0.2",
     "lodash": "^4.17.21",
+    "mammoth": "^1.11.0",
     "marked": "^11.0.0",
     "moment": "^2.29.4",
     "mongodb": "^6.3.0",
@@ -140,11 +141,13 @@
     "multer": "^2.0.2",
     "node-cron": "^3.0.3",
     "node-fetch": "^3.3.2",
+    "node-llama-cpp": "^3.14.2",
     "nodemailer": "^6.9.7",
     "nodemon": "^3.1.11",
     "openai": "^4.20.1",
     "ora": "^7.0.1",
     "pdf-lib": "^1.17.1",
+    "pdf-parse": "^1.1.4",
     "pg": "^8.11.3",
     "pidusage": "^3.0.2",
     "playwright": "^1.45.1",
@@ -165,7 +168,7 @@
     "ws": "^8.16.0",
     "xss-clean": "^0.1.4",
     "yaml": "^2.3.4",
-    "node-llama-cpp": "^3.14.2"
+    "node-tesseract-ocr": "^2.2.2"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.23.5",

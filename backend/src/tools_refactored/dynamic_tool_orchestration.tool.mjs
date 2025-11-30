@@ -49,6 +49,19 @@ class DynamicToolOrchestrationTool {
                 required: ["codeDescription", "inputData"]
             }
         };
+
+        this.autoPlanAndExecute.metadata = {
+            name: "autoPlanAndExecute",
+            description: "Analyzes natural language instructions, selects the most relevant built-in tools, executes them automatically, and returns a full, structured result.",
+            parameters: {
+                type: "object",
+                properties: {
+                    instruction: { type: "string", description: "User instruction in natural language (can be Arabic/English)." },
+                    context: { type: "object", description: "Optional context like file paths or session info." }
+                },
+                required: ["instruction"]
+            }
+        };
     }
 
     async selfCorrectingExecution({ failureReport, contextFiles }) {
@@ -87,6 +100,65 @@ The self-correction mechanism has been activated. A detailed, multi-step plan ha
             message: "Temporary tool generated and executed successfully.",
             result: `Autonomous output for input '${inputData}': Processed ${inputData} using generated tool for: ${codeDescription}`
         };
+    }
+
+    async autoPlanAndExecute({ instruction, context }) {
+        const text = String(instruction || '').toLowerCase();
+        const tm = this.dependencies?.toolManager;
+        const results = [];
+        const plan = [];
+
+        const has = (...keys) => keys.some(k => text.includes(k));
+        const push = (step, out) => { plan.push(step); if (out) results.push(out); };
+
+        try {
+            // Knowledge queries
+            if (has('اسأل','سؤال','استعلام','query','search','knowledge','معرفة')) {
+                const q = context?.query || instruction;
+                const r = await tm.execute('queryKnowledgeBase', { query: q, limit: 8 });
+                push('Run queryKnowledgeBase', { tool: 'queryKnowledgeBase', output: r });
+            }
+
+            // Security audit
+            if (has('أمن','security','audit','ثغرات','vulnerability')) {
+                const r = await tm.execute('runSecurityAudit', {});
+                push('Run runSecurityAudit', { tool: 'runSecurityAudit', output: r });
+            }
+
+            // Document ingestion from inline content
+            if (has('أدخل','ingest','أضف للمعرفة','knowledge base','ملخص','summary')) {
+                const content = context?.content || (has('نص','text') ? instruction : undefined);
+                if (content) {
+                    const r = await tm.execute('ingestDocument', { documentTitle: context?.title || 'Untitled', summaryGoal: context?.summaryGoal || '', content });
+                    push('Run ingestDocument (inline)', { tool: 'ingestDocument', output: r });
+                }
+            }
+
+            // Document extraction (PDF/DOCX/IMAGE/HTML/TEXT)
+            if (has('pdf','doc','docx','صورة','image','html','ملف','file','ocr')) {
+                const fp = context?.filePath;
+                if (fp) {
+                    const ext = fp.split('.').pop().toLowerCase();
+                    let format = 'TEXT';
+                    if (ext === 'pdf') format = 'PDF';
+                    else if (ext === 'docx' || ext === 'doc') format = 'WORD';
+                    else if (['png','jpg','jpeg','webp'].includes(ext)) format = 'IMAGE';
+                    else if (['html','htm'].includes(ext)) format = 'HTML';
+                    const ex = await tm.execute('extractTextFromDocument', { filePath: fp, format });
+                    push('Run extractTextFromDocument', { tool: 'extractTextFromDocument', output: ex });
+                    if (ex?.success && ex?.extractedText) {
+                        const ing = await tm.execute('ingestDocument', { documentTitle: context?.title || fp, summaryGoal: context?.summaryGoal || '', content: ex.extractedText, filePath: fp });
+                        push('Run ingestDocument (from extraction)', { tool: 'ingestDocument', output: ing });
+                    }
+                } else {
+                    push('Skipped extractTextFromDocument (missing filePath)', { warning: 'filePath not provided' });
+                }
+            }
+
+            return { success: true, instruction, plan, results };
+        } catch (error) {
+            return { success: false, instruction, plan, error: error.message, results };
+        }
     }
 }
 

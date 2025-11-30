@@ -309,6 +309,47 @@ const JoeContent = () => {
   const leftStyle = { borderRight: `${panelStyles.left.width}px solid ${panelStyles.left.color}`, borderRadius: panelStyles.left.radius };
   const rightStyle = { borderLeft: `${panelStyles.right.width}px solid ${panelStyles.right.color}`, borderRadius: panelStyles.right.radius };
   
+  const [runtimeMode, setRuntimeMode] = useState('online');
+  const [offlineReady, setOfflineReady] = useState(false);
+  const [loadingLocal, setLoadingLocal] = useState(false);
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await apiClient.get('/api/v1/runtime-mode/status');
+        setRuntimeMode(String(data?.mode || 'online'));
+        setOfflineReady(Boolean(data?.offlineReady));
+      } catch { void 0 }
+    })();
+  }, []);
+  const handleUseLocal = async () => {
+    try {
+      if (!offlineReady) {
+        setLoadingLocal(true);
+        await apiClient.post('/api/v1/runtime-mode/load');
+        setTimeout(async () => {
+          try {
+            const { data } = await apiClient.get('/api/v1/runtime-mode/status');
+            setOfflineReady(Boolean(data?.offlineReady));
+          } catch { void 0 }
+          setLoadingLocal(false);
+        }, 600);
+      }
+      await apiClient.post('/api/v1/runtime-mode/set', { mode: 'offline' });
+      try { localStorage.setItem('aiSelectedModel', 'offline-local'); } catch { void 0; }
+      setRuntimeMode('offline');
+    } catch { void 0 }
+  };
+  const handleUseCloud = async () => {
+    try {
+      await apiClient.post('/api/v1/runtime-mode/set', { mode: 'online' });
+      const model = (() => { try { return localStorage.getItem('aiSelectedModel') || 'gpt-4o'; } catch { return 'gpt-4o'; } })();
+      try { localStorage.setItem('aiSelectedModel', model); } catch { void 0; }
+      setRuntimeMode('online');
+    } catch { void 0 }
+  };
+  const handleOpenProviders = () => {
+    try { window.dispatchEvent(new CustomEvent('joe:openProviders')); } catch { void 0 }
+  };
 
   useEffect(() => {
     const onMove = (e) => {
@@ -358,6 +399,32 @@ const JoeContent = () => {
         onToggleLogs={toggleBottomPanel}
         isLogsOpen={isBottomPanelOpen && !isBottomCollapsed}
       />
+      <div className="px-4 py-2 border-b border-gray-800 bg-[#0b0f1a]">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleUseLocal}
+            className={`px-3 py-2 rounded-lg text-sm font-semibold inline-flex items-center gap-2 ${offlineReady ? 'bg-green-600 text-black hover:bg-green-700' : 'bg-gray-700 text-white hover:bg-gray-600'}`}
+            title={offlineReady ? (lang==='ar'?'المحلي جاهز':'Local Ready') : (lang==='ar'?'تحميل المحلي':'Load Local')}
+          >
+            <span>{lang==='ar'?'المحلي':'Local'}</span>
+            {loadingLocal ? <span className="animate-pulse">…</span> : (<span className={`text-[10px] px-2 py-0.5 rounded ${offlineReady ? 'bg-green-500/20 text-green-300' : 'bg-gray-500/20 text-gray-300'}`}>{offlineReady ? (lang==='ar'?'جاهز':'Ready') : (lang==='ar'?'تحميل':'Load')}</span>)}
+          </button>
+          <button
+            onClick={handleUseCloud}
+            className={`px-3 py-2 rounded-lg text-sm font-semibold inline-flex items-center gap-2 ${runtimeMode==='online' ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-blue-700 text-white hover:bg-blue-600'}`}
+            title={lang==='ar'?'السحابي':'Cloud'}
+          >
+            <span>{lang==='ar'?'السحابي':'Cloud'}</span>
+          </button>
+          <button
+            onClick={handleOpenProviders}
+            className="px-3 py-2 rounded-lg text-sm font-semibold inline-flex items-center gap-2 bg-yellow-600 text-black hover:bg-yellow-700"
+            title={lang==='ar'?'مزودين الذكاء':'AI Providers'}
+          >
+            <span>{lang==='ar'?'مزودين الذكاء':'AI Providers'}</span>
+          </button>
+        </div>
+      </div>
       
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">

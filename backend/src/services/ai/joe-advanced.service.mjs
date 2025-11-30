@@ -128,7 +128,120 @@ async function processMessage(userId, message, sessionId, { model = 'gpt-4o' } =
       model = (userCfg?.activeModel) || cfg.activeModel || 'gpt-4o';
     }
 
-    if (model.startsWith('gemini') && geminiClient) {
+    if (model === 'offline-local' || (!effectiveKeys.openai && !effectiveKeys.gemini && _dependencies?.localLlamaService?.isReady?.())) {
+        const availableTools2 = toolManager.getToolSchemas();
+        const llm = _dependencies.localLlamaService;
+        let planText = '';
+        try {
+          const sig = availableTools2.map(t => `${t.function.name}: ${t.function.description}`).join('\n');
+          const prompt = `Create JSON plan with key "steps" using available tools. Each step: {step, thought, tool, params}. Instruction: ${message}. Tools: \n${sig}`;
+          const parts = [];
+          await llm.stream([{ role: 'user', content: prompt }], (p) => { parts.push(String(p||'')); }, { temperature: 0.2, maxTokens: 1024 });
+          planText = parts.join('');
+        } catch { planText = ''; }
+        let planObj = null;
+        try { planObj = JSON.parse(planText); } catch {
+          try {
+            const s = String(planText || '');
+            const i = s.indexOf('{');
+            const j = s.lastIndexOf('}');
+            if (i >= 0 && j > i) { planObj = JSON.parse(s.slice(i, j + 1)); }
+          } catch { planObj = null; }
+        }
+        const steps = Array.isArray(planObj?.steps) ? planObj.steps : [];
+        if (steps.length) {
+          const execOne = async (st) => {
+            const fnName = st?.tool || st?.name;
+            const params = typeof st?.params === 'object' && st.params ? st.params : {};
+            if (typeof fnName === 'string' && fnName) {
+              try {
+                const r = await toolManager.execute(fnName, params);
+                toolResults.push({ tool: fnName, args: params, result: r });
+                toolCalls.push({ function: { name: fnName, arguments: params } });
+              } catch { void 0 }
+            }
+          };
+          const [first, ...rest] = steps;
+          if (first) { await execOne(first); }
+          if (rest.length) { await Promise.all(rest.map(execOne)); }
+          const summaries = toolResults.map(tr => {
+            const n = tr.tool;
+            const r = tr.result;
+            const s = typeof r === 'object' ? (r.summary || r.message || '') : '';
+            const j = s ? s : JSON.stringify(r).slice(0, 600);
+            return `${n}: ${j}`;
+          });
+          finalContent = summaries.join('\n');
+        } else {
+          const preview = String(message || '').trim();
+          const lower = preview.toLowerCase();
+          const hasUrl = /https?:\/\/[^\s]+/i.test(preview);
+          const wantsSecurity = /(security|audit|ثغرات|أمن|حماية)/i.test(lower);
+          const wantsIngest = /(ingest|knowledge|معرفة|ادخال|استيعاب)/i.test(lower);
+          const wantsQuery = /(query|search|سؤال|ابحث|استعلام)/i.test(lower);
+          const wantsFormat = /(format|prettier|تنسيق)/i.test(lower);
+          const wantsLint = /(lint|تحليل|فحص)/i.test(lower);
+          let pieces = [];
+          if (hasUrl) {
+            try {
+              const url = (preview.match(/https?:\/\/[^\s]+/i) || [])[0];
+              const r = await toolManager.execute('browseWebsite', { url });
+              toolResults.push({ tool: 'browseWebsite', args: { url }, result: r });
+              toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
+              pieces.push(String(r?.summary || r?.content || ''));
+            } catch { void 0 }
+          }
+          if (wantsSecurity) {
+            try {
+              const a = await toolManager.execute('runSecurityAudit', {});
+              const s = await toolManager.execute('scanSecrets', {});
+              const i = await toolManager.execute('scanInsecurePatterns', {});
+              toolResults.push({ tool: 'runSecurityAudit', args: {}, result: a });
+              toolResults.push({ tool: 'scanSecrets', args: {}, result: s });
+              toolResults.push({ tool: 'scanInsecurePatterns', args: {}, result: i });
+              toolCalls.push({ function: { name: 'runSecurityAudit', arguments: {} } });
+              toolCalls.push({ function: { name: 'scanSecrets', arguments: {} } });
+              toolCalls.push({ function: { name: 'scanInsecurePatterns', arguments: {} } });
+              pieces.push(['Security audit completed.', a?.summary, s?.summary, i?.summary].filter(Boolean).join('\n'));
+            } catch { void 0 }
+          }
+          if (wantsIngest) {
+            try {
+              const title = preview.slice(0, 60);
+              const r = await toolManager.execute('ingestDocument', { documentTitle: title, content: preview });
+              toolResults.push({ tool: 'ingestDocument', args: { documentTitle: title }, result: r });
+              toolCalls.push({ function: { name: 'ingestDocument', arguments: { documentTitle: title } } });
+              pieces.push(String(r?.summary || r?.message || ''));
+            } catch { void 0 }
+          }
+          if (wantsQuery) {
+            try {
+              const r = await toolManager.execute('queryKnowledgeBase', { query: preview });
+              toolResults.push({ tool: 'queryKnowledgeBase', args: { query: preview }, result: r });
+              toolCalls.push({ function: { name: 'queryKnowledgeBase', arguments: { query: preview } } });
+              const items = (r?.results || []).slice(0, 3).map(x => `- ${x.title} (score: ${x.score?.toFixed?.(2) || x.score})`).join('\n');
+              pieces.push(items || 'No related knowledge found.');
+            } catch { void 0 }
+          }
+          if (wantsFormat) {
+            try {
+              const r = await toolManager.execute('formatPrettier', {});
+              toolResults.push({ tool: 'formatPrettier', args: {}, result: r });
+              toolCalls.push({ function: { name: 'formatPrettier', arguments: {} } });
+              pieces.push('Formatting applied.');
+            } catch { void 0 }
+          }
+          if (wantsLint) {
+            try {
+              const r = await toolManager.execute('runLint', {});
+              toolResults.push({ tool: 'runLint', args: {}, result: r });
+              toolCalls.push({ function: { name: 'runLint', arguments: {} } });
+              pieces.push('Lint analysis completed.');
+            } catch { void 0 }
+          }
+          finalContent = pieces.length ? pieces.filter(Boolean).join('\n\n') : 'وضع محلي جاهز. أرسل تعليمات أدق لاختيار الأدوات المثالية.';
+        }
+    } else if (model.startsWith('gemini') && geminiClient) {
         // --- GEMINI EXECUTION PATH ---
         const geminiModel = geminiClient.getGenerativeModel({
             model: model,
@@ -228,7 +341,78 @@ async function processMessage(userId, message, sessionId, { model = 'gpt-4o' } =
     } else {
         const preview = String(message || '').trim();
         const prefix = preview ? (preview.length > 120 ? preview.slice(0, 120) + '…' : preview) : '';
-        finalContent = prefix ? `تم الاستلام: ${prefix}\n\nلا توجد مفاتيح نماذج مفعّلة حالياً. يمكنني متابعة التحليل والتنفيذ للأدوات المتاحة، أو قم بتفعيل مزوّد ذكاء من لوحة الإعدادات للحصول على إجابات أعمق.` : `لا توجد مفاتيح نماذج مفعّلة حالياً. فعّل مزوّد ذكاء للحصول على إجابات أعمق، ويمكنني مؤقتاً استخدام الأدوات المدمجة والتحليل الإجرائي.`;
+        const lower = preview.toLowerCase();
+        const hasUrl = /https?:\/\/[^\s]+/i.test(preview);
+        const wantsSecurity = /(security|audit|ثغرات|أمن|حماية)/i.test(lower);
+        const wantsIngest = /(ingest|knowledge|معرفة|ادخال|استيعاب)/i.test(lower);
+        const wantsQuery = /(query|search|سؤال|ابحث|استعلام)/i.test(lower);
+        const wantsFormat = /(format|prettier|تنسيق)/i.test(lower);
+        const wantsLint = /(lint|تحليل|فحص)/i.test(lower);
+
+        let pieces = [];
+        if (hasUrl) {
+          try {
+            const url = (preview.match(/https?:\/\/[^\s]+/i) || [])[0];
+            const r = await toolManager.execute('browseWebsite', { url });
+            toolResults.push({ tool: 'browseWebsite', args: { url }, result: r });
+            toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
+            pieces.push(String(r?.summary || r?.content || ''));
+          } catch { void 0 }
+        }
+        if (wantsSecurity) {
+          try {
+            const a = await toolManager.execute('runSecurityAudit', {});
+            const s = await toolManager.execute('scanSecrets', {});
+            const i = await toolManager.execute('scanInsecurePatterns', {});
+            toolResults.push({ tool: 'runSecurityAudit', args: {}, result: a });
+            toolResults.push({ tool: 'scanSecrets', args: {}, result: s });
+            toolResults.push({ tool: 'scanInsecurePatterns', args: {}, result: i });
+            toolCalls.push({ function: { name: 'runSecurityAudit', arguments: {} } });
+            toolCalls.push({ function: { name: 'scanSecrets', arguments: {} } });
+            toolCalls.push({ function: { name: 'scanInsecurePatterns', arguments: {} } });
+            pieces.push(['Security audit completed.', a?.summary, s?.summary, i?.summary].filter(Boolean).join('\n'));
+          } catch { void 0 }
+        }
+        if (wantsIngest) {
+          try {
+            const title = preview.slice(0, 60);
+            const r = await toolManager.execute('ingestDocument', { documentTitle: title, content: preview });
+            toolResults.push({ tool: 'ingestDocument', args: { documentTitle: title }, result: r });
+            toolCalls.push({ function: { name: 'ingestDocument', arguments: { documentTitle: title } } });
+            pieces.push(String(r?.summary || r?.message || ''));
+          } catch { void 0 }
+        }
+        if (wantsQuery) {
+          try {
+            const r = await toolManager.execute('queryKnowledgeBase', { query: preview });
+            toolResults.push({ tool: 'queryKnowledgeBase', args: { query: preview }, result: r });
+            toolCalls.push({ function: { name: 'queryKnowledgeBase', arguments: { query: preview } } });
+            const items = (r?.results || []).slice(0, 3).map(x => `- ${x.title} (score: ${x.score?.toFixed?.(2) || x.score})`).join('\n');
+            pieces.push(items || 'No related knowledge found.');
+          } catch { void 0 }
+        }
+        if (wantsFormat) {
+          try {
+            const r = await toolManager.execute('formatPrettier', {});
+            toolResults.push({ tool: 'formatPrettier', args: {}, result: r });
+            toolCalls.push({ function: { name: 'formatPrettier', arguments: {} } });
+            pieces.push('Formatting applied.');
+          } catch { void 0 }
+        }
+        if (wantsLint) {
+          try {
+            const r = await toolManager.execute('runLint', {});
+            toolResults.push({ tool: 'runLint', args: {}, result: r });
+            toolCalls.push({ function: { name: 'runLint', arguments: {} } });
+            pieces.push('Lint analysis completed.');
+          } catch { void 0 }
+        }
+
+        if (pieces.length) {
+          finalContent = pieces.filter(Boolean).join('\n\n');
+        } else {
+          finalContent = prefix ? `تم الاستلام: ${prefix}\n\nلا توجد مفاتيح نماذج مفعّلة حالياً. يمكنني متابعة التحليل والتنفيذ للأدوات المتاحة، أو قم بتفعيل مزوّد ذكاء من لوحة الإعدادات للحصول على إجابات أعمق.` : `لا توجد مفاتيح نماذج مفعّلة حالياً. فعّل مزوّد ذكاء للحصول على إجابات أعمق، ويمكنني مؤقتاً استخدام الأدوات المدمجة والتحليل الإجرائي.`;
+        }
     }
 
     const duration = Date.now() - startTime;

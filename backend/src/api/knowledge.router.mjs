@@ -36,10 +36,11 @@ const knowledgeRouterFactory = ({ optionalAuth }) => {
       if (!file) return res.status(400).json({ success: false, message: 'File is required' })
       const { originalname, buffer } = file
       const ext = path.extname(originalname).toLowerCase()
-      let format = 'PDF'
+      let format = 'TEXT'
       if (ext === '.pdf') format = 'PDF'
       else if (ext === '.docx' || ext === '.doc') format = 'WORD'
       else if (ext === '.png' || ext === '.jpg' || ext === '.jpeg' || ext === '.webp') format = 'IMAGE'
+      else if (ext === '.html' || ext === '.htm') format = 'HTML'
       const tmpPath = path.join('/tmp', `joe_${Date.now()}_${Math.random().toString(36).slice(2,8)}${ext || ''}`)
       await fs.writeFile(tmpPath, buffer)
       const extract = await toolManager.execute('extractTextFromDocument', { filePath: tmpPath, format })

@@ -1,5 +1,4 @@
 import { WebSocketServer } from 'ws';
-import { learningSystem } from '../systems/learning.service.mjs';
 import joeAdvanced from './ai/joe-advanced.service.mjs';
 import ChatMessage from '../database/models/ChatMessage.mjs';
 import ChatSession from '../database/models/ChatSession.mjs';
@@ -127,31 +126,13 @@ export class JoeAgentWebSocketServer {
             }
           if (currentMode === 'offline' && localLlamaService.isReady()) {
             try {
+              const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model: 'offline-local' });
               if (ws.readyState === ws.OPEN) {
-                ws.send(JSON.stringify({ type: 'status', message: 'Offline local model active' }));
-              }
-              await localLlamaService.stream(
-                [{ role: 'user', content: data.message }],
-                (piece) => {
-                  if (ws.readyState === ws.OPEN) {
-                    ws.send(JSON.stringify({ type: 'stream', content: piece }));
-                  }
-                  try {
-                    const key = `${userId}:${sessionId}`;
-                    const prev = this.streamBuffers.get(key) || '';
-                    this.streamBuffers.set(key, prev + String(piece || ''));
-                  } catch { void 0 }
-                },
-                { temperature: 0.7, maxTokens: 1024 }
-              );
-              if (ws.readyState === ws.OPEN) {
-                ws.send(JSON.stringify({ type: 'task_complete', sessionId }));
+                ws.send(JSON.stringify({ type: 'response', response: result.response, toolsUsed: result.toolsUsed, sessionId }));
               }
               try {
-                const key = `${userId}:${sessionId}`;
-                const content = this.streamBuffers.get(key) || '';
-                this.streamBuffers.delete(key);
-                if (content && userId && sessionId) {
+                const content = String(result?.response || '').trim();
+                if (content) {
                   await ChatMessage.create({ sessionId, userId, type: 'joe', content });
                   await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date() } });
                 }
@@ -239,30 +220,13 @@ export class JoeAgentWebSocketServer {
             try { await ChatMessage.create({ sessionId, userId, type: 'user', content: data.message }); await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date() } }); } catch { void 0 }
             if (currentMode === 'offline' && localLlamaService.isReady()) {
               try {
-                socket.emit('status', { message: 'Offline local model active' });
-                await localLlamaService.stream(
-                  [{ role: 'user', content: data.message }],
-                  (piece) => {
-                    socket.emit('stream', { content: piece });
-                    try {
-                      const key = `${userId}:${sessionId}`;
-                      const prev = this.streamBuffers.get(key) || '';
-                      this.streamBuffers.set(key, prev + String(piece || ''));
-                    } catch { void 0 }
-                  },
-                  { temperature: 0.7, maxTokens: 1024 }
-                );
-                socket.emit('task_complete', { sessionId });
+                const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model: 'offline-local' });
+                socket.emit('response', { response: result.response, toolsUsed: result.toolsUsed, sessionId });
                 try {
-                  const key = `${userId}:${sessionId}`;
-                  const content = this.streamBuffers.get(key) || '';
-                  this.streamBuffers.delete(key);
-                  if (content && userId && sessionId) {
+                  const content = String(result?.response || '').trim();
+                  if (content) {
                     await ChatMessage.create({ sessionId, userId, type: 'joe', content });
                     await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date() } });
-                    try {
-                      await learningSystem.learn({ sessionId, userId, request: data.message, response: content, success: true, toolsUsed: [], executionTime: 0 })
-                    } catch { void 0 }
                   }
                 } catch { void 0 }
               } catch (err) {

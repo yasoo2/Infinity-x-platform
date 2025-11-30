@@ -1,4 +1,5 @@
 import express from 'express';
+import toolManager from '../services/tools/tool-manager.service.mjs';
 import { ObjectId } from 'mongodb';
 
 // Renamed to factory and set as default export for consistency with the new architecture
@@ -81,6 +82,21 @@ const joeRouterFactory = ({ requireRole, db }) => {
     } catch (err) {
       console.error('❌ /api/joe/suggestions error', err);
       res.status(500).json({ error: 'SERVER_ERROR', message: err.message });
+    }
+  });
+
+  // POST /api/v1/joe/execute - Analyze instruction and auto-run relevant tools
+  router.post('/execute', requireRole('USER'), async (req, res) => {
+    try {
+      const { instruction, context } = req.body || {};
+      if (!instruction) {
+        return res.status(400).json({ success: false, error: 'MISSING_INSTRUCTION' });
+      }
+      const out = await toolManager.execute('autoPlanAndExecute', { instruction, context });
+      return res.json(out);
+    } catch (err) {
+      console.error('❌ /api/joe/execute error', err);
+      return res.status(500).json({ success: false, error: 'SERVER_ERROR', message: err.message });
     }
   });
 
