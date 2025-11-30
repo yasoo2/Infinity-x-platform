@@ -356,7 +356,7 @@ export const useJoeChat = () => {
       window.removeEventListener('auth:unauthorized', onAuthUnauthorized);
       window.removeEventListener('auth:forbidden', onAuthForbidden);
     };
-  }, []);
+  });
 
   // ... (useEffect for localStorage loading remains the same)
   const handleNewConversation = useCallback(async (selectNew = true) => {
@@ -370,7 +370,7 @@ export const useJoeChat = () => {
     const ar = `مرحبًا بك في مساعد جو الذكي! 👋\n\nشريكك الهندسي المدعوم بالذكاء مع ${toolsCount} أداة ووظيفة.\n\nأستطيع مساعدتك في:\n💬 المحادثة والسؤال - إجابات وشروحات فورية\n🛠️ البناء والإنشاء - توليد مشاريع وتطبيقات\n🔍 التحليل والمعالجة - العمل مع البيانات وتوليد رؤى\n\nابدأ بكتابة تعليماتك أدناه أو إرفاق ملف أو استخدام الصوت.`;
     const msg = lang === 'ar' ? ar : en;
     dispatch({ type: 'NEW_CONVERSATION', payload: { selectNew, welcomeMessage: msg } });
-  }, []);
+  }, [state.conversations, state.currentConversationId]);
 
   const renameConversation = useCallback((id, title) => {
     dispatch({ type: 'RENAME_CONVERSATION', payload: { id, title } });
@@ -726,6 +726,7 @@ export const useJoeChat = () => {
     const inputText = state.input.trim();
     if (!inputText) return;
     dispatch({ type: 'SEND_MESSAGE', payload: inputText });
+    let sid = null;
     try {
       let t = localStorage.getItem('sessionToken');
       if (!t) {
@@ -736,7 +737,7 @@ export const useJoeChat = () => {
         }
       }
       const conv = state.conversations[state.currentConversationId] || null;
-      let sid = conv?.sessionId || null;
+      sid = conv?.sessionId || null;
       if (!sid) {
         const created = await createChatSession(normalizeTitle(inputText));
         const s = created?.session;
@@ -755,8 +756,8 @@ export const useJoeChat = () => {
         const selectedModel = localStorage.getItem('aiSelectedModel') || 'gpt-4o';
         const lang = getLang();
         const conv = state.conversations[state.currentConversationId] || null;
-        const sid = conv?.sessionId || state.currentConversationId;
-        ws.current.send(JSON.stringify({ action: 'instruct', message: inputText, sessionId: sid, model: selectedModel, lang }));
+        const sidToUse = sid || conv?.sessionId || state.currentConversationId;
+        ws.current.send(JSON.stringify({ action: 'instruct', message: inputText, sessionId: sidToUse, model: selectedModel, lang }));
         return;
       }
       if (attempt < 6) {
@@ -777,6 +778,10 @@ export const useJoeChat = () => {
     const convo = state.conversations[id];
     const sid = convo?.sessionId || id;
     if (!sid) return;
+    const isMongoObjectId = /^[a-f0-9]{24}$/i.test(String(sid));
+    if (!isMongoObjectId) {
+      return;
+    }
     (async () => {
       try {
         const r = await getChatMessages(sid);
