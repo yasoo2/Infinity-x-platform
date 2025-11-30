@@ -54,23 +54,27 @@ const RightPanel = ({ isProcessing, plan, forceStatus = false, wsConnected = fal
   };
 
   useEffect(() => {
+    const ac = new AbortController();
+    const { signal } = ac;
     const fetchAll = async () => {
       try {
-        const h = await fetch('/api/v1/health');
+        const h = await fetch('/api/v1/health', { signal });
         if (h.ok) setHealth(await h.json());
       } catch { void 0; }
       try {
-        const r = await fetch('/api/v1/runtime-mode/status');
+        const r = await fetch('/api/v1/runtime-mode/status', { signal });
         if (r.ok) setRuntime(await r.json());
       } catch { void 0; }
       try {
         let t = null;
         try { t = localStorage.getItem('sessionToken'); } catch { void 0; }
-        const p = await fetch('/api/v1/ai/providers', { headers: t ? { Authorization: `Bearer ${t}` } : undefined });
+        if (!t) return; // لا تحاول جلب مزوّدي الذكاء بدون توكن
+        const p = await fetch('/api/v1/ai/providers', { headers: { Authorization: `Bearer ${t}` }, signal });
         if (p.ok) setAi(await p.json());
       } catch { void 0; }
     };
     fetchAll();
+    return () => ac.abort();
   }, []);
 
   return (

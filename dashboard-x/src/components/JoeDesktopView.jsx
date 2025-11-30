@@ -18,7 +18,7 @@ const JoeDesktopView = ({ isProcessing, progress, wsLog, onVoiceInput }) => {
   const [isListening, setIsListening] = useState(false);
   const [gridSize] = useState(20);
   const logEndRef = React.useRef(null);
-  const [isLogsCollapsed, setIsLogsCollapsed] = useState(false);
+  const [isLogsCollapsed, setIsLogsCollapsed] = useState(true);
 
   // Scroll to bottom
   const scrollToBottom = () => {

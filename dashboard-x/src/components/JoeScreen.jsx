@@ -16,7 +16,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
   
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [boxSize, setBoxSize] = useState({ width: 700, height: 500 });
-  const [isLogCollapsed, setIsLogCollapsed] = useState(false);
+  const [isLogCollapsed, setIsLogCollapsed] = useState(true);
   const imageRef = useRef(null);
 
   const [searchQuery, setSearchQuery] = useState('');
