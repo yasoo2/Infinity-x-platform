@@ -24,11 +24,16 @@ class RealTimeCollaborationSystem {
       transports: ['websocket', 'polling']
     });
 
-    const pubClient = createClient({ url: process.env.REDIS_URL });
+    const pubClient = createClient({ url: process.env.REDIS_URL || 'redis://localhost:6379' });
     const subClient = pubClient.duplicate();
 
-    await Promise.all([pubClient.connect(), subClient.connect()]);
-    this.io.adapter(createAdapter(pubClient, subClient));
+    try {
+      await Promise.all([pubClient.connect(), subClient.connect()]);
+      this.io.adapter(createAdapter(pubClient, subClient));
+      console.log('✅ Socket.IO Redis Adapter connected.');
+    } catch (error) {
+      console.warn('⚠️ Could not connect Socket.IO to Redis. Falling back to in-memory adapter.', error.message);
+    }
 
     this.setupEventHandlers();
     console.log('✅ Real-time Collaboration System initialized');

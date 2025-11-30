@@ -11,28 +11,23 @@ import path from 'path';
 import os from 'os';
 import { v4 as uuidv4 } from 'uuid';
 import Docker from 'dockerode';
-import { createClient } from 'redis';
+import { cacheManager } from '../utils/cacheManager.mjs';
 import eventBus from '../core/event-bus.mjs';
 
 class SandboxManager {
   constructor(options = {}) {
     this.docker = new Docker();
-    this.redisClient = createClient({
-      url: process.env.REDIS_URL || 'redis://localhost:6379'
-    });
-    this.isRedisConnected = false;
+    this.cacheManager = cacheManager;
+    this.isRedisConnected = this.cacheManager.isEnabled();
     console.log('⚛️ Sandbox Manager v3.1 (Fortress w/ Workspaces) Initialized.');
     void options;
   }
 
   async initializeConnections() {
-    try {
-      await this.redisClient.connect();
-      this.isRedisConnected = true;
-      console.log('✅ Connected to Redis for caching.');
-    } catch (err) {
-      console.error('❌ Could not connect to Redis. Caching will be disabled.', err);
-      this.isRedisConnected = false;
+    if (this.isRedisConnected) {
+      console.log('✅ Connected to Redis for caching (via Upstash).');
+    } else {
+      console.error('❌ Could not connect to Redis. Caching will be disabled.');
     }
     return this;
   }
@@ -54,10 +49,10 @@ class SandboxManager {
 
     const cacheKey = `sandbox:v3.1:${command}`;
     if (this.isRedisConnected) {
-      const cachedResult = await this.redisClient.get(cacheKey);
+      const cachedResult = await this.cacheManager.get(cacheKey);
       if (cachedResult) {
         console.log('⚡️ Returning cached result.');
-        return JSON.parse(cachedResult);
+        return cachedResult;
       }
     }
 
@@ -121,7 +116,7 @@ class SandboxManager {
       };
 
       if (this.isRedisConnected && result.success) {
-        await this.redisClient.set(cacheKey, JSON.stringify(result), { EX: 3600 });
+        await this.cacheManager.set(cacheKey, result, 3600);
       }
 
       return result;
