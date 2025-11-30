@@ -564,8 +564,10 @@ const MainConsole = () => {
               ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey && !isProcessing && input.trim()) {
+              onKeyDown={(e) => {
+                const composing = e.isComposing || (e.nativeEvent && e.nativeEvent.isComposing) || e.keyCode === 229;
+                if (composing) return;
+                if (e.key === 'Enter' && !e.shiftKey && !isProcessing && typeof input === 'string' && input.trim()) {
                   e.preventDefault();
                   handleSend();
                 }
