@@ -509,6 +509,7 @@ const JoeContent = () => {
                     <button onClick={(e)=>{ e.stopPropagation(); toggleBottomPanel(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'سجلّ النظام':'Logs'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); handleNewConversation(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'جلسة جديدة':'New Chat'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); if (currentConversationId) clearMessages(currentConversationId); }} className="px-2 py-1 rounded bg-gray-700 hover:bg-gray-600 text-white text-xs">{lang==='ar'?'مسح الرسائل':'Clear msgs'}</button>
+                    <button onClick={(e)=>{ e.stopPropagation(); navigate('/dashboard/browser-viewer'); }} className="px-2 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white text-xs">{lang==='ar'?'عارض المتصفح':'Browser Viewer'}</button>
                   </div>
                 </div>
               </div>

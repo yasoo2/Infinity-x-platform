@@ -49,7 +49,7 @@ const FullScreenBrowser = ({ onClose }) => {
         canvas.height = img.height;
         ctx.drawImage(img, 0, 0);
       };
-      img.src = screenshot;
+      img.src = `data:image/jpeg;base64,${screenshot}`;
     }
   }, [screenshot]);
 
