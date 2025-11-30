@@ -6,10 +6,11 @@ let reconnectInterval = null;
 
 export const connectWebSocket = (onMessage, onOpen, onClose) => {
   const token = localStorage.getItem('sessionToken') || '';
+  const isDev = typeof import.meta !== 'undefined' && import.meta.env?.MODE !== 'production';
   const envWs = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_WS_URL) || null;
-  const baseWsUrl = envWs
-    ? envWs.replace(/\/(ws.*)?$/, '')
-    : (config.wsBaseUrl || (typeof window !== 'undefined' ? window.location.origin : 'ws://localhost:4000')).replace(/^https/, 'wss').replace(/^http/, 'ws');
+  const baseWsUrl = isDev
+    ? 'ws://localhost:4000'
+    : (envWs ? envWs.replace(/\/(ws.*)?$/, '') : (typeof window !== 'undefined' ? window.location.origin : 'ws://localhost:4000').replace(/^https/, 'wss').replace(/^http/, 'ws'));
   const wsUrl = `${baseWsUrl}/ws/joe-agent${token ? `?token=${encodeURIComponent(token)}` : ''}`;
 
   ws = new WebSocket(wsUrl);

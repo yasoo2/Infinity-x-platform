@@ -583,8 +583,8 @@ export const useJoeChat = () => {
         }
         // Use VITE_WS_URL if defined, otherwise build from VITE_API_BASE_URL
         let wsUrl;
-        const isLocal = typeof window !== 'undefined' && String(window.location.hostname).startsWith('localhost');
-        if (isLocal) {
+        const isDev = typeof import.meta !== 'undefined' && import.meta.env?.MODE !== 'production';
+        if (isDev) {
           wsUrl = `ws://localhost:4000/ws/joe-agent?token=${sessionToken}`;
         } else if (import.meta.env.VITE_WS_URL) {
           const baseWsUrl = import.meta.env.VITE_WS_URL.replace(/\/ws.*$/, '');

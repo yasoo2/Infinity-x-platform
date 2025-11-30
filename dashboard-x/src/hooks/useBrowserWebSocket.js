@@ -12,8 +12,8 @@ const useBrowserWebSocket = () => {
       const sessionToken = localStorage.getItem('sessionToken');
       if (!sessionToken) return;
 
-      const isLocal = typeof window !== 'undefined' && String(window.location.hostname).startsWith('localhost');
-      const apiBase = isLocal ? 'http://localhost:4000' : (import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000'));
+      const isDev = typeof import.meta !== 'undefined' && import.meta.env?.MODE !== 'production';
+      const apiBase = isDev ? 'http://localhost:4000' : (import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000'));
       const wsBase = apiBase.replace(/^https/, 'wss').replace(/^http/, 'ws');
       const wsUrl = `${wsBase}/ws/browser?token=${sessionToken}`;
 
