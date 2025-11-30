@@ -1,4 +1,4 @@
-  import apiClient from './client';
+import apiClient from './client';
 
   // Base path helpers
   const v1 = (p) => `/api/v1${p}`;
@@ -139,18 +139,33 @@ export const getSystemStatus = (opts) =>
   export const activateAIProvider = (provider, model) =>
     call(() => apiClient.post(v1('/ai/activate'), { provider, model }));
 
-  export const getChatSessions = (opts) =>
-    call(() => apiClient.get(chatHistory('/sessions'), { signal: opts?.signal }));
+export const getChatSessions = (opts) =>
+  call(() => apiClient.get(chatHistory('/sessions'), { signal: opts?.signal }));
 
-  export const getChatSessionById = (id, opts) =>
-    call(() => apiClient.get(chatHistory(`/sessions/${id}`), { signal: opts?.signal }));
+export const getChatSessionById = (id, opts) =>
+  call(() => apiClient.get(chatHistory(`/sessions/${id}`), { signal: opts?.signal }));
 
-  export const deleteChatSession = (id, opts) =>
-    call(() => apiClient.delete(chatHistory(`/sessions/${id}`), { signal: opts?.signal }));
+export const deleteChatSession = (id, opts) =>
+  call(() => apiClient.delete(chatHistory(`/sessions/${id}`), { signal: opts?.signal }));
 
-  export const getUserContext = (params) =>
-    call(() => apiClient.get(chatHistory('/user-context'), { params: { limit: params?.limit }, signal: params?.signal }));
+export const getUserContext = (params) =>
+  call(() => apiClient.get(chatHistory('/user-context'), { params: { limit: params?.limit }, signal: params?.signal }));
 
-  // Guest token issuance
-  export const getGuestToken = (opts) =>
-    call(() => apiClient.post(v1('/auth/guest-token'), undefined, { signal: opts?.signal }));
+// Guest token issuance
+export const getGuestToken = (opts) =>
+  call(() => apiClient.post(v1('/auth/guest-token'), undefined, { signal: opts?.signal }));
+
+export const createChatSession = (title, opts) =>
+  call(() => apiClient.post(chatHistory('/sessions'), { title }, { signal: opts?.signal }));
+
+export const updateChatSession = (id, patch, opts) =>
+  call(() => apiClient.put(chatHistory(`/sessions/${id}`), patch, { signal: opts?.signal }));
+
+export const getChatMessages = (id, opts) =>
+  call(() => apiClient.get(chatHistory(`/sessions/${id}/messages`), { signal: opts?.signal }));
+
+export const addChatMessage = (id, payload, opts) =>
+  call(() => apiClient.post(chatHistory(`/sessions/${id}/messages`), payload, { signal: opts?.signal }));
+
+export const deleteChatMessage = (id, messageId, opts) =>
+  call(() => apiClient.delete(chatHistory(`/sessions/${id}/messages/${messageId}`), { signal: opts?.signal }));

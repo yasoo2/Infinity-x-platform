@@ -1,5 +1,7 @@
 import { WebSocketServer } from 'ws';
 import joeAdvanced from './ai/joe-advanced.service.mjs';
+import ChatMessage from '../database/models/ChatMessage.mjs';
+import ChatSession from '../database/models/ChatSession.mjs';
 import jwt from 'jsonwebtoken';
 import { getMode } from '../core/runtime-mode.mjs';
 import { localLlamaService } from './llm/local-llama.service.mjs';
@@ -18,6 +20,7 @@ export class JoeAgentWebSocketServer {
     console.log('🤖 Joe Agent WebSocket Server v2.0 "Unified" Initialized.');
     this.setupWebSocketServer();
     this.setupEventListeners();
+    this.streamBuffers = new Map();
     // Heartbeat to keep connections alive and detect broken sockets
     this.heartbeat = setInterval(() => {
       this.wss.clients.forEach((client) => {
@@ -93,36 +96,57 @@ export class JoeAgentWebSocketServer {
             const currentMode = getMode();
             const userId = ws.userId;
             const sessionId = data.sessionId || ws.sessionId;
-            if (currentMode === 'offline' && localLlamaService.isReady()) {
-              try {
-                if (ws.readyState === ws.OPEN) {
-                  ws.send(JSON.stringify({ type: 'status', message: 'Offline local model active' }));
-                }
-                await localLlamaService.stream(
-                  [{ role: 'user', content: data.message }],
-                  (piece) => {
-                    if (ws.readyState === ws.OPEN) {
-                      ws.send(JSON.stringify({ type: 'stream', content: piece }));
-                    }
-                  },
-                  { temperature: 0.7, maxTokens: 1024 }
-                );
-                if (ws.readyState === ws.OPEN) {
-                  ws.send(JSON.stringify({ type: 'task_complete', sessionId }));
-                }
-              } catch (err) {
-                if (ws.readyState === ws.OPEN) {
-                  ws.send(JSON.stringify({ type: 'error', message: err.message }));
-                }
+          if (currentMode === 'offline' && localLlamaService.isReady()) {
+            try {
+              if (ws.readyState === ws.OPEN) {
+                ws.send(JSON.stringify({ type: 'status', message: 'Offline local model active' }));
               }
-              return;
+              await localLlamaService.stream(
+                [{ role: 'user', content: data.message }],
+                (piece) => {
+                  if (ws.readyState === ws.OPEN) {
+                    ws.send(JSON.stringify({ type: 'stream', content: piece }));
+                  }
+                  try {
+                    const key = `${userId}:${sessionId}`;
+                    const prev = this.streamBuffers.get(key) || '';
+                    this.streamBuffers.set(key, prev + String(piece || ''));
+                  } catch { /* noop */ }
+                },
+                { temperature: 0.7, maxTokens: 1024 }
+              );
+              if (ws.readyState === ws.OPEN) {
+                ws.send(JSON.stringify({ type: 'task_complete', sessionId }));
+              }
+              try {
+                const key = `${userId}:${sessionId}`;
+                const content = this.streamBuffers.get(key) || '';
+                this.streamBuffers.delete(key);
+                if (content && userId && sessionId) {
+                  await ChatMessage.create({ sessionId, userId, type: 'joe', content });
+                  await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date() } });
+                }
+              } catch { /* noop */ }
+            } catch (err) {
+              if (ws.readyState === ws.OPEN) {
+                ws.send(JSON.stringify({ type: 'error', message: err.message }));
+              }
             }
+            return;
+          }
 
             const model = data.model || 'gpt-4o';
             const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model });
             if (ws.readyState === ws.OPEN) {
               ws.send(JSON.stringify({ type: 'response', response: result.response, toolsUsed: result.toolsUsed, sessionId }));
             }
+            try {
+              const content = String(result?.response || '').trim();
+              if (content) {
+                await ChatMessage.create({ sessionId, userId, type: 'joe', content });
+                await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date() } });
+              }
+            } catch { /* noop */ }
 
           } else if (data.action === 'cancel') {
             // Handle cancel action if needed

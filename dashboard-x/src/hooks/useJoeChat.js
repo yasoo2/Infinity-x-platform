@@ -1,7 +1,7 @@
 
 import { useReducer, useEffect, useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { getChatSessions, getChatSessionById, getGuestToken, getSystemStatus } from '../api/system';
+import { getChatSessions, getChatSessionById, getGuestToken, getSystemStatus, createChatSession, updateChatSession, addChatMessage, getChatMessages } from '../api/system';
 
 const JOE_CHAT_HISTORY = 'joeChatHistory';
 
@@ -85,7 +85,7 @@ const chatReducer = (state, action) => {
                 convoId = uuidv4();
                 nextState.conversations = {
                     ...nextState.conversations,
-                    [convoId]: { id: convoId, title: 'New Conversation', messages: [], lastModified: Date.now(), pinned: false },
+                    [convoId]: { id: convoId, title: 'New Conversation', messages: [], lastModified: Date.now(), pinned: false, sessionId: null },
                 };
                 nextState.currentConversationId = convoId;
             }
@@ -208,6 +208,22 @@ const chatReducer = (state, action) => {
             const convo = state.conversations[id];
             if (!convo) return state;
             const updated = { ...convo, title: normalizeTitle(title), lastModified: Date.now() };
+            return { ...state, conversations: { ...state.conversations, [id]: updated } };
+        }
+
+        case 'SET_SESSION_ID': {
+            const { id, sessionId } = action.payload;
+            const convo = state.conversations[id];
+            if (!convo) return state;
+            const updated = { ...convo, sessionId, lastModified: Date.now() };
+            return { ...state, conversations: { ...state.conversations, [id]: updated } };
+        }
+
+        case 'SET_MESSAGES_FOR_CONVERSATION': {
+            const { id, messages } = action.payload;
+            const convo = state.conversations[id];
+            if (!convo) return state;
+            const updated = { ...convo, messages, lastModified: Date.now() };
             return { ...state, conversations: { ...state.conversations, [id]: updated } };
         }
 
@@ -395,7 +411,8 @@ export const useJoeChat = () => {
     const last = (session.interactions || []).at(-1);
     const lastModified = last?.metadata?.timestamp ? new Date(last.metadata.timestamp).getTime() : Date.now();
     const title = normalizeTitle(messages.find(m => m.type === 'user')?.content || 'New Conversation');
-    return { id: session.id, title, messages, lastModified, pinned: false };
+    const sid = session._id || session.id;
+    return { id: sid, title, messages, lastModified, pinned: false, sessionId: sid };
   }, []);
 
   const syncBackendSessions = useCallback(async () => {
@@ -617,7 +634,7 @@ export const useJoeChat = () => {
           }
         };
         
-        ws.current.onmessage = (event) => {
+        ws.current.onmessage = async (event) => {
           const data = JSON.parse(event.data);
           dispatch({ type: 'ADD_WS_LOG', payload: `[WS] Received: ${event.data}` });
 
@@ -628,6 +645,25 @@ export const useJoeChat = () => {
           case 'progress':
             dispatch({ type: 'SET_PROGRESS', payload: { progress: data.progress, step: data.step } });
             break;
+          case 'response': {
+            const text = String(data.response || '').trim();
+            if (text) {
+              dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
+              try {
+                const id = state.currentConversationId;
+                const conv = state.conversations[id];
+                const sid = conv?.sessionId || id;
+                if (sid) {
+                  const r = await getChatMessages(sid);
+                  const exists = (r?.messages || []).some(m => String(m?.content || '') === text && m?.type !== 'user');
+                  if (!exists) {
+                    await addChatMessage(sid, { type: 'joe', content: text });
+                  }
+                }
+              } catch { void 0; }
+            }
+            break;
+          }
           case 'task_complete':
             dispatch({ type: 'STOP_PROCESSING' });
             dispatch({ type: 'REMOVE_PENDING_LOGS' });
@@ -686,16 +722,41 @@ export const useJoeChat = () => {
     return () => window.removeEventListener('auth:forbidden', onForbidden);
   }, []);
 
-  const handleSend = useCallback(() => {
+  const handleSend = useCallback(async () => {
     const inputText = state.input.trim();
     if (!inputText) return;
     dispatch({ type: 'SEND_MESSAGE', payload: inputText });
+    try {
+      let t = localStorage.getItem('sessionToken');
+      if (!t) {
+        const r = await getGuestToken();
+        if (r?.ok && r?.token) {
+          localStorage.setItem('sessionToken', r.token);
+          t = r.token;
+        }
+      }
+      const conv = state.conversations[state.currentConversationId] || null;
+      let sid = conv?.sessionId || null;
+      if (!sid) {
+        const created = await createChatSession(normalizeTitle(inputText));
+        const s = created?.session;
+        sid = s?._id || s?.id || null;
+        if (sid) dispatch({ type: 'SET_SESSION_ID', payload: { id: state.currentConversationId, sessionId: sid } });
+      } else {
+        await updateChatSession(sid, { title: normalizeTitle(inputText) }).catch(() => {});
+      }
+      if (sid) {
+        await addChatMessage(sid, { type: 'user', content: inputText }).catch(() => {});
+      }
+    } catch { void 0; }
 
     const trySend = (attempt = 0) => {
       if (ws.current?.readyState === WebSocket.OPEN) {
         const selectedModel = localStorage.getItem('aiSelectedModel') || 'gpt-4o';
         const lang = getLang();
-        ws.current.send(JSON.stringify({ action: 'instruct', message: inputText, sessionId: state.currentConversationId, model: selectedModel, lang }));
+        const conv = state.conversations[state.currentConversationId] || null;
+        const sid = conv?.sessionId || state.currentConversationId;
+        ws.current.send(JSON.stringify({ action: 'instruct', message: inputText, sessionId: sid, model: selectedModel, lang }));
         return;
       }
       if (attempt < 6) {
@@ -708,7 +769,22 @@ export const useJoeChat = () => {
       dispatch({ type: 'STOP_PROCESSING' });
     };
     trySend();
-  }, [state.input, state.currentConversationId]);
+  }, [state.input, state.currentConversationId, state.conversations]);
+
+  useEffect(() => {
+    const id = state.currentConversationId;
+    if (!id) return;
+    const convo = state.conversations[id];
+    const sid = convo?.sessionId || id;
+    if (!sid) return;
+    (async () => {
+      try {
+        const r = await getChatMessages(sid);
+        const msgs = (r?.messages || []).map(m => ({ type: m.type === 'user' ? 'user' : 'joe', content: m.content, id: m._id || uuidv4() }));
+        dispatch({ type: 'SET_MESSAGES_FOR_CONVERSATION', payload: { id, messages: msgs } });
+      } catch { void 0; }
+    })();
+  }, [state.currentConversationId, state.conversations]);
 
   const stopProcessing = useCallback(() => {
     if (ws.current?.readyState === WebSocket.OPEN) {

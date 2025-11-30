@@ -6,7 +6,9 @@
   if (envBase && String(envBase).trim().length > 0) {
     resolvedBase = envBase;
   } else if (typeof window !== 'undefined') {
-    resolvedBase = window.location.origin;
+    const origin = window.location.origin;
+    const isPreview = origin.includes('localhost:4000');
+    resolvedBase = isPreview ? 'http://localhost:4001' : origin;
   } else {
     resolvedBase = 'http://localhost:5173';
   }
