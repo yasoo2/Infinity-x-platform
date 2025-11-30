@@ -175,6 +175,8 @@ async function setupDependencies() {
     }
     const sandboxManager = await new SandboxManager().initializeConnections();
     const memoryManager = new MemoryManager();
+    const { localLlamaService } = await import('./src/services/llm/local-llama.service.mjs');
+    localLlamaService.startInitialize();
     
     const dependencies = {
         db,
@@ -185,6 +187,7 @@ async function setupDependencies() {
         schedulingSystem,
         requireRole: requireRole(db),
         optionalAuth: optionalAuth(db),
+        localLlamaService,
         JWT_SECRET: process.env.JWT_SECRET || 'a-very-weak-secret-for-dev',
     };
 
