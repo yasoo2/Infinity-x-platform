@@ -90,29 +90,27 @@ const chatReducer = (state, action) => {
             const inputText = action.payload;
             let nextState = { ...state };
             let convoId = nextState.currentConversationId;
-            // Ensure a conversation exists
-            if (!convoId) {
-                convoId = uuidv4();
-                nextState.conversations = {
-                    ...nextState.conversations,
-                    [convoId]: { id: convoId, title: 'New Conversation', messages: [], lastModified: Date.now(), pinned: false, sessionId: null },
-                };
-                nextState.currentConversationId = convoId;
-            }
-            const convo = nextState.conversations[convoId];
-            const newMessage = { type: 'user', content: inputText, id: uuidv4() };
-            const updatedMessages = [...(convo?.messages || []), newMessage];
-            const title = (!convo?.title || convo?.title === 'New Conversation') ? normalizeTitle(inputText) : convo.title;
-            nextState.conversations = {
-                ...nextState.conversations,
-                [convoId]: { ...convo, messages: updatedMessages, title, lastModified: Date.now() },
-            };
-            nextState.input = '';
-            nextState.isProcessing = true;
-            nextState.progress = 0;
-            nextState.currentStep = 'Processing...';
-            nextState.plan = [];
-            return nextState;
+	    // Ensure a conversation exists
+	    if (!convoId) {
+	        convoId = uuidv4();
+	        nextState.conversations = {
+	            ...nextState.conversations,
+	            [convoId]: { id: convoId, title: 'New Conversation', messages: [], lastModified: Date.now(), pinned: false, sessionId: null },
+	        };
+	        nextState.currentConversationId = convoId;
+	    }
+	    const convo = nextState.conversations[convoId];
+	    const newMessage = { type: 'user', content: inputText, id: uuidv4() };
+	    const updatedMessages = [...(convo?.messages || []), newMessage];
+	    const title = (!convo?.title || convo?.title === 'New Conversation') ? normalizeTitle(inputText) : convo.title;
+	    nextState.conversations = {
+	        ...nextState.conversations,
+	        [convoId]: { ...convo, messages: updatedMessages, title, lastModified: Date.now() },
+	    };
+	    nextState.input = '';
+	    // Note: SEND_MESSAGE should not set isProcessing, progress, currentStep, or plan.
+	    // START_PROCESSING will handle that later.
+	    return nextState;
         }
 
         case 'APPEND_MESSAGE': {
@@ -790,7 +788,10 @@ export const useJoeChat = () => {
       const welcome = lang === 'ar' ? 'مرحباً! لنبدأ المحادثة.' : 'Hello! Let’s start chatting.';
       dispatch({ type: 'NEW_CONVERSATION', payload: { selectNew: true, welcomeMessage: welcome, id: convId } });
     }
-    dispatch({ type: 'START_PROCESSING', payload: inputText });
+	    // 1. Update UI state immediately (append message, clear input, start processing)
+	    dispatch({ type: 'SEND_MESSAGE', payload: inputText });
+	    // 2. Start processing after UI update
+	    dispatch({ type: 'START_PROCESSING', payload: inputText });
     let sid = null;
     try {
       let t = localStorage.getItem('sessionToken');
