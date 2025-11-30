@@ -38,6 +38,20 @@ export class JoeAgentWebSocketServer {
     this.wss.on('connection', (ws, req) => {
       ws.isAlive = true;
       ws.on('pong', () => { ws.isAlive = true; });
+      // Origin check for WebSocket handshake
+      try {
+        const origin = req.headers?.origin;
+        if (origin) {
+          const u = new URL(origin);
+          const host = u.host;
+          const allowed = host.startsWith('localhost') || host.endsWith('.onrender.com') || host.endsWith('xelitesolutions.com') || host.endsWith('www.xelitesolutions.com');
+          if (!allowed) {
+            console.log(`[JoeAgentV2] Connection rejected: Origin not allowed (${origin}).`);
+            ws.close(1008, 'Policy Violation: Origin not allowed');
+            return;
+          }
+        }
+      } catch { /* noop */ }
       // 1. استخراج التوكين من URL
       console.log(`[JoeAgentV2] Attempting connection from Origin: ${req.headers.origin}, URL: ${req.url}`);
       const urlParams = new URLSearchParams(req.url.split('?')[1]);

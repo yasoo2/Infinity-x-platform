@@ -8,9 +8,10 @@
       apiBaseUrl: isDevelopment 
         ? 'http://localhost:4000/api/v1'
         : 'https://api.xelitesolutions.com/api/v1',
+      // عرض عنوان الأساس للـ WebSocket فقط؛ مسار joe-agent يُضاف على مستوى الربط
       wsBaseUrl: isDevelopment
         ? 'ws://localhost:4000'
-        : 'wss://api.xelitesolutions.com/ws/joe-agent'
+        : 'wss://api.xelitesolutions.com'
     };
   };
 

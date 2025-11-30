@@ -12,6 +12,7 @@ import os from 'os';
 import { v4 as uuidv4 } from 'uuid';
 import Docker from 'dockerode';
 import { cacheManager } from '../utils/cacheManager.mjs';
+import { testRedisConnection } from '../utils/upstashRedis.mjs';
 import eventBus from '../core/event-bus.mjs';
 
 class SandboxManager {
@@ -24,10 +25,14 @@ class SandboxManager {
   }
 
   async initializeConnections() {
+    try {
+      const test = await testRedisConnection();
+      this.isRedisConnected = Boolean(test?.ok);
+    } catch { /* noop */ }
     if (this.isRedisConnected) {
-      console.log('✅ Connected to Redis for caching (via Upstash).');
+      console.log('✅ Redis caching is active (Upstash).');
     } else {
-      console.error('❌ Could not connect to Redis. Caching will be disabled.');
+      console.warn('⚠️ Redis unavailable. Falling back to in-memory cache.');
     }
     return this;
   }

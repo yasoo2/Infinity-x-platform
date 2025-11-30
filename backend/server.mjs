@@ -33,6 +33,7 @@ import SandboxManager from './src/sandbox/SandboxManager.mjs';
 import MemoryManager from './src/services/memory/memory.service.mjs';
 import { JoeAgentWebSocketServer } from './src/services/joeAgentWebSocket.mjs';
 import BrowserWebSocketServer from './src/services/browserWebSocket.mjs';
+import { localLlamaService } from './src/services/llm/local-llama.service.mjs';
 
 const CONFIG = {
   PORT: process.env.PORT || 4000,
@@ -71,6 +72,8 @@ const isAllowedOrigin = (origin) => {
     const u = new URL(origin);
     const host = u.host;
     if (host.startsWith('localhost')) return true;
+    if (host.endsWith('.onrender.com')) return true;
+    if (host.endsWith('xelitesolutions.com') || host.endsWith('www.xelitesolutions.com')) return true;
     return whitelist.includes(origin);
   } catch {
     return whitelist.includes(origin);
@@ -237,6 +240,13 @@ async function startServer() {
         console.error('❌ Global Error:', err);
         res.status(500).json({ error: 'SERVER_ERROR', message: err.message });
     });
+
+    // Optionally auto-load local LLaMA model at startup
+    try {
+      if (String(process.env.LLAMA_AUTO_LOAD || '').toLowerCase() === 'true') {
+        localLlamaService.startInitialize();
+      }
+    } catch { /* noop */ }
 
     server.listen(CONFIG.PORT, '0.0.0.0', () => {
       console.log(`✅ Server running on http://localhost:${CONFIG.PORT}`);

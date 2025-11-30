@@ -51,8 +51,11 @@ export const authenticateToken = async (req, res, next) => {
         return res.status(403).json({ ok: false, error: 'Invalid token' });
       }
 
-      // Fetch user from database
-      const user = await User.findById(decoded.userId);
+      // Fetch user from database; fallback to token claims if not found
+      let user = await User.findById(decoded.userId);
+      if (!user && decoded && decoded.userId) {
+        user = { _id: decoded.userId, role: decoded.role || 'user', email: decoded.email };
+      }
       if (!user) {
         return res.status(404).json({ ok: false, error: 'User not found' });
       }
