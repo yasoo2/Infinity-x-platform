@@ -13,7 +13,7 @@ routes = [
 
 # Default allowed origins (can be overridden by environment)
 [vars]
-ALLOWED_ORIGINS = "https://xelitesolutions.com,https://www.xelitesolutions.com"
+ALLOWED_ORIGINS = "https://xelitesolutions.com,https://www.xelitesolutions.com,https://admin.xelitesolutions.com,https://api.xelitesolutions.com"
 
 # Enable workers.dev for preview if needed
 workers_dev = true
