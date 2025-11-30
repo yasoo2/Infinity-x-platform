@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TopBar from '../components/joe/TopBar';
+import apiClient from '../api/client';
 import SidePanel from '../components/joe/SidePanel';
 import MainConsole from '../components/joe/MainConsole';
 import RightPanel from '../components/joe/RightPanel';
@@ -507,9 +508,13 @@ const JoeContent = () => {
                     <button onClick={(e)=>{ e.stopPropagation(); toggleSidePanel(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'لوحة اليسار':'Left Panel'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); toggleRightPanel(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'لوحة اليمين':'Right Panel'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); toggleBottomPanel(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'سجلّ النظام':'Logs'}</button>
-                    <button onClick={(e)=>{ e.stopPropagation(); handleNewConversation(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'جلسة جديدة':'New Chat'}</button>
+                    <button onClick={(e)=>{ e.stopPropagation(); handleNewConversation(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text黑 text-xs">{lang==='ar'?'جلسة جديدة':'New Chat'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); if (currentConversationId) clearMessages(currentConversationId); }} className="px-2 py-1 rounded bg-gray-700 hover:bg-gray-600 text-white text-xs">{lang==='ar'?'مسح الرسائل':'Clear msgs'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); navigate('/dashboard/browser-viewer'); }} className="px-2 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white text-xs">{lang==='ar'?'عارض المتصفح':'Browser Viewer'}</button>
+                    <button onClick={(e)=>{ e.stopPropagation(); navigate('/dashboard/security'); }} className="px-2 py-1 rounded bg-purple-600 hover:bg-purple-700 text-white text-xs">{lang==='ar'?'تقرير الأمان':'Security Report'}</button>
+                    <button onClick={(e)=>{ e.stopPropagation(); navigate('/dashboard/knowledge'); }} className="px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-700 text-white text-xs">{lang==='ar'?'المعرفة':'Knowledge'}</button>
+                    <button onClick={async (e)=>{ e.stopPropagation(); try { const { data } = await apiClient.get('/api/v1/learning/stats'); const s = data?.stats; const lines = [ `Interactions=${s?.totalInteractions||0}`, `Patterns=${s?.patternsLearned||0}`, `Version=${s?.currentVersion||'N/A'}`, `LastOpt=${s?.lastOptimization||'N/A'}` ]; addAllLogsToChat(lines); if (!isBottomPanelOpen) toggleBottomPanel(); } catch (err) { addLogToChat(`LEARNING STATS ERROR: ${err?.message||'unknown'}`); if (!isBottomPanelOpen) toggleBottomPanel(); } }} className="px-2 py-1 rounded bg-green-600 hover:bg-green-700 text-white text-xs">{lang==='ar'?'إحصائيات التعلم':'Learning Stats'}</button>
+                    <button onClick={async (e)=>{ e.stopPropagation(); try { const { data } = await apiClient.get('/api/v1/security/audit'); const r = data?.result?.results || []; const lines = r.map(x=>`[${x.dir}] critical=${x.severityCounts?.critical||0} high=${x.severityCounts?.high||0} moderate=${x.severityCounts?.moderate||0} low=${x.severityCounts?.low||0}`); addAllLogsToChat(lines); if (!isBottomPanelOpen) toggleBottomPanel(); } catch (err) { addLogToChat(`SECURITY AUDIT ERROR: ${err?.message||'unknown'}`); if (!isBottomPanelOpen) toggleBottomPanel(); } }} className="px-2 py-1 rounded bg-red-600 hover:bg-red-700 text-white text-xs">{lang==='ar'?'تدقيق أمني':'Security Audit'}</button>
                   </div>
                 </div>
               </div>

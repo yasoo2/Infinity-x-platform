@@ -1,5 +1,4 @@
 // dashboard-x/src/utils/websocket.js
-import config from '../config.js';
 
 let ws = null;
 let reconnectInterval = null;

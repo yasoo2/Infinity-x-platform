@@ -30,6 +30,7 @@ export default function BrowserViewer({ sessionId: _sessionId, onClose, language
   const [url, setUrl] = useState('');
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isUserControlled, setIsUserControlled] = useState(false);
+  const isUserControlledRef = useRef(false);
   const [error, setError] = useState(null);
   const canvasRef = useRef(null);
   const browserScreenRef = useRef(null);
@@ -169,16 +170,17 @@ export default function BrowserViewer({ sessionId: _sessionId, onClose, language
   }, [isUserControlled, scroll]);
 
   const handleKeyDown = useCallback((e) => {
-    if (!isUserControlled) return;
+    if (!isUserControlledRef.current) return;
     e.preventDefault();
     if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
       type(e.key);
     } else {
       pressKey(e.key);
     }
-  }, [isUserControlled, type, pressKey]);
+  }, [type, pressKey]);
 
   useEffect(() => {
+    isUserControlledRef.current = isUserControlled;
     const canvas = canvasRef.current;
     if (canvas && isUserControlled) {
       canvas.addEventListener('mousemove', handleMouseMove);

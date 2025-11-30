@@ -50,12 +50,14 @@ ProtectedRoute.propTypes = {
 import JoeScreen from './components/JoeScreen';
 import FullScreenBrowser from './components/FullScreenBrowser';
 import BrowserViewer from './components/BrowserViewer';
+const SecurityReport = React.lazy(() => import('./pages/SecurityReport'));
+const Knowledge = React.lazy(() => import('./pages/Knowledge'));
 
 const JoeScreenPage = () => {
   const navigate = useNavigate();
-  const [isProcessing, setIsProcessing] = React.useState(false);
-  const [progress, setProgress] = React.useState(0);
-  const [wsLog, setWsLog] = React.useState([]);
+  const [isProcessing] = React.useState(false);
+  const [progress] = React.useState(0);
+  const [wsLog] = React.useState([]);
 
   const onTakeover = () => {};
   const onClose = () => navigate('/dashboard/joe');
@@ -100,6 +102,8 @@ const AppRoutes = () => {
           <Route path="joe-screen" element={<JoeScreenPage />} />
           <Route path="browser-full" element={<BrowserFullPage />} />
           <Route path="browser-viewer" element={<BrowserViewerPage />} />
+          <Route path="security" element={<SecurityReport />} />
+          <Route path="knowledge" element={<Knowledge />} />
           <Route path="page-builder" element={<PageBuilder />} />
           <Route path="self-design" element={<SelfDesign />} />
           <Route path="universal-store" element={<UniversalStoreIntegration />} />

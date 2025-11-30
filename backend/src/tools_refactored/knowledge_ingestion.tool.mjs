@@ -36,24 +36,107 @@ class KnowledgeIngestionTool {
         };
     }
 
-    async ingestDocument({ filePath, documentTitle, summaryGoal }) {
-        // Placeholder for document parsing and vector database integration logic
-        return {
-            success: true,
-            message: `Document '${documentTitle}' at ${filePath} has been queued for ingestion.`,
-            details: `The system will now process the document, extract key entities, and integrate the knowledge based on the goal: "${summaryGoal || 'General summary and integration'}".`,
-            note: "Actual ingestion requires a robust document parser and a vector database."
-        };
+    async ingestDocument({ filePath, documentTitle, summaryGoal, content: inlineContent }) {
+        const { db } = this.dependencies || {}
+        if (!db) {
+            return { success: false, message: 'Database not available' }
+        }
+        let content = ''
+        if (inlineContent && inlineContent.length > 0) {
+            content = String(inlineContent)
+        } else if (filePath) {
+            const fs = await import('fs/promises')
+            try {
+                content = await fs.readFile(filePath, 'utf8')
+            } catch (e) {
+                return { success: false, message: `Failed to read file: ${e.message}` }
+            }
+        } else {
+            return { success: false, message: 'No content or filePath provided' }
+        }
+        const tokens = this._tokenize(content)
+        const vector = this._toVector(tokens)
+        const summary = await this._summarize(content, summaryGoal)
+        const doc = {
+            _id: `doc_${Date.now()}_${Math.random().toString(36).slice(2,8)}`,
+            title: documentTitle,
+            path: filePath,
+            summary,
+            tokens,
+            vector,
+            length: content.length,
+            createdAt: new Date()
+        }
+        try {
+            const mongo = await db()
+            await mongo.collection('knowledge_docs').insertOne(doc)
+        } catch (e) {
+            return { success: false, message: `DB error: ${e.message}` }
+        }
+        return { success: true, message: 'Document ingested', id: doc._id, summary }
     }
 
-    async queryKnowledgeBase({ query }) {
-        // Placeholder for RAG (Retrieval-Augmented Generation) logic
-        return {
-            success: true,
-            query: query,
-            mockResult: "Based on internal knowledge, the most relevant information is: 'The project factory uses a modular architecture based on Node.js and MongoDB for rapid deployment.'",
-            note: "Actual query requires a functional knowledge base and retrieval mechanism."
-        };
+    async queryKnowledgeBase({ query, limit = 5 }) {
+        const { db } = this.dependencies || {}
+        if (!db) return { success: false, message: 'Database not available' }
+        const qTokens = this._tokenize(String(query || ''))
+        const qVector = this._toVector(qTokens)
+        try {
+            const mongo = await db()
+            const docs = await mongo.collection('knowledge_docs').find({}).project({ _id: 1, title: 1, summary: 1, vector: 1, path: 1 }).toArray()
+            const scored = docs.map(d => ({ id: d._id, title: d.title, summary: d.summary, path: d.path, score: this._cosine(qVector, d.vector) }))
+            scored.sort((a,b) => b.score - a.score)
+            return { success: true, query, results: scored.slice(0, limit) }
+        } catch (e) {
+            return { success: false, message: e.message }
+        }
+    }
+
+    _tokenize(text) {
+        return String(text || '')
+          .toLowerCase()
+          .replace(/[^a-z0-9_\-\s]+/gi, ' ')
+          .split(/\s+/)
+          .filter(t => t && t.length > 1)
+    }
+
+    _toVector(tokens) {
+        const freq = {}
+        for (const t of tokens) { freq[t] = (freq[t] || 0) + 1 }
+        const vec = Object.entries(freq).map(([term, count]) => ({ term, count }))
+        const norm = Math.sqrt(vec.reduce((sum, x) => sum + x.count * x.count, 0)) || 1
+        return vec.map(x => ({ term: x.term, weight: x.count / norm }))
+    }
+
+    _cosine(a, b) {
+        const mapB = new Map(b.map(x => [x.term, x.weight]))
+        let dot = 0
+        let normA = 0
+        let normB = 0
+        for (const x of a) {
+            dot += (x.weight || 0) * (mapB.get(x.term) || 0)
+            normA += (x.weight || 0) * (x.weight || 0)
+        }
+        for (const y of b) { normB += (y.weight || 0) * (y.weight || 0) }
+        const denom = Math.sqrt(normA) * Math.sqrt(normB) || 1
+        return dot / denom
+    }
+
+    async _summarize(content, goal) {
+        try {
+            const { localLlamaService } = this.dependencies || {}
+            if (localLlamaService?.isReady?.()) {
+                const parts = []
+                await localLlamaService.stream([
+                    { role: 'system', content: 'Summarize the document concisely with bullet points.' },
+                    { role: 'user', content: String(goal || 'General summary') + '\n\n' + content.slice(0, 4000) }
+                ], (piece) => { parts.push(piece) }, { temperature: 0.2, maxTokens: 512 })
+                return parts.join('')
+            }
+        } catch { /* noop */ }
+        const lines = String(content || '').split('\n').map(l => l.trim()).filter(Boolean)
+        const top = lines.slice(0, 10)
+        return `${goal ? '['+goal+'] ' : ''}${top.join(' ')}`.slice(0, 1000)
     }
 }
 

@@ -1,4 +1,5 @@
 import { WebSocketServer } from 'ws';
+import { learningSystem } from '../systems/learning.service.mjs';
 import joeAdvanced from './ai/joe-advanced.service.mjs';
 import ChatMessage from '../database/models/ChatMessage.mjs';
 import ChatSession from '../database/models/ChatSession.mjs';
@@ -30,11 +31,11 @@ export class JoeAgentWebSocketServer {
     this.heartbeat = setInterval(() => {
       this.wss.clients.forEach((client) => {
         if (client.isAlive === false) {
-          try { client.terminate(); } catch { /* noop */ }
+          try { client.terminate(); } catch { void 0 }
           return;
         }
         client.isAlive = false;
-        try { client.ping(); } catch { /* noop */ }
+        try { client.ping(); } catch { void 0 }
       });
     }, 30000);
   }
@@ -56,7 +57,7 @@ export class JoeAgentWebSocketServer {
             return;
           }
         }
-      } catch { /* noop */ }
+      } catch { void 0 }
       // 1. استخراج التوكين من URL
       console.log(`[JoeAgentV2] Attempting connection from Origin: ${req.headers.origin}, URL: ${req.url}`);
       const urlParams = new URLSearchParams(req.url.split('?')[1]);
@@ -139,7 +140,7 @@ export class JoeAgentWebSocketServer {
                     const key = `${userId}:${sessionId}`;
                     const prev = this.streamBuffers.get(key) || '';
                     this.streamBuffers.set(key, prev + String(piece || ''));
-                  } catch { /* noop */ }
+                  } catch { void 0 }
                 },
                 { temperature: 0.7, maxTokens: 1024 }
               );
@@ -154,7 +155,7 @@ export class JoeAgentWebSocketServer {
                   await ChatMessage.create({ sessionId, userId, type: 'joe', content });
                   await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date() } });
                 }
-              } catch { /* noop */ }
+              } catch { void 0 }
             } catch (err) {
               if (ws.readyState === ws.OPEN) {
                 ws.send(JSON.stringify({ type: 'error', message: err.message }));
@@ -174,7 +175,7 @@ export class JoeAgentWebSocketServer {
                 await ChatMessage.create({ sessionId, userId, type: 'joe', content });
                 await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date() } });
               }
-            } catch { /* noop */ }
+            } catch { void 0 }
 
           } else if (data.action === 'cancel') {
             // Handle cancel action if needed
@@ -235,7 +236,7 @@ export class JoeAgentWebSocketServer {
           socket.data.sessionId = sessionId;
           socket.join(sessionId);
           if (data.action === 'instruct') {
-            try { await ChatMessage.create({ sessionId, userId, type: 'user', content: data.message }); await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date() } }); } catch {}
+            try { await ChatMessage.create({ sessionId, userId, type: 'user', content: data.message }); await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date() } }); } catch { void 0 }
             if (currentMode === 'offline' && localLlamaService.isReady()) {
               try {
                 socket.emit('status', { message: 'Offline local model active' });
@@ -247,7 +248,7 @@ export class JoeAgentWebSocketServer {
                       const key = `${userId}:${sessionId}`;
                       const prev = this.streamBuffers.get(key) || '';
                       this.streamBuffers.set(key, prev + String(piece || ''));
-                    } catch {}
+                    } catch { void 0 }
                   },
                   { temperature: 0.7, maxTokens: 1024 }
                 );
@@ -259,8 +260,11 @@ export class JoeAgentWebSocketServer {
                   if (content && userId && sessionId) {
                     await ChatMessage.create({ sessionId, userId, type: 'joe', content });
                     await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date() } });
+                    try {
+                      await learningSystem.learn({ sessionId, userId, request: data.message, response: content, success: true, toolsUsed: [], executionTime: 0 })
+                    } catch { void 0 }
                   }
-                } catch {}
+                } catch { void 0 }
               } catch (err) {
                 socket.emit('error', { message: err.message });
               }
@@ -275,7 +279,7 @@ export class JoeAgentWebSocketServer {
                 await ChatMessage.create({ sessionId, userId, type: 'joe', content });
                 await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date() } });
               }
-            } catch {}
+            } catch { void 0 }
           } else if (data.action === 'cancel') {
             socket.emit('status', { message: 'Cancellation request received.' });
           } else {
@@ -286,7 +290,7 @@ export class JoeAgentWebSocketServer {
         }
       });
 
-      socket.on('disconnect', () => {});
+      socket.on('disconnect', () => { void 0 });
     });
   }
 
@@ -301,7 +305,7 @@ export class JoeAgentWebSocketServer {
         }
       });
       if (this.nsp) {
-        try { this.nsp.to(progressData.taskId).emit('progress', progressData); } catch {}
+        try { this.nsp.to(progressData.taskId).emit('progress', progressData); } catch { void 0 }
       }
     });
 
@@ -314,7 +318,7 @@ export class JoeAgentWebSocketServer {
             }
         });
         if (this.nsp) {
-          try { this.nsp.to(errorData.context?.sessionId).emit('error', errorData); } catch {}
+          try { this.nsp.to(errorData.context?.sessionId).emit('error', errorData); } catch { void 0 }
         }
     });
 
@@ -328,7 +332,7 @@ export class JoeAgentWebSocketServer {
           }
         });
         if (this.nsp) {
-          try { this.nsp.to(payload.sessionId).emit('session_updated', { sessionId: payload.sessionId }); } catch {}
+          try { this.nsp.to(payload.sessionId).emit('session_updated', { sessionId: payload.sessionId }); } catch { void 0 }
         }
       });
     }

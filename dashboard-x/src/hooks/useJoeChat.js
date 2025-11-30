@@ -319,6 +319,9 @@ export const useJoeChat = () => {
     reconnectRemainingMs: 0,
   });
 
+  const stateRef = useRef(state);
+  useEffect(() => { stateRef.current = state; }, [state]);
+
   useEffect(() => {
     const c = globalThis && globalThis.console ? globalThis.console : null;
     const origLog = c && c['log'] ? c['log'] : null;
@@ -383,7 +386,7 @@ export const useJoeChat = () => {
     const ar = `مرحبًا بك في مساعد جو الذكي! 👋\n\nشريكك الهندسي المدعوم بالذكاء مع ${toolsCount} أداة ووظيفة.\n\nأستطيع مساعدتك في:\n💬 المحادثة والسؤال - إجابات وشروحات فورية\n🛠️ البناء والإنشاء - توليد مشاريع وتطبيقات\n🔍 التحليل والمعالجة - العمل مع البيانات وتوليد رؤى\n\nابدأ بكتابة تعليماتك أدناه أو إرفاق ملف أو استخدام الصوت.`;
     const msg = lang === 'ar' ? ar : en;
     dispatch({ type: 'NEW_CONVERSATION', payload: { selectNew, welcomeMessage: msg } });
-  }, [state.conversations, state.currentConversationId]);
+  }, []);
 
   const renameConversation = useCallback((id, title) => {
     dispatch({ type: 'RENAME_CONVERSATION', payload: { id, title } });
@@ -551,7 +554,6 @@ export const useJoeChat = () => {
             const uid = String(p?.userId || '');
             const role = String(p?.role || '');
             const isObjectId = /^[a-f0-9]{24}$/i.test(uid);
-            const isGuest = uid.startsWith('guest:');
             // Force refresh for legacy dev tokens or malformed super_admin IDs
             if (uid === 'super-admin-id-dev' || (role === 'super_admin' && !isObjectId)) {
               try { localStorage.removeItem('sessionToken'); } catch { void 0; }
@@ -747,8 +749,8 @@ export const useJoeChat = () => {
             if (text) {
               dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
               try {
-                const id = state.currentConversationId;
-                const conv = state.conversations[id];
+                const id = stateRef.current.currentConversationId;
+                const conv = stateRef.current.conversations[id];
                 const sid = conv?.sessionId || id;
                 if (sid) {
                   const r = await getChatMessages(sid);

@@ -17,6 +17,10 @@ import express from 'express';
 import helmet from 'helmet';
 import http from 'http';
 import fs from 'fs';
+import rateLimit from 'express-rate-limit';
+import xssClean from 'xss-clean';
+import mongoSanitize from 'express-mongo-sanitize';
+import hpp from 'hpp';
 
 // --- Core Components ---
 import { initMongo, closeMongoConnection } from './src/core/database.mjs';
@@ -99,9 +103,23 @@ app.disable('x-powered-by');
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
   crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+  contentSecurityPolicy: {
+    useDefaults: true,
+    directives: {
+      defaultSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "blob:"],
+      connectSrc: ["'self'", "ws:", "wss:", ...whitelist],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+    }
+  }
 }));
 
 app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: false }));
+app.use(mongoSanitize());
+app.use(xssClean());
+app.use(hpp());
 
 // --- Extra CORS hardening: echo exact Origin, set Vary, handle preflight ---
 app.use((req, res, next) => {
@@ -264,6 +282,8 @@ async function startServer() {
     const dependencies = await setupDependencies();
     setupAuth(dependencies.db);
     await applyRoutes(dependencies);
+
+    app.use('/api/v1', rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false }));
     
     app.use((req, res) => res.status(404).json({ error: 'NOT_FOUND' }));
     app.use((err, req, res, _next) => {

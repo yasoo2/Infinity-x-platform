@@ -1,7 +1,7 @@
 export default (dependencies) => {
   const { sandboxManager } = dependencies || {}
 
-  async function registerPipTool({ packageName, version = '', moduleName = '', functionName = '', schema, initCode = '', invokeTemplate = 'fn(args)' }) {
+  async function registerPipTool({ packageName, version = '', moduleName = '', functionName = '', schema, initCode = '' }) {
     if (!sandboxManager) return { success: false, error: 'SandboxManager not available' }
     const name = String(packageName || '').trim()
     const modName = String(moduleName || name).trim()
@@ -51,7 +51,7 @@ PY`
   registerPipTool.metadata = {
     name: 'registerPipTool',
     description: 'Install pip package and register a dynamic tool that calls its function',
-    parameters: { type: 'object', properties: { packageName: { type: 'string' }, version: { type: 'string' }, moduleName: { type: 'string' }, functionName: { type: 'string' }, schema: { type: 'object' }, initCode: { type: 'string' }, invokeTemplate: { type: 'string' } }, required: ['packageName'] }
+    parameters: { type: 'object', properties: { packageName: { type: 'string' }, version: { type: 'string' }, moduleName: { type: 'string' }, functionName: { type: 'string' }, schema: { type: 'object' }, initCode: { type: 'string' } }, required: ['packageName'] }
   }
 
   async function registerBulkNpmTools({ items = [] }) {
