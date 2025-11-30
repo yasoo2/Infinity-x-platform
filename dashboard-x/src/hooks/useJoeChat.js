@@ -535,6 +535,17 @@ export const useJoeChat = () => {
           try {
             const p = JSON.parse(atob((t.split('.')[1]) || ''));
             const exp = p?.exp;
+            const uid = String(p?.userId || '');
+            const role = String(p?.role || '');
+            const isObjectId = /^[a-f0-9]{24}$/i.test(uid);
+            const isGuest = uid.startsWith('guest:');
+            // Force refresh for legacy dev tokens or malformed super_admin IDs
+            if (uid === 'super-admin-id-dev' || (role === 'super_admin' && !isObjectId)) {
+              try { localStorage.removeItem('sessionToken'); } catch { void 0; }
+              t = null;
+              return true;
+            }
+            // Guest tokens are acceptable; only refresh when near expiry
             return typeof exp === 'number' ? (Date.now() / 1000) >= (exp - 30) : false;
           } catch {
             return false;
