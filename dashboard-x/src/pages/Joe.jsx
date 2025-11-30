@@ -85,12 +85,12 @@ const JoeContent = () => {
   const [isBottomPanelOpen, setIsBottomPanelOpen] = useState(() => {
     try {
       const v = localStorage.getItem('joeBottomOpen');
-      return v ? v === 'true' : true;
+      return v ? v === 'true' : false;
     } catch {
-      return true;
+      return false;
     }
   });
-  const [isBottomCollapsed, setIsBottomCollapsed] = useState(false);
+  const [isBottomCollapsed, setIsBottomCollapsed] = useState(true);
   const [isStatusPanelOpen, setIsStatusPanelOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isBorderSettingsOpen, setIsBorderSettingsOpen] = useState(false);
