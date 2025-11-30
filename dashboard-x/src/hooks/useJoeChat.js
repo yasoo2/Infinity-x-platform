@@ -59,20 +59,30 @@ const chatReducer = (state, action) => {
             return { ...state, input: action.payload };
 
         case 'START_PROCESSING': {
-            if (!currentConversationId) return state;
+            let convId = currentConversationId;
+            let conv = currentConvo;
+            if (!convId) {
+                convId = uuidv4();
+                const welcomeMessage = { type: 'joe', content: 'Welcome to Joe AI Assistant! 👋', id: uuidv4() };
+                conv = { id: convId, title: 'New Conversation', messages: [welcomeMessage], lastModified: Date.now(), pinned: false };
+            }
+            if (!conv) {
+                conv = { id: convId, title: 'New Conversation', messages: [], lastModified: Date.now(), pinned: false };
+            }
             const newMessage = { type: 'user', content: action.payload, id: uuidv4() };
-            const updatedMessages = [...(currentConvo?.messages || []), newMessage];
-            const title = (!currentConvo?.title || currentConvo?.title === 'New Conversation') ? normalizeTitle(action.payload) : currentConvo.title;
-            const updatedConvo = { ...currentConvo, messages: updatedMessages, title, lastModified: Date.now() };
-            
+            const updatedMessages = [...(conv?.messages || []), newMessage];
+            const title = (!conv?.title || conv?.title === 'New Conversation') ? normalizeTitle(action.payload) : conv.title;
+            const updatedConvo = { ...conv, messages: updatedMessages, title, lastModified: Date.now() };
+            const nextConversations = { ...conversations, [convId]: updatedConvo };
             return {
                 ...state,
                 input: '',
                 isProcessing: true,
                 progress: 0,
                 currentStep: 'Processing...',
-                conversations: { ...conversations, [currentConversationId]: updatedConvo },
-                plan: [], // CLEAR_PLAN on start
+                conversations: nextConversations,
+                currentConversationId: convId,
+                plan: [],
             };
         }
 
@@ -171,18 +181,19 @@ const chatReducer = (state, action) => {
             return { ...state, conversations: action.payload };
 
         case 'SELECT_CONVERSATION':
-            // Ensure full state reset to force re-render and clear old input/processing state
-            return { ...state, currentConversationId: action.payload, isProcessing: false, input: '', plan: [], progress: 0, currentStep: '' };
+            // Keep current input to avoid sudden clearing while user is typing
+            return { ...state, currentConversationId: action.payload, isProcessing: false, plan: [], progress: 0, currentStep: '' };
 
         case 'NEW_CONVERSATION': {
             const selectNew = typeof action.payload === 'object' ? (action.payload.selectNew !== false) : (action.payload !== false);
-            const newId = uuidv4();
+            const explicitId = (typeof action.payload === 'object' && action.payload.id) ? action.payload.id : null;
+            const newId = explicitId || uuidv4();
             console.warn('[NEW_CONVERSATION] Creating new conversation with ID:', newId);
             const dynamicText = typeof action.payload === 'object' && action.payload.welcomeMessage ? action.payload.welcomeMessage : 'Welcome to Joe AI Assistant! 👋';
             const welcomeMessage = { type: 'joe', content: dynamicText, id: uuidv4() };
             const newConversations = {
                 ...conversations,
-                [newId]: { id: newId, title: 'New Conversation', messages: [welcomeMessage], lastModified: Date.now(), pinned: false },
+                [newId]: { id: newId, title: 'New Conversation', messages: [welcomeMessage], lastModified: Date.now(), pinned: false, sessionId: (typeof action.payload === 'object' && action.payload.sessionId) ? action.payload.sessionId : null },
             };
             const newState = {
                 ...state,
@@ -328,7 +339,8 @@ export const useJoeChat = () => {
           const lid = Date.now();
           dispatch({ type: 'ADD_WS_LOG', payload: { id: lid, type: 'error', text } });
           if (/(TypeError|Failed to fetch)/i.test(text)) {
-            dispatch({ type: 'SEND_MESSAGE', payload: `Analyze and fix error: ${text}` });
+            const hint = getLang() === 'ar' ? 'تحليل الخطأ ومتابعة العمل: ' : 'Analyze error and continue: ';
+            dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `${hint}${text}` } });
             dispatch({ type: 'ADD_PENDING_LOG', payload: lid });
           }
         }
@@ -612,6 +624,7 @@ export const useJoeChat = () => {
             try { localStorage.removeItem('sessionToken'); } catch { void 0; }
           }
           dispatch({ type: 'SET_WS_CONNECTED', payload: false });
+          dispatch({ type: 'STOP_PROCESSING' });
           const attempt = (reconnectAttempts.current || 0) + 1;
           reconnectAttempts.current = attempt;
           const jitter = Math.floor(Math.random() * 500);
@@ -649,14 +662,33 @@ export const useJoeChat = () => {
           const data = JSON.parse(event.data);
           dispatch({ type: 'ADD_WS_LOG', payload: `[WS] Received: ${event.data}` });
 
-        switch(data.type) {
-          case 'stream':
-            dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: data.content } });
-            break;
-          case 'progress':
-            dispatch({ type: 'SET_PROGRESS', payload: { progress: data.progress, step: data.step } });
-            break;
-          case 'response': {
+          const type = data.type || data.event || '';
+          const isCompleteEvent = (
+            type === 'task_complete' ||
+            type === 'complete' ||
+            type === 'completed' ||
+            type === 'finished' ||
+            type === 'finish' ||
+            type === 'end' ||
+            data.done === true ||
+            data.final === true
+          );
+
+          if (type === 'stream') {
+            if (typeof data.content === 'string') {
+              dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: data.content } });
+            }
+            return;
+          }
+
+          if (type === 'progress' || type === 'progress_update') {
+            const p = Number(data.progress || data.pct || 0);
+            const step = data.step || data.status || '';
+            dispatch({ type: 'SET_PROGRESS', payload: { progress: p, step } });
+            return;
+          }
+
+          if (type === 'response' || typeof data.response === 'string') {
             const text = String(data.response || '').trim();
             if (text) {
               dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
@@ -673,29 +705,40 @@ export const useJoeChat = () => {
                 }
               } catch { void 0; }
             }
-            break;
+            if (isCompleteEvent) {
+              dispatch({ type: 'STOP_PROCESSING' });
+              dispatch({ type: 'REMOVE_PENDING_LOGS' });
+              if (syncRef.current) syncRef.current();
+            }
+            return;
           }
-          case 'task_complete':
+
+          if (type === 'session_updated') {
+            if (syncRef.current) syncRef.current();
+            return;
+          }
+
+          if (type === 'thought') {
+            dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'thought', content: data.content } });
+            return;
+          }
+
+          if (type === 'tool_used') {
+            dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'tool_used', content: data.tool, details: data.details } });
+            return;
+          }
+
+          if (type === 'error') {
+            dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `[ERROR]: ${data.message}` } });
+            dispatch({ type: 'STOP_PROCESSING' });
+            return;
+          }
+
+          if (isCompleteEvent) {
             dispatch({ type: 'STOP_PROCESSING' });
             dispatch({ type: 'REMOVE_PENDING_LOGS' });
             if (syncRef.current) syncRef.current();
-            break;
-          case 'session_updated':
-            if (syncRef.current) syncRef.current();
-            break;
-          // MODIFIED: Handle plan steps
-          case 'thought':
-            dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'thought', content: data.content } });
-            break;
-          case 'tool_used':
-            dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'tool_used', content: data.tool, details: data.details } });
-            break;
-          case 'error':
-            dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `[ERROR]: ${data.message}` } });
-            dispatch({ type: 'STOP_PROCESSING' });
-            break;
-          default:
-            break;
+            return;
           }
         };
       });
@@ -736,7 +779,14 @@ export const useJoeChat = () => {
   const handleSend = useCallback(async () => {
     const inputText = state.input.trim();
     if (!inputText) return;
-    dispatch({ type: 'SEND_MESSAGE', payload: inputText });
+    let convId = state.currentConversationId;
+    if (!convId) {
+      convId = uuidv4();
+      const lang = getLang();
+      const welcome = lang === 'ar' ? 'مرحباً! لنبدأ المحادثة.' : 'Hello! Let’s start chatting.';
+      dispatch({ type: 'NEW_CONVERSATION', payload: { selectNew: true, welcomeMessage: welcome, id: convId } });
+    }
+    dispatch({ type: 'START_PROCESSING', payload: inputText });
     let sid = null;
     try {
       let t = localStorage.getItem('sessionToken');
@@ -747,13 +797,13 @@ export const useJoeChat = () => {
           t = r.token;
         }
       }
-      const conv = state.conversations[state.currentConversationId] || null;
+      const conv = state.conversations[convId] || null;
       sid = conv?.sessionId || null;
       if (!sid) {
         const created = await createChatSession(normalizeTitle(inputText));
         const s = created?.session;
         sid = s?._id || s?.id || null;
-        if (sid) dispatch({ type: 'SET_SESSION_ID', payload: { id: state.currentConversationId, sessionId: sid } });
+        if (sid) dispatch({ type: 'SET_SESSION_ID', payload: { id: convId, sessionId: sid } });
       } else {
         await updateChatSession(sid, { title: normalizeTitle(inputText) }).catch(() => {});
       }
@@ -766,9 +816,9 @@ export const useJoeChat = () => {
       if (ws.current?.readyState === WebSocket.OPEN) {
         const selectedModel = localStorage.getItem('aiSelectedModel') || 'gpt-4o';
         const lang = getLang();
-        const conv = state.conversations[state.currentConversationId] || null;
-        const sidToUse = sid || conv?.sessionId || state.currentConversationId;
-        ws.current.send(JSON.stringify({ action: 'instruct', message: inputText, sessionId: sidToUse, model: selectedModel, lang }));
+      const conv = state.conversations[convId] || null;
+      const sidToUse = sid || conv?.sessionId || convId;
+      ws.current.send(JSON.stringify({ action: 'instruct', message: inputText, sessionId: sidToUse, model: selectedModel, lang }));
         return;
       }
       if (attempt < 6) {
@@ -786,6 +836,7 @@ export const useJoeChat = () => {
   useEffect(() => {
     const id = state.currentConversationId;
     if (!id) return;
+    if (state.isProcessing) return;
     const convo = state.conversations[id];
     const sid = convo?.sessionId || id;
     if (!sid) return;
@@ -796,11 +847,18 @@ export const useJoeChat = () => {
     (async () => {
       try {
         const r = await getChatMessages(sid);
-        const msgs = (r?.messages || []).map(m => ({ type: m.type === 'user' ? 'user' : 'joe', content: m.content, id: m._id || uuidv4() }));
-        dispatch({ type: 'SET_MESSAGES_FOR_CONVERSATION', payload: { id, messages: msgs } });
+        const fetched = (r?.messages || []).map(m => ({ type: m.type === 'user' ? 'user' : 'joe', content: m.content, id: m._id || uuidv4() }));
+        const local = state.conversations[id]?.messages || [];
+        const seen = new Set(fetched.map(m => `${m.type}:${m.content}`));
+        const merged = [...fetched];
+        for (const lm of local) {
+          const key = `${lm.type}:${lm.content}`;
+          if (!seen.has(key)) merged.push(lm);
+        }
+        dispatch({ type: 'SET_MESSAGES_FOR_CONVERSATION', payload: { id, messages: merged } });
       } catch { void 0; }
     })();
-  }, [state.currentConversationId, state.conversations]);
+  }, [state.currentConversationId, state.conversations, state.isProcessing]);
 
   const stopProcessing = useCallback(() => {
     if (ws.current?.readyState === WebSocket.OPEN) {
@@ -904,6 +962,11 @@ export const useJoeChat = () => {
       const lines = (state.wsLog || []).slice(-50).map(l => (typeof l === 'string') ? l : (l?.text || JSON.stringify(l))).join('\n');
       const header = getLang() === 'ar' ? 'سجل النظام الأخير:\n' : 'Recent system logs:\n';
       dispatch({ type: 'SEND_MESSAGE', payload: `${header}${lines}` });
+    },
+    appendUserMessage: (text) => {
+      const content = String(text || '').trim();
+      if (!content) return;
+      dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'user', content } });
     },
   };
 };

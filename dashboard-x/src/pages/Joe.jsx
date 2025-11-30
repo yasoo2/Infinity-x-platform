@@ -85,12 +85,12 @@ const JoeContent = () => {
   const [isBottomPanelOpen, setIsBottomPanelOpen] = useState(() => {
     try {
       const v = localStorage.getItem('joeBottomOpen');
-      return v ? v === 'true' : false;
+      return v ? v === 'true' : true;
     } catch {
-      return false;
+      return true;
     }
   });
-  const [isBottomCollapsed, setIsBottomCollapsed] = useState(true);
+  const [isBottomCollapsed, setIsBottomCollapsed] = useState(false);
   const [isStatusPanelOpen, setIsStatusPanelOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isBorderSettingsOpen, setIsBorderSettingsOpen] = useState(false);
@@ -491,6 +491,8 @@ const JoeContent = () => {
         onToggleBorderSettings={toggleBorderSettings}
         isBorderSettingsOpen={isBorderSettingsOpen}
         isSuperAdmin={(user?.role === 'super_admin')}
+        onToggleLogs={toggleBottomPanel}
+        isLogsOpen={isBottomPanelOpen && !isBottomCollapsed}
       />
       {isBorderSettingsOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">

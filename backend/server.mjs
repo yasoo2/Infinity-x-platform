@@ -32,6 +32,7 @@ import toolManager from './src/services/tools/tool-manager.service.mjs';
 import SandboxManager from './src/sandbox/SandboxManager.mjs';
 import MemoryManager from './src/services/memory/memory.service.mjs';
 import { JoeAgentWebSocketServer } from './src/services/joeAgentWebSocket.mjs';
+import BrowserWebSocketServer from './src/services/browserWebSocket.mjs';
 
 const CONFIG = {
   PORT: process.env.PORT || 4000,
@@ -190,6 +191,8 @@ async function setupDependencies() {
     dependencies.toolManager = toolManager;
     const joeAgentServer = new JoeAgentWebSocketServer(server, dependencies);
     dependencies.joeAgentServer = joeAgentServer;
+    const browserWSServer = new BrowserWebSocketServer(server);
+    dependencies.browserWSServer = browserWSServer;
 
     return dependencies;
 }

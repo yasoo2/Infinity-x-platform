@@ -7,10 +7,9 @@
     resolvedBase = envBase;
   } else if (typeof window !== 'undefined') {
     const origin = window.location.origin;
-    const isPreview = origin.includes('localhost:4000');
-    resolvedBase = isPreview ? 'http://localhost:4001' : origin;
+    resolvedBase = origin;
   } else {
-    resolvedBase = 'http://localhost:5173';
+    resolvedBase = 'http://localhost:4000';
   }
   const BASE_URL = String(resolvedBase).replace(/\/+$/, '');
 

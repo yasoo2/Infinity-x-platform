@@ -73,7 +73,7 @@ const MainConsole = () => {
 
   const { 
     messages, isProcessing, progress, currentStep, 
-    input, setInput, isListening, handleSend, stopProcessing, 
+    input, setInput, isListening, handleSend, stopProcessing, appendUserMessage,
     handleVoiceInput, transcript, currentConversation,
     wsConnected, reconnectActive, reconnectAttempt, reconnectRemainingMs, reconnectDelayMs
   } = useJoeChatContext();
@@ -82,14 +82,14 @@ const MainConsole = () => {
   const scrollToBottomIfNeeded = () => {
     const el = scrollContainerRef.current;
     if (!el) return;
-    const atBottom = (el.scrollHeight - el.scrollTop - el.clientHeight) <= 80;
-    if (atBottom) {
-      requestAnimationFrame(() => {
-        el.scrollTop = el.scrollHeight;
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        setShowScrollButton(false);
-      });
-    }
+    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const atBottom = distance <= 2;
+    if (!atBottom) return;
+    requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      setShowScrollButton(false);
+    });
   };
   
   const prevMsgCountRef = useRef(messages.length);
@@ -480,7 +480,7 @@ const MainConsole = () => {
     <div className="flex flex-col h-full bg-gray-900">
       {/* Messages Area - Spacious and Centered */}
       <div className="flex-1 overflow-y-auto relative" ref={scrollContainerRef} style={{ scrollBehavior: 'auto', overscrollBehavior: 'contain', overflowAnchor: 'none' }}>
-        <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 border border-gray-800 rounded-xl" style={{ paddingBottom: Math.max(24, inputAreaHeight + 24) }}>
+        <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 border border-gray-800 rounded-xl bg-gray-900/60" style={{ paddingBottom: Math.max(24, inputAreaHeight + 24) }}>
           {messages.length === 0 || (messages.length === 1 && messages[0].type === 'joe' && messages[0].content.includes('Welcome to Joe AI Assistant')) ? (
             <WelcomeScreen toolsCount={toolsCount} />
           ) : (
@@ -491,10 +491,10 @@ const MainConsole = () => {
                   className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div 
-                    className={`max-w-[90%] sm:max-w-[85%] md:max-w-[75%] rounded-2xl px-5 py-4 shadow-lg ${
+                    className={`max-w-[90%] sm:max-w-[85%] md:max-w-[75%] rounded-2xl px-5 py-4 ${
                       msg.type === 'user' 
-                        ? 'bg-yellow-600 text-black border border-yellow-600 ring-1 ring-yellow-600/20' 
-                        : 'bg-gray-800 text-gray-100 border border-yellow-500/50 ring-1 ring-yellow-500/30'
+                        ? 'bg-gradient-to-br from-yellow-500 to-yellow-600 text-black border border-yellow-600 ring-1 ring-yellow-600/30 shadow-xl' 
+                        : 'bg-gradient-to-br from-gray-800 to-gray-900 text-gray-100 border border-gray-700 ring-1 ring-gray-700/30 shadow-md'
                     }`}
                   >
                     <p className="text-base leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
@@ -567,8 +567,12 @@ const MainConsole = () => {
               onKeyDown={(e) => {
                 const composing = e.isComposing || (e.nativeEvent && e.nativeEvent.isComposing) || e.keyCode === 229;
                 if (composing) return;
-                if (e.key === 'Enter' && !e.shiftKey && !isProcessing && typeof input === 'string' && input.trim()) {
+                if (e.key === 'Enter' && !e.shiftKey && typeof input === 'string' && input.trim()) {
                   e.preventDefault();
+                  if (isProcessing) {
+                    try { stopProcessing(); } catch { /* ignore */ }
+                  }
+                  try { appendUserMessage(input); } catch { /* ignore */ }
                   handleSend();
                 }
               }}
@@ -576,7 +580,7 @@ const MainConsole = () => {
               className="flex-1 bg-transparent outline-none resize-none text-white placeholder-gray-500 text-sm leading-relaxed border border-gray-700 rounded-md px-2"
               rows={1}
               style={{ height: '42px', minHeight: '42px', maxHeight: '42px' }}
-              disabled={isProcessing}
+              
             />
 
             {/* Action Buttons */}

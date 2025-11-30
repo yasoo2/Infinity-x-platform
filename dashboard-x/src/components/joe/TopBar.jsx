@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { FiMaximize2, FiLogOut, FiSidebar, FiActivity, FiUsers } from 'react-icons/fi';
+import { FiMaximize2, FiLogOut, FiSidebar, FiActivity, FiUsers, FiTerminal } from 'react-icons/fi';
 import { Sparkles, Key, CheckCircle, XCircle, ExternalLink, Search as SearchIcon } from 'lucide-react';
 import { getAIProviders, validateAIKey, activateAIProvider } from '../../api/system';
 import apiClient from '../../api/client';
@@ -51,7 +51,7 @@ import PropTypes from 'prop-types';
 import { useSessionToken } from '../../hooks/useSessionToken';
 import { useNavigate } from 'react-router-dom';
 
-const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onToggleBorderSettings, isBorderSettingsOpen, isSuperAdmin, onToggleRight: _onToggleRight, isRightOpen: _isRightOpen }) => {
+const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onToggleBorderSettings, isBorderSettingsOpen, isSuperAdmin, onToggleRight: _onToggleRight, isRightOpen: _isRightOpen, onToggleLogs, isLogsOpen }) => {
   const { clearToken } = useSessionToken();
   const navigate = useNavigate();
   const [userMenuOpen, setUserMenuOpen] = React.useState(false);
@@ -329,6 +329,18 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
           <FiActivity size={18} />
         </button>
 
+        <button
+          onClick={onToggleLogs}
+          className={`p-2 w-9 h-9 inline-flex items-center justify-center rounded-lg transition-colors ${
+            isLogsOpen 
+              ? 'bg-yellow-600 text-black hover:bg-yellow-700' 
+              : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-yellow-600/40'
+          }`}
+          title={lang==='ar'?'سجلّ النظام':'Logs'}
+        >
+          <FiTerminal size={18} />
+        </button>
+
         {isSuperAdmin && (
           <div className="relative">
             <button
@@ -425,6 +437,8 @@ TopBar.propTypes = {
   onToggleStatus: PropTypes.func.isRequired,
   isStatusOpen: PropTypes.bool.isRequired,
   onToggleBorderSettings: PropTypes.func.isRequired,
+  onToggleLogs: PropTypes.func.isRequired,
+  isLogsOpen: PropTypes.bool.isRequired,
   isBorderSettingsOpen: PropTypes.bool.isRequired,
   isSuperAdmin: PropTypes.bool,
 };

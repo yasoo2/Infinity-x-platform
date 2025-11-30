@@ -12,9 +12,8 @@ const useBrowserWebSocket = () => {
       const sessionToken = localStorage.getItem('sessionToken');
       if (!sessionToken) return;
 
-      // بناء URL الـ WebSocket باستخدام المسار الصحيح /ws/browser
-      const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://api.xelitesolutions.com';
-      const wsBase = apiBase.replace(/^http/, 'ws');
+      const apiBase = import.meta.env.VITE_API_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
+      const wsBase = apiBase.replace(/^https/, 'wss').replace(/^http/, 'ws');
       const wsUrl = `${wsBase}/ws/browser?token=${sessionToken}`;
 
       wsRef.current = new WebSocket(wsUrl);
