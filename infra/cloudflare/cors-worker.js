@@ -1,7 +1,10 @@
 export default {
   async fetch(request, env) {
     const origin = request.headers.get('Origin');
-    const allowed = origin && (origin === 'https://xelitesolutions.com' || origin === 'https://www.xelitesolutions.com');
+    const configured = (env && env.ALLOWED_ORIGINS) ? env.ALLOWED_ORIGINS.split(',').map(s => s.trim()) : [];
+    const defaults = ['https://xelitesolutions.com', 'https://www.xelitesolutions.com'];
+    const allowlist = configured.length ? configured : defaults;
+    const allowed = origin && allowlist.includes(origin);
 
     const corsHeaders = allowed
       ? {
@@ -19,11 +22,7 @@ export default {
       return new Response(null, { status: allowed ? 200 : 403, headers: corsHeaders });
     }
 
-    const url = new URL(request.url);
-    // Proxy to origin API host
-    url.hostname = 'api.xelitesolutions.com';
-    const proxied = new Request(url, request);
-    const resp = await fetch(proxied);
+    const resp = await fetch(request);
 
     const headers = new Headers(resp.headers);
     for (const [k, v] of Object.entries(corsHeaders)) headers.set(k, v);

@@ -1,0 +1,19 @@
+name = "xelite-cors-worker"
+main = "infra/cloudflare/cors-worker.js"
+compatibility_date = "2024-11-01"
+
+# Fill the following values before deploying
+account_id = "<YOUR_CLOUDFLARE_ACCOUNT_ID>"
+zone_id = "<YOUR_ZONE_ID>"
+
+# Route the worker to handle API requests and preflight at the edge
+routes = [
+  { pattern = "api.xelitesolutions.com/*", zone_id = "<YOUR_ZONE_ID>" }
+]
+
+# Default allowed origins (can be overridden by environment)
+[vars]
+ALLOWED_ORIGINS = "https://xelitesolutions.com,https://www.xelitesolutions.com"
+
+# Enable workers.dev for preview if needed
+workers_dev = true
