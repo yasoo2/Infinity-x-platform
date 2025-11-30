@@ -32,7 +32,7 @@ const SidePanel = ({ conversations, onConversationSelect, onNewConversation, cur
     return () => document.removeEventListener('mousedown', onDocClick, true);
   }, [openMenuId]);
   return (
-    <div className="bg-gray-900 w-full flex-shrink-0 p-3 flex flex-col border border-gray-800 rounded-lg" style={{ gridArea: 'side' }}>
+    <div className="bg-gradient-to-br from-gray-900 to-gray-950 w-full flex-shrink-0 p-3 flex flex-col border border-gray-800 rounded-xl ring-1 ring-yellow-600/10" style={{ gridArea: 'side' }}>
       <div className="flex items-center justify-between mb-4 px-2">
         <h2 className="text-sm font-semibold text-yellow-400 tracking-wider">{lang === 'ar' ? 'المحادثات' : 'Chats'}</h2>
         <button 
@@ -49,10 +49,10 @@ const SidePanel = ({ conversations, onConversationSelect, onNewConversation, cur
           <div 
             key={convo.id}
             onClick={() => { setOpenMenuId(null); onConversationSelect(convo.id); }}
-            className={`relative flex items-center px-4 py-2.5 mx-2 my-1 rounded-md cursor-pointer transition-colors duration-200 border ${
+            className={`relative flex items-center px-4 py-2.5 mx-2 my-1 rounded-lg cursor-pointer transition-colors duration-200 border ${
               currentConversationId === convo.id 
-                ? 'bg-yellow-600 text-black border-yellow-600' 
-                : 'text-gray-300 hover:bg-gray-700/50 border-gray-700'
+                ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black border-yellow-600 shadow-md' 
+                : 'bg-gray-800/80 text-gray-200 hover:bg-gray-700/80 border-gray-700'
             }`}>
             <FiMessageSquare className="mr-3 flex-shrink-0" size={16} />
             <span className="text-sm font-medium truncate flex-1">{convo.title || 'New Conversation'}</span>

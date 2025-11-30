@@ -142,8 +142,8 @@ const Header = () => {
                 {lang === 'ar' ? 'تذكر هذا المستخدم' : 'Remember this user'}
               </label>
               <div className="flex gap-2 mt-2">
-                <button onClick={handleLogin} disabled={loggingIn} className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white py-2 rounded-md font-semibold disabled:opacity-60 disabled:cursor-not-allowed">{loggingIn ? (lang === 'ar' ? 'جاري الدخول...' : 'Signing in...') : (lang === 'ar' ? 'دخول' : 'Sign In')}</button>
-                <button onClick={()=>!loggingIn && setShowLogin(false)} disabled={loggingIn} className="flex-1 bg-gray-700 text-white py-2 rounded-md disabled:opacity-60">{lang === 'ar' ? 'إلغاء' : 'Cancel'}</button>
+                <button onClick={handleLogin} disabled={loggingIn} className="flex-1 btn-primary py-2 font-semibold disabled:opacity-60 disabled:cursor-not-allowed">{loggingIn ? (lang === 'ar' ? 'جاري الدخول...' : 'Signing in...') : (lang === 'ar' ? 'دخول' : 'Sign In')}</button>
+                <button onClick={()=>!loggingIn && setShowLogin(false)} disabled={loggingIn} className="flex-1 btn-ghost py-2 disabled:opacity-60">{lang === 'ar' ? 'إلغاء' : 'Cancel'}</button>
               </div>
             </div>
           </div>

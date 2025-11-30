@@ -56,7 +56,7 @@ export default function Navbar({ onToggleJoeScreen }) {
   
 
   return (
-    <nav className="bg-cardDark border-b border-textDim/20">
+    <nav className="bg-gradient-to-r from-gray-900 via-gray-950 to-gray-900 border-b border-gray-800/60 shadow-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex w-full">
@@ -72,7 +72,7 @@ export default function Navbar({ onToggleJoeScreen }) {
           <div className="flex items-center space-x-4 ml-auto">
             <button
               onClick={toggleFactoryMode}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${factoryMode==='offline' ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-800 text-gray-200 hover:bg-gray-700'} ${(!offlineReady && factoryMode!=='offline') ? 'opacity-60 cursor-not-allowed' : ''}`}
+              className={`btn-ghost px-4 py-2 text-sm font-medium ${factoryMode==='offline' ? 'bg-green-600 text-white hover:bg-green-700 border-0' : ''} ${(!offlineReady && factoryMode!=='offline') ? 'opacity-60 cursor-not-allowed' : ''}`}
               title={factoryMode==='offline' ? 'وضع المصنع الذاتي مفعل' : 'الوضع السحابي'}
               disabled={!offlineReady && factoryMode!=='offline'}
             >
@@ -87,20 +87,20 @@ export default function Navbar({ onToggleJoeScreen }) {
             </button>
             <button
               onClick={handleExitToHome}
-              className="px-4 py-2 text-sm font-medium text-neonPink hover:text-white hover:bg-neonPink/20 rounded-lg transition-all duration-200"
+              className="btn-primary px-4 py-2 text-sm font-semibold"
               title="Exit to Home"
             >
               Exit
             </button>
             <button
               onClick={handleLogout}
-              className="px-4 py-2 text-sm font-medium text-neonPink hover:text-white hover:bg-neonPink/20 rounded-lg transition-all duration-200"
+              className="btn-ghost px-4 py-2 text-sm font-semibold"
             >
               Logout
             </button>
             <button
               onClick={toggleLang}
-              className="px-3 py-2 text-sm font-semibold bg-gray-800 text-white border border-gray-700 rounded-md hover:bg-gray-700 transition-all"
+              className="btn-ghost px-3 py-2 text-sm font-semibold"
               title={lang === 'ar' ? 'AR' : 'EN'}
             >
               {lang === 'ar' ? 'AR' : 'EN'}

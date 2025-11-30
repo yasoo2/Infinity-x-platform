@@ -76,7 +76,7 @@ const RightPanel = ({ isProcessing, plan, forceStatus = false, wsConnected = fal
   }, []);
 
   return (
-    <div className="h-full flex flex-col bg-gray-900 p-5 border border-gray-700 rounded-lg">
+    <div className="h-full flex flex-col bg-gradient-to-br from-gray-900 to-gray-950 p-5 border border-gray-800 rounded-xl ring-1 ring-yellow-600/10">
       {/* Header */}
       <div className="mb-5 border-b border-gray-700 pb-3">
         <div className="flex items-center gap-3 mb-2">
@@ -100,7 +100,7 @@ const RightPanel = ({ isProcessing, plan, forceStatus = false, wsConnected = fal
           </div>
         ) : (
           <div className="space-y-3">
-            <div className="p-4 bg-gray-800 rounded-lg border border-gray-700">
+            <div className="p-4 bg-gray-800/80 rounded-lg border border-gray-700">
               <div className="flex items-center gap-3 mb-2">
                 <FiCheckCircle className={wsConnected ? 'text-green-500' : 'text-red-500'} size={20} />
                 <h4 className="font-semibold text-white">WebSocket</h4>
@@ -108,7 +108,7 @@ const RightPanel = ({ isProcessing, plan, forceStatus = false, wsConnected = fal
               <p className="text-sm text-gray-400">{wsConnected ? 'Connection active' : 'Disconnected'}</p>
             </div>
 
-            <div className="p-4 bg-gray-800 rounded-lg border border-gray-700">
+            <div className="p-4 bg-gray-800/80 rounded-lg border border-gray-700">
               <div className="flex items-center gap-3 mb-2">
                 <FiCheckCircle className={(health?.success && health?.status === 'ok') ? 'text-green-500' : 'text-red-500'} size={20} />
                 <h4 className="font-semibold text-white">API Backend</h4>
@@ -120,7 +120,7 @@ const RightPanel = ({ isProcessing, plan, forceStatus = false, wsConnected = fal
               </div>
             </div>
 
-            <div className="p-4 bg-gray-800 rounded-lg border border-gray-700">
+            <div className="p-4 bg-gray-800/80 rounded-lg border border-gray-700">
               <div className="flex items-center gap-3 mb-2">
                 <FiCpu className="text-blue-500" size={20} />
                 <h4 className="font-semibold text-white">AI Engine</h4>
@@ -133,7 +133,7 @@ const RightPanel = ({ isProcessing, plan, forceStatus = false, wsConnected = fal
               )}
             </div>
 
-            <div className="p-4 bg-gray-800 rounded-lg border border-gray-700">
+            <div className="p-4 bg-gray-800/80 rounded-lg border border-gray-700">
               <div className="flex items-center gap-3 mb-2">
                 <FiTool className="text-purple-500" size={20} />
                 <h4 className="font-semibold text-white">Tools Available</h4>

@@ -128,7 +128,7 @@ const FullScreenBrowser = ({ onClose }) => {
         <div className="flex items-center gap-2">
           <button
             onClick={onClose}
-            className="p-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-all duration-200 hover:scale-110"
+            className="btn-ghost p-2 rounded-lg text-red-400 hover:text-white hover:bg-red-500/30 transition-all duration-200 hover:scale-110"
             title="Close Browser"
           >
             <X size={20} />
@@ -136,7 +136,7 @@ const FullScreenBrowser = ({ onClose }) => {
           
           <button
             onClick={goBack}
-            className="p-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 transition-all duration-200 hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-ghost p-2 rounded-lg text-blue-400 transition-all duration-200 hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed"
             title="Go Back"
             // disabled={!canGoBack} // افتراض وجود هذه الحالة في الـ hook
           >
@@ -145,7 +145,7 @@ const FullScreenBrowser = ({ onClose }) => {
 
           <button
             onClick={goForward}
-            className="p-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 transition-all duration-200 hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-ghost p-2 rounded-lg text-blue-400 transition-all duration-200 hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed"
             title="Go Forward"
             // disabled={!canGoForward} // افتراض وجود هذه الحالة في الـ hook
           >
@@ -154,7 +154,7 @@ const FullScreenBrowser = ({ onClose }) => {
 
           <button
             onClick={reload}
-            className="p-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 transition-all duration-200 hover:scale-110"
+            className="btn-ghost p-2 rounded-lg text-blue-400 transition-all duration-200 hover:scale-110"
             title="Refresh Page"
             disabled={isNavigating || isLoading}
           >
@@ -175,7 +175,7 @@ const FullScreenBrowser = ({ onClose }) => {
           />
           <button
             onClick={handleNavigate}
-            className="px-6 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-medium transition-all duration-200 hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-primary px-6 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={isNavigating || isLoading}
           >
             Go
@@ -199,9 +199,7 @@ const FullScreenBrowser = ({ onClose }) => {
           <button
             onClick={() => setIsControlMode(!isControlMode)}
             className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105 shadow-lg ${
-              isControlMode
-                ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white'
-                : 'bg-gray-700/50 hover:bg-gray-700 text-gray-300'
+              isControlMode ? 'btn-primary' : 'btn-ghost'
             }`}
             title={isControlMode ? 'Disable Interactive Control' : 'Enable Interactive Control'}
           >
@@ -210,7 +208,7 @@ const FullScreenBrowser = ({ onClose }) => {
 
           <button
             onClick={toggleFullScreen}
-            className="p-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 transition-all duration-200 hover:scale-110"
+            className="btn-ghost p-2 rounded-lg text-blue-400 transition-all duration-200 hover:scale-110"
             title={isFullScreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
           >
             {isFullScreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}

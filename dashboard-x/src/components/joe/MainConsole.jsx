@@ -505,14 +505,14 @@ const MainConsole = () => {
               {/* Progress Bar */}
               {isProcessing && (
                 <div className="flex justify-start">
-                  <div className="max-w-[75%] bg-gray-800 border border-gray-700 rounded-2xl px-5 py-4">
-                    <div className="w-full bg-gray-700 rounded-full h-2.5 mb-2">
+                  <div className="max-w-[75%] bg-gray-800/80 border border-gray-700 rounded-2xl px-5 py-4 shadow-md">
+                    <div className="w-full bg-gray-700 rounded-full h-2.5 mb-2 overflow-hidden">
                       <div 
-                        className="bg-yellow-500 h-2.5 rounded-full transition-all duration-300" 
+                        className="bg-gradient-to-r from-yellow-500 to-yellow-600 h-2.5 rounded-full transition-all duration-300" 
                         style={{ width: `${progress}%` }}
                       ></div>
                     </div>
-                    <p className="text-sm text-gray-400">{currentStep || 'Processing your request...'}</p>
+                    <p className="text-sm text-gray-300">{currentStep || 'Processing your request...'}</p>
                   </div>
                 </div>
               )}
