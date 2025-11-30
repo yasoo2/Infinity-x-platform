@@ -43,13 +43,12 @@ const Process = () => {
   };
 
   return (
-    <section id="process" className="py-24 bg-gray-900">
+    <section id="process" className="py-24 bg-gradient-to-br from-gray-900 to-gray-950">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-20">
+          <div className="logo-mark mx-auto mb-4"><div className="logo-mark-inner">IX</div></div>
           <h2 className="text-base font-semibold text-blue-400 tracking-wider uppercase">Our Approach</h2>
-          <p className="mt-2 text-4xl font-extrabold text-white tracking-tight sm:text-5xl">
-            A Structured Path to Excellence
-          </p>
+          <p className="mt-2 text-4xl font-extrabold text-white tracking-tight sm:text-5xl">A Structured Path to Excellence</p>
         </div>
         <motion.div
           className="grid md:grid-cols-2 lg:grid-cols-4 gap-10"
@@ -59,12 +58,12 @@ const Process = () => {
           viewport={{ once: true, amount: 0.5 }}
         >
           {processSteps.map((step, index) => (
-            <motion.div key={index} variants={item} className="bg-gray-800/20 p-6 rounded-lg border border-transparent hover:border-blue-500/50 transition-colors duration-300">
-              <div className="bg-gradient-to-r from-blue-500 to-indigo-600 w-16 h-16 rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30">
+            <motion.div key={index} variants={item} className="card p-6 hover:shadow-xl transition-shadow">
+              <div className="w-16 h-16 rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30 pill mb-2">
                 {step.icon}
               </div>
-              <h3 className="mt-6 text-xl font-bold text-white">{step.title}</h3>
-              <p className="mt-2 text-gray-400">{step.description}</p>
+              <h3 className="mt-4 text-lg font-bold text-gray-900">{step.title}</h3>
+              <p className="mt-2 text-sm text-gray-600">{step.description}</p>
             </motion.div>
           ))}
         </motion.div>
