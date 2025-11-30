@@ -72,11 +72,14 @@ const authRouterFactory = ({ db }) => {
         const origin = req.headers.origin;
         res.header('Access-Control-Allow-Origin', origin || '*');
         res.header('Access-Control-Allow-Credentials', 'true');
+        res.header('Access-Control-Expose-Headers', 'X-New-Token, x-new-token');
+        res.header('Access-Control-Max-Age', '86400');
+        res.header('Vary', 'Origin, Access-Control-Request-Headers, Access-Control-Request-Method');
         res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
         const defaultAllowedHeaders = 'Content-Type, Authorization, X-Requested-With, Accept, Origin';
         const reqHeaders = req.headers['access-control-request-headers'];
         res.header('Access-Control-Allow-Headers', reqHeaders ? reqHeaders : defaultAllowedHeaders);
-        return res.sendStatus(204);
+        return res.status(200).end();
     });
     router.post('/login', async (req, res) => {
         const { email, phone, password } = req.body;

@@ -93,7 +93,7 @@ app.use((req, res, next) => {
   const origin = req.headers.origin;
   if (isAllowedOrigin(origin)) {
     res.header('Access-Control-Allow-Origin', origin);
-    res.header('Vary', 'Origin');
+    res.header('Vary', 'Origin, Access-Control-Request-Headers, Access-Control-Request-Method');
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Expose-Headers', 'X-New-Token, x-new-token');
     res.header('Access-Control-Max-Age', '86400');
@@ -103,7 +103,8 @@ app.use((req, res, next) => {
     res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS');
     if (req.method === 'OPTIONS') {
       console.info('CORS preflight OK', { path: req.path, origin });
-      return res.sendStatus(204);
+      // Some proxies/CDNs expect 200 for preflight
+      return res.status(200).end();
     }
   }
   next();
@@ -116,14 +117,16 @@ app.options('*', (req, res) => {
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Expose-Headers', 'X-New-Token, x-new-token');
     res.header('Access-Control-Max-Age', '86400');
+    res.header('Vary', 'Origin, Access-Control-Request-Headers, Access-Control-Request-Method');
     const reqHeaders = req.headers['access-control-request-headers'];
     const defaultAllowedHeaders = 'Content-Type, Authorization, X-Requested-With, Accept, Origin';
     res.header('Access-Control-Allow-Headers', reqHeaders ? reqHeaders : defaultAllowedHeaders);
     res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS');
     console.info('Global OPTIONS handled', { path: req.path, origin });
-    return res.sendStatus(204);
+    return res.status(200).end();
   }
-  return res.sendStatus(403);
+  // Respond 200 to satisfy preflight status requirements; actual request will still be blocked
+  return res.status(200).end();
 });
 
 // --- Serve Static Frontend Files ---
