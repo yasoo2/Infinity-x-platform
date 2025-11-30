@@ -166,8 +166,12 @@ export class JoeAgentWebSocketServer {
         }
       });
 
-      ws.on('close', () => { console.log('[JoeAgentV2] Client disconnected.'); });
-      ws.on('error', (error) => { console.error('[JoeAgentV2] WebSocket error:', error); });
+      ws.on('close', (code, reason) => { 
+        console.log(`[JoeAgentV2] Client disconnected. Code: ${code}, Reason: ${reason.toString('utf8')}`); 
+      });
+      ws.on('error', (error) => { 
+        console.error(`[JoeAgentV2] WebSocket error for user ${ws.userId}:`, error.message); 
+      });
 
       ws.send(JSON.stringify({ type: 'status', message: 'Connected to Joe Agent v2 "Unified". Ready for instructions.'}));
     });
