@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { FiZap, FiTool, FiCheckCircle, FiActivity, FiCpu } from 'react-icons/fi';
+import apiClient from '../../api/client';
 
 const PlanStep = ({ step, index }) => {
   const Icon = step.type === 'thought' ? FiZap : FiTool;
@@ -58,19 +59,16 @@ const RightPanel = ({ isProcessing, plan, forceStatus = false, wsConnected = fal
     const { signal } = ac;
     const fetchAll = async () => {
       try {
-        const h = await fetch('/api/v1/health', { signal });
-        if (h.ok) setHealth(await h.json());
+        const h = await apiClient.get('/api/v1/health', { signal });
+        setHealth(h.data);
       } catch { void 0; }
       try {
-        const r = await fetch('/api/v1/runtime-mode/status', { signal });
-        if (r.ok) setRuntime(await r.json());
+        const r = await apiClient.get('/api/v1/runtime-mode/status', { signal });
+        setRuntime(r.data);
       } catch { void 0; }
       try {
-        let t = null;
-        try { t = localStorage.getItem('sessionToken'); } catch { void 0; }
-        if (!t) return; // لا تحاول جلب مزوّدي الذكاء بدون توكن
-        const p = await fetch('/api/v1/ai/providers', { headers: { Authorization: `Bearer ${t}` }, signal });
-        if (p.ok) setAi(await p.json());
+        const p = await apiClient.get('/api/v1/ai/providers', { signal });
+        setAi(p.data);
       } catch { void 0; }
     };
     fetchAll();
