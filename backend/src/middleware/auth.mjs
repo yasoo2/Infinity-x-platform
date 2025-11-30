@@ -133,9 +133,12 @@ export const optionalAuth = (db) => async (req, res, next) => {
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
-        const user = await User.findById(decoded.userId);
+        let user = await User.findById(decoded.userId);
+        if (!user && decoded && decoded.userId) {
+            user = { _id: decoded.userId, role: decoded.role || 'user', email: decoded.email };
+        }
         if (user) {
-            req.user = user; // Attach user if found
+            req.user = user;
         }
     } catch (error) {
         // Invalid token, just proceed without auth

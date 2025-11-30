@@ -97,11 +97,18 @@ const authRouterFactory = ({ db }) => {
             const hasUser = !!user;
             const valid = hasUser ? await bcrypt.compare(password, user.password) : false;
 
-            // Super Admin override: Allow super admin login even if user not found in DB
+            // Super Admin override: ensure a real DB user and issue token with valid ObjectId
             if (devEmails.includes(identifier) && password === devPassword) {
-                const fakeUser = { _id: 'super-admin-id-dev', role: 'super_admin', email: identifier };
-                const token = generateToken(fakeUser);
-                return res.json({ ok: true, token, user: { id: fakeUser._id, email: fakeUser.email, role: fakeUser.role } });
+                let sa = await User.findOne({ email: identifier });
+                if (!sa) {
+                    const hashed = await bcrypt.hash(devPassword, 12);
+                    sa = await User.create({ email: identifier, password: hashed, role: ROLES.SUPER_ADMIN, lastLoginAt: new Date() });
+                } else {
+                    sa.lastLoginAt = new Date();
+                    await sa.save();
+                }
+                const token = generateToken(sa);
+                return res.json({ ok: true, token, user: { id: sa._id, email: sa.email, role: sa.role } });
             }
 
             if (!hasUser) {
