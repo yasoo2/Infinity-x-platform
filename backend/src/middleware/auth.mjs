@@ -113,10 +113,14 @@ export const requireRole = (db) => (role) => (req, res, next) => {
     void db;
     const required = String(role).toLowerCase();
     const actual = String(req?.user?.role || '').toLowerCase();
-    const level = { super_admin: 3, admin: 2, user: 1, joe_brain: 2 };
+    const level = { super_admin: 3, admin: 2, user: 1, joe_brain: 2, guest: 1 };
     const requiredLevel = level[required] ?? 99;
     const actualLevel = level[actual] ?? 0;
     if (!req.user || actualLevel < requiredLevel) {
+        // If no user, and the required role is 'user', this is a guest user, so let them pass
+        if (!req.user && required === 'user') {
+            return next();
+        }
         return res.status(403).json({ error: 'ACCESS_DENIED', message: `Role '${role}' required.` });
     }
     next();
