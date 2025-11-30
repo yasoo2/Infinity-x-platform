@@ -16,7 +16,7 @@ export default {
       : {};
 
     if (request.method === 'OPTIONS') {
-      return new Response(null, { status: allowed ? 204 : 403, headers: corsHeaders });
+      return new Response(null, { status: allowed ? 200 : 403, headers: corsHeaders });
     }
 
     const url = new URL(request.url);
