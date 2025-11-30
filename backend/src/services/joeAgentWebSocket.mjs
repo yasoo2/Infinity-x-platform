@@ -97,6 +97,14 @@ export class JoeAgentWebSocketServer {
             const currentMode = getMode();
             const userId = ws.userId;
             const sessionId = data.sessionId || ws.sessionId;
+
+            // 1. Save user message to DB
+            try {
+              await ChatMessage.create({ sessionId, userId, type: 'user', content: data.message });
+              await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date() } });
+            } catch (e) {
+              console.error('[JoeAgentV2] Failed to save user message:', e);
+            }
           if (currentMode === 'offline' && localLlamaService.isReady()) {
             try {
               if (ws.readyState === ws.OPEN) {
