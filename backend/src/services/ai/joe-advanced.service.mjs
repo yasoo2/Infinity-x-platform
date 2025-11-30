@@ -52,6 +52,11 @@ function adaptToolsForGemini(openAITools) {
     }));
 }
 
+function shouldAugment(msg) {
+  const s = String(msg || '').toLowerCase();
+  return /(install|npm|package|library|module)/.test(s);
+}
+
 
 // =========================
 // 🚀 Main Processing Function
@@ -154,6 +159,18 @@ async function processMessage(userId, message, sessionId, { model = 'gpt-4o' } =
             usage.total_tokens += secondResult.response.usageMetadata.totalTokenCount;
         } else {
             finalContent = response.text();
+            if (shouldAugment(message)) {
+              try {
+                const disc = await toolManager.execute('discoverNpmPackages', { query: message, size: 3 });
+                const cand = (disc?.items || [])[0];
+                if (cand?.name) {
+                  await toolManager.execute('registerNpmTool', { packageName: cand.name, version: 'latest', functionName: 'default' });
+                  const second = await chat.sendMessage(message);
+                  finalContent = second.response.text();
+                  usage.total_tokens += second.response.usageMetadata?.totalTokenCount || 0;
+                }
+              } catch { /* noop */ }
+            }
         }
 
     } else if (openaiClient) {
@@ -180,6 +197,33 @@ async function processMessage(userId, message, sessionId, { model = 'gpt-4o' } =
             usage.total_tokens += secondResponse.usage.total_tokens;
         } else {
             finalContent = messageResponse.content;
+            if (shouldAugment(message)) {
+              try {
+                const disc = await toolManager.execute('discoverNpmPackages', { query: message, size: 3 });
+                const cand = (disc?.items || [])[0];
+                if (cand?.name) {
+                  await toolManager.execute('registerNpmTool', { packageName: cand.name, version: 'latest', functionName: 'default' });
+                  const tools2 = toolManager.getToolSchemas();
+                  const secondResponse = await openaiClient.chat.completions.create({ model, messages: messagesForOpenAI, tools: tools2, tool_choice: 'auto' });
+                  const m2 = secondResponse.choices[0].message;
+                  if (m2.tool_calls && m2.tool_calls.length) {
+                    const toolMessages2 = [m2];
+                    for (const tc of m2.tool_calls) {
+                      const fn = tc.function.name;
+                      const args = JSON.parse(tc.function.arguments);
+                      const result2 = await toolManager.execute(fn, args);
+                      toolResults.push({ tool: fn, args, result: result2 });
+                      toolMessages2.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result2) });
+                    }
+                    const synth = await openaiClient.chat.completions.create({ model, messages: [...messagesForOpenAI, ...toolMessages2] });
+                    finalContent = synth.choices[0].message.content;
+                    usage.total_tokens = (usage?.total_tokens || 0) + (synth?.usage?.total_tokens || 0);
+                  } else {
+                    finalContent = m2.content;
+                  }
+                }
+              } catch { /* noop */ }
+            }
         }
     } else {
         throw new Error('No AI models are configured. Please configure provider keys in AI menu.');

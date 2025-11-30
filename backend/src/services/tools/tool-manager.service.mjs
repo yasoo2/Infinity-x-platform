@@ -104,6 +104,17 @@ class ToolManager {
         }
     }
 
+    registerDynamicTool(toolName, toolFunction, schema) {
+        if (typeof toolFunction !== 'function' || !schema) {
+            throw new Error('Invalid dynamic tool registration');
+        }
+        toolFunction.metadata = schema;
+        this.tools.set(toolName, toolFunction);
+        this.toolSchemas.push({ type: 'function', function: schema });
+        console.log(`🧩 Dynamic tool registered: ${toolName}`);
+        return true;
+    }
+
     async execute(toolName, args) {
         if (!this._isInitialized) throw new Error('ToolManager not initialized.');
         const tool = this.tools.get(toolName);

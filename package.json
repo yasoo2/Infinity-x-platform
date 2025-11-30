@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node backend/server.mjs",
-    "dev": "nodemon --watch backend --ext mjs,json --ignore dashboard-x/** backend/server.mjs",
+    "dev": "nodemon backend/server.mjs --watch backend --ext mjs,json",
     "lint": "eslint .",
     "deploy:prod:backend": "if [ -z \"$RENDER_API_KEY\" ] || [ -z \"$RENDER_SERVICE_ID\" ]; then echo 'Missing RENDER_API_KEY or RENDER_SERVICE_ID'; exit 1; else curl -s -X POST -H \"Authorization: Bearer $RENDER_API_KEY\" https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys | jq .; fi"
   },
@@ -48,6 +48,7 @@
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
     "nodemon": "^3.1.0",
+    "socket.io-client": "^4.8.1",
     "terser": "^5.31.0",
     "vite": "^7.2.4",
     "vite-plugin-static-copy": "^3.1.4"

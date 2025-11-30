@@ -15,7 +15,12 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-producti
 export class JoeAgentWebSocketServer {
   constructor(server, dependencies) {
     this.dependencies = dependencies;
-    this.wss = new WebSocketServer({ server, path: '/ws/joe-agent' });
+    this.wss = new WebSocketServer({ server, path: '/ws/joe-agent', perMessageDeflate: false });
+    this.io = dependencies?.io || null;
+    if (this.io) {
+      this.nsp = this.io.of('/joe-agent');
+      this.setupSocketIOServer();
+    }
     joeAdvanced.init(dependencies);
     console.log('🤖 Joe Agent WebSocket Server v2.0 "Unified" Initialized.');
     this.setupWebSocketServer();
@@ -199,6 +204,92 @@ export class JoeAgentWebSocketServer {
     });
   }
 
+  setupSocketIOServer() {
+    this.nsp.use((socket, next) => {
+      try {
+        const token = socket.handshake?.auth?.token || socket.handshake?.query?.token;
+        if (!token) return next(new Error('NO_TOKEN'));
+        const secret = this.dependencies.JWT_SECRET || JWT_SECRET;
+        const decoded = jwt.verify(token, secret);
+        socket.data = socket.data || {};
+        socket.data.userId = decoded.userId;
+        socket.data.role = decoded.role;
+        return next();
+      } catch (e) {
+        return next(new Error('INVALID_TOKEN'));
+      }
+    });
+
+    this.nsp.on('connection', (socket) => {
+      socket.emit('status', { message: 'Connected to Joe Agent v2 "Unified". Ready for instructions.' });
+
+      socket.on('message', async (data) => {
+        try {
+          if (!data || typeof data.action !== 'string' || typeof data.message !== 'string') {
+            socket.emit('error', { message: 'Invalid message format. Expected { action: string, message: string }.' });
+            return;
+          }
+          const currentMode = getMode();
+          const userId = socket.data.userId;
+          const sessionId = data.sessionId || socket.data.sessionId || `session_${Date.now()}`;
+          socket.data.sessionId = sessionId;
+          socket.join(sessionId);
+          if (data.action === 'instruct') {
+            try { await ChatMessage.create({ sessionId, userId, type: 'user', content: data.message }); await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date() } }); } catch {}
+            if (currentMode === 'offline' && localLlamaService.isReady()) {
+              try {
+                socket.emit('status', { message: 'Offline local model active' });
+                await localLlamaService.stream(
+                  [{ role: 'user', content: data.message }],
+                  (piece) => {
+                    socket.emit('stream', { content: piece });
+                    try {
+                      const key = `${userId}:${sessionId}`;
+                      const prev = this.streamBuffers.get(key) || '';
+                      this.streamBuffers.set(key, prev + String(piece || ''));
+                    } catch {}
+                  },
+                  { temperature: 0.7, maxTokens: 1024 }
+                );
+                socket.emit('task_complete', { sessionId });
+                try {
+                  const key = `${userId}:${sessionId}`;
+                  const content = this.streamBuffers.get(key) || '';
+                  this.streamBuffers.delete(key);
+                  if (content && userId && sessionId) {
+                    await ChatMessage.create({ sessionId, userId, type: 'joe', content });
+                    await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date() } });
+                  }
+                } catch {}
+              } catch (err) {
+                socket.emit('error', { message: err.message });
+              }
+              return;
+            }
+            const model = data.model || 'gpt-4o';
+            const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model });
+            socket.emit('response', { response: result.response, toolsUsed: result.toolsUsed, sessionId });
+            try {
+              const content = String(result?.response || '').trim();
+              if (content) {
+                await ChatMessage.create({ sessionId, userId, type: 'joe', content });
+                await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date() } });
+              }
+            } catch {}
+          } else if (data.action === 'cancel') {
+            socket.emit('status', { message: 'Cancellation request received.' });
+          } else {
+            socket.emit('error', { message: `Unknown action: ${data.action}` });
+          }
+        } catch (error) {
+          socket.emit('error', { message: `Server Error: ${error.message}` });
+        }
+      });
+
+      socket.on('disconnect', () => {});
+    });
+  }
+
   /**
    * Listens to events from the Joe engine and broadcasts them to the correct client.
    */
@@ -209,6 +300,9 @@ export class JoeAgentWebSocketServer {
           client.send(JSON.stringify(progressData));
         }
       });
+      if (this.nsp) {
+        try { this.nsp.to(progressData.taskId).emit('progress', progressData); } catch {}
+      }
     });
 
     joeAdvanced.events.on('error', (errorData) => {
@@ -219,6 +313,9 @@ export class JoeAgentWebSocketServer {
               client.send(JSON.stringify(errorData));
             }
         });
+        if (this.nsp) {
+          try { this.nsp.to(errorData.context?.sessionId).emit('error', errorData); } catch {}
+        }
     });
 
     console.log('[JoeAgentV2] Event listeners for engine progress and errors are active.');
@@ -230,6 +327,9 @@ export class JoeAgentWebSocketServer {
             client.send(JSON.stringify({ type: 'session_updated', sessionId: payload.sessionId }));
           }
         });
+        if (this.nsp) {
+          try { this.nsp.to(payload.sessionId).emit('session_updated', { sessionId: payload.sessionId }); } catch {}
+        }
       });
     }
   }

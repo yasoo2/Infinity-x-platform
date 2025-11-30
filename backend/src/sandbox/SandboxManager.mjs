@@ -47,7 +47,7 @@ class SandboxManager {
   }
 
   async executeShell(command, options = {}) {
-    const { sessionId, language = 'shell' } = options;
+    const { sessionId, language = 'shell', allowNetwork = false } = options;
     if (!sessionId) {
       return Promise.reject(new Error('A session ID is required for execution.'));
     }
@@ -90,7 +90,7 @@ class SandboxManager {
           CpuPeriod: 100000,
           CpuQuota: 50000,
           SecurityOpt: ['no-new-privileges'],
-          NetworkMode: 'none',
+          NetworkMode: allowNetwork ? 'bridge' : 'none',
           Mounts: [
             {
               Type: 'bind',
@@ -98,7 +98,7 @@ class SandboxManager {
               Target: '/workspace'
             }
           ]
-        },
+        }
       });
 
       await container.start();

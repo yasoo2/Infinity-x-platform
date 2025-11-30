@@ -33,6 +33,16 @@ import SandboxManager from './src/sandbox/SandboxManager.mjs';
 import MemoryManager from './src/services/memory/memory.service.mjs';
 import { JoeAgentWebSocketServer } from './src/services/joeAgentWebSocket.mjs';
 import BrowserWebSocketServer from './src/services/browserWebSocket.mjs';
+import { collaborationSystem } from './src/systems/collaboration.service.mjs';
+import toolDiscoveryFactory from './src/services/tools/tool-discovery.tool.mjs';
+import toolIntegrationFactory from './src/services/tools/tool-integration.tool.mjs';
+import toolPipIntegrationFactory from './src/services/tools/tool-pip-integration.tool.mjs';
+import toolBulkSeederFactory from './src/services/tools/tool-bulk-seeder.mjs';
+import toolDiagnosticsFactory from './src/services/tools/tool-code-diagnostics.tool.mjs';
+import toolSearchFactory from './src/services/tools/tool-code-search.tool.mjs';
+import toolRefactorFactory from './src/services/tools/tool-code-refactor.tool.mjs';
+import toolAutoFixFactory from './src/services/tools/tool-auto-fix.tool.mjs';
+import toolSystemConnectorsFactory from './src/services/tools/tool-system-connectors.tool.mjs';
 import { localLlamaService } from './src/services/llm/local-llama.service.mjs';
 
 const CONFIG = {
@@ -196,6 +206,27 @@ async function setupDependencies() {
 
     await toolManager.initialize(dependencies);
     dependencies.toolManager = toolManager;
+    await collaborationSystem.initialize(server);
+    dependencies.io = collaborationSystem.io;
+    dependencies.collaborationSystem = collaborationSystem;
+    const discoveryTools = (typeof toolDiscoveryFactory === 'function') ? toolDiscoveryFactory(dependencies) : toolDiscoveryFactory;
+    const integrationTools = (typeof toolIntegrationFactory === 'function') ? toolIntegrationFactory(dependencies) : toolIntegrationFactory;
+    const pipIntegrationTools = (typeof toolPipIntegrationFactory === 'function') ? toolPipIntegrationFactory({ ...dependencies, toolManager }) : toolPipIntegrationFactory;
+    const bulkSeederTools = (typeof toolBulkSeederFactory === 'function') ? toolBulkSeederFactory({ ...dependencies, toolManager }) : toolBulkSeederFactory;
+    const diagnosticsTools = (typeof toolDiagnosticsFactory === 'function') ? toolDiagnosticsFactory(dependencies) : toolDiagnosticsFactory;
+    const searchTools = (typeof toolSearchFactory === 'function') ? toolSearchFactory(dependencies) : toolSearchFactory;
+    const refactorTools = (typeof toolRefactorFactory === 'function') ? toolRefactorFactory(dependencies) : toolRefactorFactory;
+    const autoFixTools = (typeof toolAutoFixFactory === 'function') ? toolAutoFixFactory(dependencies) : toolAutoFixFactory;
+    const systemConnectorTools = (typeof toolSystemConnectorsFactory === 'function') ? toolSystemConnectorsFactory(dependencies) : toolSystemConnectorsFactory;
+    toolManager._registerModule(discoveryTools);
+    toolManager._registerModule(integrationTools);
+    toolManager._registerModule(pipIntegrationTools);
+    toolManager._registerModule(bulkSeederTools);
+    toolManager._registerModule(diagnosticsTools);
+    toolManager._registerModule(searchTools);
+    toolManager._registerModule(refactorTools);
+    toolManager._registerModule(autoFixTools);
+    toolManager._registerModule(systemConnectorTools);
     const joeAgentServer = new JoeAgentWebSocketServer(server, dependencies);
     dependencies.joeAgentServer = joeAgentServer;
     const browserWSServer = new BrowserWebSocketServer(server);
@@ -241,15 +272,24 @@ async function startServer() {
         res.status(500).json({ error: 'SERVER_ERROR', message: err.message });
     });
 
-    // Optionally auto-load local LLaMA model at startup
-    try {
-      if (String(process.env.LLAMA_AUTO_LOAD || '').toLowerCase() === 'true') {
-        localLlamaService.startInitialize();
-      }
-    } catch { /* noop */ }
-
     server.listen(CONFIG.PORT, '0.0.0.0', () => {
       console.log(`✅ Server running on http://localhost:${CONFIG.PORT}`);
+    });
+
+    // Background initialization (non-blocking)
+    Promise.resolve().then(async () => {
+      try {
+        if (String(process.env.LLAMA_AUTO_LOAD || '').toLowerCase() === 'true') {
+          localLlamaService.startInitialize();
+        }
+      } catch { /* noop */ }
+      try {
+        const seedPreset = String(process.env.JOE_TOOL_SEED || 'core');
+        await toolManager.execute('seedCuratedTools', { preset: seedPreset });
+        console.log('🧩 Tool seeds initialized:', seedPreset);
+      } catch (e) {
+        console.warn('⚠️ Tool seed initialization skipped:', e?.message || String(e));
+      }
     });
 
   } catch (error) {

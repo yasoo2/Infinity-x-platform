@@ -8,10 +8,7 @@
  */
 
 import dotenv from 'dotenv';
-import { MongoClient, ObjectId } from 'mongodb';
-import Redis from 'ioredis';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { MongoClient } from 'mongodb';
 
 // استيراد JOEngine AGI
 import { ReasoningEngine } from '../joengine-agi/engines/ReasoningEngine.mjs';
@@ -26,12 +23,11 @@ import { deployToCloudflare } from './lib/cloudflareDeployer.mjs';
 
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// __dirname not needed in current implementation
 
 const DB_NAME = process.env.DB_NAME || 'future_system';
 const mongoClient = new MongoClient(process.env.MONGO_URI);
-const redis = process.env.REDIS_URL ? new Redis(process.env.REDIS_URL) : null;
+// Redis integration can be enabled when needed
 
 // تهيئة JOEngine AGI
 let joengineInitialized = false;
@@ -268,7 +264,7 @@ async function handleFactoryJob(db, job) {
     switch (job.projectType.toLowerCase()) {
       case 'website':
       case 'landing-page':
-      case 'portfolio':
+      case 'portfolio': {
         await db.collection('factory_jobs').updateOne(
           { _id: job._id },
           { $set: { progress: 30, currentStep: 'Generating website code...' } }
@@ -279,10 +275,10 @@ async function handleFactoryJob(db, job) {
           style: job.style || 'modern'
         });
         break;
-        
+      }
       case 'webapp':
       case 'app':
-      case 'application':
+      case 'application': {
         await db.collection('factory_jobs').updateOne(
           { _id: job._id },
           { $set: { progress: 30, currentStep: 'Generating web app code...' } }
@@ -293,10 +289,10 @@ async function handleFactoryJob(db, job) {
           features: job.features || []
         });
         break;
-        
+      }
       case 'ecommerce':
       case 'store':
-      case 'shop':
+      case 'shop': {
         await db.collection('factory_jobs').updateOne(
           { _id: job._id },
           { $set: { progress: 30, currentStep: 'Generating e-commerce store...' } }
@@ -307,9 +303,10 @@ async function handleFactoryJob(db, job) {
           products: job.products || []
         });
         break;
-        
-      default:
+      }
+      default: {
         throw new Error(`Unknown project type: ${job.projectType}`);
+      }
     }
     
     // النشر على Cloudflare

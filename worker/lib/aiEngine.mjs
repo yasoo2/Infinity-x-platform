@@ -82,7 +82,7 @@ export async function generateEcommerce(description, products = []) {
 }
 
 export async function classifyCommand(commandText) {
-    const prompt = `Analyze the following user command and classify its intent and required project type.\n\nCommand: \"${commandText}\"\n\nIntent options:\n- CREATE_PROJECT: The user wants to generate a new project (website, app, store).\n- OTHER_TASK: The user wants to perform a non-project generation task (e.g., search, analyze, fix, ask a question).\n\nProject Type options (only if intent is CREATE_PROJECT):\n- website\n- webapp\n- ecommerce\n\nReturn as JSON with format:\n{\n  \"intent\": \"Intent from the options above\",\n  \"projectType\": \"Project Type from the options above (if applicable, otherwise null)\",\n  \"description\": \"A concise, refined description of the project or task.\"\n}`;
+    const prompt = `Analyze the following user command and classify its intent and required project type.\n\nCommand: "${commandText}"\n\nIntent options:\n- CREATE_PROJECT: The user wants to generate a new project (website, app, store).\n- OTHER_TASK: The user wants to perform a non-project generation task (e.g., search, analyze, fix, ask a question).\n\nProject Type options (only if intent is CREATE_PROJECT):\n- website\n- webapp\n- ecommerce\n\nReturn as JSON with format:\n{\n  "intent": "Intent from the options above",\n  "projectType": "Project Type from the options above (if applicable, otherwise null)",\n  "description": "A concise, refined description of the project or task."\n}`;
 
     try {
         const response = await openai.chat.completions.create({
@@ -110,7 +110,7 @@ export async function classifyCommand(commandText) {
 }
 
 export async function generateWebsite(description, style = 'modern') {
-    const prompt = `Create a complete, modern, responsive website based on this description:\n\"${description}\"\n\nStyle: ${style}\n\nRequirements:\n- Single HTML file with embedded CSS and JavaScript\n- Modern, professional design\n- Fully responsive (mobile, tablet, desktop)\n- Use Tailwind CSS via CDN\n- Include smooth animations\n- SEO optimized\n- Fast loading\n\nReturn ONLY the complete HTML code, no explanations.`;
+    const prompt = `Create a complete, modern, responsive website based on this description:\n"${description}"\n\nStyle: ${style}\n\nRequirements:\n- Single HTML file with embedded CSS and JavaScript\n- Modern, professional design\n- Fully responsive (mobile, tablet, desktop)\n- Use Tailwind CSS via CDN\n- Include smooth animations\n- SEO optimized\n- Fast loading\n\nReturn ONLY the complete HTML code, no explanations.`;
 
     try {
         const response = await openai.chat.completions.create({
