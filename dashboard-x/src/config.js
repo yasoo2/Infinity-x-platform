@@ -10,7 +10,7 @@
         : 'https://api.xelitesolutions.com/api/v1',
       wsBaseUrl: isDevelopment
         ? 'ws://localhost:4000'
-        : 'wss://api.xelitesolutions.com'
+        : 'wss://api.xelitesolutions.com/ws/joe-agent'
     };
   };
 

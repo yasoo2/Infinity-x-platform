@@ -39,6 +39,7 @@ export class JoeAgentWebSocketServer {
       ws.isAlive = true;
       ws.on('pong', () => { ws.isAlive = true; });
       // 1. استخراج التوكين من URL
+      console.log(`[JoeAgentV2] Attempting connection from Origin: ${req.headers.origin}, URL: ${req.url}`);
       const urlParams = new URLSearchParams(req.url.split('?')[1]);
       const token = urlParams.get('token');
 

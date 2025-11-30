@@ -46,6 +46,7 @@ const server = http.createServer(app);
 const defaultWhitelist = [
   'https://xelitesolutions.com',
   'https://www.xelitesolutions.com',
+  'https://api.xelitesolutions.com',
   // 'https://backend-api.onrender.com', // Removed: Old backend URL
   'http://localhost:3000',
   'http://localhost:5173',
@@ -103,7 +104,7 @@ app.use((req, res, next) => {
     res.header('Access-Control-Allow-Headers', reqHeaders ? reqHeaders : defaultAllowedHeaders);
     res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS');
     if (req.method === 'OPTIONS') {
-      console.info('CORS preflight OK', { path: req.path, origin });
+      console.info('CORS preflight OK', { path: req.path, origin, headers: req.headers });
       // Some proxies/CDNs expect 200 for preflight
       return res.status(200).end();
     }
@@ -123,7 +124,7 @@ app.options('*', (req, res) => {
     const defaultAllowedHeaders = 'Content-Type, Authorization, X-Requested-With, Accept, Origin';
     res.header('Access-Control-Allow-Headers', reqHeaders ? reqHeaders : defaultAllowedHeaders);
     res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS');
-    console.info('Global OPTIONS handled', { path: req.path, origin });
+    console.info('Global OPTIONS handled', { path: req.path, origin, headers: req.headers });
     return res.status(200).end();
   }
   // Respond 200 to satisfy preflight status requirements; actual request will still be blocked
