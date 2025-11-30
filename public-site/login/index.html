@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تسجيل الدخول إلى نظام JOE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#0f1115;--card:#171923;--primary:#4A90E2;--accent:#50E3C2;--text:#e6e9ef;--muted:#a8b0c2;--red:#ff4d4f}
+    *{box-sizing:border-box}
+    body{margin:0;background:radial-gradient(1000px 400px at 10% -10%,rgba(80,227,194,.18),transparent 35%),radial-gradient(600px 300px at 90% -10%,rgba(74,144,226,.2),transparent 40%),#0f1115;color:var(--text);font-family:'Cairo',system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial}
+    .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+    .card{width:100%;max-width:420px;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.06);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.45)}
+    .head{padding:28px 28px 12px}
+    .title{font-weight:700;font-size:22px;letter-spacing:.2px}
+    .sub{margin-top:6px;color:var(--muted);font-size:14px}
+    form{padding:16px 28px 24px}
+    .field{margin:12px 0}
+    .label{display:block;margin-bottom:8px;color:var(--muted);font-size:13px}
+    .input{width:100%;background:#0f1218;border:1px solid rgba(255,255,255,.08);border-radius:12px;color:var(--text);padding:12px 14px;font-size:14px;outline:none}
+    .input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(74,144,226,.25)}
+    .row{display:flex;align-items:center;justify-content:space-between;margin-top:6px}
+    .checkbox{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px}
+    .btn{width:100%;margin-top:14px;background:linear-gradient(45deg,var(--primary),var(--accent));border:none;border-radius:12px;color:#fff;font-weight:700;padding:12px;cursor:pointer;transition:transform .15s ease,box-shadow .2s ease}
+    .btn:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(80,227,194,.25)}
+    .error{margin-top:10px;color:#fff;background:rgba(255,77,79,.12);border:1px solid rgba(255,77,79,.5);border-radius:12px;padding:10px 12px;font-size:13px}
+    .hint{padding:0 28px 20px;color:var(--muted);font-size:12px;text-align:center}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="head">
+        <div class="title">تسجيل الدخول إلى نظام JOE</div>
+        <div class="sub">أدخل بريد السوبر أدمن وكلمة المرور</div>
+      </div>
+      <form id="loginForm">
+        <div class="field">
+          <label class="label">البريد الإلكتروني</label>
+          <input class="input" type="email" id="email" placeholder="name@example.com" required>
+        </div>
+        <div class="field">
+          <label class="label">كلمة المرور</label>
+          <input class="input" type="password" id="password" placeholder="••••••••" required>
+        </div>
+        <div class="row">
+          <label class="checkbox"><input type="checkbox" id="remember"> تذكرني</label>
+          <a href="/" style="color:var(--primary);font-size:13px;text-decoration:none">الصفحة الرئيسية</a>
+        </div>
+        <button class="btn" type="submit">تسجيل الدخول</button>
+        <div id="errorBox" class="error" style="display:none"></div>
+      </form>
+      <div class="hint">بعد نجاح الدخول سيتم تحويلك تلقائيًا إلى لوحة التحكم.</div>
+    </div>
+  </div>
+  <script>
+    const API_BASE = (function(){
+      const o = window.location.origin;
+      if (o.includes('xelitesolutions.com')) return 'https://api.xelitesolutions.com';
+      const p = new URLSearchParams(window.location.search).get('api');
+      return p || o;
+    })();
+    const form = document.getElementById('loginForm');
+    const email = document.getElementById('email');
+    const password = document.getElementById('password');
+    const remember = document.getElementById('remember');
+    const errorBox = document.getElementById('errorBox');
+    function showError(msg){ errorBox.textContent = msg; errorBox.style.display = 'block'; }
+    function clearError(){ errorBox.style.display = 'none'; errorBox.textContent = ''; }
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearError();
+      const body = { email: String(email.value||'').trim().toLowerCase(), password: String(password.value||'') };
+      try {
+        const resp = await fetch(`${API_BASE}/api/v1/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (!resp.ok) {
+          const data = await resp.json().catch(()=>({error:'LOGIN_FAILED'}));
+          showError(data.error||'فشل تسجيل الدخول، تحقق من البيانات وحاول مرة أخرى');
+          return;
+        }
+        const data = await resp.json();
+        if (data && data.token) {
+          try { localStorage.setItem('sessionToken', data.token); } catch { }
+          if (remember.checked) {
+            try {
+              const id = (data.user&&data.user.email)||body.email||'';
+              const raw = localStorage.getItem('rememberedSessions');
+              const map = raw ? JSON.parse(raw) : {};
+              map[String(id).toLowerCase()] = data.token;
+              localStorage.setItem('rememberedSessions', JSON.stringify(map));
+            } catch { }
+          }
+          window.location.href = '/dashboard';
+          return;
+        }
+        showError('استجابة غير متوقعة من الخادم');
+      } catch (err) {
+        showError('تعذر الاتصال بالخادم، تحقق من الشبكة أو أعد المحاولة لاحقًا');
+      }
+    });
+  </script>
+</body>
+</html>
