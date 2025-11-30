@@ -120,6 +120,14 @@ const FullScreenBrowser = ({ onClose }) => {
     }
   };
 
+  const close = () => {
+    if (typeof onClose === 'function') {
+      try { onClose(); } catch { /* noop */ }
+    } else {
+      try { window.history.back(); } catch { /* noop */ }
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex flex-col">
       {/* شريط الأدوات العلوي */}
@@ -127,7 +135,7 @@ const FullScreenBrowser = ({ onClose }) => {
         {/* أزرار التحكم */}
         <div className="flex items-center gap-2">
           <button
-            onClick={onClose}
+            onClick={close}
             className="btn-ghost p-2 rounded-lg text-red-400 hover:text-white hover:bg-red-500/30 transition-all duration-200 hover:scale-110"
             title="Close Browser"
           >
@@ -291,7 +299,7 @@ const FullScreenBrowser = ({ onClose }) => {
 };
 
 FullScreenBrowser.propTypes = {
-  onClose: PropTypes.func.isRequired,
+  onClose: PropTypes.func,
 };
 
 export default FullScreenBrowser;

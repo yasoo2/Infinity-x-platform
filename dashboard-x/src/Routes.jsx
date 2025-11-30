@@ -1,6 +1,6 @@
 import React, { Suspense } from 'react';
 import PropTypes from 'prop-types';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import DashboardLayout from './components/DashboardLayout';
 import useAuth from './hooks/useAuth';
 import { useSessionToken } from './hooks/useSessionToken';
@@ -47,6 +47,34 @@ ProtectedRoute.propTypes = {
   allowedRoles: PropTypes.array,
 };
 
+import JoeScreen from './components/JoeScreen';
+import FullScreenBrowser from './components/FullScreenBrowser';
+
+const JoeScreenPage = () => {
+  const navigate = useNavigate();
+  const [isProcessing, setIsProcessing] = React.useState(false);
+  const [progress, setProgress] = React.useState(0);
+  const [wsLog, setWsLog] = React.useState([]);
+
+  const onTakeover = () => {};
+  const onClose = () => navigate('/dashboard/joe');
+
+  return (
+    <JoeScreen
+      isProcessing={isProcessing}
+      progress={progress}
+      wsLog={wsLog}
+      onTakeover={onTakeover}
+      onClose={onClose}
+    />
+  );
+};
+
+const BrowserFullPage = () => {
+  const navigate = useNavigate();
+  return <FullScreenBrowser onClose={() => navigate('/dashboard/joe')} />;
+};
+
 const AppRoutes = () => {
   return (
     <Router>
@@ -63,6 +91,8 @@ const AppRoutes = () => {
           <Route path="build" element={<Build />} />
           <Route path="command" element={<Command />} />
           <Route path="monitoring" element={<MonitoringPage />} />
+          <Route path="joe-screen" element={<JoeScreenPage />} />
+          <Route path="browser-full" element={<BrowserFullPage />} />
           <Route path="page-builder" element={<PageBuilder />} />
           <Route path="self-design" element={<SelfDesign />} />
           <Route path="universal-store" element={<UniversalStoreIntegration />} />

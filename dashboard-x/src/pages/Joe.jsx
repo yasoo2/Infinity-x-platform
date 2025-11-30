@@ -527,6 +527,3 @@ const Joe = () => (
 );
 
 export default Joe;
-CountryCodePicker.propTypes = {
-  onSelect: PropTypes.func.isRequired,
-};
