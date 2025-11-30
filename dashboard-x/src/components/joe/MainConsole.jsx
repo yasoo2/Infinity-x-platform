@@ -73,7 +73,7 @@ const MainConsole = () => {
 
   const { 
     messages, isProcessing, progress, currentStep, 
-    input, setInput, isListening, handleSend, stopProcessing, appendUserMessage,
+    input, setInput, isListening, handleSend, stopProcessing,
     handleVoiceInput, transcript, currentConversation,
     wsConnected, reconnectActive, reconnectAttempt, reconnectRemainingMs, reconnectDelayMs
   } = useJoeChatContext();
@@ -572,7 +572,6 @@ const MainConsole = () => {
                   if (isProcessing) {
                     try { stopProcessing(); } catch { /* ignore */ }
                   }
-                  try { appendUserMessage(input); } catch { /* ignore */ }
                   handleSend();
                 }
               }}
