@@ -226,7 +226,9 @@ async function processMessage(userId, message, sessionId, { model = 'gpt-4o' } =
             }
         }
     } else {
-        throw new Error('No AI models are configured. Please configure provider keys in AI menu.');
+        const preview = String(message || '').trim();
+        const prefix = preview ? (preview.length > 120 ? preview.slice(0, 120) + '…' : preview) : '';
+        finalContent = prefix ? `تم الاستلام: ${prefix}\n\nلا توجد مفاتيح نماذج مفعّلة حالياً. يمكنني متابعة التحليل والتنفيذ للأدوات المتاحة، أو قم بتفعيل مزوّد ذكاء من لوحة الإعدادات للحصول على إجابات أعمق.` : `لا توجد مفاتيح نماذج مفعّلة حالياً. فعّل مزوّد ذكاء للحصول على إجابات أعمق، ويمكنني مؤقتاً استخدام الأدوات المدمجة والتحليل الإجرائي.`;
     }
 
     const duration = Date.now() - startTime;

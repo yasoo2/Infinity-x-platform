@@ -1,5 +1,6 @@
 
 import { useReducer, useEffect, useCallback, useRef } from 'react';
+import { io } from 'socket.io-client';
 import { v4 as uuidv4 } from 'uuid';
 import { getChatSessions, getChatSessionById, getGuestToken, getSystemStatus, createChatSession, updateChatSession, addChatMessage, getChatMessages } from '../api/system';
 
@@ -285,6 +286,7 @@ const chatReducer = (state, action) => {
 
 export const useJoeChat = () => {
   const ws = useRef(null);
+  const sioRef = useRef(null);
   const recognition = useRef(null);
   const keepListeningRef = useRef(false);
   const isListeningRef = useRef(false);
@@ -579,6 +581,56 @@ export const useJoeChat = () => {
           isConnectingRef.current = false;
           return;
         }
+        let sioUrl;
+        const isDevSio = typeof import.meta !== 'undefined' && import.meta.env?.MODE !== 'production';
+        if (isDevSio) {
+          sioUrl = 'http://localhost:4000/joe-agent';
+        } else if (import.meta.env.VITE_API_BASE_URL) {
+          const base = String(import.meta.env.VITE_API_BASE_URL).replace(/\/$/, '');
+          sioUrl = `${base}/joe-agent`;
+        } else {
+          const origin = window.location.origin.replace(/\/$/, '');
+          sioUrl = `${origin}/joe-agent`;
+        }
+        const socket = io(sioUrl, { auth: { token: sessionToken }, transports: ['websocket','polling'] });
+        socket.on('connect', () => {
+          reconnectAttempts.current = 0;
+          isConnectingRef.current = false;
+          if (reconnectTimer.current) { clearTimeout(reconnectTimer.current); reconnectTimer.current = null; }
+          if (reconnectCountdownInterval.current) { clearInterval(reconnectCountdownInterval.current); reconnectCountdownInterval.current = null; }
+          dispatch({ type: 'SET_WS_CONNECTED', payload: true });
+          dispatch({ type: 'SET_RECONNECT_STATE', payload: { active: false, attempt: 0, delayMs: 0, etaTs: 0 } });
+          dispatch({ type: 'ADD_WS_LOG', payload: '[SIO] Connection established' });
+        });
+        socket.on('disconnect', (reason) => {
+          dispatch({ type: 'SET_WS_CONNECTED', payload: false });
+          dispatch({ type: 'STOP_PROCESSING' });
+          dispatch({ type: 'ADD_WS_LOG', payload: `[SIO] Disconnected: ${String(reason||'')}` });
+        });
+        socket.on('status', (d) => { dispatch({ type: 'ADD_WS_LOG', payload: `[SIO] ${JSON.stringify(d)}` }); });
+        socket.on('stream', (d) => { if (typeof d?.content === 'string') { dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: d.content } }); } });
+        socket.on('progress', (d) => { const p = Number(d?.progress || d?.pct || 0); const step = d?.step || d?.status || ''; dispatch({ type: 'SET_PROGRESS', payload: { progress: p, step } }); });
+        socket.on('response', (d) => {
+          const text = String(d?.response || '').trim();
+          if (text) {
+            dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
+          }
+          dispatch({ type: 'STOP_PROCESSING' });
+          dispatch({ type: 'REMOVE_PENDING_LOGS' });
+          if (syncRef.current) syncRef.current();
+        });
+        socket.on('task_complete', () => {
+          dispatch({ type: 'STOP_PROCESSING' });
+          dispatch({ type: 'REMOVE_PENDING_LOGS' });
+          if (syncRef.current) syncRef.current();
+        });
+        socket.on('session_updated', () => { if (syncRef.current) syncRef.current(); });
+        socket.on('error', (e) => {
+          const msg = typeof e === 'string' ? e : (e?.message || 'ERROR');
+          dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `[ERROR]: ${msg}` } });
+          dispatch({ type: 'STOP_PROCESSING' });
+        });
+        sioRef.current = socket;
         // Use VITE_WS_URL if defined, otherwise build from VITE_API_BASE_URL
         let wsUrl;
         const isDev = typeof import.meta !== 'undefined' && import.meta.env?.MODE !== 'production';
@@ -818,12 +870,20 @@ export const useJoeChat = () => {
     } catch { void 0; }
 
     const trySend = (attempt = 0) => {
+      if (sioRef.current && sioRef.current.connected) {
+        const selectedModel = localStorage.getItem('aiSelectedModel') || 'gpt-4o';
+        const lang = getLang();
+        const conv = state.conversations[convId] || null;
+        const sidToUse = sid || conv?.sessionId || convId;
+        sioRef.current.emit('message', { action: 'instruct', message: inputText, sessionId: sidToUse, model: selectedModel, lang });
+        return;
+      }
       if (ws.current?.readyState === WebSocket.OPEN) {
         const selectedModel = localStorage.getItem('aiSelectedModel') || 'gpt-4o';
         const lang = getLang();
       const conv = state.conversations[convId] || null;
       const sidToUse = sid || conv?.sessionId || convId;
-      ws.current.send(JSON.stringify({ action: 'instruct', message: inputText, sessionId: sidToUse, model: selectedModel, lang }));
+        ws.current.send(JSON.stringify({ action: 'instruct', message: inputText, sessionId: sidToUse, model: selectedModel, lang }));
         return;
       }
       if (attempt < 6) {
