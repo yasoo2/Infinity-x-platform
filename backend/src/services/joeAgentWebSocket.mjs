@@ -58,7 +58,8 @@ export class JoeAgentWebSocketServer {
           const allowedHosts = envOrigins.length ? envOrigins : defaults;
           const u = new URL(origin);
           const host = u.host || '';
-          const allowed = allowedHosts.some(h => host === h || host.endsWith(h));
+          const hostname = host.split(':')[0];
+          const allowed = allowedHosts.some(h => hostname === h || hostname.endsWith(h) || hostname.includes('localhost'));
           if (!allowed) {
             ws.close(1008, 'Policy Violation: Origin not allowed');
             return;
