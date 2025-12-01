@@ -43,7 +43,7 @@ export const connectWebSocket = (onMessage, onOpen, onClose) => {
   const trySocketIO = async () => {
     const httpBase = baseWsUrl.replace(/^ws/, 'http').replace(/^wss/, 'https');
     const { io } = await import('socket.io-client');
-    ioSocket = io(`${httpBase}/joe-agent`, { auth: { token }, transports: ['websocket'] });
+    ioSocket = io(`${httpBase}/joe-agent`, { auth: { token }, transports: ['websocket','polling'] });
     ioSocket.on('connect', () => { failedAttempts = 0; if (onOpen) onOpen(); });
     ioSocket.on('status', (d) => { if (onMessage) onMessage({ type: 'status', message: d?.message }); });
     ioSocket.on('response', (d) => { if (onMessage) onMessage({ type: 'response', response: d?.response, toolsUsed: d?.toolsUsed, sessionId: d?.sessionId }); });
