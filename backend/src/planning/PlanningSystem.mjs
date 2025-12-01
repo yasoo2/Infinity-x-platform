@@ -27,6 +27,9 @@ class PlanningSystem {
         description: planData.description || '',
         goal: planData.goal,
         status: 'planning', // planning, active, completed, failed
+        // New fields for Hierarchical Planning
+        parentPlanId: planData.parentPlanId || null,
+        subPlans: [], // Array of sub-plan IDs
         phases: [],
         currentPhaseId: null,
         createdAt: new Date(),
@@ -57,6 +60,10 @@ class PlanningSystem {
         description: phaseData.description || '',
         order: phaseData.order || 0,
         status: 'pending', // pending, in_progress, completed, failed
+        // New fields for Self-Correction/Feedback Loop
+        feedback: phaseData.feedback || [], // Array of feedback objects
+        retryCount: 0,
+        lastAttemptStatus: null,
         capabilities: phaseData.capabilities || {},
         tasks: [],
         startedAt: null,
@@ -95,6 +102,10 @@ class PlanningSystem {
         title: taskData.title,
         description: taskData.description || '',
         status: 'pending', // pending, in_progress, completed, failed
+        // New fields for Self-Correction/Feedback Loop
+        feedback: taskData.feedback || [], // Array of feedback objects
+        retryCount: 0,
+        lastAttemptStatus: null,
         priority: taskData.priority || 'medium', // low, medium, high
         estimatedDuration: taskData.estimatedDuration || 0,
         actualDuration: 0,

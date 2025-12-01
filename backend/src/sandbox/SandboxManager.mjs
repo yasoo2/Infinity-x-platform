@@ -18,6 +18,7 @@ import eventBus from '../core/event-bus.mjs';
 class SandboxManager {
   constructor(options = {}) {
     this.docker = new Docker();
+    this.activeExecutions = new Map(); // Map to track active executions by sessionId
     this.cacheManager = cacheManager;
     this.isRedisConnected = this.cacheManager.isEnabled();
     console.log('⚛️ Sandbox Manager v3.1 (Fortress w/ Workspaces) Initialized.');
@@ -52,6 +53,11 @@ class SandboxManager {
       return Promise.reject(new Error('A session ID is required for execution.'));
     }
 
+    // Check for active execution for this session
+    if (this.activeExecutions.has(sessionId)) {
+        return Promise.reject(new Error(`Session ${sessionId} already has an active execution. Parallel execution is not yet fully supported for the same session.`));
+    }
+
     const cacheKey = `sandbox:v3.1:${command}`;
     if (this.isRedisConnected) {
       const cachedResult = await this.cacheManager.get(cacheKey);
@@ -79,6 +85,7 @@ class SandboxManager {
     let finalOutput = '';
     
     try {
+      this.activeExecutions.set(sessionId, { status: 'starting', command, startTime: Date.now() });
       console.log(`📦 Creating Docker container for command: ${command}`);
       container = await this.docker.createContainer({
         Image: 'ubuntu:latest',
@@ -130,6 +137,7 @@ class SandboxManager {
         console.error('❌ Docker execution failed:', error);
         throw error;
     } finally {
+        this.activeExecutions.delete(sessionId); // Remove from active executions
         if (container) {
             console.log('🗑️ Removing container...');
             await container.remove({ force: true });

@@ -15,6 +15,7 @@ class MemoryManager extends EventEmitter {
 
         this.shortTermMemory = new Map();
         this.conversations = new Map();
+        this.longTermMemory = new Map(); // Cache for LTM patterns/knowledge
 
         this.config = {
             shortTermMemoryTTL: options.shortTermMemoryTTL || 30 * 60 * 1000, // 30 minutes
@@ -25,6 +26,7 @@ class MemoryManager extends EventEmitter {
 
         this.startAutoCleanup();
         console.log('✅ Memory Manager v4.4.0 initialized. DB will be fetched on-demand.');
+        this.initializeLTMCollections();
     }
 
     _getDB() {
@@ -46,6 +48,7 @@ class MemoryManager extends EventEmitter {
         const now = Date.now();
         let cleanedCount = 0;
         console.log('🧹 Performing memory cleanup...');
+        this.cleanLTM();
 
         // Clean Short-Term Memory
         for (const [userId, memory] of this.shortTermMemory.entries()) {
@@ -89,6 +92,8 @@ class MemoryManager extends EventEmitter {
             
             this.addToShortTermMemory(userId, interaction);
             this.addToConversationMemory(userId, interaction);
+            // New: Check for LTM opportunities
+            this.checkForLTM(userId, interaction);
 
             this.emit('interaction:saved', { userId, sessionId: interaction.metadata.sessionId, interaction });
 
@@ -99,6 +104,77 @@ class MemoryManager extends EventEmitter {
             return { success: false, error: error.message };
         }
     }
+
+    // --- Long-Term Memory (LTM) Methods ---
+
+    initializeLTMCollections() {
+        const db = this._getDB();
+        // Ensure indexes for efficient querying
+        db.collection('joe_knowledge_patterns').createIndex({ userId: 1, type: 1 });
+        db.collection('joe_knowledge_patterns').createIndex({ keywords: 1 });
+    }
+
+    async checkForLTM(userId, interaction) {
+        // Placeholder for complex LTM logic (e.g., pattern recognition, summarization)
+        // For now, we'll save a simple "lesson learned" if the interaction was a successful code fix.
+        if (interaction.metadata.type === 'code_fix' && interaction.result.success) {
+            const lesson = {
+                userId,
+                type: 'code_fix_pattern',
+                title: `Successful fix for: ${interaction.command.slice(0, 50)}...`,
+                content: JSON.stringify(interaction),
+                keywords: ['code', 'fix', 'success', interaction.metadata.language],
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            };
+            await this.saveLTM(lesson);
+        }
+    }
+
+    async saveLTM(knowledgePattern) {
+        try {
+            const db = this._getDB();
+            const result = await db.collection('joe_knowledge_patterns').insertOne(knowledgePattern);
+            this.longTermMemory.delete(knowledgePattern.userId); // Invalidate cache
+            return { success: true, id: result.insertedId };
+        } catch (error) {
+            console.error('❌ Save LTM error:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    async getLTM(userId, { type, keywords, limit = 5 } = {}) {
+        try {
+            const db = this._getDB();
+            const query = { userId };
+            if (type) query.type = type;
+            if (keywords && keywords.length > 0) query.keywords = { $in: keywords };
+
+            const cached = this.longTermMemory.get(userId);
+            if (cached) return cached;
+
+            const patterns = await db.collection('joe_knowledge_patterns')
+                .find(query)
+                .sort({ createdAt: -1 })
+                .limit(limit)
+                .toArray();
+            
+            this.longTermMemory.set(userId, patterns);
+            return patterns;
+        } catch (error) {
+            console.error('❌ Get LTM error:', error);
+            return [];
+        }
+    }
+
+    cleanLTM() {
+        // LTM cleanup logic (e.g., removing old, unused, or redundant patterns)
+        // For now, we'll just clear the in-memory cache.
+        this.longTermMemory.clear();
+        console.log('✨ LTM cache cleared.');
+    }
+
+    // --- End LTM Methods ---
 
     async getConversationContext(userId, { limit = 15 } = {}) {
         const cachedConversation = this.conversations.get(userId);
