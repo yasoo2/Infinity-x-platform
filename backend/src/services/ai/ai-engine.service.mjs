@@ -5,7 +5,7 @@
  */
 
 import { OpenAI } from 'openai';
-import { LocalLlamaService } from '../services/llm/local-llama.service.mjs'; // تصحيح مسار الاستيراد
+import { LocalLlamaService } from '../llm/local-llama.service.mjs'; // تصحيح مسار الاستيراد
 
 class AIEngineService {
     constructor(dependencies) {
