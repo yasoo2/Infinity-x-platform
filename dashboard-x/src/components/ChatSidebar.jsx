@@ -2,6 +2,7 @@
   import PropTypes from 'prop-types';
   import { Plus, Trash2, MessageSquare, Loader2, ChevronLeft, ChevronRight, History } from 'lucide-react'; // أيقونات Lucide
   import { getChatSessions, deleteChatSession, getGuestToken, withAbort } from '../api/system';
+  import apiClient from '../api/client';
 
   // API base غير مستخدم بعد التحويل إلى دوال system.js
 
@@ -34,7 +35,10 @@
             if (tok?.token) localStorage.setItem('sessionToken', tok.token);
           }
         } catch { /* ignore */ }
-        await loadConversations();
+        try {
+          const { data } = await apiClient.get('/api/v1/health', { timeout: 3000 });
+          if (data) await loadConversations();
+        } catch { /* ignore */ }
       };
       if (userId) {
         ensureTokenAndLoad();

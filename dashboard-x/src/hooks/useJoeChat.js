@@ -3,6 +3,7 @@ import { useReducer, useEffect, useCallback, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { v4 as uuidv4 } from 'uuid';
 import { getChatSessions, getChatSessionById, getGuestToken, getSystemStatus, createChatSession, updateChatSession, addChatMessage, getChatMessages } from '../api/system';
+import apiClient from '../api/client';
 
 const JOE_CHAT_HISTORY = 'joeChatHistory';
 
@@ -460,6 +461,9 @@ export const useJoeChat = () => {
         } catch { void 0; }
         if (!token) return;
       }
+      try {
+        await apiClient.get('/api/v1/health', { timeout: 3000, signal });
+      } catch { return; }
       const s = await getChatSessions({ signal });
       const list = s?.sessions || [];
       const convs = { ...state.conversations };
