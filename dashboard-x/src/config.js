@@ -4,14 +4,15 @@
   // API Configuration - متوافق مع نظامك
   const getApiConfig = () => {
     const isDevelopment = import.meta.env.MODE !== 'production';
+    const overrideApi = import.meta.env.VITE_API_BASE_URL;
+    const overrideWs = import.meta.env.VITE_WS_BASE_URL;
     return {
-      apiBaseUrl: isDevelopment 
+      apiBaseUrl: isDevelopment
         ? 'http://localhost:4000/api/v1'
-        : 'https://api.xelitesolutions.com/api/v1',
-      // عرض عنوان الأساس للـ WebSocket فقط؛ مسار joe-agent يُضاف على مستوى الربط
+        : (overrideApi || 'https://api.xelitesolutions.com/api/v1'),
       wsBaseUrl: isDevelopment
         ? 'ws://localhost:4000'
-        : 'wss://api.xelitesolutions.com'
+        : (overrideWs || 'wss://api.xelitesolutions.com')
     };
   };
 
