@@ -27,6 +27,7 @@ export class JoeAgentWebSocketServer {
     this.setupWebSocketServer();
     this.setupEventListeners();
     this.streamBuffers = new Map();
+    this.rateLimits = new Map();
     // Heartbeat to keep connections alive and detect broken sockets
     this.heartbeat = setInterval(() => {
       this.wss.clients.forEach((client) => {
@@ -107,24 +108,41 @@ export class JoeAgentWebSocketServer {
           try {
             data = JSON.parse(message);
           } catch (parseError) {
-            console.error('[JoeAgentV2] JSON Parse Error:', parseError);
-            ws.send(JSON.stringify({ type: 'error', message: 'Invalid JSON format.' }));
+            const lang = 'ar';
+            const msg = lang==='ar' ? 'صيغة JSON غير صالحة.' : 'Invalid JSON format.';
+            ws.send(JSON.stringify({ type: 'error', code: 'INVALID_FORMAT', message: msg }));
             return;
           }
 
           // Stricter validation for expected message format
+          const lang = String(data.lang || 'ar');
           if (typeof data.action !== 'string' || typeof data.message !== 'string') {
-            ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format. Expected { action: string, message: string }.' }));
+            const msg = lang==='ar' ? 'تنسيق الرسالة غير صالح.' : 'Invalid message format.';
+            ws.send(JSON.stringify({ type: 'error', code: 'INVALID_MESSAGE', message: msg }));
             return;
           }
           const preview = String(data.message || '').trim();
           if (!preview) {
-            ws.send(JSON.stringify({ type: 'error', message: 'Empty message not allowed.' }));
+            const msg = lang==='ar' ? 'الرسالة فارغة غير مسموح بها.' : 'Empty message not allowed.';
+            ws.send(JSON.stringify({ type: 'error', code: 'EMPTY_MESSAGE', message: msg }));
             return;
           }
           if (preview.length > 10000000) {
-            ws.send(JSON.stringify({ type: 'error', message: 'Message too long.' }));
+            const msg = lang==='ar' ? 'الرسالة طويلة جدًا.' : 'Message too long.';
+            ws.send(JSON.stringify({ type: 'error', code: 'MESSAGE_TOO_LONG', message: msg }));
             return;
+          }
+          {
+            const now = Date.now();
+            const rl = this.rateLimits.get(ws.userId) || { start: now, count: 0 };
+            if (now - rl.start > 60000) { rl.start = now; rl.count = 0; }
+            rl.count += 1;
+            this.rateLimits.set(ws.userId, rl);
+            if (rl.count > 120) {
+              const msg = lang==='ar' ? 'عدد الرسائل مرتفع. حاول لاحقًا.' : 'Too many messages. Try later.';
+              ws.send(JSON.stringify({ type: 'error', code: 'RATE_LIMIT', message: msg }));
+              return;
+            }
           }
 
           if (data.action === 'instruct') {
@@ -203,7 +221,8 @@ export class JoeAgentWebSocketServer {
             // Note: Actual cancellation logic in joeAdvanced.service.mjs is needed here
             ws.send(JSON.stringify({ type: 'status', message: 'Cancellation request received.' }));
           } else {
-             ws.send(JSON.stringify({ type: 'error', message: `Unknown action: ${data.action}` }));
+             const msg = lang==='ar' ? 'إجراء غير معروف.' : 'Unknown action.';
+             ws.send(JSON.stringify({ type: 'error', code: 'UNKNOWN_ACTION', message: msg }));
           }
 
         } catch (error) {
@@ -247,12 +266,27 @@ export class JoeAgentWebSocketServer {
       socket.on('message', async (data) => {
         try {
           if (!data || typeof data.action !== 'string' || typeof data.message !== 'string') {
-            socket.emit('error', { message: 'Invalid message format. Expected { action: string, message: string }.' });
+            const lang = String(data?.lang || 'ar');
+            const msg = lang==='ar' ? 'تنسيق الرسالة غير صالح.' : 'Invalid message format.';
+            socket.emit('error', { code: 'INVALID_MESSAGE', message: msg });
             return;
           }
+          const lang = String(data.lang || 'ar');
           const preview = String(data.message || '').trim();
-          if (!preview) { socket.emit('error', { message: 'Empty message not allowed.' }); return; }
-          if (preview.length > 10000000) { socket.emit('error', { message: 'Message too long.' }); return; }
+          if (!preview) { const msg = lang==='ar' ? 'الرسالة فارغة غير مسموح بها.' : 'Empty message not allowed.'; socket.emit('error', { code: 'EMPTY_MESSAGE', message: msg }); return; }
+          if (preview.length > 10000000) { const msg = lang==='ar' ? 'الرسالة طويلة جدًا.' : 'Message too long.'; socket.emit('error', { code: 'MESSAGE_TOO_LONG', message: msg }); return; }
+          {
+            const now = Date.now();
+            const rl = this.rateLimits.get(socket.data.userId) || { start: now, count: 0 };
+            if (now - rl.start > 60000) { rl.start = now; rl.count = 0; }
+            rl.count += 1;
+            this.rateLimits.set(socket.data.userId, rl);
+            if (rl.count > 120) {
+              const msg = lang==='ar' ? 'عدد الرسائل مرتفع. حاول لاحقًا.' : 'Too many messages. Try later.';
+              socket.emit('error', { code: 'RATE_LIMIT', message: msg });
+              return;
+            }
+          }
           const currentMode = getMode();
           const userId = socket.data.userId;
           const sessionId = data.sessionId || socket.data.sessionId || `session_${Date.now()}`;
@@ -294,7 +328,8 @@ export class JoeAgentWebSocketServer {
           } else if (data.action === 'cancel') {
             socket.emit('status', { message: 'Cancellation request received.' });
           } else {
-            socket.emit('error', { message: `Unknown action: ${data.action}` });
+            const msg = lang==='ar' ? 'إجراء غير معروف.' : 'Unknown action.';
+            socket.emit('error', { code: 'UNKNOWN_ACTION', message: msg });
           }
         } catch (error) {
           socket.emit('error', { message: `Server Error: ${error.message}` });
