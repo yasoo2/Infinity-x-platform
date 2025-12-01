@@ -23,17 +23,19 @@ export const connectWebSocket = (onMessage, onOpen, onClose) => {
     ws.onmessage = (event) => {
       if (onMessage) onMessage(JSON.parse(event.data));
     };
-    ws.onclose = () => {
+    ws.onclose = (evt) => {
+      try { console.warn(`[WS] Connection closed (code=${evt?.code} reason=${evt?.reason || ''}). Reconnecting...`); } catch { void 0; }
       if (onClose) onClose();
       failedAttempts++;
       clearTimeout(reconnectInterval);
+      const delay = Math.min(15000, 2000 * failedAttempts);
       reconnectInterval = setTimeout(() => {
-        if (!isDev && failedAttempts >= 1) {
-          trySocketIO();
+        if (failedAttempts >= 1) {
+          trySocketIO().catch(() => { tryNative(); });
         } else {
           tryNative();
         }
-      }, 5000);
+      }, delay);
     };
     ws.onerror = () => { failedAttempts++; };
   };
