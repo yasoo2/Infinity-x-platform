@@ -285,22 +285,27 @@ const JoeContent = () => {
       rafId.current = requestAnimationFrame(() => {
         rafId.current = 0;
         lastRun = Date.now();
-        try { findBestCornerRef.current(); } catc  useEffect(() => {
-    const onResize = () => {
-      setRobotSize(computeRobotSize(robotScale));
-      scheduleFind();
+        try { findBestCornerRef.current(); } catch { /* ignore */ }
+      });
     };
-    setRobotSize(computeRobotSize(robotScale));
+      const onResize = () => {
+        setRobotSize(computeRobotSize());
+        scheduleFind();
+      };
+    setRobotSize(computeRobotSize());
     scheduleFind();
     window.addEventListener('resize', onResize);
+    const onScroll = () => scheduleFind();
+    window.addEventListener('scroll', onScroll, { passive: true });
     const onOpenProviders = () => setRobotActive(false);
     window.addEventListener('joe:openProviders', onOpenProviders);
     return () => {
       window.removeEventListener('resize', onResize);
+      window.removeEventListener('scroll', onScroll);
       window.removeEventListener('joe:openProviders', onOpenProviders);
       try { if (rafId.current) cancelAnimationFrame(rafId.current); } catch { /* ignore */ }
     };
-  }, [computeRobotSize, robotScale]);
+  }, [computeRobotSize]);
 
   useEffect(() => {
     const onKey = (e) => {

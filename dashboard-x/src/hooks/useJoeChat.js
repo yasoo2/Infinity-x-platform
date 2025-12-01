@@ -309,7 +309,6 @@ export const useJoeChat = () => {
   const reconnectCountdownInterval = useRef(null);
   const syncAbortRef = useRef(null);
   const syncInProgressRef = useRef(false);
-  const saveTimerRef = useRef(null);
 
   const [state, dispatch] = useReducer(chatReducer, {
     conversations: {},
