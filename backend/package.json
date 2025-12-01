@@ -189,5 +189,10 @@
   "engines": {
     "node": ">=18.18.0 <23.0.0",
     "npm": ">=9.0.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "node-tesseract-ocr": "2.2.1"
+    }
   }
 }
