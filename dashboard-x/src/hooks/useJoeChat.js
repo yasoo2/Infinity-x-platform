@@ -461,9 +461,6 @@ export const useJoeChat = () => {
         } catch { void 0; }
         if (!token) return;
       }
-      try {
-        await apiClient.get('/api/v1/health', { timeout: 3000, signal });
-      } catch { return; }
       const s = await getChatSessions({ signal });
       const list = s?.sessions || [];
       const convs = { ...state.conversations };

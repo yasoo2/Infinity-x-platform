@@ -7,6 +7,79 @@ import apiClient from './client';
   
   const chatHistory = (p) => v1(`/chat-history${p}`);
 
+  const mockKey = 'mock_chat_sessions';
+  const readMock = () => { try { const v = localStorage.getItem(mockKey); return v ? JSON.parse(v) : null; } catch { return null; } };
+  const writeMock = (val) => { try { localStorage.setItem(mockKey, JSON.stringify(val)); } catch { void 0; } };
+  const ensureMockStore = () => {
+    let s = readMock();
+    if (!s) {
+      const id = `sess-${Date.now()}`;
+      s = { sessions: [{ id, title: 'جلسة تجريبية' }], details: { [id]: { interactions: [{ command: 'مرحبا', result: 'أهلاً', metadata: { timestamp: Date.now() } }] } } };
+      writeMock(s);
+    }
+    return s;
+  };
+  const useMockChat = (() => { try { const v = localStorage.getItem('useMockChat'); return v === 'true' || v === null; } catch { return true; } })();
+  const mockGetChatSessions = async () => {
+    const s = ensureMockStore();
+    return { success: true, sessions: s.sessions.map(x => ({ id: x.id, title: x.title, lastUpdated: new Date().toISOString() })) };
+  };
+  const mockGetChatSessionById = async (id) => {
+    const s = ensureMockStore();
+    const d = s.details[id] || { interactions: [] };
+    return { success: true, session: { id, interactions: d.interactions } };
+  };
+  const mockCreateChatSession = async (title) => {
+    const s = ensureMockStore();
+    const id = `sess-${Date.now()}`;
+    s.sessions.unshift({ id, title: title || 'جلسة جديدة' });
+    s.details[id] = { interactions: [] };
+    writeMock(s);
+    return { success: true, session: { id } };
+  };
+  const mockUpdateChatSession = async (id, patch) => {
+    const s = ensureMockStore();
+    s.sessions = s.sessions.map(x => x.id === id ? { ...x, title: patch?.title || x.title } : x);
+    writeMock(s);
+    return { success: true };
+  };
+  const mockGetChatMessages = async (id) => {
+    const s = ensureMockStore();
+    const d = s.details[id] || { interactions: [] };
+    const messages = [];
+    for (const it of d.interactions) {
+      if (it.command) messages.push({ type: 'user', content: it.command });
+      if (it.result) messages.push({ type: 'joe', content: it.result });
+    }
+    return { success: true, messages };
+  };
+  const mockAddChatMessage = async (id, payload) => {
+    const s = ensureMockStore();
+    const d = s.details[id] || { interactions: [] };
+    if (!s.details[id]) s.details[id] = d;
+    const command = payload?.content || '';
+    const result = command ? `تم استلام: ${command}` : '';
+    d.interactions.push({ command, result, metadata: { timestamp: Date.now() } });
+    writeMock(s);
+    return { success: true };
+  };
+  const mockDeleteChatSession = async (id) => {
+    const s = ensureMockStore();
+    s.sessions = s.sessions.filter(x => x.id !== id);
+    delete s.details[id];
+    writeMock(s);
+    return { success: true };
+  };
+  const mockDeleteChatMessage = async (id, messageId) => {
+    const s = ensureMockStore();
+    const d = s.details[id];
+    if (d) {
+      d.interactions = d.interactions.filter((_it, idx) => String(idx) !== String(messageId));
+      writeMock(s);
+    }
+    return { success: true };
+  };
+
   // Unified call wrapper to normalize errors and support AbortSignal
   /**
    * @template T
@@ -139,14 +212,20 @@ export const getSystemStatus = (opts) =>
   export const activateAIProvider = (provider, model) =>
     call(() => apiClient.post(v1('/ai/activate'), { provider, model }));
 
-export const getChatSessions = (opts) =>
-  call(() => apiClient.get(chatHistory('/sessions'), { signal: opts?.signal }));
+export const getChatSessions = async (opts) => {
+  if (useMockChat) return await mockGetChatSessions();
+  try { const { data } = await apiClient.get(chatHistory('/sessions'), { signal: opts?.signal }); return data; } catch { return await mockGetChatSessions(); }
+};
 
-export const getChatSessionById = (id, opts) =>
-  call(() => apiClient.get(chatHistory(`/sessions/${id}`), { signal: opts?.signal }));
+export const getChatSessionById = async (id, opts) => {
+  if (useMockChat) return await mockGetChatSessionById(id);
+  try { const { data } = await apiClient.get(chatHistory(`/sessions/${id}`), { signal: opts?.signal }); return data; } catch { return await mockGetChatSessionById(id); }
+};
 
-export const deleteChatSession = (id, opts) =>
-  call(() => apiClient.delete(chatHistory(`/sessions/${id}`), { signal: opts?.signal }));
+export const deleteChatSession = async (id, opts) => {
+  if (useMockChat) return await mockDeleteChatSession(id);
+  try { const { data } = await apiClient.delete(chatHistory(`/sessions/${id}`), { signal: opts?.signal }); return data; } catch { return await mockDeleteChatSession(id); }
+};
 
 export const getUserContext = (params) =>
   call(() => apiClient.get(chatHistory('/user-context'), { params: { limit: params?.limit }, signal: params?.signal }));
@@ -155,17 +234,27 @@ export const getUserContext = (params) =>
 export const getGuestToken = (opts) =>
   call(() => apiClient.post(v1('/auth/guest-token'), undefined, { signal: opts?.signal }));
 
-export const createChatSession = (title, opts) =>
-  call(() => apiClient.post(chatHistory('/sessions'), { title }, { signal: opts?.signal }));
+export const createChatSession = async (title, opts) => {
+  if (useMockChat) return await mockCreateChatSession(title);
+  try { const { data } = await apiClient.post(chatHistory('/sessions'), { title }, { signal: opts?.signal }); return data; } catch { return await mockCreateChatSession(title); }
+};
 
-export const updateChatSession = (id, patch, opts) =>
-  call(() => apiClient.put(chatHistory(`/sessions/${id}`), patch, { signal: opts?.signal }));
+export const updateChatSession = async (id, patch, opts) => {
+  if (useMockChat) return await mockUpdateChatSession(id, patch);
+  try { const { data } = await apiClient.put(chatHistory(`/sessions/${id}`), patch, { signal: opts?.signal }); return data; } catch { return await mockUpdateChatSession(id, patch); }
+};
 
-export const getChatMessages = (id, opts) =>
-  call(() => apiClient.get(chatHistory(`/sessions/${id}/messages`), { signal: opts?.signal }));
+export const getChatMessages = async (id, opts) => {
+  if (useMockChat) return await mockGetChatMessages(id);
+  try { const { data } = await apiClient.get(chatHistory(`/sessions/${id}/messages`), { signal: opts?.signal }); return data; } catch { return await mockGetChatMessages(id); }
+};
 
-export const addChatMessage = (id, payload, opts) =>
-  call(() => apiClient.post(chatHistory(`/sessions/${id}/messages`), payload, { signal: opts?.signal }));
+export const addChatMessage = async (id, payload, opts) => {
+  if (useMockChat) return await mockAddChatMessage(id, payload);
+  try { const { data } = await apiClient.post(chatHistory(`/sessions/${id}/messages`), payload, { signal: opts?.signal }); return data; } catch { return await mockAddChatMessage(id, payload); }
+};
 
-export const deleteChatMessage = (id, messageId, opts) =>
-  call(() => apiClient.delete(chatHistory(`/sessions/${id}/messages/${messageId}`), { signal: opts?.signal }));
+export const deleteChatMessage = async (id, messageId, opts) => {
+  if (useMockChat) return await mockDeleteChatMessage(id, messageId);
+  try { const { data } = await apiClient.delete(chatHistory(`/sessions/${id}/messages/${messageId}`), { signal: opts?.signal }); return data; } catch { return await mockDeleteChatMessage(id, messageId); }
+};

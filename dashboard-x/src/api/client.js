@@ -2,8 +2,12 @@
 
   // Base URL normalization: prefer explicit env; otherwise use same-origin
   let resolvedBase;
+  let lsBase = null;
+  try { lsBase = localStorage.getItem('apiBaseUrl'); } catch { lsBase = null; }
   const envBase = typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL);
-  if (envBase && String(envBase).trim().length > 0) {
+  if (lsBase && String(lsBase).trim().length > 0) {
+    resolvedBase = lsBase;
+  } else if (envBase && String(envBase).trim().length > 0) {
     resolvedBase = envBase;
   } else if (typeof window !== 'undefined') {
     const origin = window.location.origin;

@@ -35,10 +35,7 @@
             if (tok?.token) localStorage.setItem('sessionToken', tok.token);
           }
         } catch { /* ignore */ }
-        try {
-          const { data } = await apiClient.get('/api/v1/health', { timeout: 3000 });
-          if (data) await loadConversations();
-        } catch { /* ignore */ }
+        await loadConversations();
       };
       if (userId) {
         ensureTokenAndLoad();
