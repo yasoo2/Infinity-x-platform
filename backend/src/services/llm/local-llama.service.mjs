@@ -104,5 +104,5 @@ class LocalLlamaService {
   }
 }
 
-export class LocalLlamaService extends LocalLlamaService {} // تغيير التصدير ليناسب الاستيراد في AIEngineService
+
 export const localLlamaService = new LocalLlamaService()
