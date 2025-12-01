@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
-import { FiMic, FiPaperclip, FiSend, FiStopCircle, FiCompass, FiArrowDown, FiLink, FiGitBranch, FiTrash2 } from 'react-icons/fi';
+import { FiMic, FiPaperclip, FiSend, FiStopCircle, FiCompass, FiArrowDown, FiLink, FiGitBranch } from 'react-icons/fi';
 import { useJoeChatContext } from '../../context/JoeChatContext.jsx';
 import apiClient from '../../api/client';
 import { getSystemStatus } from '../../api/system';
@@ -39,7 +39,7 @@ WelcomeScreen.propTypes = {
   toolsCount: PropTypes.number,
 };
 
-const MainConsole = () => {
+const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
@@ -509,8 +509,8 @@ const MainConsole = () => {
           title={lang==='ar'?'إلى الأسفل':'Scroll to Bottom'}
           className={`fixed z-50 ${showScrollButton ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'} transition-opacity hidden sm:block`}
           style={{ 
-            bottom: 'calc(var(--joe-input-h, 56px) + env(safe-area-inset-bottom, 0px) + 16px)',
-            right: 'var(--joe-input-right, 16px)'
+            bottom: `calc(var(--joe-input-h, 56px) + env(safe-area-inset-bottom, 0px) + ${(isBottomPanelOpen && isBottomCollapsed) ? 48 : 16}px)`,
+            left: 'var(--joe-input-left, 16px)'
           }}
         >
           <span className="w-10 h-10 inline-flex items-center justify-center rounded-full bg-yellow-600 text-black hover:bg-yellow-700 border border-yellow-600 shadow-lg">
@@ -775,3 +775,7 @@ const MainConsole = () => {
 };
 
 export default MainConsole;
+MainConsole.propTypes = {
+  isBottomPanelOpen: PropTypes.bool,
+  isBottomCollapsed: PropTypes.bool,
+};

@@ -2,7 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { FiTerminal, FiCircle, FiChevronDown, FiChevronUp, FiCopy, FiTrash2 } from 'react-icons/fi';
 
-const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddAllLogs }) => {
+const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddAllLogs, onClearLogs }) => {
   const scrollRef = useRef(null);
 
   useEffect(() => {

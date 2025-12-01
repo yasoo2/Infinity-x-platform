@@ -33,7 +33,7 @@ const useBrowserWebSocket = () => {
         const token = await ensureToken();
         if (!token) return;
         const wsUrl = `${wsBase}/ws/browser?token=${token}`;
-        try { console.info('[Browser WS] Connecting:', wsUrl); } catch { /* noop */ }
+        try { console.warn('[Browser WS] Connecting:', wsUrl); } catch { /* noop */ }
 
         wsRef.current = new WebSocket(wsUrl);
 

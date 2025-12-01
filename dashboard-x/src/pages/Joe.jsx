@@ -392,7 +392,7 @@ const JoeContent = () => {
         {/* Main Console - Center (Flexible) */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className={`flex-1 overflow-hidden ${isBottomPanelOpen ? '' : 'h-full'}`}>
-            <MainConsole key={currentConversationId} />
+            <MainConsole key={currentConversationId} isBottomPanelOpen={isBottomPanelOpen} isBottomCollapsed={isBottomCollapsed} />
           </div>
 
           {/* Bottom Panel - Logs (Collapsible) */}
