@@ -97,7 +97,7 @@
     "@google/generative-ai": "^0.24.1",
     "@octokit/rest": "^20.0.2",
     "@socket.io/redis-adapter": "^8.3.0",
-    "@upstash/redis": "^1.35.6",
+    "@upstash/redis": "^1.35.7",
     "acorn": "^8.15.0",
     "acorn-walk": "^8.3.2",
     "archiver": "^6.0.1",
@@ -142,6 +142,7 @@
     "node-cron": "^3.0.3",
     "node-fetch": "^3.3.2",
     "node-llama-cpp": "^3.14.2",
+    "node-tesseract-ocr": "2.2.1",
     "nodemailer": "^6.9.7",
     "nodemon": "^3.1.11",
     "openai": "^4.20.1",
@@ -167,8 +168,7 @@
     "winston": "^3.11.0",
     "ws": "^8.16.0",
     "xss-clean": "^0.1.4",
-    "yaml": "^2.3.4",
-    "node-tesseract-ocr": "2.2.1"
+    "yaml": "^2.3.4"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.23.5",

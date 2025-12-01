@@ -122,7 +122,7 @@ export class JoeAgentWebSocketServer {
             ws.send(JSON.stringify({ type: 'error', message: 'Empty message not allowed.' }));
             return;
           }
-          if (preview.length > 20000) {
+          if (preview.length > 10000000) {
             ws.send(JSON.stringify({ type: 'error', message: 'Message too long.' }));
             return;
           }
@@ -252,7 +252,7 @@ export class JoeAgentWebSocketServer {
           }
           const preview = String(data.message || '').trim();
           if (!preview) { socket.emit('error', { message: 'Empty message not allowed.' }); return; }
-          if (preview.length > 20000) { socket.emit('error', { message: 'Message too long.' }); return; }
+          if (preview.length > 10000000) { socket.emit('error', { message: 'Message too long.' }); return; }
           const currentMode = getMode();
           const userId = socket.data.userId;
           const sessionId = data.sessionId || socket.data.sessionId || `session_${Date.now()}`;
