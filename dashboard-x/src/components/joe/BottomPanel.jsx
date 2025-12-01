@@ -3,6 +3,9 @@ import PropTypes from 'prop-types';
 import { FiTerminal, FiCircle, FiChevronDown, FiChevronUp, FiCopy, FiTrash2 } from 'react-icons/fi';
 
 const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddAllLogs, onClearLogs }) => {
+  const [okKey, setOkKey] = React.useState(null);
+  const [okKind, setOkKind] = React.useState('success');
+  const okPulse = (key, kind = 'success') => { setOkKey(key); setOkKind(kind); setTimeout(() => { setOkKey(null); setOkKind('success'); }, 800); };
   const scrollRef = useRef(null);
 
   useEffect(() => {
@@ -53,13 +56,16 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
           >
             <FiTrash2 size={12} /> <span>حذف الكل</span>
           </button>
+          <div className="relative inline-flex items-center">
           <button
-            onClick={() => onAddAllLogs && onAddAllLogs()}
-            className="px-2 py-1 rounded border border-yellow-600/40 bg-yellow-600 text-black text-xs hover:bg-yellow-700"
+            onClick={() => { okPulse('addAll'); onAddAllLogs && onAddAllLogs(); }}
+            className="px-2 py-1 rounded border border-yellow-600/40 bg-yellow-600 text-black text-[11px] hover:bg-yellow-700"
             title="إضافة كل اللوجز للمحادثة"
           >
             Add All to Chat
           </button>
+          {okKey==='addAll' && (<span className={`absolute -top-1 -right-1 text-[10px] px-1 py-0.5 rounded-full ${okKind==='toggle' ? 'bg-yellow-500 border-yellow-400' : 'bg-green-600 border-green-500'} text-black shadow-sm`}>✓</span>)}
+          </div>
           <button
             onClick={() => {
               const text = (logs || []).map((log) => {
@@ -69,18 +75,21 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
               }).join('\n');
               try { navigator.clipboard.writeText(text); } catch { /* noop */ }
             }}
-            className="px-2 py-1 rounded border border-yellow-600/40 bg-yellow-600 text-black text-xs hover:bg-yellow-700 flex items-center gap-1"
+            className="px-2 py-1 rounded border border-yellow-600/40 bg-yellow-600 text-black text-[11px] hover:bg-yellow-700 flex items-center gap-1"
             title="نسخ جميع اللوجز"
           >
             <FiCopy size={12} /> <span>نسخ الكل</span>
           </button>
+          <div className="relative inline-flex items-center">
           <button
-            onClick={() => onToggleCollapse && onToggleCollapse()}
+            onClick={() => { okPulse('collapse','toggle'); onToggleCollapse && onToggleCollapse(); }}
             className="p-1.5 rounded border border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white transition"
             title={collapsed ? 'إظهار البانيل' : 'إخفاء البانيل'}
           >
             {collapsed ? <FiChevronUp size={16} /> : <FiChevronDown size={16} />}
           </button>
+          {okKey==='collapse' && (<span className={`absolute -top-1 -right-1 text-[10px] px-1 py-0.5 rounded-full ${okKind==='toggle' ? 'bg-yellow-500 border-yellow-400' : 'bg-green-600 border-green-500'} text-black shadow-sm`}>✓</span>)}
+          </div>
         </div>
       </div>
 
@@ -108,19 +117,22 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
                       {text}
                     </span>
                     <div className="ml-auto flex items-center gap-1">
+                      <div className="relative inline-flex items-center">
                       <button
-                        onClick={() => onAddLogToChat && onAddLogToChat(log)}
-                        className="px-2 py-1 rounded border border-blue-400/40 bg-blue-600 text-white text-[10px] hover:bg-blue-700"
+                        onClick={() => { okPulse('addOne'); onAddLogToChat && onAddLogToChat(log); }}
+                        className="px-2 py-1 rounded border border-blue-400/40 bg-blue-600 text-white text-[11px] hover:bg-blue-700"
                         title="Add to chat"
                       >
                         Add to Chat
                       </button>
+                      {okKey==='addOne' && (<span className={`absolute -top-1 -right-1 text-[10px] px-1 py-0.5 rounded-full ${okKind==='toggle' ? 'bg-yellow-500 border-yellow-400' : 'bg-green-600 border-green-500'} text-black shadow-sm`}>✓</span>)}
+                      </div>
                       <button
                         onClick={() => {
                           const value = typeof log === 'string' ? log : (log?.text || JSON.stringify(log));
                           try { navigator.clipboard.writeText(value); } catch { /* noop */ }
                         }}
-                        className="px-2 py-1 rounded border border-yellow-600/40 bg-yellow-600 text-black text-[10px] hover:bg-yellow-700 flex items-center gap-1"
+                        className="px-2 py-1 rounded border border-yellow-600/40 bg-yellow-600 text-black text-[11px] hover:bg-yellow-700 flex items-center gap-1"
                         title="نسخ هذا اللوج"
                       >
                         <FiCopy size={12} /> <span>نسخ</span>

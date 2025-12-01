@@ -130,6 +130,9 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
     // Redirect to the root of the domain, which is the public site
     window.location.href = '/';
   };
+  const [okKey, setOkKey] = React.useState(null);
+  const [okKind, setOkKind] = React.useState('success');
+  const okPulse = (key, kind = 'success') => { setOkKey(key); setOkKind(kind); setTimeout(() => { setOkKey(null); setOkKind('success'); }, 800); };
   return (
     <div className="bg-gray-900 h-14 flex-shrink-0 flex items-center justify-between px-6 border-b border-gray-800">
       {/* Left: Title */}
@@ -301,55 +304,67 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
         {/* Right: Control Buttons */}
       <div className="flex items-center gap-1.5">
         
+        <div className="relative inline-flex items-center">
         <button
-          onClick={onToggleLeft}
-          className={`p-1.5 w-8 h-8 inline-flex items-center justify-center rounded-lg transition-colors ${
+          onClick={() => { okPulse('left','toggle'); onToggleLeft(); }}
+          className={`p-1.5 w-7 h-7 inline-flex items-center justify-center rounded-lg transition-colors ${
             isLeftOpen ? 'bg-yellow-600 text-black hover:bg-yellow-700' : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-yellow-600/40'
           }`}
           title={isLeftOpen ? (lang==='ar'?'إخفاء لوحة المحادثات':'Hide Chats Panel') : (lang==='ar'?'إظهار لوحة المحادثات':'Show Chats Panel')}
         >
-          <FiSidebar size={16} />
+          <FiSidebar size={14} />
         </button>
+        {okKey==='left' && (<span className={`absolute -top-1 -right-1 text-[10px] px-1 py-0.5 rounded-full ${okKind==='toggle' ? 'bg-yellow-500 border-yellow-400' : 'bg-green-600 border-green-500'} text-black shadow-sm`}>✓</span>)}
+        </div>
 
 
         {/* Toggle System Status Panel */}
+        <div className="relative inline-flex items-center">
         <button
-          onClick={onToggleStatus}
-          className={`p-1.5 w-8 h-8 inline-flex items-center justify-center rounded-lg transition-colors ${
+          onClick={() => { okPulse('status','toggle'); onToggleStatus(); }}
+          className={`p-1.5 w-7 h-7 inline-flex items-center justify-center rounded-lg transition-colors ${
             isStatusOpen 
               ? 'bg-yellow-600 text-black hover:bg-yellow-700' 
               : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-yellow-600/40'
           }`}
           title={isStatusOpen ? (lang==='ar'?'إخفاء حالة النظام':'Hide System Status') : (lang==='ar'?'إظهار حالة النظام':'Show System Status')}
         >
-          <FiActivity size={16} />
+          <FiActivity size={14} />
         </button>
+        {okKey==='status' && (<span className={`absolute -top-1 -right-1 text-[10px] px-1 py-0.5 rounded-full ${okKind==='toggle' ? 'bg-yellow-500 border-yellow-400' : 'bg-green-600 border-green-500'} text-black shadow-sm`}>✓</span>)}
+        </div>
 
+        <div className="relative inline-flex items-center">
         <button
-          onClick={onToggleLogs}
-          className={`p-1.5 w-8 h-8 inline-flex items-center justify-center rounded-lg transition-colors ${
+          onClick={() => { okPulse('logs','toggle'); onToggleLogs(); }}
+          className={`p-1.5 w-7 h-7 inline-flex items-center justify-center rounded-lg transition-colors ${
             isLogsOpen 
               ? 'bg-yellow-600 text-black hover:bg-yellow-700' 
               : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-yellow-600/40'
           }`}
           title={lang==='ar'?'سجلّ النظام':'Logs'}
         >
-          <FiTerminal size={16} />
+          <FiTerminal size={14} />
         </button>
+        {okKey==='logs' && (<span className={`absolute -top-1 -right-1 text-[10px] px-1 py-0.5 rounded-full ${okKind==='toggle' ? 'bg-yellow-500 border-yellow-400' : 'bg-green-600 border-green-500'} text-black shadow-sm`}>✓</span>)}
+        </div>
 
         {isSuperAdmin && (
           <div className="relative">
+            <div className="relative inline-flex items-center">
             <button
-              onClick={() => setUserMenuOpen((v) => !v)}
-              className={`p-1.5 w-8 h-8 inline-flex items-center justify-center rounded-lg transition-colors ${
+              onClick={() => { okPulse('users','toggle'); setUserMenuOpen((v) => !v); }}
+              className={`p-1.5 w-7 h-7 inline-flex items-center justify-center rounded-lg transition-colors ${
                 userMenuOpen || isBorderSettingsOpen
                   ? 'bg-yellow-600 text-black hover:bg-yellow-700'
                   : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-yellow-600/40'
               }`}
               title="إدارة المستخدمين"
             >
-              <FiUsers size={16} />
+              <FiUsers size={14} />
             </button>
+            {okKey==='users' && (<span className={`absolute -top-1 -right-1 text-[10px] px-1 py-0.5 rounded-full ${okKind==='toggle' ? 'bg-yellow-500 border-yellow-400' : 'bg-green-600 border-green-500'} text-black shadow-sm`}>✓</span>)}
+            </div>
             {userMenuOpen && (
               <div className="absolute right-0 top-12 z-50 w-56 bg-gray-900 border border-yellow-600/40 rounded-lg shadow-xl p-2">
                 <button
@@ -379,13 +394,16 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
         <AIMenuButton />
 
         {/* Language Toggle */}
+        <div className="relative inline-flex items-center">
         <button
-          onClick={toggleLang}
-          className="p-1.5 w-8 h-8 inline-flex items-center justify-center rounded-lg bg-yellow-600 hover:bg-yellow-700 text-black border border-yellow-600 transition-colors"
+          onClick={() => { okPulse('lang','toggle'); toggleLang(); }}
+          className="p-1.5 w-7 h-7 inline-flex items-center justify-center rounded-lg bg-yellow-600 hover:bg-yellow-700 text-black border border-yellow-600 transition-colors"
           title={lang === 'ar' ? 'AR' : 'EN'}
         >
           <span className="text-[11px] font-semibold">{lang === 'ar' ? 'AR' : 'EN'}</span>
         </button>
+        {okKey==='lang' && (<span className={`absolute -top-1 -right-1 text-[10px] px-1 py-0.5 rounded-full ${okKind==='toggle' ? 'bg-yellow-500 border-yellow-400' : 'bg-green-600 border-green-500'} text-black shadow-sm`}>✓</span>)}
+        </div>
 
         {/* Mascot Size Slider removed as requested */}
 
@@ -396,27 +414,34 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
         
 
         {/* Fullscreen Toggle (Optional) */}
+        <div className="relative inline-flex items-center">
         <button
           onClick={() => {
+            okPulse('fs','toggle');
             if (document.fullscreenElement) {
               document.exitFullscreen();
             } else {
               document.documentElement.requestFullscreen();
             }
           }}
-          className="p-1.5 w-8 h-8 inline-flex items-center justify-center rounded-lg bg-gray-800 text-gray-300 hover:bg-gray-700 border border-yellow-600/40 transition-colors"
+          className="p-1.5 w-7 h-7 inline-flex items-center justify-center rounded-lg bg-gray-800 text-gray-300 hover:bg-gray-700 border border-yellow-600/40 transition-colors"
           title={lang==='ar'?'ملء الشاشة':'Toggle Fullscreen'}
         >
-          <FiMaximize2 size={16} />
+          <FiMaximize2 size={14} />
         </button>
+        {okKey==='fs' && (<span className={`absolute -top-1 -right-1 text-[10px] px-1 py-0.5 rounded-full ${okKind==='toggle' ? 'bg-yellow-500 border-yellow-400' : 'bg-green-600 border-green-500'} text-black shadow-sm`}>✓</span>)}
+        </div>
 
+        <div className="relative inline-flex items-center">
         <button
-          onClick={handleExit}
-          className={`p-1.5 w-8 h-8 inline-flex items-center justify-center rounded-lg transition-colors bg-red-600 text-white hover:bg-red-700`}
+          onClick={() => { okPulse('exit','success'); handleExit(); }}
+          className={`p-1.5 w-7 h-7 inline-flex items-center justify-center rounded-lg transition-colors bg-red-600 text-white hover:bg-red-700`}
           title={lang==='ar'?'خروج إلى الرئيسية':'Exit to Home (Logout)'}
         >
-          <FiLogOut size={16} />
+          <FiLogOut size={14} />
         </button>
+        {okKey==='exit' && (<span className={`absolute -top-1 -right-1 text-[10px] px-1 py-0.5 rounded-full ${okKind==='toggle' ? 'bg-yellow-500 border-yellow-400' : 'bg-green-600 border-green-500'} text-black shadow-sm`}>✓</span>)}
+        </div>
       </div>
     </div>
   );
@@ -530,7 +555,6 @@ const AIMenuButton = () => {
     finally { setLoading(false); }
   };
 
-  const [offlineReady2, setOfflineReady2] = React.useState(false);
   const Panel = (
     <div className={`fixed inset-0 z-[100] flex items-start justify-center pt-16 bg-black/40 backdrop-blur-sm transition-opacity duration-200 ${closing ? 'opacity-0' : 'opacity-100'}`} onClick={handlePanelClose}>
       <style>{`

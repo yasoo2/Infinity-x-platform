@@ -228,6 +228,9 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   }, []);
 
   const handleFileClick = () => fileInputRef.current.click();
+  const [okKey, setOkKey] = React.useState(null);
+  const [okKind, setOkKind] = React.useState('success');
+  const okPulse = (key, kind = 'success') => { setOkKey(key); setOkKind(kind); setTimeout(() => { setOkKey(null); setOkKind('success'); }, 800); };
 
   const uploadFiles = async (files) => {
     const form = new FormData();
@@ -561,29 +564,32 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
             {/* Action Buttons */}
             <div className="flex items-center gap-2">
               
+              <div className="relative inline-flex items-center">
               <button 
-                onClick={fetchLinksFromInput}
-                className="p-2.5 text-gray-400 hover:text-yellow-400 hover:bg-gray-700 rounded-lg transition-colors border border-gray-700"
+                onClick={() => { okPulse('links','success'); fetchLinksFromInput(); }}
+                className="p-2 text-gray-400 hover:text-yellow-400 hover:bg-gray-700 rounded-lg transition-colors border border-gray-700"
                 disabled={isProcessing}
                 title={lang==='ar'?'جلب الروابط من النص':'Fetch links from input'}
               >
-                <FiLink size={18} />
+                <FiLink size={14} />
               </button>
+              {okKey==='links' && (<span className={`absolute -top-1 -right-1 text-[10px] px-1 py-0.5 rounded-full ${okKind==='toggle' ? 'bg-yellow-500 border-yellow-400' : 'bg-green-600 border-green-500'} text-black shadow-sm`}>✓</span>)}
+              </div>
               <button
-                onClick={() => setShowGithub(v => !v)}
-                className="p-2.5 text-gray-400 hover:text-yellow-400 hover:bg-gray-700 rounded-lg transition-colors border border-gray-700"
+                onClick={() => { okPulse('github','toggle'); setShowGithub(v => !v); }}
+                className="p-2 text-gray-400 hover:text-yellow-400 hover:bg-gray-700 rounded-lg transition-colors border border-gray-700"
                 disabled={isProcessing}
                 title={lang==='ar'?'لوحة GitHub':'GitHub Panel'}
               >
-                <FiGitBranch size={18} />
+                <FiGitBranch size={14} />
               </button>
               <button
-                onClick={() => setShowBuilder(v => !v)}
-                className="p-2.5 text-gray-400 hover:text-yellow-400 hover:bg-gray-700 rounded-lg transition-colors border border-gray-700"
+                onClick={() => { okPulse('builder','toggle'); setShowBuilder(v => !v); }}
+                className="p-2 text-gray-400 hover:text-yellow-400 hover:bg-gray-700 rounded-lg transition-colors border border-gray-700"
                 disabled={isProcessing}
                 title={lang==='ar'?'بناء ذاتي':'Autonomous Build'}
               >
-                <FiCompass size={18} />
+                <FiCompass size={14} />
               </button>
               
               <input 
@@ -596,20 +602,20 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
               />
               
               <button 
-                onClick={handleFileClick} 
-                className="p-2.5 text-gray-400 hover:text-yellow-400 hover:bg-gray-700 rounded-lg transition-colors border border-gray-700" 
+                onClick={() => { okPulse('attach','success'); handleFileClick(); }} 
+                className="p-2 text-gray-400 hover:text-yellow-400 hover:bg-gray-700 rounded-lg transition-colors border border-gray-700" 
                 disabled={isProcessing}
                 title="Attach File"
               >
-                <FiPaperclip size={20} />
+                <FiPaperclip size={14} />
               </button>
               {uploadPct > 0 && uploadPct < 100 && (
                 <span className="text-[10px] text-yellow-300">{uploadPct}%</span>
               )}
               
               <button 
-                onClick={handleVoiceInput} 
-                className={`p-2.5 rounded-lg transition-colors ${
+                onClick={() => { okPulse('voice','toggle'); handleVoiceInput(); }} 
+                className={`p-2 rounded-lg transition-colors ${
                   isListening 
                     ? 'text-red-500 bg-red-500/10 animate-pulse' 
                     : 'text-gray-400 hover:text-yellow-400 hover:bg-gray-700'
@@ -617,25 +623,25 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                 disabled={isProcessing}
                 title="Voice Input"
               >
-                <FiMic size={20} />
+                <FiMic size={14} />
               </button>
 
               {isProcessing ? (
                 <button 
-                  onClick={stopProcessing} 
-                  className="flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+                  onClick={() => { okPulse('stop','success'); stopProcessing(); }} 
+                  className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors text-sm"
                 >
-                  <FiStopCircle size={18} />
-                  Stop
+                  <FiStopCircle size={16} />
+                  إيقاف
                 </button>
               ) : (
                 <button 
-                  onClick={handleSend} 
+                  onClick={() => { okPulse('send','success'); handleSend(); }} 
                   disabled={!input.trim()} 
-                  className="p-2.5 text-black bg-yellow-600 hover:bg-yellow-700 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="p-2 text-black bg-yellow-600 hover:bg-yellow-700 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   title="Send Message"
                 >
-                  <FiSend size={20} />
+                  <FiSend size={16} />
                 </button>
               )}
           </div>
