@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { FiCloud, FiCpu, FiSettings } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import TopBar from '../components/joe/TopBar';
 import apiClient from '../api/client';
@@ -362,8 +361,6 @@ const JoeContent = () => {
         onToggleLogs={toggleBottomPanel}
         isLogsOpen={isBottomPanelOpen && !isBottomCollapsed}
       />
-      <JoeHeaderControls />
-      
       
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
@@ -540,99 +537,4 @@ const Joe = () => (
 );
 
 export default Joe;
-
-function JoeHeaderControls() {
-  const [lang, setLang] = React.useState(() => {
-    try { return localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'; } catch { return 'en'; }
-  });
-  const [runtimeMode, setRuntimeMode] = React.useState('online');
-  const [offlineReady, setOfflineReady] = React.useState(false);
-  const [loadingLocal, setLoadingLocal] = React.useState(false);
-  const [llamaStage, setLlamaStage] = React.useState('');
-  const [llamaPercent, setLlamaPercent] = React.useState(0);
-  React.useEffect(() => {
-    const onLang = () => {
-      try { setLang(localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'); } catch { void 0; }
-    };
-    window.addEventListener('joe:lang', onLang);
-    return () => window.removeEventListener('joe:lang', onLang);
-  }, []);
-  React.useEffect(() => {
-    (async () => {
-      try {
-        const { data } = await apiClient.get('/api/v1/runtime-mode/status');
-        setRuntimeMode(String(data?.mode || 'online'));
-        setOfflineReady(Boolean(data?.offlineReady));
-        try { setLlamaStage(String(data?.stage || '')); } catch { void 0 }
-        try { setLlamaPercent(Number(data?.percent || 0)); } catch { void 0 }
-      } catch { void 0 }
-    })();
-  }, []);
-  const handleUseLocal = React.useCallback(async () => {
-    try {
-      if (!offlineReady) {
-        setLoadingLocal(true);
-        await apiClient.post('/api/v1/runtime-mode/load');
-        setTimeout(async () => {
-          try {
-            const { data } = await apiClient.get('/api/v1/runtime-mode/status');
-            setOfflineReady(Boolean(data?.offlineReady));
-            try { setLlamaStage(String(data?.stage || '')); } catch { void 0 }
-            try { setLlamaPercent(Number(data?.percent || 0)); } catch { void 0 }
-          } catch { void 0 }
-          setLoadingLocal(false);
-        }, 600);
-      }
-      if (offlineReady) {
-        await apiClient.post('/api/v1/runtime-mode/set', { mode: 'offline' });
-        try { localStorage.setItem('aiSelectedModel', 'offline-local'); } catch { void 0; }
-        setRuntimeMode('offline');
-      } else {
-        const lang = (() => { try { return localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'; } catch { return 'ar'; } })();
-        const msgAr = 'النموذج المحلي غير متوفر. ضع ملف النموذج في المسار backend/models/llama.gguf ثم أعد المحاولة.';
-        const msgEn = 'Local model not available. Place the model file at backend/models/llama.gguf and try again.';
-        try { alert(lang==='ar'?msgAr:msgEn); } catch { void 0 }
-      }
-    } catch { void 0 }
-  }, [offlineReady]);
-  const handleUseCloud = React.useCallback(async () => {
-    try {
-      await apiClient.post('/api/v1/runtime-mode/set', { mode: 'online' });
-      const model = (() => { try { return localStorage.getItem('aiSelectedModel') || 'gpt-4o'; } catch { return 'gpt-4o'; } })();
-      try { localStorage.setItem('aiSelectedModel', model); } catch { void 0; }
-      setRuntimeMode('online');
-    } catch { void 0 }
-  }, []);
-  const handleOpenProviders = React.useCallback(() => {
-    try { window.dispatchEvent(new CustomEvent('joe:openProviders')); } catch { void 0 }
-  }, []);
-  return (
-    <div className="px-3 py-1.5 border-b border-gray-800 bg-[#0b0f1a]">
-      <div className="flex items-center gap-1.5">
-        <button onClick={handleUseLocal} className={`px-2 py-1 rounded-md text-[11px] font-semibold inline-flex items-center gap-1 border ${offlineReady ? 'bg-green-600 text-black hover:bg-green-700 border-green-500/50' : 'bg-gray-700 text-white hover:bg-gray-600 border-gray-600'}`} title={offlineReady ? (lang==='ar'?'المحلي جاهز':'Local Ready') : (lang==='ar'?'تحميل المحلي':'Load Local')}>
-          <FiCpu size={12} />
-          <span>Joe Ai</span>
-          {loadingLocal ? (
-            <span className="animate-pulse">…</span>
-          ) : (
-            <span className={`text-[10px] px-1 py-0.5 rounded border ${offlineReady ? 'bg-green-500/20 text-green-300 border-green-500/30' : 'bg-gray-500/20 text-gray-300 border-gray-500/30'}`}>
-              {offlineReady
-                ? (lang==='ar'?'جاهز':'Ready')
-                : (llamaStage==='missing_model'
-                    ? (lang==='ar'?'النموذج مفقود':'Model Missing')
-                    : (llamaPercent>0 ? `${llamaPercent}%` : (lang==='ar'?'تحميل':'Load')))}
-            </span>
-          )}
-        </button>
-        <button onClick={handleUseCloud} className={`px-2 py-1 rounded-md text-[11px] font-semibold inline-flex items-center gap-1 border ${runtimeMode==='online' ? 'bg-blue-600 text-white hover:bg-blue-700 border-blue-500/50' : 'bg-blue-700 text-white hover:bg-blue-600 border-blue-500/50'}`} title={lang==='ar'?'السحابي':'Cloud'}>
-          <FiCloud size={12} />
-          <span>{lang==='ar'?'سحابي':'Cloud'}</span>
-        </button>
-        <button onClick={handleOpenProviders} className="px-2 py-1 rounded-md text-[11px] font-semibold inline-flex items-center gap-1 bg-yellow-600 text-black hover:bg-yellow-700 border border-yellow-500/50" title={lang==='ar'?'مزودين الذكاء':'AI Providers'}>
-          <FiSettings size={12} />
-          <span>{lang==='ar'?'مزودين':'Providers'}</span>
-        </button>
-      </div>
-    </div>
-  );
-}
+ 

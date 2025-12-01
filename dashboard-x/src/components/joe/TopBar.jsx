@@ -1,6 +1,6 @@
-import React, { useCallback } from 'react';
-import { FiMaximize2, FiLogOut, FiSidebar, FiActivity, FiUsers, FiTerminal } from 'react-icons/fi';
-import { Sparkles, Key, CheckCircle, XCircle, ExternalLink, Search as SearchIcon } from 'lucide-react';
+import React from 'react';
+import { FiMaximize2, FiLogOut, FiSidebar, FiActivity, FiUsers, FiTerminal, FiCpu } from 'react-icons/fi';
+import { Sparkles, Key, ExternalLink, Search as SearchIcon } from 'lucide-react';
 import { getAIProviders, validateAIKey, activateAIProvider } from '../../api/system';
 import apiClient from '../../api/client';
 
@@ -64,6 +64,7 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
     try { return localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'; } catch { return 'en'; }
   });
   const [offlineReady, setOfflineReady] = React.useState(false);
+  const [runtimeMode, setRuntimeMode] = React.useState('online');
   
   React.useEffect(() => {
     const onLang = () => {
@@ -85,8 +86,17 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
       try {
         const { data } = await apiClient.get('/api/v1/runtime-mode/status');
         setOfflineReady(Boolean(data?.offlineReady));
+        setRuntimeMode(String(data?.mode || 'online'));
       } catch (e) { void e; }
     })();
+  }, []);
+  React.useEffect(() => {
+    const onRuntime = (e) => {
+      const m = e?.detail?.mode;
+      if (m) setRuntimeMode(String(m));
+    };
+    window.addEventListener('joe:runtime', onRuntime);
+    return () => window.removeEventListener('joe:runtime', onRuntime);
   }, []);
   const onBrandMouseMove = (e) => {
     if (!brandRef.current) return;
@@ -303,6 +313,33 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
 
         {/* Right: Control Buttons */}
       <div className="flex items-center gap-1.5">
+        {/* Local Button */}
+        <button
+          onClick={async () => {
+            try {
+              if (!offlineReady) {
+                await apiClient.post('/api/v1/runtime-mode/load');
+                try {
+                  const { data } = await apiClient.get('/api/v1/runtime-mode/status');
+                  setOfflineReady(Boolean(data?.offlineReady));
+                } catch { void 0 }
+              }
+              if (offlineReady) {
+                await apiClient.post('/api/v1/runtime-mode/set', { mode: 'offline' });
+                try { localStorage.setItem('aiSelectedModel', 'offline-local'); } catch { void 0; }
+                setRuntimeMode('offline');
+                try { window.dispatchEvent(new CustomEvent('joe:runtime', { detail: { mode: 'offline' } })); } catch { void 0; }
+              }
+            } catch { void 0 }
+          }}
+          className={`p-1.5 px-2 h-7 inline-flex items-center justify-center rounded-lg transition-colors border ${runtimeMode==='offline' ? 'bg-green-600 text-black hover:bg-green-700 border-green-500/50' : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border-yellow-600/40'}`}
+          title={lang==='ar'?'المحلي':'Local'}
+        >
+          <FiCpu size={12} />
+          <span className="ml-1 text-[11px] font-semibold">Joe Ai</span>
+        </button>
+        {/* Providers Button */}
+        <AIMenuButton runtimeMode={runtimeMode} />
         
         <div className="relative inline-flex items-center">
         <button
@@ -390,8 +427,7 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
           </div>
         )}
 
-        {/* AI Providers Button */}
-        <AIMenuButton />
+        
 
         {/* Language Toggle */}
         <div className="relative inline-flex items-center">
@@ -461,7 +497,7 @@ TopBar.propTypes = {
   isSuperAdmin: PropTypes.bool,
 };
 
-const AIMenuButton = () => {
+const AIMenuButton = ({ runtimeMode }) => {
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [providers, setProviders] = React.useState([]);
@@ -528,6 +564,12 @@ const AIMenuButton = () => {
       setActive({ provider: id, model });
       try { localStorage.setItem('aiSelectedModel', model); } catch { void 0; }
       setActivationError(e => ({ ...e, [id]: '' }));
+      try {
+        const isLocal = id === 'ollama' || id === 'lmstudio';
+        const mode = isLocal ? 'offline' : 'online';
+        await apiClient.post('/api/v1/runtime-mode/set', { mode });
+        try { window.dispatchEvent(new CustomEvent('joe:runtime', { detail: { mode } })); } catch { void 0; }
+      } catch (err2) { void err2; }
     } catch (err) {
       const msg = (err && err.message) ? err.message : 'فشل تفعيل المزود';
       setActivationError(e => ({ ...e, [id]: msg }));
@@ -539,7 +581,7 @@ const AIMenuButton = () => {
     if (!detailId) return;
     const k = keys[detailId];
     if (k) handleValidate(detailId);
-  }, [detailId]);
+  }, [detailId, handleValidate, keys]);
 
   React.useEffect(() => {
     const handleClickOutside = (e) => {
@@ -561,10 +603,11 @@ const AIMenuButton = () => {
       <div className="relative inline-flex items-center" ref={buttonRef}>
         <button
           onClick={() => setMenuOpen(v => !v)}
-          className={`p-1.5 w-7 h-7 inline-flex items-center justify-center rounded-lg transition-colors ${menuOpen ? 'bg-yellow-600 text-black hover:bg-yellow-700' : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-yellow-600/40'}`}
+          className={`p-1.5 px-2 h-7 inline-flex items-center justify-center rounded-lg transition-colors border ${runtimeMode==='online' ? 'bg-green-600 text-black hover:bg-green-700 border-green-500/50' : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border-yellow-600/40'}`}
           title="مزودي الذكاء الصناعي"
         >
           <Sparkles className="w-4 h-4" />
+          <span className="ml-1 text-[11px] font-semibold">مزودين</span>
         </button>
       </div>
 
@@ -589,9 +632,33 @@ const AIMenuButton = () => {
                 <button
                   key={p.id}
                   onClick={() => setDetailId(p.id)}
-                  className={`w-full text-right px-3 py-2 border-b border-yellow-600/10 hover:bg-gray-800 ${isActive ? 'text-green-400' : 'text-yellow-300'}`}
+                  className={`group w-full text-right px-3 py-2.5 border-b border-yellow-600/10 hover:bg-gray-800 transition-colors ${isActive ? 'text-green-400' : 'text-yellow-300'}`}
                 >
-                  {p.name}
+                  <div className="w-full flex items-center justify-between">
+                    <span className="inline-flex items-center gap-2">
+                      {(!logoError[p.id] && p.logo) ? (
+                        <img
+                          src={p.logo}
+                          alt={p.name}
+                          className={`w-5 h-5 rounded-full ${isActive ? 'ring-2 ring-green-500/50' : 'ring-1 ring-yellow-600/30'} transition-transform group-hover:scale-105`}
+                          referrerPolicy="no-referrer"
+                          crossOrigin="anonymous"
+                          loading="lazy"
+                          onError={() => setLogoError(e => ({ ...e, [p.id]: true }))}
+                        />
+                      ) : (
+                        <span className="w-5 h-5 rounded-full grid place-items-center text-[12px]" style={{ background: '#111', color: p.color }}>{p.icon || '🤖'}</span>
+                      )}
+                      <span className="flex flex-col items-start leading-tight">
+                        <span className="flex items-center gap-2">
+                          <span className="text-sm font-semibold">{p.name}</span>
+                          <span className="text-xs text-gray-400">• {p.region==='china' ? 'الصين' : 'العالمي'}</span>
+                        </span>
+                        <span className="text-[11px] text-gray-400">{p.defaultModel}</span>
+                      </span>
+                    </span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full ${isActive ? 'bg-green-600/20 text-green-300 ring-1 ring-green-500/50' : 'bg-gray-700/40 text-gray-300 ring-1 ring-yellow-600/30'}`}>{isActive ? 'نشط' : 'غير نشط'}</span>
+                  </div>
                 </button>
               );
             })}
@@ -658,6 +725,10 @@ const AIMenuButton = () => {
       )}
     </div>
   );
+};
+
+AIMenuButton.propTypes = {
+  runtimeMode: PropTypes.string,
 };
 
 export default TopBar;
