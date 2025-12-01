@@ -15,7 +15,7 @@ import config from '../config.mjs';
 export class JoeAgentWebSocketServer {
   constructor(server, dependencies) {
     this.dependencies = dependencies;
-    this.wss = new WebSocketServer({ server, path: '/ws/joe-agent', perMessageDeflate: { serverNoContextTakeover: true, clientNoContextTakeover: true } });
+    this.wss = new WebSocketServer({ server, path: '/ws/joe-agent', perMessageDeflate: false });
     this.io = dependencies?.io || null;
     if (this.io) {
       this.nsp = this.io.of('/joe-agent');
@@ -46,6 +46,10 @@ export class JoeAgentWebSocketServer {
       // Origin check for WebSocket handshake
       try {
         const origin = req.headers?.origin;
+        const ua = req.headers['user-agent'];
+        const ext = req.headers['sec-websocket-extensions'];
+        const proto = req.headers['sec-websocket-protocol'];
+        console.log(`[JoeAgentV2] Handshake: UA=${ua || 'N/A'} EXT=${ext || 'N/A'} PROTO=${proto || 'N/A'} ORIGIN=${origin || 'N/A'} PATH=${req.url}`);
         if (origin) {
           const u = new URL(origin);
           const host = u.host;
