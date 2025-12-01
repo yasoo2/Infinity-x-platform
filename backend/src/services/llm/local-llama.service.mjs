@@ -1,4 +1,5 @@
 import path from 'path'
+import fs from 'fs'
 
 class LocalLlamaService {
   constructor() {
@@ -18,6 +19,13 @@ class LocalLlamaService {
       this.loading = true
       this.loadingStage = 'init'
       this.loadingPercent = 5
+      if (!this.modelPath || !fs.existsSync(this.modelPath)) {
+        this.loadingStage = 'missing_model'
+        this.loadingPercent = 0
+        this.loading = false
+        this.initialized = false
+        return false
+      }
       const { getLlama, LlamaChatSession } = await import('node-llama-cpp')
       const gpu = process.env.LLAMA_METAL ? 'metal' : undefined
       const threads = Number(process.env.LLAMA_THREADS || 0) || undefined

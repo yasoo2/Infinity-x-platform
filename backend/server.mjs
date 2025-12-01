@@ -209,7 +209,15 @@ async function setupDependencies() {
     const sandboxManager = await new SandboxManager().initializeConnections();
     const memoryManager = new MemoryManager();
     const { localLlamaService } = await import('./src/services/llm/local-llama.service.mjs');
-    localLlamaService.startInitialize();
+    try {
+        const shouldAutoLoad = String(process.env.LLAMA_AUTO_LOAD || '').toLowerCase() === 'true';
+        const hasModel = !!localLlamaService.modelPath && (await import('fs')).default.existsSync(localLlamaService.modelPath);
+        if (shouldAutoLoad && hasModel) {
+            localLlamaService.startInitialize();
+        } else {
+            console.log('🦙 Local LLaMA auto-load skipped:', { shouldAutoLoad, hasModel, modelPath: localLlamaService.modelPath });
+        }
+    } catch { /* noop */ }
     
     const dependencies = {
         db,
