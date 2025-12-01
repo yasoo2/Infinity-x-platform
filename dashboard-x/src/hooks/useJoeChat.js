@@ -465,10 +465,21 @@ export const useJoeChat = () => {
       const convs = { ...state.conversations };
       for (const sess of list) {
         if (!sess?.id) continue;
-        const detail = await getChatSessionById(sess.id, { signal });
-        if (detail?.success && detail?.session) {
-          const mapped = mapSessionToConversation(detail.session);
-          convs[mapped.id] = mapped;
+        try {
+          const detail = await getChatSessionById(sess.id, { signal });
+          if (detail?.success && detail?.session) {
+            const mapped = mapSessionToConversation(detail.session);
+            convs[mapped.id] = mapped;
+          }
+        } catch (err) {
+          const status = err?.status ?? err?.response?.status;
+          const code = err?.code ?? err?.response?.data?.code;
+          const notFound = status === 404 || String(err?.details?.error || code || '').toUpperCase() === 'NOT_FOUND';
+          if (!notFound) {
+            console.warn('syncBackendSessions detail fetch error:', err);
+          }
+          // Skip missing sessions and continue syncing others
+          continue;
         }
       }
       if (Object.keys(convs).length > 0) {
