@@ -109,6 +109,8 @@ const chatReducer = (state, action) => {
 	        [convoId]: { ...convo, messages: updatedMessages, title, lastModified: Date.now() },
 	    };
 	    nextState.input = '';
+            nextState.lastSentEcho = newMessage;
+            nextState.lastSentEchoConvId = convoId;
 	    // Note: SEND_MESSAGE should not set isProcessing, progress, currentStep, or plan.
 	    // START_PROCESSING will handle that later.
 	    return nextState;
@@ -168,6 +170,9 @@ const chatReducer = (state, action) => {
 
         case 'CLEAR_WS_LOGS':
             return { ...state, wsLog: [], pendingHandledLogIds: [] };
+
+        case 'CLEAR_ECHO':
+            return { ...state, lastSentEcho: null, lastSentEchoConvId: null };
 
         case 'SET_WS_CONNECTED':
             return { ...state, wsConnected: action.payload };
@@ -320,6 +325,8 @@ export const useJoeChat = () => {
     reconnectDelayMs: 0,
     reconnectEtaTs: 0,
     reconnectRemainingMs: 0,
+    lastSentEcho: null,
+    lastSentEchoConvId: null,
   });
 
   const stateRef = useRef(state);
@@ -751,6 +758,7 @@ export const useJoeChat = () => {
             const text = String(data.response || '').trim();
             if (text) {
               dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
+              dispatch({ type: 'CLEAR_ECHO' });
               try {
                 const id = stateRef.current.currentConversationId;
                 const conv = stateRef.current.conversations[id];
@@ -988,7 +996,13 @@ export const useJoeChat = () => {
     }),
     currentConversationId: state.currentConversationId,
     currentConversation: state.conversations[state.currentConversationId] || null,
-    messages: state.conversations[state.currentConversationId]?.messages || [],
+    messages: (() => {
+      const msgs = state.conversations[state.currentConversationId]?.messages || [];
+      if (msgs.length === 0 && state.lastSentEcho && state.lastSentEchoConvId === state.currentConversationId) {
+        return [state.lastSentEcho];
+      }
+      return msgs;
+    })(),
     isProcessing: state.isProcessing,
     progress: state.progress,
     currentStep: state.currentStep,

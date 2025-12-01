@@ -168,7 +168,7 @@
     "ws": "^8.16.0",
     "xss-clean": "^0.1.4",
     "yaml": "^2.3.4",
-    "node-tesseract-ocr": "^2.2.2"
+    "node-tesseract-ocr": "2.2.1"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.23.5",
@@ -187,7 +187,7 @@
     "typescript": "^5.3.3"
   },
   "engines": {
-    "node": ">=18.0.0",
+    "node": ">=18.18.0 <23.0.0",
     "npm": ">=9.0.0"
   }
 }
