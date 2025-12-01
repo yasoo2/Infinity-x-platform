@@ -1,7 +1,9 @@
 // dashboard-x/src/utils/websocket.js
 
 let ws = null;
+let ioSocket = null;
 let reconnectInterval = null;
+let failedAttempts = 0;
 
 export const connectWebSocket = (onMessage, onOpen, onClose) => {
   const token = localStorage.getItem('sessionToken') || '';
@@ -12,32 +14,42 @@ export const connectWebSocket = (onMessage, onOpen, onClose) => {
     : (envWs ? envWs.replace(/\/(ws.*)?$/, '') : (typeof window !== 'undefined' ? window.location.origin : 'ws://localhost:4000').replace(/^https/, 'wss').replace(/^http/, 'ws'));
   const wsUrl = `${baseWsUrl}/ws/joe-agent${token ? `?token=${encodeURIComponent(token)}` : ''}`;
 
-  ws = new WebSocket(wsUrl);
-
-  ws.onopen = () => {
-    console.warn('WebSocket connected');
-    if (onOpen) onOpen();
+  const tryNative = () => {
+    ws = new WebSocket(wsUrl);
+    ws.onopen = () => {
+      failedAttempts = 0;
+      if (onOpen) onOpen();
+    };
+    ws.onmessage = (event) => {
+      if (onMessage) onMessage(JSON.parse(event.data));
+    };
+    ws.onclose = () => {
+      if (onClose) onClose();
+      failedAttempts++;
+      clearTimeout(reconnectInterval);
+      reconnectInterval = setTimeout(() => {
+        if (!isDev && failedAttempts >= 1) {
+          trySocketIO();
+        } else {
+          tryNative();
+        }
+      }, 5000);
+    };
+    ws.onerror = () => { failedAttempts++; };
   };
 
-  ws.onmessage = (event) => {
-    if (onMessage) onMessage(JSON.parse(event.data));
+  const trySocketIO = async () => {
+    const httpBase = baseWsUrl.replace(/^ws/, 'http').replace(/^wss/, 'https');
+    const { io } = await import('socket.io-client');
+    ioSocket = io(`${httpBase}/joe-agent`, { auth: { token }, transports: ['websocket'] });
+    ioSocket.on('connect', () => { failedAttempts = 0; if (onOpen) onOpen(); });
+    ioSocket.on('status', (d) => { if (onMessage) onMessage({ type: 'status', message: d?.message }); });
+    ioSocket.on('response', (d) => { if (onMessage) onMessage({ type: 'response', response: d?.response, toolsUsed: d?.toolsUsed, sessionId: d?.sessionId }); });
+    ioSocket.on('disconnect', () => { if (onClose) onClose(); clearTimeout(reconnectInterval); reconnectInterval = setTimeout(() => { trySocketIO().catch(()=>{}); }, 5000); });
+    ioSocket.on('error', () => { failedAttempts++; });
   };
 
-  ws.onclose = () => {
-    console.warn('WebSocket disconnected');
-    if (onClose) onClose();
-
-    // إعادة الاتصال تلقائيًا بعد 5 ثواني
-    clearTimeout(reconnectInterval);
-    reconnectInterval = setTimeout(() => {
-      console.warn('Reconnecting WebSocket...');
-      connectWebSocket(onMessage, onOpen, onClose);
-    }, 5000);
-  };
-
-  ws.onerror = (error) => {
-    console.error('WebSocket error:', error);
-  };
+  tryNative();
 
   return ws;
 };
@@ -47,5 +59,9 @@ export const disconnectWebSocket = () => {
   if (ws) {
     ws.close();
     ws = null;
+  }
+  if (ioSocket) {
+    try { ioSocket.close(); } catch { /* ignore */ }
+    ioSocket = null;
   }
 };
