@@ -288,11 +288,11 @@ const JoeContent = () => {
         try { findBestCornerRef.current(); } catch { /* ignore */ }
       });
     };
-      const onResize = () => {
-        setRobotSize(computeRobotSize());
-        scheduleFind();
-      };
-    setRobotSize(computeRobotSize());
+    const onResize = () => {
+      setRobotSize(computeRobotSize(robotScale));
+      scheduleFind();
+    };
+    setRobotSize(computeRobotSize(robotScale));
     scheduleFind();
     window.addEventListener('resize', onResize);
     const onScroll = () => scheduleFind();
@@ -305,7 +305,7 @@ const JoeContent = () => {
       window.removeEventListener('joe:openProviders', onOpenProviders);
       try { if (rafId.current) cancelAnimationFrame(rafId.current); } catch { /* ignore */ }
     };
-  }, [computeRobotSize]);
+  }, [computeRobotSize, robotScale]);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -605,7 +605,7 @@ const JoeContent = () => {
                     <button onClick={(e)=>{ e.stopPropagation(); toggleSidePanel(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'لوحة اليسار':'Left Panel'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); toggleRightPanel(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'لوحة اليمين':'Right Panel'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); toggleBottomPanel(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'سجلّ النظام':'Logs'}</button>
-                    <button onClick={(e)=>{ e.stopPropagation(); handleNewConversation(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text黑 text-xs">{lang==='ar'?'جلسة جديدة':'New Chat'}</button>
+                    <button onClick={(e)=>{ e.stopPropagation(); handleNewConversation(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'جلسة جديدة':'New Chat'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); if (currentConversationId) clearMessages(currentConversationId); }} className="px-2 py-1 rounded bg-gray-700 hover:bg-gray-600 text-white text-xs">{lang==='ar'?'مسح الرسائل':'Clear msgs'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); navigate('/dashboard/browser-viewer'); }} className="px-2 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white text-xs">{lang==='ar'?'عارض المتصفح':'Browser Viewer'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); navigate('/dashboard/security'); }} className="px-2 py-1 rounded bg-purple-600 hover:bg-purple-700 text-white text-xs">{lang==='ar'?'تقرير الأمان':'Security Report'}</button>
