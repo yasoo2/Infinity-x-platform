@@ -261,14 +261,13 @@ const JoeContent = () => {
     setRobotSize(computeRobotSize());
     findBestCornerRef.current();
     window.addEventListener('resize', onResize);
-    window.addEventListener('scroll', onScroll, { passive: true });
+    // window.addEventListener('scroll', onScroll, { passive: true }); // تم تعطيله لتجنب التجمّد عند التمرير الكثيف
     const onOpenProviders = () => setRobotActive(false);
     window.addEventListener('joe:openProviders', onOpenProviders);
     return () => {
       window.removeEventListener('resize', onResize);
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('joe:openProviders', onOpenProviders);
-      
     };
   }, [computeRobotSize]);
 
