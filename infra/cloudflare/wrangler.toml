@@ -10,7 +10,7 @@ UPSTREAM_BASE = "https://infinity-x-platform.onrender.com"
 
 # Route the worker to handle API requests and preflight at the edge
 routes = [
-  { pattern = "api.xelitesolutions.com/*", zone_name = "xelitesolutions.com" }
+  { pattern = "api.xelitesolutions.com/*", zone_id = "fcbe7d1dcf6f1fa967c2b365a1459027" }
 ]
 
 workers_dev = false
