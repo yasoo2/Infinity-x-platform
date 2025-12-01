@@ -22,16 +22,31 @@ export default {
       return new Response(null, { status: allowed ? 200 : 403, headers: corsHeaders });
     }
     const url = new URL(request.url);
-    const defaultUpstream = url.hostname === 'api.xelitesolutions.com'
-      ? 'https://infinity-x-platform.onrender.com'
-      : url.origin;
-    const upstreamBase = (env && env.UPSTREAM_BASE) ? String(env.UPSTREAM_BASE) : defaultUpstream;
-    const targetUrl = upstreamBase.replace(/\/$/, '') + url.pathname + url.search;
-    const upstreamReq = new Request(targetUrl, request);
-    const resp = await fetch(upstreamReq);
+    const upstreamBase = (env && env.UPSTREAM_BASE) ? String(env.UPSTREAM_BASE) : 'https://infinity-x-platform.onrender.com';
+    const needsProxy = url.hostname === 'api.xelitesolutions.com' && (url.pathname.startsWith('/api/') || url.pathname.startsWith('/socket.io') || url.pathname.startsWith('/ws/joe-agent'));
 
+    const upgrade = request.headers.get('Upgrade');
+    if (upgrade && upgrade.toLowerCase() === 'websocket') {
+      if (needsProxy) {
+        const targetUrl = upstreamBase.replace(/\/$/, '') + url.pathname + url.search;
+        const upstreamReq = new Request(targetUrl, request);
+        return fetch(upstreamReq);
+      }
+      return fetch(request);
+    }
+
+    let resp;
+    if (needsProxy) {
+      const targetUrl = upstreamBase.replace(/\/$/, '') + url.pathname + url.search;
+      const upstreamReq = new Request(targetUrl, request);
+      resp = await fetch(upstreamReq);
+    } else {
+      resp = await fetch(request);
+    }
+    if (resp.status === 101) {
+      return resp;
+    }
     const headers = new Headers(resp.headers);
-    headers.set('X-Proxy-Target', upstreamBase);
     for (const [k, v] of Object.entries(corsHeaders)) headers.set(k, v);
     return new Response(resp.body, { status: resp.status, headers });
   }
