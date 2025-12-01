@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
-import { FiMic, FiPaperclip, FiSend, FiStopCircle, FiCompass, FiArrowDown, FiCloud, FiCpu, FiLink, FiGitBranch, FiTrash2 } from 'react-icons/fi';
+import { FiMic, FiPaperclip, FiSend, FiStopCircle, FiCompass, FiArrowDown, FiLink, FiGitBranch, FiTrash2 } from 'react-icons/fi';
 import { useJoeChatContext } from '../../context/JoeChatContext.jsx';
 import apiClient from '../../api/client';
 import { getSystemStatus } from '../../api/system';
@@ -51,9 +51,7 @@ const MainConsole = () => {
   const [lang, setLang] = React.useState(() => {
     try { return localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'; } catch { return 'ar'; }
   });
-  const [factoryMode, setFactoryMode] = React.useState('online');
-  const [offlineReady, setOfflineReady] = React.useState(false);
-  const [modeLoading, setModeLoading] = React.useState(false);
+  
   const [uploadPct, setUploadPct] = React.useState(0);
   const [linkLoading, setLinkLoading] = React.useState(false);
   const [showGithub, setShowGithub] = React.useState(false);
@@ -136,15 +134,7 @@ const MainConsole = () => {
     return () => window.removeEventListener('joe:lang', onLang);
   }, []);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const { data } = await apiClient.get('/api/v1/runtime-mode/status');
-        if (data?.success && data?.mode) setFactoryMode(data.mode);
-        setOfflineReady(Boolean(data?.offlineReady));
-      } catch { /* ignore */ }
-    })();
-  }, []);
+  
 
   useEffect(() => {
     (async () => {
@@ -172,36 +162,7 @@ const MainConsole = () => {
     return () => document.removeEventListener('mousedown', onDocClick);
   }, [showGithub]);
 
-  const handleToggleMode = async () => {
-    const nextMode = factoryMode === 'online' ? 'offline' : 'online';
-    if (nextMode === 'offline' && !offlineReady) {
-      // If switching to offline and not ready, try to load the model first
-      try {
-        setModeLoading(true);
-        await apiClient.post('/api/v1/runtime-mode/load');
-        // Wait a moment for the model to start loading
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      } catch (e) {
-        // If loading fails, show error and do not proceed with toggle
-        setInput(lang === 'ar' ? `فشل تحميل نموذج الذكاء المحلي: ${e.message}` : `Failed to load local AI model: ${e.message}`);
-        setModeLoading(false);
-        return;
-      }
-    }
-    try {
-      setModeLoading(true);
-      const { data } = await apiClient.post('/api/v1/runtime-mode/toggle');
-      if (data?.success) {
-        setFactoryMode(data.mode);
-        // Force a refresh of the status to get the latest offlineReady state
-        const status = await apiClient.get('/api/v1/runtime-mode/status').then(r => r.data || {});
-        setOfflineReady(Boolean(status?.offlineReady));
-      }
-    } catch (e) {
-      setInput(lang === 'ar' ? `فشل تبديل الوضع: ${e.message}` : `Failed to toggle mode: ${e.message}`);
-    }
-    finally { setModeLoading(false); }
-  };
+  
 
   useEffect(() => {
     const el = inputAreaRef.current;
@@ -599,14 +560,7 @@ const MainConsole = () => {
 
             {/* Action Buttons */}
             <div className="flex items-center gap-2">
-              <button 
-                onClick={() => setInput('')}
-                className="p-2.5 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded-lg transition-colors border border-gray-700"
-                disabled={isProcessing}
-                title={lang==='ar'?'مسح الكود':'Clear Code'}
-              >
-                <FiTrash2 size={18} />
-              </button>
+              
               <button 
                 onClick={fetchLinksFromInput}
                 className="p-2.5 text-gray-400 hover:text-yellow-400 hover:bg-gray-700 rounded-lg transition-colors border border-gray-700"
@@ -631,18 +585,7 @@ const MainConsole = () => {
               >
                 <FiCompass size={18} />
               </button>
-              <button
-                onClick={handleToggleMode}
-                className={`w-7 h-7 md:w-8 md:h-8 inline-flex items-center justify-center rounded-lg ${modeLoading ? 'bg-blue-600 text-white' : (factoryMode==='offline' ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-200 hover:bg-gray-600')} border border-gray-700 ${factoryMode === 'online' && !offlineReady ? 'opacity-50 cursor-not-allowed' : ''}`}
-                title={factoryMode==='offline' ? (lang==='ar'?'مصنع ذاتي':'Offline') : (lang==='ar'?'الوضع السحابي':'Cloud')}
-                disabled={modeLoading || (factoryMode === 'online' && !offlineReady)}
-              >
-                {modeLoading ? (
-                  <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  factoryMode==='offline' ? <FiCpu size={14} /> : <FiCloud size={14} />
-                )}
-              </button>
+              
               <input 
                 type="file" 
                 ref={fileInputRef} 

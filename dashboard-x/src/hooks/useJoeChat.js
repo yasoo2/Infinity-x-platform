@@ -166,6 +166,9 @@ const chatReducer = (state, action) => {
             return { ...state, wsLog: remaining, pendingHandledLogIds: [] };
         }
 
+        case 'CLEAR_WS_LOGS':
+            return { ...state, wsLog: [], pendingHandledLogIds: [] };
+
         case 'SET_WS_CONNECTED':
             return { ...state, wsConnected: action.payload };
 
@@ -982,7 +985,7 @@ export const useJoeChat = () => {
     try { recognition.current.start(); } catch { void 0; }
   }, [state.isListening]);
 
-  return {
+    return {
     // ... (all existing returned values)
     conversations: Object.values(state.conversations).sort((a, b) => {
       if (a.pinned && !b.pinned) return -1;
@@ -1030,6 +1033,7 @@ export const useJoeChat = () => {
       const header = getLang() === 'ar' ? 'سجل النظام الأخير:\n' : 'Recent system logs:\n';
       dispatch({ type: 'SEND_MESSAGE', payload: `${header}${lines}` });
     },
+    clearLogs: () => dispatch({ type: 'CLEAR_WS_LOGS' }),
     appendUserMessage: (text) => {
       const content = String(text || '').trim();
       if (!content) return;

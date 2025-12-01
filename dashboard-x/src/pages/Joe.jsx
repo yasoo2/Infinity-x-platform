@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { FiCloud, FiCpu, FiSettings } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import TopBar from '../components/joe/TopBar';
 import apiClient from '../api/client';
@@ -114,6 +115,7 @@ const JoeContent = () => {
     setInput,
     addLogToChat,
     addAllLogsToChat,
+    clearLogs,
   } = useJoeChatContext();
 
   const robotRef = React.useRef(null);
@@ -259,12 +261,13 @@ const JoeContent = () => {
     findBestCornerRef.current();
     window.addEventListener('resize', onResize);
     window.addEventListener('scroll', onScroll, { passive: true });
-    const onOpenProviders = () => setRobotActive(true);
+    const onOpenProviders = () => setRobotActive(false);
     window.addEventListener('joe:openProviders', onOpenProviders);
     return () => {
       window.removeEventListener('resize', onResize);
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('joe:openProviders', onOpenProviders);
+      
     };
   }, [computeRobotSize]);
 
@@ -309,47 +312,7 @@ const JoeContent = () => {
   const leftStyle = { borderRight: `${panelStyles.left.width}px solid ${panelStyles.left.color}`, borderRadius: panelStyles.left.radius };
   const rightStyle = { borderLeft: `${panelStyles.right.width}px solid ${panelStyles.right.color}`, borderRadius: panelStyles.right.radius };
   
-  const [runtimeMode, setRuntimeMode] = useState('online');
-  const [offlineReady, setOfflineReady] = useState(false);
-  const [loadingLocal, setLoadingLocal] = useState(false);
-  useEffect(() => {
-    (async () => {
-      try {
-        const { data } = await apiClient.get('/api/v1/runtime-mode/status');
-        setRuntimeMode(String(data?.mode || 'online'));
-        setOfflineReady(Boolean(data?.offlineReady));
-      } catch { void 0 }
-    })();
-  }, []);
-  const handleUseLocal = async () => {
-    try {
-      if (!offlineReady) {
-        setLoadingLocal(true);
-        await apiClient.post('/api/v1/runtime-mode/load');
-        setTimeout(async () => {
-          try {
-            const { data } = await apiClient.get('/api/v1/runtime-mode/status');
-            setOfflineReady(Boolean(data?.offlineReady));
-          } catch { void 0 }
-          setLoadingLocal(false);
-        }, 600);
-      }
-      await apiClient.post('/api/v1/runtime-mode/set', { mode: 'offline' });
-      try { localStorage.setItem('aiSelectedModel', 'offline-local'); } catch { void 0; }
-      setRuntimeMode('offline');
-    } catch { void 0 }
-  };
-  const handleUseCloud = async () => {
-    try {
-      await apiClient.post('/api/v1/runtime-mode/set', { mode: 'online' });
-      const model = (() => { try { return localStorage.getItem('aiSelectedModel') || 'gpt-4o'; } catch { return 'gpt-4o'; } })();
-      try { localStorage.setItem('aiSelectedModel', model); } catch { void 0; }
-      setRuntimeMode('online');
-    } catch { void 0 }
-  };
-  const handleOpenProviders = () => {
-    try { window.dispatchEvent(new CustomEvent('joe:openProviders')); } catch { void 0 }
-  };
+  
 
   useEffect(() => {
     const onMove = (e) => {
@@ -399,32 +362,8 @@ const JoeContent = () => {
         onToggleLogs={toggleBottomPanel}
         isLogsOpen={isBottomPanelOpen && !isBottomCollapsed}
       />
-      <div className="px-4 py-2 border-b border-gray-800 bg-[#0b0f1a]">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleUseLocal}
-            className={`px-3 py-2 rounded-lg text-sm font-semibold inline-flex items-center gap-2 ${offlineReady ? 'bg-green-600 text-black hover:bg-green-700' : 'bg-gray-700 text-white hover:bg-gray-600'}`}
-            title={offlineReady ? (lang==='ar'?'المحلي جاهز':'Local Ready') : (lang==='ar'?'تحميل المحلي':'Load Local')}
-          >
-            <span>{lang==='ar'?'المحلي':'Local'}</span>
-            {loadingLocal ? <span className="animate-pulse">…</span> : (<span className={`text-[10px] px-2 py-0.5 rounded ${offlineReady ? 'bg-green-500/20 text-green-300' : 'bg-gray-500/20 text-gray-300'}`}>{offlineReady ? (lang==='ar'?'جاهز':'Ready') : (lang==='ar'?'تحميل':'Load')}</span>)}
-          </button>
-          <button
-            onClick={handleUseCloud}
-            className={`px-3 py-2 rounded-lg text-sm font-semibold inline-flex items-center gap-2 ${runtimeMode==='online' ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-blue-700 text-white hover:bg-blue-600'}`}
-            title={lang==='ar'?'السحابي':'Cloud'}
-          >
-            <span>{lang==='ar'?'السحابي':'Cloud'}</span>
-          </button>
-          <button
-            onClick={handleOpenProviders}
-            className="px-3 py-2 rounded-lg text-sm font-semibold inline-flex items-center gap-2 bg-yellow-600 text-black hover:bg-yellow-700"
-            title={lang==='ar'?'مزودين الذكاء':'AI Providers'}
-          >
-            <span>{lang==='ar'?'مزودين الذكاء':'AI Providers'}</span>
-          </button>
-        </div>
-      </div>
+      <JoeHeaderControls />
+      
       
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
@@ -466,6 +405,7 @@ const JoeContent = () => {
                 onToggleCollapse={() => setIsBottomCollapsed(v => !v)}
                 onAddLogToChat={(log) => addLogToChat(log)}
                 onAddAllLogs={() => addAllLogsToChat()}
+                onClearLogs={() => clearLogs()}
               />
             </div>
           )}
@@ -563,7 +503,7 @@ const JoeContent = () => {
                   <div className="grid grid-cols-2 gap-2">
                     <button onClick={(e)=>{ e.stopPropagation(); setInput(prev=>prev ? prev+"\n\n— رجاءً قدّم ملخصًا واضحًا." : '— رجاءً قدّم ملخصًا واضحًا.'); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'تلخيص':'Summarize'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); setInput('اقترح أوامر مفيدة بحسب السياق الحالي'); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'اقتراح أوامر':'Suggest cmds'}</button>
-                    <button onClick={(e)=>{ e.stopPropagation(); try { window.dispatchEvent(new CustomEvent('joe:openProviders')); } catch { void 0; } }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?"مزودي الذكاء":"AI Providers"}</button>
+                    
                     <button onClick={(e)=>{ e.stopPropagation(); findBestCorner(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'تحريك لمكان فارغ':'Find empty spot'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); setRobotCorner('bl'); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'نقل: يسار-أسفل':'Move BL'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); setRobotCorner('br'); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'نقل: يمين-أسفل':'Move BR'}</button>
@@ -600,3 +540,69 @@ const Joe = () => (
 );
 
 export default Joe;
+
+function JoeHeaderControls() {
+  const [lang, setLang] = React.useState(() => {
+    try { return localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'; } catch { return 'en'; }
+  });
+  const [runtimeMode, setRuntimeMode] = React.useState('online');
+  const [offlineReady, setOfflineReady] = React.useState(false);
+  const [loadingLocal, setLoadingLocal] = React.useState(false);
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await apiClient.get('/api/v1/runtime-mode/status');
+        setRuntimeMode(String(data?.mode || 'online'));
+        setOfflineReady(Boolean(data?.offlineReady));
+      } catch { void 0 }
+    })();
+  }, []);
+  const handleUseLocal = React.useCallback(async () => {
+    try {
+      if (!offlineReady) {
+        setLoadingLocal(true);
+        await apiClient.post('/api/v1/runtime-mode/load');
+        setTimeout(async () => {
+          try {
+            const { data } = await apiClient.get('/api/v1/runtime-mode/status');
+            setOfflineReady(Boolean(data?.offlineReady));
+          } catch { void 0 }
+          setLoadingLocal(false);
+        }, 600);
+      }
+      await apiClient.post('/api/v1/runtime-mode/set', { mode: 'offline' });
+      try { localStorage.setItem('aiSelectedModel', 'offline-local'); } catch { void 0; }
+      setRuntimeMode('offline');
+    } catch { void 0 }
+  }, [offlineReady]);
+  const handleUseCloud = React.useCallback(async () => {
+    try {
+      await apiClient.post('/api/v1/runtime-mode/set', { mode: 'online' });
+      const model = (() => { try { return localStorage.getItem('aiSelectedModel') || 'gpt-4o'; } catch { return 'gpt-4o'; } })();
+      try { localStorage.setItem('aiSelectedModel', model); } catch { void 0; }
+      setRuntimeMode('online');
+    } catch { void 0 }
+  }, []);
+  const handleOpenProviders = React.useCallback(() => {
+    try { window.dispatchEvent(new CustomEvent('joe:openProviders')); } catch { void 0 }
+  }, []);
+  return (
+    <div className="px-3 py-1.5 border-b border-gray-800 bg-[#0b0f1a]">
+      <div className="flex items-center gap-1.5">
+        <button onClick={handleUseLocal} className={`px-2 py-1 rounded-md text-[11px] font-semibold inline-flex items-center gap-1 border ${offlineReady ? 'bg-green-600 text-black hover:bg-green-700 border-green-500/50' : 'bg-gray-700 text-white hover:bg-gray-600 border-gray-600'}`} title={offlineReady ? (lang==='ar'?'المحلي جاهز':'Local Ready') : (lang==='ar'?'تحميل المحلي':'Load Local')}>
+          <FiCpu size={12} />
+          <span>{lang==='ar'?'محلي':'Local'}</span>
+          {loadingLocal ? <span className="animate-pulse">…</span> : (<span className={`text-[10px] px-1 py-0.5 rounded border ${offlineReady ? 'bg-green-500/20 text-green-300 border-green-500/30' : 'bg-gray-500/20 text-gray-300 border-gray-500/30'}`}>{offlineReady ? (lang==='ar'?'جاهز':'Ready') : (lang==='ar'?'تحميل':'Load')}</span>)}
+        </button>
+        <button onClick={handleUseCloud} className={`px-2 py-1 rounded-md text-[11px] font-semibold inline-flex items-center gap-1 border ${runtimeMode==='online' ? 'bg-blue-600 text-white hover:bg-blue-700 border-blue-500/50' : 'bg-blue-700 text-white hover:bg-blue-600 border-blue-500/50'}`} title={lang==='ar'?'السحابي':'Cloud'}>
+          <FiCloud size={12} />
+          <span>{lang==='ar'?'سحابي':'Cloud'}</span>
+        </button>
+        <button onClick={handleOpenProviders} className="px-2 py-1 rounded-md text-[11px] font-semibold inline-flex items-center gap-1 bg-yellow-600 text-black hover:bg-yellow-700 border border-yellow-500/50" title={lang==='ar'?'مزودين الذكاء':'AI Providers'}>
+          <FiSettings size={12} />
+          <span>{lang==='ar'?'مزودين':'Providers'}</span>
+        </button>
+      </div>
+    </div>
+  );
+}

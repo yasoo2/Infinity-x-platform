@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { FiTerminal, FiCircle, FiChevronDown, FiChevronUp, FiCopy } from 'react-icons/fi';
+import { FiTerminal, FiCircle, FiChevronDown, FiChevronUp, FiCopy, FiTrash2 } from 'react-icons/fi';
 
 const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddAllLogs }) => {
   const scrollRef = useRef(null);
@@ -46,6 +46,13 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
           <div className="text-xs text-gray-500 border border-gray-700 rounded px-2 py-0.5">
             {logs?.length || 0} messages
           </div>
+          <button
+            onClick={() => onClearLogs && onClearLogs()}
+            className="px-2 py-1 rounded border border-red-600/40 bg-red-600 text-white text-xs hover:bg-red-700 flex items-center gap-1"
+            title="حذف جميع اللوجز"
+          >
+            <FiTrash2 size={12} /> <span>حذف الكل</span>
+          </button>
           <button
             onClick={() => onAddAllLogs && onAddAllLogs()}
             className="px-2 py-1 rounded border border-yellow-600/40 bg-yellow-600 text-black text-xs hover:bg-yellow-700"
@@ -167,4 +174,5 @@ BottomPanel.propTypes = {
   onToggleCollapse: PropTypes.func,
   onAddLogToChat: PropTypes.func,
   onAddAllLogs: PropTypes.func,
+  onClearLogs: PropTypes.func,
 };
