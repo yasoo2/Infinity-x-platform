@@ -8,6 +8,8 @@ let failedAttempts = 0;
 let token = '';
 let connectTimeout = null;
 let isConnected = false;
+let wsFailures = 0;
+let ioFailures = 0;
 
 const decodeExp = (t) => {
   try {
@@ -75,6 +77,7 @@ export const connectWebSocket = (onMessage, onOpen, onClose) => {
       try { console.warn(`[WS] Connection closed (code=${evt?.code} reason=${evt?.reason || ''}). Reconnecting...`); } catch { void 0; }
       if (onClose) onClose();
       isConnected = false;
+      wsFailures++;
       scheduleReconnect();
     };
     ws.onerror = () => { failedAttempts++; };
@@ -96,8 +99,8 @@ export const connectWebSocket = (onMessage, onOpen, onClose) => {
     });
     ioSocket.on('status', (d) => { if (onMessage) onMessage({ type: 'status', message: d?.message }); });
     ioSocket.on('response', (d) => { if (onMessage) onMessage({ type: 'response', response: d?.response, toolsUsed: d?.toolsUsed, sessionId: d?.sessionId }); });
-    ioSocket.on('disconnect', () => { if (onClose) onClose(); isConnected = false; scheduleReconnect(); });
-    ioSocket.on('error', () => { failedAttempts++; });
+    ioSocket.on('disconnect', () => { if (onClose) onClose(); isConnected = false; ioFailures++; scheduleReconnect(); });
+    ioSocket.on('error', () => { failedAttempts++; ioFailures++; });
   };
 
   const startRace = async () => {
@@ -105,8 +108,12 @@ export const connectWebSocket = (onMessage, onOpen, onClose) => {
       isConnected = false;
       clearTimeout(connectTimeout);
       await ensureToken();
-      tryNative();
-      trySocketIO().catch(() => { void 0; });
+      if (wsFailures >= 2 && ioFailures === 0) {
+        trySocketIO().catch(() => { tryNative(); });
+      } else {
+        tryNative();
+        trySocketIO().catch(() => { void 0; });
+      }
       connectTimeout = setTimeout(() => {
         if (!isConnected) {
           try { if (ws) ws.close(); } catch { void 0; }
