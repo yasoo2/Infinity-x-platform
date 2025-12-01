@@ -28,6 +28,9 @@ export class JoeAgentWebSocketServer {
     this.setupEventListeners();
     this.streamBuffers = new Map();
     this.rateLimits = new Map();
+    this.rateWindowMs = Number(process.env.WS_RATE_WINDOW_MS || 60000);
+    this.rateMaxCount = Number(process.env.WS_RATE_MAX_COUNT || 120);
+    this.maxMessageLength = Number(process.env.WS_MAX_MESSAGE_LENGTH || 10000000);
     // Heartbeat to keep connections alive and detect broken sockets
     this.heartbeat = setInterval(() => {
       this.wss.clients.forEach((client) => {
@@ -128,7 +131,7 @@ export class JoeAgentWebSocketServer {
             ws.send(JSON.stringify({ type: 'error', code: 'EMPTY_MESSAGE', message: msg }));
             return;
           }
-          if (preview.length > 10000000) {
+          if (preview.length > this.maxMessageLength) {
             const msg = lang==='ar' ? 'الرسالة طويلة جدًا.' : 'Message too long.';
             ws.send(JSON.stringify({ type: 'error', code: 'MESSAGE_TOO_LONG', message: msg }));
             return;
@@ -136,10 +139,10 @@ export class JoeAgentWebSocketServer {
           {
             const now = Date.now();
             const rl = this.rateLimits.get(ws.userId) || { start: now, count: 0 };
-            if (now - rl.start > 60000) { rl.start = now; rl.count = 0; }
+            if (now - rl.start > this.rateWindowMs) { rl.start = now; rl.count = 0; }
             rl.count += 1;
             this.rateLimits.set(ws.userId, rl);
-            if (rl.count > 120) {
+            if (rl.count > this.rateMaxCount) {
               const msg = lang==='ar' ? 'عدد الرسائل مرتفع. حاول لاحقًا.' : 'Too many messages. Try later.';
               ws.send(JSON.stringify({ type: 'error', code: 'RATE_LIMIT', message: msg }));
               return;
@@ -275,14 +278,14 @@ export class JoeAgentWebSocketServer {
           const lang = String(data.lang || 'ar');
           const preview = String(data.message || '').trim();
           if (!preview) { const msg = lang==='ar' ? 'الرسالة فارغة غير مسموح بها.' : 'Empty message not allowed.'; socket.emit('error', { code: 'EMPTY_MESSAGE', message: msg }); return; }
-          if (preview.length > 10000000) { const msg = lang==='ar' ? 'الرسالة طويلة جدًا.' : 'Message too long.'; socket.emit('error', { code: 'MESSAGE_TOO_LONG', message: msg }); return; }
+          if (preview.length > this.maxMessageLength) { const msg = lang==='ar' ? 'الرسالة طويلة جدًا.' : 'Message too long.'; socket.emit('error', { code: 'MESSAGE_TOO_LONG', message: msg }); return; }
           {
             const now = Date.now();
             const rl = this.rateLimits.get(socket.data.userId) || { start: now, count: 0 };
-            if (now - rl.start > 60000) { rl.start = now; rl.count = 0; }
+            if (now - rl.start > this.rateWindowMs) { rl.start = now; rl.count = 0; }
             rl.count += 1;
             this.rateLimits.set(socket.data.userId, rl);
-            if (rl.count > 120) {
+            if (rl.count > this.rateMaxCount) {
               const msg = lang==='ar' ? 'عدد الرسائل مرتفع. حاول لاحقًا.' : 'Too many messages. Try later.';
               socket.emit('error', { code: 'RATE_LIMIT', message: msg });
               return;
