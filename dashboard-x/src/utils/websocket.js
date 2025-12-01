@@ -6,6 +6,8 @@ let ioSocket = null;
 let reconnectInterval = null;
 let failedAttempts = 0;
 let token = '';
+let connectTimeout = null;
+let isConnected = false;
 
 const decodeExp = (t) => {
   try {
@@ -44,13 +46,27 @@ export const connectWebSocket = (onMessage, onOpen, onClose) => {
     ? 'ws://localhost:4000'
     : (envWs ? envWs.replace(/\/(ws.*)?$/, '') : (typeof window !== 'undefined' ? window.location.origin : 'ws://localhost:4000').replace(/^https/, 'wss').replace(/^http/, 'ws'));
 
+  const scheduleReconnect = () => {
+    failedAttempts++;
+    clearTimeout(reconnectInterval);
+    const base = Math.min(8000, 500 * failedAttempts);
+    const jitter = Math.floor(Math.random() * 300);
+    const delay = base + jitter;
+    reconnectInterval = setTimeout(() => { startRace(); }, delay);
+  };
+
   const tryNative = async () => {
     await ensureToken();
     const wsUrl = `${baseWsUrl}/ws/joe-agent${token ? `?token=${encodeURIComponent(token)}` : ''}`;
     ws = new WebSocket(wsUrl);
     ws.onopen = () => {
       failedAttempts = 0;
-      if (onOpen) onOpen();
+      if (!isConnected) {
+        isConnected = true;
+        clearTimeout(connectTimeout);
+        if (ioSocket) { try { ioSocket.close(); } catch { void 0; } ioSocket = null; }
+        if (onOpen) onOpen();
+      }
     };
     ws.onmessage = (event) => {
       if (onMessage) onMessage(JSON.parse(event.data));
@@ -58,16 +74,8 @@ export const connectWebSocket = (onMessage, onOpen, onClose) => {
     ws.onclose = (evt) => {
       try { console.warn(`[WS] Connection closed (code=${evt?.code} reason=${evt?.reason || ''}). Reconnecting...`); } catch { void 0; }
       if (onClose) onClose();
-      failedAttempts++;
-      clearTimeout(reconnectInterval);
-      const delay = Math.min(15000, 2000 * failedAttempts);
-      reconnectInterval = setTimeout(() => {
-        if (failedAttempts >= 1) {
-          trySocketIO().catch(() => { tryNative(); });
-        } else {
-          tryNative();
-        }
-      }, delay);
+      isConnected = false;
+      scheduleReconnect();
     };
     ws.onerror = () => { failedAttempts++; };
   };
@@ -76,15 +84,40 @@ export const connectWebSocket = (onMessage, onOpen, onClose) => {
     const httpBase = baseWsUrl.replace(/^ws/, 'http').replace(/^wss/, 'https');
     const { io } = await import('socket.io-client');
     await ensureToken();
-    ioSocket = io(`${httpBase}/joe-agent`, { auth: { token }, transports: ['websocket','polling'] });
-    ioSocket.on('connect', () => { failedAttempts = 0; if (onOpen) onOpen(); });
+    ioSocket = io(`${httpBase}/joe-agent`, { auth: { token }, transports: ['websocket','polling'], reconnection: true, reconnectionDelay: 500, reconnectionDelayMax: 4000, timeout: 3000, forceNew: true });
+    ioSocket.on('connect', () => {
+      failedAttempts = 0;
+      if (!isConnected) {
+        isConnected = true;
+        clearTimeout(connectTimeout);
+        if (ws) { try { ws.close(); } catch { void 0; } ws = null; }
+        if (onOpen) onOpen();
+      }
+    });
     ioSocket.on('status', (d) => { if (onMessage) onMessage({ type: 'status', message: d?.message }); });
     ioSocket.on('response', (d) => { if (onMessage) onMessage({ type: 'response', response: d?.response, toolsUsed: d?.toolsUsed, sessionId: d?.sessionId }); });
-    ioSocket.on('disconnect', () => { if (onClose) onClose(); clearTimeout(reconnectInterval); reconnectInterval = setTimeout(() => { trySocketIO().catch(()=>{}); }, 5000); });
+    ioSocket.on('disconnect', () => { if (onClose) onClose(); isConnected = false; scheduleReconnect(); });
     ioSocket.on('error', () => { failedAttempts++; });
   };
 
-  (async () => { await ensureToken(); tryNative(); })();
+  const startRace = async () => {
+    try {
+      isConnected = false;
+      clearTimeout(connectTimeout);
+      await ensureToken();
+      tryNative();
+      trySocketIO().catch(() => { void 0; });
+      connectTimeout = setTimeout(() => {
+        if (!isConnected) {
+          try { if (ws) ws.close(); } catch { void 0; }
+          try { if (ioSocket) ioSocket.close(); } catch { void 0; }
+          scheduleReconnect();
+        }
+      }, 3500);
+    } catch { void 0; }
+  };
+
+  startRace();
 
   return ws;
 };
