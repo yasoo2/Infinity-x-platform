@@ -73,12 +73,16 @@ class LocalLlamaService {
     return Boolean(this.initialized && this.chat)
   }
 
-  async generate(prompt, options = {}) {
+  async generateContent(prompt, options = {}) {
     if (!this.isReady()) throw new Error('MODEL_NOT_INITIALIZED')
     const temp = options.temperature ?? 0.7
     const maxTokens = options.maxTokens ?? 512
     const text = await this.chat.prompt(String(prompt), { temperature: temp, maxTokens })
-    return String(text || '')
+    return {
+      content: String(text || ''),
+      usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }, // Placeholder for actual usage
+      model: 'llama',
+    }
   }
 
   async stream(messages, onToken, opts = {}) {
@@ -100,4 +104,5 @@ class LocalLlamaService {
   }
 }
 
+export class LocalLlamaService extends LocalLlamaService {} // تغيير التصدير ليناسب الاستيراد في AIEngineService
 export const localLlamaService = new LocalLlamaService()

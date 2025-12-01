@@ -902,18 +902,20 @@ export const useJoeChat = () => {
     const trySend = (attempt = 0) => {
       if (sioRef.current && sioRef.current.connected) {
         const selectedModel = localStorage.getItem('aiSelectedModel') || 'gpt-4o';
+        const preferredModel = localStorage.getItem('aiPreferredModel') || selectedModel; // إضافة خيار النموذج المفضل
         const lang = getLang();
         const conv = state.conversations[convId] || null;
         const sidToUse = sid || conv?.sessionId || convId;
-        sioRef.current.emit('message', { action: 'instruct', message: inputText, sessionId: sidToUse, model: selectedModel, lang });
+        sioRef.current.emit('message', { action: 'instruct', message: inputText, sessionId: sidToUse, model: selectedModel, preferredModel, lang });
         return;
       }
       if (ws.current?.readyState === WebSocket.OPEN) {
         const selectedModel = localStorage.getItem('aiSelectedModel') || 'gpt-4o';
+        const preferredModel = localStorage.getItem('aiPreferredModel') || selectedModel; // إضافة خيار النموذج المفضل
         const lang = getLang();
       const conv = state.conversations[convId] || null;
       const sidToUse = sid || conv?.sessionId || convId;
-        ws.current.send(JSON.stringify({ action: 'instruct', message: inputText, sessionId: sidToUse, model: selectedModel, lang }));
+        ws.current.send(JSON.stringify({ action: 'instruct', message: inputText, sessionId: sidToUse, model: selectedModel, preferredModel, lang }));
         return;
       }
       if (attempt < 6) {
