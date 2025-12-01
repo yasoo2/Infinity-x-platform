@@ -25,14 +25,14 @@ const fileRouterFactory = ({ requireRole, fileProcessingService }) => {
         dest: path.join(os.tmpdir(), 'infinity-uploads'),
     });
 
-    router.use(isServiceAvailable);
+    
 
     /**
      * @route POST /api/v1/file/upload
      * @description Uploads a file for processing and knowledge extraction.
      * @access USER
      */
-    router.post('/upload', requireRole('USER'), upload.array('files'), async (req, res) => {
+    router.post('/upload', requireRole('USER'), isServiceAvailable, upload.array('files'), async (req, res) => {
         try {
             const files = req.files;
             if (!files || files.length === 0) {
@@ -64,7 +64,7 @@ const fileRouterFactory = ({ requireRole, fileProcessingService }) => {
      *              If GitHub repo URL, clones the repo to workspace. Saves files to tmp and delegates processing.
      * @access USER
      */
-    router.post('/fetch-url', requireRole('USER'), async (req, res) => {
+    router.post('/fetch-url', requireRole('USER'), isServiceAvailable, async (req, res) => {
         const { url, deep = true, maxDepth = 4, maxItems = 20000, token, branch = 'main' } = req.body || {};
         if (!url || typeof url !== 'string') {
             return res.status(400).json({ success: false, error: 'INVALID_URL' });
