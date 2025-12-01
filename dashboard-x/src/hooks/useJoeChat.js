@@ -668,27 +668,18 @@ export const useJoeChat = () => {
         sioRef.current = socket;
         // Use VITE_WS_URL if defined, otherwise build from VITE_API_BASE_URL
         let wsUrl;
-        // استخدام VITE_WS_URL إذا كان معرفًا، وإلا يتم بناء العنوان من أصل URL الحالي
-        let wsUrl;
         const envWsUrl = import.meta.env.VITE_WS_URL;
-        const envApiBase2 = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL;
-        
+
         if (envWsUrl) {
-          // إذا كان VITE_WS_URL معرفًا، استخدمه مباشرة
+          // Use the explicit environment variable if it exists.
           wsUrl = `${envWsUrl}/ws/joe-agent?token=${sessionToken}`;
-        } else if (envApiBase2) {
-          // إذا كان VITE_API_BASE_URL معرفًا، استخدمه لبناء عنوان WS
-          const wsBase = String(envApiBase2).replace(/^https/, 'wss').replace(/^http/, 'ws').replace(/\/(api.*)?$/, '');
-          wsUrl = `${wsBase}/ws/joe-agent?token=${sessionToken}`;
+        } else if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) {
+          // In development and if no env var is set, fall back to localhost.
+          wsUrl = `ws://localhost:4000/ws/joe-agent?token=${sessionToken}`;
         } else {
-          // في بيئة الإنتاج، استخدم window.location.origin
+          // In production, derive the URL from the window's location.
           const origin = window.location.origin.replace(/^https/, 'wss').replace(/^http/, 'ws');
           wsUrl = `${origin}/ws/joe-agent?token=${sessionToken}`;
-        }
-        
-        // التحقق من بيئة التطوير (Dev) وإجبارها على localhost:4000 إذا لم يتم تحديد متغيرات البيئة
-        if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV && !envWsUrl && !envApiBase2) {
-          wsUrl = `ws://localhost:4000/ws/joe-agent?token=${sessionToken}`;
         }
         console.warn('[Joe Agent] Connecting to WebSocket:', wsUrl.replace(/token=.*/, 'token=***'));
         ws.current = new WebSocket(wsUrl);
