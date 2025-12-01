@@ -88,12 +88,6 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
       } catch (e) { void e; }
     })();
   }, []);
-  const handleLoadModel = async () => {
-    try {
-      const { data } = await apiClient.post('/api/v1/runtime-mode/load');
-      setOfflineReady(Boolean(data?.offlineReady));
-    } catch (e) { void e; }
-  };
   const onBrandMouseMove = (e) => {
     if (!brandRef.current) return;
     const rect = brandRef.current.getBoundingClientRect();
@@ -537,23 +531,6 @@ const AIMenuButton = () => {
   };
 
   const [offlineReady2, setOfflineReady2] = React.useState(false);
-  React.useEffect(() => {
-    (async () => {
-      try {
-        const { data } = await apiClient.get('/api/v1/runtime-mode/status');
-        setOfflineReady2(Boolean(data?.offlineReady));
-      } catch (e) { void e; }
-    })();
-  }, []);
-  const handleLoadLocal = async () => {
-    try {
-      const { data } = await apiClient.post('/api/v1/runtime-mode/load');
-      setOfflineReady2(Boolean(data?.offlineReady));
-    } catch (e) { void e; }
-  };
-
-  const _offlineReady = offlineReady2;
-  const _handleLoadModel = handleLoadLocal;
   const Panel = (
     <div className={`fixed inset-0 z-[100] flex items-start justify-center pt-16 bg-black/40 backdrop-blur-sm transition-opacity duration-200 ${closing ? 'opacity-0' : 'opacity-100'}`} onClick={handlePanelClose}>
       <style>{`

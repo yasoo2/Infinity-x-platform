@@ -549,6 +549,13 @@ function JoeHeaderControls() {
   const [offlineReady, setOfflineReady] = React.useState(false);
   const [loadingLocal, setLoadingLocal] = React.useState(false);
   React.useEffect(() => {
+    const onLang = () => {
+      try { setLang(localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'); } catch { void 0; }
+    };
+    window.addEventListener('joe:lang', onLang);
+    return () => window.removeEventListener('joe:lang', onLang);
+  }, []);
+  React.useEffect(() => {
     (async () => {
       try {
         const { data } = await apiClient.get('/api/v1/runtime-mode/status');
