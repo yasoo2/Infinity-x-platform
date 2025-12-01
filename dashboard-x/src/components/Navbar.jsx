@@ -92,19 +92,26 @@ export default function Navbar({ onToggleJoeScreen }) {
             >
               Exit
             </button>
+          <button
+            onClick={handleLogout}
+            className="btn-ghost px-4 py-2 text-sm font-semibold"
+          >
+            Logout
+          </button>
             <button
-              onClick={handleLogout}
-              className="btn-ghost px-4 py-2 text-sm font-semibold"
-            >
-              Logout
-            </button>
-            <button
-              onClick={toggleLang}
+              onClick={() => { try { window.dispatchEvent(new CustomEvent('system:refresh')); } catch { void 0; } }}
               className="btn-ghost px-3 py-2 text-sm font-semibold"
-              title={lang === 'ar' ? 'AR' : 'EN'}
+              title={lang === 'ar' ? 'تحديث' : 'Refresh'}
             >
-              {lang === 'ar' ? 'AR' : 'EN'}
+              {lang === 'ar' ? 'تحديث' : 'Refresh'}
             </button>
+          <button
+            onClick={toggleLang}
+            className="btn-ghost px-3 py-2 text-sm font-semibold"
+            title={lang === 'ar' ? 'AR' : 'EN'}
+          >
+            {lang === 'ar' ? 'AR' : 'EN'}
+          </button>
           </div>
         </div>
       </div>

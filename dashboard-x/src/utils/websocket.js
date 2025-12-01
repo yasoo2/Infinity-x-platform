@@ -10,6 +10,7 @@ let connectTimeout = null;
 let isConnected = false;
 let wsFailures = 0;
 let ioFailures = 0;
+let raceStart = 0;
 
 const decodeExp = (t) => {
   try {
@@ -67,6 +68,13 @@ export const connectWebSocket = (onMessage, onOpen, onClose) => {
         isConnected = true;
         clearTimeout(connectTimeout);
         if (ioSocket) { try { ioSocket.close(); } catch { void 0; } ioSocket = null; }
+        try {
+          const end = typeof performance !== 'undefined' ? performance.now() : Date.now();
+          const ms = Math.max(0, Math.round(end - raceStart));
+          localStorage.setItem('wsLastConnectMs', String(ms));
+          localStorage.setItem('wsLastTransport', 'websocket');
+          window.dispatchEvent(new CustomEvent('ws:connected', { detail: { elapsedMs: ms, transport: 'websocket' } }));
+        } catch { void 0; }
         if (onOpen) onOpen();
       }
     };
@@ -78,6 +86,7 @@ export const connectWebSocket = (onMessage, onOpen, onClose) => {
       if (onClose) onClose();
       isConnected = false;
       wsFailures++;
+      try { window.dispatchEvent(new CustomEvent('ws:disconnected')); } catch { void 0; }
       scheduleReconnect();
     };
     ws.onerror = () => { failedAttempts++; };
@@ -94,12 +103,19 @@ export const connectWebSocket = (onMessage, onOpen, onClose) => {
         isConnected = true;
         clearTimeout(connectTimeout);
         if (ws) { try { ws.close(); } catch { void 0; } ws = null; }
+        try {
+          const end = typeof performance !== 'undefined' ? performance.now() : Date.now();
+          const ms = Math.max(0, Math.round(end - raceStart));
+          localStorage.setItem('wsLastConnectMs', String(ms));
+          localStorage.setItem('wsLastTransport', 'socket.io');
+          window.dispatchEvent(new CustomEvent('ws:connected', { detail: { elapsedMs: ms, transport: 'socket.io' } }));
+        } catch { void 0; }
         if (onOpen) onOpen();
       }
     });
     ioSocket.on('status', (d) => { if (onMessage) onMessage({ type: 'status', message: d?.message }); });
     ioSocket.on('response', (d) => { if (onMessage) onMessage({ type: 'response', response: d?.response, toolsUsed: d?.toolsUsed, sessionId: d?.sessionId }); });
-    ioSocket.on('disconnect', () => { if (onClose) onClose(); isConnected = false; ioFailures++; scheduleReconnect(); });
+    ioSocket.on('disconnect', () => { if (onClose) onClose(); isConnected = false; ioFailures++; try { window.dispatchEvent(new CustomEvent('ws:disconnected')); } catch { void 0; } scheduleReconnect(); });
     ioSocket.on('error', () => { failedAttempts++; ioFailures++; });
   };
 
@@ -108,6 +124,7 @@ export const connectWebSocket = (onMessage, onOpen, onClose) => {
       isConnected = false;
       clearTimeout(connectTimeout);
       await ensureToken();
+      try { raceStart = typeof performance !== 'undefined' ? performance.now() : Date.now(); } catch { raceStart = Date.now(); }
       if (wsFailures >= 2 && ioFailures === 0) {
         trySocketIO().catch(() => { tryNative(); });
       } else {
