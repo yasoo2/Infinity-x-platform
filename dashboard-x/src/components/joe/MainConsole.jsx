@@ -11,7 +11,7 @@ const WelcomeScreen = ({ toolsCount }) => (
       <FiCompass size={72} className="mb-6 text-blue-500 mx-auto" />
       <h1 className="text-3xl font-bold text-white mb-4">Welcome to Joe AI Assistant</h1>
       <p className="text-lg text-gray-400 mb-8">
-        Your AI-powered engineering partner with {Number(toolsCount)||0} tools and functions. 
+        Your AI-powered engineering partner{typeof toolsCount==='number' && toolsCount>0 ? ` with ${toolsCount} tools and functions` : ''}. 
         Start by typing an instruction below, attaching a file, or using your voice.
       </p>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
@@ -137,13 +137,22 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   
 
   useEffect(() => {
-    (async () => {
+    let active = true;
+    let attempts = 0;
+    const fetchOnce = async () => {
       try {
         const status = await getSystemStatus();
         const cnt = Number(status?.toolsCount || 0);
-        if (!Number.isNaN(cnt)) setToolsCount(cnt);
-      } catch { /* ignore */ }
-    })();
+        if (!Number.isNaN(cnt)) {
+          setToolsCount(cnt);
+          if (cnt > 0) return;
+        }
+      } catch {}
+      attempts++;
+      if (active && attempts < 5) setTimeout(fetchOnce, 1500);
+    };
+    fetchOnce();
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {

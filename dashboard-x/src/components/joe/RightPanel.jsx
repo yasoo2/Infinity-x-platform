@@ -59,7 +59,7 @@ const RightPanel = ({ isProcessing, plan, forceStatus = false, wsConnected = fal
     const { signal } = ac;
     const fetchAll = async () => {
       try {
-        const h = await apiClient.get('/api/v1/integration/health', { signal });
+        const h = await apiClient.get('/api/v1/health', { signal });
         setHealth(h.data);
       } catch {
         try {
