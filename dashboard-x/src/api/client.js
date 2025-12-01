@@ -5,10 +5,15 @@
   let lsBase = null;
   try { lsBase = localStorage.getItem('apiBaseUrl'); } catch { lsBase = null; }
   const envBase = typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL);
+  const isLocal = (u) => { try { const h = new URL(String(u)).hostname; return h === 'localhost' || h === '127.0.0.1'; } catch { return /localhost|127\.0\.0\.1/.test(String(u)); } };
   if (lsBase && String(lsBase).trim().length > 0) {
     resolvedBase = lsBase;
   } else if (envBase && String(envBase).trim().length > 0) {
-    resolvedBase = envBase;
+    if (typeof window !== 'undefined' && !isLocal(window.location.origin) && isLocal(envBase)) {
+      resolvedBase = window.location.origin;
+    } else {
+      resolvedBase = envBase;
+    }
   } else if (typeof window !== 'undefined') {
     const origin = window.location.origin;
     resolvedBase = origin;
