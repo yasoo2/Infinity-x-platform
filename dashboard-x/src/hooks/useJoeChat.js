@@ -531,31 +531,32 @@ export const useJoeChat = () => {
     };
   }, [syncBackendSessions]);
 
-  useEffect(() => {
-    if (Object.keys(state.conversations).length > 0) {
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-      const payload = {
-        conversations: state.conversations,
-        currentConversationId: state.currentConversationId,
-      };
-      const count = Object.keys(payload.conversations).length;
-      const id = payload.currentConversationId;
-      saveTimerRef.current = setTimeout(() => {
-        try {
-          if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) {
-            console.warn('[useEffect] Saving to localStorage:', { conversationCount: count, currentId: id });
-          }
-          const nextStr = JSON.stringify(payload);
-          const prevStr = localStorage.getItem(JOE_CHAT_HISTORY);
-          if (prevStr !== nextStr) {
-            localStorage.setItem(JOE_CHAT_HISTORY, nextStr);
-          }
-        } catch (e) {
-          try { console.warn('Failed to save chat history:', e); } catch { void 0; }
-        }
-      }, 400);
-    }
-  }, [state.conversations, state.currentConversationId]);
+  // تم تعطيل هذا الـ useEffect لأنه قد يسبب تجميدًا للواجهة عند محاولة حفظ كميات كبيرة من البيانات
+  // useEffect(() => {
+  //   if (Object.keys(state.conversations).length > 0) {
+  //     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+  //     const payload = {
+  //       conversations: state.conversations,
+  //       currentConversationId: state.currentConversationId,
+  //     };
+  //     const count = Object.keys(payload.conversations).length;
+  //     const id = payload.currentConversationId;
+  //     saveTimerRef.current = setTimeout(() => {
+  //       try {
+  //         if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) {
+  //           console.warn('[useEffect] Saving to localStorage:', { conversationCount: count, currentId: id });
+  //         }
+  //         const nextStr = JSON.stringify(payload);
+  //         const prevStr = localStorage.getItem(JOE_CHAT_HISTORY);
+  //         if (prevStr !== nextStr) {
+  //           localStorage.setItem(JOE_CHAT_HISTORY, nextStr);
+  //         }
+  //       } catch (e) {
+  //         try { console.warn('Failed to save chat history:', e); } catch { void 0; }
+  //       }
+  //     }, 400);
+  //   }
+  // }, [state.conversations, state.currentConversationId]);
 
   // Abort any in-flight sync when this hook unmounts to avoid dangling requests
   useEffect(() => {
