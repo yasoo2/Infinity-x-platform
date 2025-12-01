@@ -2,18 +2,13 @@ name = "xelite-cors-worker"
 main = "cors-worker.js"
 compatibility_date = "2025-11-30"
 
-# Route the worker to handle API requests and preflight at the edge
-routes = [
-  { pattern = "api.xelitesolutions.com/*", zone_name = "xelitesolutions.com" }
-]
-
 # Default allowed origins (can be overridden by environment)
 [vars]
 ALLOWED_ORIGINS = "https://xelitesolutions.com,https://www.xelitesolutions.com,https://admin.xelitesolutions.com,https://api.xelitesolutions.com"
 UPSTREAM_BASE = "https://infinity-x-platform.onrender.com"
 
-# Production routing only
-workers_dev = false
+# Enable workers.dev for preview deployment when zone is unavailable
+workers_dev = true
 
 [observability]
 enabled = true
