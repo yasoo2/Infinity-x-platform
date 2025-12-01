@@ -190,20 +190,22 @@ const JoeContent = () => {
   };
 
   const findBestCorner = useCallback(() => {
-    const candidates = ['bl','br','tl','tr'];
-    const elements = Array.from(document.querySelectorAll('button,a,input,textarea,select,[role="dialog"],[data-joe-important="true"]'));
-    const vis = elements.filter(el => {
-      const s = getComputedStyle(el);
-      return s.visibility !== 'hidden' && s.display !== 'none' && s.pointerEvents !== 'none';
-    }).map(el => el.getBoundingClientRect());
-    let best = 'bl';
-    let bestScore = Number.POSITIVE_INFINITY;
-    for (const c of candidates) {
-      const r = getRectForCorner(c);
-      const score = vis.reduce((sum, vr) => sum + rectOverlapArea(r, vr), 0);
-      if (score < bestScore) { bestScore = score; best = c; }
-    }
-    setRobotCorner(best);
+    try {
+      const candidates = ['bl','br','tl','tr'];
+      const elements = Array.from(document.querySelectorAll('button,a,input,textarea,select,[role="dialog"],[data-joe-important="true"]'));
+      const vis = elements.filter(el => {
+        const s = getComputedStyle(el);
+        return s.visibility !== 'hidden' && s.display !== 'none' && s.pointerEvents !== 'none';
+      }).map(el => el.getBoundingClientRect());
+      let best = 'bl';
+      let bestScore = Number.POSITIVE_INFINITY;
+      for (const c of candidates) {
+        const r = getRectForCorner(c);
+        const score = vis.reduce((sum, vr) => sum + rectOverlapArea(r, vr), 0);
+        if (score < bestScore) { bestScore = score; best = c; }
+      }
+      setRobotCorner(best);
+    } catch { /* no-op */ }
   }, [getRectForCorner]);
 
   const findBestCornerRef = React.useRef(findBestCorner);
@@ -256,10 +258,23 @@ const JoeContent = () => {
   };
 
   useEffect(() => {
-    const onResize = () => { setRobotSize(computeRobotSize()); findBestCornerRef.current(); };
-    const onScroll = () => findBestCornerRef.current();
+    const rafId = { current: 0 };
+    let lastRun = 0;
+    const minInterval = 150;
+    const scheduleFind = () => {
+      const now = Date.now();
+      if (now - lastRun < minInterval) return;
+      if (rafId.current) return;
+      rafId.current = requestAnimationFrame(() => {
+        rafId.current = 0;
+        lastRun = Date.now();
+        try { findBestCornerRef.current(); } catch { /* ignore */ }
+      });
+    };
+    const onResize = () => { setRobotSize(computeRobotSize()); scheduleFind(); };
+    const onScroll = () => scheduleFind();
     setRobotSize(computeRobotSize());
-    findBestCornerRef.current();
+    scheduleFind();
     window.addEventListener('resize', onResize);
     window.addEventListener('scroll', onScroll, { passive: true });
     const onOpenProviders = () => setRobotActive(false);
@@ -268,7 +283,7 @@ const JoeContent = () => {
       window.removeEventListener('resize', onResize);
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('joe:openProviders', onOpenProviders);
-      
+      try { if (rafId.current) cancelAnimationFrame(rafId.current); } catch { /* ignore */ }
     };
   }, [computeRobotSize]);
 
@@ -316,24 +331,27 @@ const JoeContent = () => {
   
   useEffect(() => {
     let cancelled = false;
+    let ctrl;
     const check = async () => {
+      try { ctrl?.abort(); } catch { /* ignore */ }
       try {
-        const h = await apiClient.get('/api/v1/health');
+        ctrl = new AbortController();
+        const h = await apiClient.get('/api/v1/health', { signal: ctrl.signal });
         if (!cancelled) setBackendOk(Boolean(h?.data?.success && h?.data?.status === 'ok'));
       } catch {
         if (!cancelled) setBackendOk(false);
       }
       try {
-        const r = await apiClient.get('/api/v1/runtime-mode/status');
+        ctrl = new AbortController();
+        const r = await apiClient.get('/api/v1/runtime-mode/status', { signal: ctrl.signal });
         if (!cancelled) setRuntimeStatus(r?.data || null);
       } catch {
         if (!cancelled) setRuntimeStatus(null);
       }
-      void 0;
     };
     check();
     const id = setInterval(check, 10000);
-    return () => { cancelled = true; clearInterval(id); };
+    return () => { cancelled = true; try { ctrl?.abort(); } catch { /* ignore */ } clearInterval(id); };
   }, []);
 
   const statusAlert = (() => {
