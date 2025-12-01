@@ -24,7 +24,7 @@
   // Axios instance
   const apiClient = axios.create({
     baseURL: BASE_URL,
-    timeout: 15000, // 15s reasonable default
+    timeout: 5000,
     headers: {
       Accept: 'application/json',
       // don't set Content-Type globally; axios sets it for JSON, and FormData needs boundary
@@ -56,6 +56,11 @@
       // Prevent accidental double slashes in URL
       if (config.url?.startsWith('/')) {
         config.url = config.url.replace(/^\/+/, '/');
+      }
+      const apiPrefix = '/api/v1';
+      if (typeof config.url === 'string' && config.url.startsWith(apiPrefix) && BASE_URL.endsWith(apiPrefix)) {
+        const trimmed = config.url.slice(apiPrefix.length);
+        config.url = trimmed.length ? trimmed : '/';
       }
       return config;
     },

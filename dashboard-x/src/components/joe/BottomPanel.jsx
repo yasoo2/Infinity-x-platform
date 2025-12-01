@@ -54,7 +54,9 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
   };
 
   const filteredLogs = React.useMemo(() => {
-    const arr = Array.isArray(logs) ? logs : [];
+    const arrFull = Array.isArray(logs) ? logs : [];
+    const start = Math.max(0, arrFull.length - 300);
+    const arr = arrFull.slice(start);
     const q = String(search || '').toLowerCase();
     return arr.filter((log) => {
       const text = typeof log === 'string' ? log : (log?.text || JSON.stringify(log));

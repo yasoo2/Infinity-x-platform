@@ -613,14 +613,15 @@ export const useJoeChat = () => {
         }
         let sioUrl;
         const isDevSio = typeof import.meta !== 'undefined' && import.meta.env?.MODE !== 'production';
-        if (isDevSio) {
-          sioUrl = 'http://localhost:4000/joe-agent';
-        } else if (import.meta.env.VITE_API_BASE_URL) {
-          const base = String(import.meta.env.VITE_API_BASE_URL).replace(/\/$/, '');
+        const envApiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL;
+        if (envApiBase) {
+          const base = String(envApiBase).replace(/\/$/, '');
           sioUrl = `${base}/joe-agent`;
-        } else {
+        } else if (!isDevSio) {
           const origin = window.location.origin.replace(/\/$/, '');
           sioUrl = `${origin}/joe-agent`;
+        } else {
+          sioUrl = 'http://localhost:4000/joe-agent';
         }
         const socket = io(sioUrl, { auth: { token: sessionToken }, transports: ['websocket','polling'] });
         socket.on('connect', () => {
@@ -663,16 +664,17 @@ export const useJoeChat = () => {
         sioRef.current = socket;
         // Use VITE_WS_URL if defined, otherwise build from VITE_API_BASE_URL
         let wsUrl;
-        const isDev = typeof import.meta !== 'undefined' && import.meta.env?.MODE !== 'production';
-        if (isDev) {
-          wsUrl = `ws://localhost:4000/ws/joe-agent?token=${sessionToken}`;
-        } else if (import.meta.env.VITE_WS_URL) {
-          const baseWsUrl = import.meta.env.VITE_WS_URL.replace(/\/ws.*$/, '');
+        const envWsUrl = import.meta.env.VITE_WS_URL;
+        const envApiBase2 = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL;
+        if (envWsUrl) {
+          const baseWsUrl = envWsUrl.replace(/\/ws.*$/, '');
           wsUrl = `${baseWsUrl}/ws/joe-agent?token=${sessionToken}`;
-        } else {
-          const apiBase = import.meta.env.VITE_API_BASE_URL || window.location.origin;
-          const wsBase = apiBase.replace(/^https/, 'wss').replace(/^http/, 'ws');
+        } else if (envApiBase2) {
+          const wsBase = String(envApiBase2).replace(/^https/, 'wss').replace(/^http/, 'ws').replace(/\/(api.*)?$/, '');
           wsUrl = `${wsBase}/ws/joe-agent?token=${sessionToken}`;
+        } else {
+          const origin = window.location.origin.replace(/^https/, 'wss').replace(/^http/, 'ws');
+          wsUrl = `${origin}/ws/joe-agent?token=${sessionToken}`;
         }
         console.warn('[Joe Agent] Connecting to WebSocket:', wsUrl.replace(/token=.*/, 'token=***'));
         ws.current = new WebSocket(wsUrl);

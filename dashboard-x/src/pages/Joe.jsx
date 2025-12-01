@@ -35,6 +35,8 @@ const JoeContent = () => {
   const [rightWidth, setRightWidth] = useState(320);
   const [dragLeft, setDragLeft] = useState(false);
   const [dragRight, setDragRight] = useState(false);
+  const [backendOk, setBackendOk] = useState(true);
+  const [runtimeStatus, setRuntimeStatus] = useState(null);
 
   useEffect(() => {
     const update = () => setIsMobile(window.innerWidth < 768);
@@ -306,12 +308,55 @@ const JoeContent = () => {
   const toggleBorderSettings = () => navigate('/dashboard/users');
   const { user } = useAuth();
 
- 
+
 
   const leftStyle = { borderRight: `${panelStyles.left.width}px solid ${panelStyles.left.color}`, borderRadius: panelStyles.left.radius };
   const rightStyle = { borderLeft: `${panelStyles.right.width}px solid ${panelStyles.right.color}`, borderRadius: panelStyles.right.radius };
   
   
+  useEffect(() => {
+    let cancelled = false;
+    const check = async () => {
+      try {
+        const h = await apiClient.get('/api/v1/health');
+        if (!cancelled) setBackendOk(Boolean(h?.data?.success && h?.data?.status === 'ok'));
+      } catch {
+        if (!cancelled) setBackendOk(false);
+      }
+      try {
+        const r = await apiClient.get('/api/v1/runtime-mode/status');
+        if (!cancelled) setRuntimeStatus(r?.data || null);
+      } catch {
+        if (!cancelled) setRuntimeStatus(null);
+      }
+      void 0;
+    };
+    check();
+    const id = setInterval(check, 10000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+
+  const statusAlert = (() => {
+    if (!backendOk) return { text: lang === 'ar' ? 'الخادم غير نشط — تحقق من التشغيل' : 'Backend inactive — start the server', cls: 'bg-red-600 text-white border border-red-500' };
+    if (runtimeStatus?.success && runtimeStatus.loading) {
+      const stage = String(runtimeStatus.stage || 'Loading');
+      const percent = Number(runtimeStatus.percent || 0);
+      const tAr = `جاري تحميل النموذج: ${stage} • ${percent}%`;
+      const tEn = `Loading model: ${stage} • ${percent}%`;
+      return { text: lang === 'ar' ? tAr : tEn, cls: 'bg-blue-600 text-white border border-blue-500' };
+    }
+    if (runtimeStatus?.success && !runtimeStatus.offlineReady && runtimeStatus.stage === 'missing_model') {
+      const tAr = 'النموذج المحلي غير موجود — اضبط LLAMA_MODEL_PATH';
+      const tEn = 'Local model missing — set LLAMA_MODEL_PATH';
+      return { text: lang === 'ar' ? tAr : tEn, cls: 'bg-yellow-600 text-black border border-yellow-500' };
+    }
+    if (runtimeStatus?.success && runtimeStatus.mode === 'offline' && runtimeStatus.offlineReady) {
+      const tAr = 'الوضع المحلي جاهز';
+      const tEn = 'Local mode ready';
+      return { text: lang === 'ar' ? tAr : tEn, cls: 'bg-green-600 text-black border border-green-500' };
+    }
+    return null;
+  })();
 
   useEffect(() => {
     const onMove = (e) => {
@@ -361,6 +406,16 @@ const JoeContent = () => {
         onToggleLogs={toggleBottomPanel}
         isLogsOpen={isBottomPanelOpen && !isBottomCollapsed}
       />
+      {statusAlert && (
+        <div className={`w-full ${statusAlert.cls}`}>
+          <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between">
+            <span className="text-sm font-semibold">{statusAlert.text}</span>
+            <button onClick={toggleStatusPanel} className="px-2 py-1 rounded bg-gray-900/20 border border-white/20 text-xs">
+              {lang === 'ar' ? 'تفاصيل' : 'Details'}
+            </button>
+          </div>
+        </div>
+      )}
       
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
