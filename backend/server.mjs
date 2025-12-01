@@ -48,6 +48,8 @@ import toolRefactorFactory from './src/services/tools/tool-code-refactor.tool.mj
 import toolAutoFixFactory from './src/services/tools/tool-auto-fix.tool.mjs';
 import toolSystemConnectorsFactory from './src/services/tools/tool-system-connectors.tool.mjs';
 import { localLlamaService } from './src/services/llm/local-llama.service.mjs';
+import { liveStreamingService } from './src/services/liveStreamingService.mjs';
+import LiveStreamWebSocketServer from './src/services/liveStreamWebSocket.mjs';
 
 const CONFIG = {
   PORT: process.env.PORT || 4000,
@@ -219,6 +221,7 @@ async function setupDependencies() {
         requireRole: requireRole(db),
         optionalAuth: optionalAuth(db),
         localLlamaService,
+        liveStreamingService,
         JWT_SECRET: process.env.JWT_SECRET || 'a-very-weak-secret-for-dev',
     };
 
@@ -249,6 +252,8 @@ async function setupDependencies() {
     dependencies.joeAgentServer = joeAgentServer;
     const browserWSServer = new BrowserWebSocketServer(server);
     dependencies.browserWSServer = browserWSServer;
+    const liveStreamWSServer = new LiveStreamWebSocketServer(server);
+    dependencies.liveStreamWSServer = liveStreamWSServer;
 
     return dependencies;
 }

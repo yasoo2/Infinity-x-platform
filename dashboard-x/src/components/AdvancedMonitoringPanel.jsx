@@ -1,4 +1,4 @@
-  import React, { useState, useEffect, useMemo, useCallback } from 'react';
+  import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
   import PropTypes from 'prop-types';
   import { Activity, Cpu, HardDrive, Zap, AlertCircle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
   import axios from 'axios';
@@ -68,6 +68,10 @@
     const [alerts, setAlerts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [wsConnected, setWsConnected] = useState(false);
+    const [isStreaming, setIsStreaming] = useState(false);
+    const [lastFrame, setLastFrame] = useState(null);
+    const wsRef = useRef(null);
 
     const fetchStats = useCallback(async (signal) => {
       try {
@@ -105,6 +109,61 @@
         clearInterval(id);
       };
     }, [fetchStats, refreshMs]);
+
+    const buildWsUrl = useCallback(() => {
+      const base = API_BASE || '';
+      const wsBase = String(base).replace(/^https/, 'wss').replace(/^http/, 'ws');
+      let url = `${wsBase}/ws/live-stream`;
+      try {
+        const token = localStorage.getItem('sessionToken');
+        if (token) url += `?token=${token}`;
+      } catch { /* noop */ }
+      return url;
+    }, [API_BASE]);
+
+    const connectWs = useCallback(() => {
+      try {
+        const url = buildWsUrl();
+        wsRef.current = new WebSocket(url);
+        wsRef.current.onopen = () => setWsConnected(true);
+        wsRef.current.onclose = () => setWsConnected(false);
+        wsRef.current.onerror = () => setWsConnected(false);
+        wsRef.current.onmessage = (ev) => {
+          try {
+            const msg = JSON.parse(ev.data);
+            if (msg?.type === 'frame' && msg?.data) {
+              setLastFrame(msg.data);
+            }
+          } catch { /* noop */ }
+        };
+      } catch { /* noop */ }
+    }, [buildWsUrl]);
+
+    const disconnectWs = useCallback(() => {
+      try { wsRef.current?.close(); } catch { /* noop */ }
+      wsRef.current = null;
+      setWsConnected(false);
+    }, []);
+
+    const handleStartStream = useCallback(async () => {
+      try {
+        await axios.post(`${API_BASE}/api/v1/live-stream/start`);
+        setIsStreaming(true);
+        connectWs();
+      } catch (e) {
+        setError(e?.message || 'فشل بدء البث');
+      }
+    }, [API_BASE, connectWs]);
+
+    const handleStopStream = useCallback(async () => {
+      try {
+        await axios.post(`${API_BASE}/api/v1/live-stream/stop`);
+        setIsStreaming(false);
+        disconnectWs();
+      } catch (e) {
+        setError(e?.message || 'فشل إيقاف البث');
+      }
+    }, [API_BASE, disconnectWs]);
 
     // بيانات Mock للأنشطة والتنبيهات (يمكن استبدالها بمصدر حقيقي)
     useEffect(() => {
@@ -145,6 +204,15 @@
         <div>
           <h2 className="text-2xl font-bold text-cyan-400 mb-2">لوحة المراقبة المتقدمة</h2>
           <p className="text-gray-400">مراقبة أداء النظام والعمليات الجارية في الوقت الفعلي</p>
+          <div className="mt-3 flex items-center gap-2">
+            <span className={`px-2 py-1 text-xs rounded ${wsConnected ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-slate-600/40 text-slate-300 border border-slate-600/50'}`}>{wsConnected ? 'متصل بالبث' : 'غير متصل'}</span>
+            {!isStreaming && (
+              <button onClick={handleStartStream} className="px-3 py-1 text-sm rounded bg-blue-600 hover:bg-blue-700 text-white">بدء البث الحي</button>
+            )}
+            {isStreaming && (
+              <button onClick={handleStopStream} className="px-3 py-1 text-sm rounded bg-red-600 hover:bg-red-700 text-white">إيقاف البث الحي</button>
+            )}
+          </div>
           {error && (
             <div className="mt-3 flex items-center gap-2 p-3 rounded-md border border-red-500/30 bg-red-500/10 text-red-300">
               <AlertCircle size={18} />
@@ -235,6 +303,16 @@
                   </div>
                 </div>
               )}
+              <div className="pt-4">
+                <h4 className="text-sm font-semibold text-gray-300 mb-2">البث الحي</h4>
+                <div className="rounded border border-slate-600/50 bg-slate-800/40 p-2 flex items-center justify-center min-h-[180px]">
+                  {lastFrame ? (
+                    <img src={`data:image/jpeg;base64,${lastFrame}`} alt="Live Frame" className="max-h-72 max-w-full rounded" />
+                  ) : (
+                    <span className="text-gray-400 text-xs">لا توجد إطارات معروضة</span>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
