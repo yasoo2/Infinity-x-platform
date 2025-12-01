@@ -62,12 +62,15 @@ const chatReducer = (state, action) => {
         case 'START_PROCESSING': {
             let convId = currentConversationId;
             let conv = currentConvo;
-            if (!convId) {
-                convId = uuidv4();
-                conv = { id: convId, title: 'New Conversation', messages: [], lastModified: Date.now(), pinned: false };
-            }
-            if (!conv) {
-                conv = { id: convId, title: 'New Conversation', messages: [], lastModified: Date.now(), pinned: false };
+            if (!convId || !conv) {
+                return {
+                    ...state,
+                    input: '',
+                    isProcessing: true,
+                    progress: 0,
+                    currentStep: 'Processing...',
+                    plan: [],
+                };
             }
             const title = (!conv?.title || conv?.title === 'New Conversation') ? normalizeTitle(action.payload) : conv.title;
             const updatedConvo = { ...conv, title, lastModified: Date.now() };
@@ -836,12 +839,6 @@ export const useJoeChat = () => {
     const inputText = state.input.trim();
     if (!inputText) return;
     let convId = state.currentConversationId;
-    if (!convId) {
-      convId = uuidv4();
-      const lang = getLang();
-      const welcome = lang === 'ar' ? 'مرحباً! لنبدأ المحادثة.' : 'Hello! Let’s start chatting.';
-      dispatch({ type: 'NEW_CONVERSATION', payload: { selectNew: true, welcomeMessage: welcome, id: convId } });
-    }
 	    // 1. Update UI state immediately (append message, clear input, start processing)
 	    dispatch({ type: 'SEND_MESSAGE', payload: inputText });
 	    // 2. Start processing after UI update
