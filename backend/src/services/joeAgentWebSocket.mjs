@@ -15,7 +15,7 @@ import config from '../config.mjs';
 export class JoeAgentWebSocketServer {
   constructor(server, dependencies) {
     this.dependencies = dependencies;
-    this.wss = new WebSocketServer({ server, path: '/ws/joe-agent', perMessageDeflate: false });
+    this.wss = new WebSocketServer({ server, path: '/ws/joe-agent', perMessageDeflate: { serverNoContextTakeover: true, clientNoContextTakeover: true } });
     this.io = dependencies?.io || null;
     if (this.io) {
       this.nsp = this.io.of('/joe-agent');
