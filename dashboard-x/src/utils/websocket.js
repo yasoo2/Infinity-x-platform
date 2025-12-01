@@ -96,7 +96,7 @@ export const connectWebSocket = (onMessage, onOpen, onClose) => {
     const httpBase = baseWsUrl.replace(/^ws/, 'http').replace(/^wss/, 'https');
     const { io } = await import('socket.io-client');
     await ensureToken();
-    ioSocket = io(`${httpBase}/joe-agent`, { auth: { token }, transports: ['websocket','polling'], reconnection: true, reconnectionDelay: 500, reconnectionDelayMax: 4000, timeout: 3000, forceNew: true });
+    ioSocket = io(`${httpBase}/joe-agent`, { path: '/socket.io', auth: { token }, transports: ['polling','websocket'], upgrade: true, reconnection: true, reconnectionDelay: 500, reconnectionDelayMax: 4000, timeout: 3000, forceNew: true });
     ioSocket.on('connect', () => {
       failedAttempts = 0;
       if (!isConnected) {
@@ -125,11 +125,15 @@ export const connectWebSocket = (onMessage, onOpen, onClose) => {
       clearTimeout(connectTimeout);
       await ensureToken();
       try { raceStart = typeof performance !== 'undefined' ? performance.now() : Date.now(); } catch { raceStart = Date.now(); }
-      if (wsFailures >= 2 && ioFailures === 0) {
+      if (!isDev) {
         trySocketIO().catch(() => { tryNative(); });
       } else {
-        tryNative();
-        trySocketIO().catch(() => { void 0; });
+        if (wsFailures >= 2 && ioFailures === 0) {
+          trySocketIO().catch(() => { tryNative(); });
+        } else {
+          tryNative();
+          trySocketIO().catch(() => { void 0; });
+        }
       }
       connectTimeout = setTimeout(() => {
         if (!isConnected) {
