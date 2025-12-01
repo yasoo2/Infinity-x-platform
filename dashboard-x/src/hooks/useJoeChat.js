@@ -749,8 +749,8 @@ export const useJoeChat = () => {
         };
         
         ws.current.onmessage = async (event) => {
-          const data = JSON.parse(event.data);
-          dispatch({ type: 'ADD_WS_LOG', payload: `[WS] Received: ${event.data}` });
+          let data;
+          try { data = JSON.parse(event.data); } catch { data = {}; }
 
           const type = data.type || data.event || '';
           const isCompleteEvent = (
