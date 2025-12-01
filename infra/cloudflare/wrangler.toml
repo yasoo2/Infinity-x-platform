@@ -1,5 +1,5 @@
 name = "xelite-cors-worker"
-main = "infra/cloudflare/cors-worker.js"
+main = "cors-worker.js"
 compatibility_date = "2025-11-30"
 
 # Route the worker to handle API requests and preflight at the edge
