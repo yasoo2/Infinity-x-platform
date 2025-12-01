@@ -111,7 +111,7 @@ export class JoeAgentWebSocketServer {
           let data;
           try {
             data = JSON.parse(message);
-          } catch (parseError) {
+          } catch {
             const lang = 'ar';
             const msg = lang==='ar' ? 'صيغة JSON غير صالحة.' : 'Invalid JSON format.';
             ws.send(JSON.stringify({ type: 'error', code: 'INVALID_FORMAT', message: msg }));

@@ -3,7 +3,6 @@ import { useReducer, useEffect, useCallback, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { v4 as uuidv4 } from 'uuid';
 import { getChatSessions, getChatSessionById, getGuestToken, getSystemStatus, createChatSession, updateChatSession, addChatMessage, getChatMessages } from '../api/system';
-import apiClient from '../api/client';
 
 const JOE_CHAT_HISTORY = 'joeChatHistory';
 
