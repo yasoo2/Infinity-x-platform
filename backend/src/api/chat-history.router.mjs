@@ -1,5 +1,6 @@
 import express from 'express'
 import { v4 as uuidv4 } from 'uuid'
+import mongoose from 'mongoose'
 import ChatSession from '../database/models/ChatSession.mjs'
 import ChatMessage from '../database/models/ChatMessage.mjs'
 
@@ -34,11 +35,11 @@ const chatHistoryRouterFactory = ({ optionalAuth, requireRole, db }) => {
       const title = String(req.body?.title || 'New Conversation')
       if (hasDb && req.user?._id) {
         const s = await ChatSession.create({ userId: req.user._id, title, lastModified: new Date() })
-        return res.json({ success: true, id: s._id.toString(), title })
+        return res.json({ success: true, session: { _id: s._id.toString(), id: s._id.toString(), title } })
       }
       const id = uuidv4()
       memory.sessions.set(id, { id, title, lastModified: new Date() })
-      return res.json({ success: true, id, title })
+      return res.json({ success: true, session: { id, title } })
     } catch (e) {
       res.status(500).json({ success: false, error: e?.message || 'FAILED_CREATE' })
     }
@@ -48,7 +49,8 @@ const chatHistoryRouterFactory = ({ optionalAuth, requireRole, db }) => {
   router.get('/sessions/:id', async (req, res) => {
     try {
       const id = req.params.id
-      if (hasDb) {
+      const isObjId = mongoose.Types.ObjectId.isValid(id)
+      if (hasDb && isObjId) {
         const s = await ChatSession.findById(id)
         if (!s) return res.status(404).json({ success: false, error: 'NOT_FOUND' })
         const msgs = await ChatMessage.find({ sessionId: s._id }).sort({ createdAt: 1 })
@@ -70,7 +72,8 @@ const chatHistoryRouterFactory = ({ optionalAuth, requireRole, db }) => {
     try {
       const id = req.params.id
       const patch = req.body || {}
-      if (hasDb) {
+      const isObjId = mongoose.Types.ObjectId.isValid(id)
+      if (hasDb && isObjId) {
         const s = await ChatSession.findById(id)
         if (!s) return res.status(404).json({ success: false, error: 'NOT_FOUND' })
         if (typeof patch.title === 'string') s.title = patch.title
@@ -92,7 +95,8 @@ const chatHistoryRouterFactory = ({ optionalAuth, requireRole, db }) => {
   router.delete('/sessions/:id', requireRole ? requireRole('USER') : (req, _res, next) => next(), async (req, res) => {
     try {
       const id = req.params.id
-      if (hasDb) {
+      const isObjId = mongoose.Types.ObjectId.isValid(id)
+      if (hasDb && isObjId) {
         await ChatMessage.deleteMany({ sessionId: id })
         await ChatSession.findByIdAndDelete(id)
         return res.json({ success: true })
@@ -109,7 +113,8 @@ const chatHistoryRouterFactory = ({ optionalAuth, requireRole, db }) => {
   router.get('/sessions/:id/messages', async (req, res) => {
     try {
       const id = req.params.id
-      if (hasDb) {
+      const isObjId = mongoose.Types.ObjectId.isValid(id)
+      if (hasDb && isObjId) {
         const msgs = await ChatMessage.find({ sessionId: id }).sort({ createdAt: 1 })
         return res.json({ success: true, messages: msgs.map(m => ({ id: m._id.toString(), type: m.type, content: m.content, createdAt: m.createdAt })) })
       }
@@ -126,7 +131,8 @@ const chatHistoryRouterFactory = ({ optionalAuth, requireRole, db }) => {
       const id = req.params.id
       const { type, content } = req.body || {}
       if (!type || !content) return res.status(400).json({ success: false, error: 'TYPE_CONTENT_REQUIRED' })
-      if (hasDb && req.user?._id) {
+      const isObjId = mongoose.Types.ObjectId.isValid(id)
+      if (hasDb && req.user?._id && isObjId) {
         const msg = await ChatMessage.create({ sessionId: id, userId: req.user._id, type, content })
         await ChatSession.findByIdAndUpdate(id, { $set: { lastModified: new Date() } })
         return res.json({ success: true, id: msg._id.toString() })
@@ -184,4 +190,3 @@ const chatHistoryRouterFactory = ({ optionalAuth, requireRole, db }) => {
 }
 
 export default chatHistoryRouterFactory
-
