@@ -151,8 +151,12 @@ const chatReducer = (state, action) => {
         case 'SET_TRANSCRIPT':
             return { ...state, transcript: action.payload, input: action.payload };
 
-        case 'ADD_WS_LOG':
-            return { ...state, wsLog: [...state.wsLog, action.payload] };
+        case 'ADD_WS_LOG': {
+            const entry = action.payload;
+            const next = [...state.wsLog, entry];
+            const capped = next.length > 1000 ? next.slice(next.length - 1000) : next;
+            return { ...state, wsLog: capped };
+        }
 
         case 'ADD_PENDING_LOG': {
             const id = action.payload;
@@ -724,7 +728,7 @@ export const useJoeChat = () => {
           reconnectCountdownInterval.current = setInterval(() => {
             const remaining = Math.max(0, eta - Date.now());
             dispatch({ type: 'SET_RECONNECT_REMAINING', payload: remaining });
-          }, 250);
+          }, 1000);
           if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
           reconnectTimer.current = setTimeout(async () => {
             if (shouldResetToken) {
