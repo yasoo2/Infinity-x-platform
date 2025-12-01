@@ -394,8 +394,8 @@ const JoeContent = () => {
 
           {/* Bottom Panel - Logs (Collapsible) */}
           {isBottomPanelOpen && (
-            <div className={`${isBottomCollapsed ? 'h-0' : 'h-48'} border-t border-gray-800 bg-gray-900 flex-shrink-0 overflow-hidden`}
-            >
+            <div className={`${isBottomCollapsed ? 'h-0' : 'h-[50vh]'} border-t border-gray-800 bg-gray-900 flex-shrink-0 overflow-hidden`
+            }>
               <BottomPanel 
                 logs={wsLog} 
                 collapsed={isBottomCollapsed}

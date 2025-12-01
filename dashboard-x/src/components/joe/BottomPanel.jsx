@@ -99,7 +99,7 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
       ) : (
         <div 
           ref={scrollRef} 
-          className="flex-1 overflow-y-auto bg-gray-900 rounded-lg border border-gray-800 p-4 font-mono text-sm"
+          className="joe-logs-scroll flex-1 overflow-y-auto bg-gray-900 rounded-lg border border-gray-800 p-4 font-mono text-sm"
           style={{ overscrollBehavior: 'contain', overflowAnchor: 'none' }}
         >
           {logs && logs.length > 0 ? (
@@ -152,6 +152,14 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
           )}
         </div>
       )}
+
+      <style>{`
+        .joe-logs-scroll { scrollbar-width: thin; scrollbar-color: #444 #0b0f1a; }
+        .joe-logs-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+        .joe-logs-scroll::-webkit-scrollbar-track { background: rgba(11,15,26,0.6); border-radius: 8px; }
+        .joe-logs-scroll::-webkit-scrollbar-thumb { background: rgba(68,68,68,0.9); border-radius: 8px; border: 2px solid rgba(17,24,39,0.9); }
+        .joe-logs-scroll::-webkit-scrollbar-thumb:hover { background: rgba(90,90,90,0.95); }
+      `}</style>
 
       {collapsed && (
         <div className="fixed z-40 select-none pointer-events-none" style={{ bottom: 'calc(var(--joe-input-h, 56px) + env(safe-area-inset-bottom, 0px) + 4px)', left: 'var(--joe-input-left, 16px)', width: 'var(--joe-input-width, 640px)', maxWidth: 'calc(100vw - 32px)' }}>
