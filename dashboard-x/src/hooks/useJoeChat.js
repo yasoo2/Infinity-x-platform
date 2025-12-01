@@ -64,16 +64,13 @@ const chatReducer = (state, action) => {
             let conv = currentConvo;
             if (!convId) {
                 convId = uuidv4();
-                const welcomeMessage = { type: 'joe', content: 'Welcome to Joe AI Assistant! 👋', id: uuidv4() };
-                conv = { id: convId, title: 'New Conversation', messages: [welcomeMessage], lastModified: Date.now(), pinned: false };
+                conv = { id: convId, title: 'New Conversation', messages: [], lastModified: Date.now(), pinned: false };
             }
             if (!conv) {
                 conv = { id: convId, title: 'New Conversation', messages: [], lastModified: Date.now(), pinned: false };
             }
-            const newMessage = { type: 'user', content: action.payload, id: uuidv4() };
-            const updatedMessages = [...(conv?.messages || []), newMessage];
             const title = (!conv?.title || conv?.title === 'New Conversation') ? normalizeTitle(action.payload) : conv.title;
-            const updatedConvo = { ...conv, messages: updatedMessages, title, lastModified: Date.now() };
+            const updatedConvo = { ...conv, title, lastModified: Date.now() };
             const nextConversations = { ...conversations, [convId]: updatedConvo };
             return {
                 ...state,

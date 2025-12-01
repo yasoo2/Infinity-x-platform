@@ -577,7 +577,7 @@ export class AdvancedWorkerManager extends EventEmitter {
         // التحقق من وجود المشروع
         try {
             await fs.access(projectPath);
-        } catch (error) {
+        } catch {
             throw new Error(`Project not found: ${job.projectId}`);
         }
         

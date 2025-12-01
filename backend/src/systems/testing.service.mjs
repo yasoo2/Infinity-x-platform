@@ -88,7 +88,7 @@ ${fileContent}
           if (deps.jest) return 'jest';
           if (deps.mocha) return 'mocha';
           if (deps.vitest) return 'vitest';
-      } catch (e) {
+      } catch {
           // ignore
       }
       return 'jest'; // Default

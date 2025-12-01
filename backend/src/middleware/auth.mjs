@@ -147,7 +147,7 @@ export const optionalAuth = (db) => async (req, res, next) => {
         if (user) {
             req.user = user;
         }
-    } catch (error) {
+    } catch {
         // Invalid token, just proceed without auth
     }
     next();

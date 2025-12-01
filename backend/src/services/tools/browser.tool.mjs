@@ -39,7 +39,7 @@ async function browseWebsite({ url }) {
                     if (!links.some(l => l.url === absoluteUrl)) {
                        links.push({ text, url: absoluteUrl });
                     }
-                } catch(e) { /* Ignore invalid URLs */ }
+                } catch { /* Ignore invalid URLs */ }
             }
         });
 

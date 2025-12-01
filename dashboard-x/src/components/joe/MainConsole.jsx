@@ -460,7 +460,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
       {/* Messages Area - Spacious and Centered */}
       <div className="flex-1 overflow-y-auto relative" ref={scrollContainerRef} style={{ scrollBehavior: 'auto', overscrollBehavior: 'contain', overflowAnchor: 'none' }}>
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 border border-gray-800 rounded-xl bg-gray-900/60" style={{ paddingBottom: Math.max(24, inputAreaHeight + 24) }}>
-          {messages.length === 0 || (messages.length === 1 && messages[0].type === 'joe' && messages[0].content.includes('Welcome to Joe AI Assistant')) ? (
+          {messages.length === 0 ? (
             <WelcomeScreen toolsCount={toolsCount} />
           ) : (
             <div className="space-y-5">

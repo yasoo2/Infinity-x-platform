@@ -46,7 +46,7 @@ class DynamicEnvironmentTool {
             let responseBody;
             try {
                 responseBody = JSON.parse(responseText);
-            } catch (e) {
+            } catch {
                 responseBody = responseText;
             }
 

@@ -469,7 +469,7 @@ server {
             try {
                 await import(dep);
                 console.log(`✅ ${dep} is installed`);
-            } catch (error) {
+            } catch {
                 missingDeps.push(dep);
                 console.log(`❌ ${dep} is missing`);
             }

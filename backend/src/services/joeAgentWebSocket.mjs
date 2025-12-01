@@ -197,7 +197,7 @@ export class JoeAgentWebSocketServer {
         socket.data.userId = decoded.userId;
         socket.data.role = decoded.role;
         return next();
-      } catch (e) {
+      } catch {
         return next(new Error('INVALID_TOKEN'));
       }
     });

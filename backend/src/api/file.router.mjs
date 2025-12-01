@@ -102,7 +102,7 @@ const fileRouterFactory = ({ requireRole, fileProcessingService }) => {
                         .map(h => new URL(h, link).href)
                         .filter(h => h.startsWith('http://') || h.startsWith('https://'));
                     for (const l of absLinks) {
-                        try { await saveStream(l, depth + 1); } catch (e) { /* skip */ }
+                        try { await saveStream(l, depth + 1); } catch { /* skip */ }
                     }
                 }
             };

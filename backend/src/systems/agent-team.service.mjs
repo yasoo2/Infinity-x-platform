@@ -12,7 +12,7 @@ try {
     console.warn('⚠️ OpenAI API Key seems invalid, but server will continue running. OpenAI features will fail.', error.message);
     openai = null; // Invalidate the client if the key is wrong
   });
-} catch (error) {
+} catch {
   console.warn('⚠️ OpenAI API Key is missing. OpenAI features will be disabled.');
   openai = null;
 }

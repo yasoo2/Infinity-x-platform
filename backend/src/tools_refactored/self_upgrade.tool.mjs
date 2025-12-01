@@ -55,7 +55,7 @@ class SelfUpgradeTool {
             let content = '';
             try {
                 content = await fs.readFile(envPath, 'utf-8');
-            } catch (e) {
+            } catch {
                 // File doesn't exist, will be created
             }
 

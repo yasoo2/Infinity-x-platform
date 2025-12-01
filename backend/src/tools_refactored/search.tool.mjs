@@ -32,7 +32,7 @@ async function searchWeb({ query }) {
           if (decodedUrl.startsWith('http')) {
              results.push({ title, snippet, url: decodedUrl });
           }
-        } catch (e) { /* ignore invalid URLs */ }
+        } catch { /* ignore invalid URLs */ }
       }
     });
     return { success: true, query, results: results.slice(0, 8) }; // Return top 8 results
@@ -100,7 +100,7 @@ async function searchInFiles({ query, directory = '.', pattern = '**/*' }) {
             if (matchingLines.length > 0) {
                 results.push({ filePath: file, matches: matchingLines });
             }
-        } catch (e) {
+        } catch {
             // Ignore files that can't be read (e.g., binary files)
         }
     }
