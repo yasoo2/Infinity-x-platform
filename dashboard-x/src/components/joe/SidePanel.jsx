@@ -30,7 +30,7 @@ const SidePanel = ({ conversations, onConversationSelect, onNewConversation, cur
     };
     document.addEventListener('mousedown', onDocClick, true);
     return () => document.removeEventListener('mousedown', onDocClick, true);
-  }, [openMenuId]);
+  }, [openMenuId, menuRef]);
   return (
     <div className="bg-gradient-to-br from-gray-900 to-gray-950 w-full flex-shrink-0 p-3 flex flex-col border border-gray-800 rounded-xl ring-1 ring-yellow-600/10" style={{ gridArea: 'side' }}>
       <div className="flex items-center justify-between mb-4 px-2">
