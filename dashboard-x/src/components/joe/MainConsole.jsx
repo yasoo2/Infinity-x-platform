@@ -147,7 +147,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
           setToolsCount(cnt);
           if (cnt > 0) return;
         }
-      } catch {}
+      } catch { void 0; }
       attempts++;
       if (active && attempts < 5) setTimeout(fetchOnce, 1500);
     };

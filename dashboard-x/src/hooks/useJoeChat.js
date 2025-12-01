@@ -526,11 +526,17 @@ export const useJoeChat = () => {
       const count = Object.keys(payload.conversations).length;
       const id = payload.currentConversationId;
       saveTimerRef.current = setTimeout(() => {
-        console.warn('[useEffect] Saving to localStorage:', { conversationCount: count, currentId: id });
         try {
-          localStorage.setItem(JOE_CHAT_HISTORY, JSON.stringify(payload));
+          if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) {
+            console.warn('[useEffect] Saving to localStorage:', { conversationCount: count, currentId: id });
+          }
+          const nextStr = JSON.stringify(payload);
+          const prevStr = localStorage.getItem(JOE_CHAT_HISTORY);
+          if (prevStr !== nextStr) {
+            localStorage.setItem(JOE_CHAT_HISTORY, nextStr);
+          }
         } catch (e) {
-          console.warn('Failed to save chat history:', e);
+          try { console.warn('Failed to save chat history:', e); } catch { void 0; }
         }
       }, 400);
     }
