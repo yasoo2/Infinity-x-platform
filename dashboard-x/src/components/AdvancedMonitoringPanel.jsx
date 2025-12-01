@@ -53,7 +53,7 @@
   );
 
   export default function AdvancedMonitoringPanel({ apiBase, refreshMs = 5000, mockMode = false }) {
-    const API_BASE = apiBase || import.meta?.env?.VITE_API_URL;
+    const API_BASE = apiBase || import.meta?.env?.VITE_API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
 
     const [systemStats, setSystemStats] = useState({
       cpu: 0,
