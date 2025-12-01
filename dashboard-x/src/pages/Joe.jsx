@@ -598,7 +598,7 @@ function JoeHeaderControls() {
       <div className="flex items-center gap-1.5">
         <button onClick={handleUseLocal} className={`px-2 py-1 rounded-md text-[11px] font-semibold inline-flex items-center gap-1 border ${offlineReady ? 'bg-green-600 text-black hover:bg-green-700 border-green-500/50' : 'bg-gray-700 text-white hover:bg-gray-600 border-gray-600'}`} title={offlineReady ? (lang==='ar'?'المحلي جاهز':'Local Ready') : (lang==='ar'?'تحميل المحلي':'Load Local')}>
           <FiCpu size={12} />
-          <span>{lang==='ar'?'محلي':'Local'}</span>
+          <span>Joe Ai</span>
           {loadingLocal ? <span className="animate-pulse">…</span> : (<span className={`text-[10px] px-1 py-0.5 rounded border ${offlineReady ? 'bg-green-500/20 text-green-300 border-green-500/30' : 'bg-gray-500/20 text-gray-300 border-gray-500/30'}`}>{offlineReady ? (lang==='ar'?'جاهز':'Ready') : (lang==='ar'?'تحميل':'Load')}</span>)}
         </button>
         <button onClick={handleUseCloud} className={`px-2 py-1 rounded-md text-[11px] font-semibold inline-flex items-center gap-1 border ${runtimeMode==='online' ? 'bg-blue-600 text-white hover:bg-blue-700 border-blue-500/50' : 'bg-blue-700 text-white hover:bg-blue-600 border-blue-500/50'}`} title={lang==='ar'?'السحابي':'Cloud'}>

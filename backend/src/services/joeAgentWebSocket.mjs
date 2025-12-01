@@ -130,7 +130,7 @@ export class JoeAgentWebSocketServer {
             }
           if (currentMode === 'offline' && localLlamaService.isReady()) {
             try {
-              const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model: 'offline-local' });
+              const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model: 'offline-local', lang: data.lang });
               if (ws.readyState === ws.OPEN) {
                 ws.send(JSON.stringify({ type: 'response', response: result.response, toolsUsed: result.toolsUsed, sessionId }));
               }
@@ -150,7 +150,7 @@ export class JoeAgentWebSocketServer {
           }
 
             const model = data.model || 'gpt-4o';
-            const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model });
+            const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model, lang: data.lang });
             if (ws.readyState === ws.OPEN) {
               ws.send(JSON.stringify({ type: 'response', response: result.response, toolsUsed: result.toolsUsed, sessionId }));
             }
@@ -215,16 +215,16 @@ export class JoeAgentWebSocketServer {
             socket.emit('error', { message: 'Invalid message format. Expected { action: string, message: string }.' });
             return;
           }
-          const currentMode = getMode();
-          const userId = socket.data.userId;
-          const sessionId = data.sessionId || socket.data.sessionId || `session_${Date.now()}`;
-          socket.data.sessionId = sessionId;
-          socket.join(sessionId);
-          if (data.action === 'instruct') {
+            const currentMode = getMode();
+            const userId = socket.data.userId;
+            const sessionId = data.sessionId || socket.data.sessionId || `session_${Date.now()}`;
+            socket.data.sessionId = sessionId;
+            socket.join(sessionId);
+            if (data.action === 'instruct') {
             try { await ChatMessage.create({ sessionId, userId, type: 'user', content: data.message }); await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date() } }); } catch { void 0 }
             if (currentMode === 'offline' && localLlamaService.isReady()) {
               try {
-                const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model: 'offline-local' });
+                const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model: 'offline-local', lang: data.lang });
                 socket.emit('response', { response: result.response, toolsUsed: result.toolsUsed, sessionId });
                 try {
                   const content = String(result?.response || '').trim();
@@ -239,7 +239,7 @@ export class JoeAgentWebSocketServer {
               return;
             }
             const model = data.model || 'gpt-4o';
-            const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model });
+            const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model, lang: data.lang });
             socket.emit('response', { response: result.response, toolsUsed: result.toolsUsed, sessionId });
             try {
               const content = String(result?.response || '').trim();
