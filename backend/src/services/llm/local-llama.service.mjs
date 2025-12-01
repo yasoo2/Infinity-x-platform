@@ -104,5 +104,5 @@ class LocalLlamaService {
   }
 }
 
-
+export { LocalLlamaService }
 export const localLlamaService = new LocalLlamaService()
