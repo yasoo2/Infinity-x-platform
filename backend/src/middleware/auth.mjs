@@ -1,7 +1,6 @@
 import jwt from 'jsonwebtoken';
 import User from '../database/models/User.mjs';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'a-very-weak-secret-for-dev';
+import config from '../config.mjs';
 
 /**
  * Authenticate token middleware
@@ -16,7 +15,7 @@ export const authenticateToken = async (req, res, next) => {
       return res.status(401).json({ ok: false, error: 'No token provided' });
     }
 
-    jwt.verify(token, JWT_SECRET, async (err, decoded) => {
+    jwt.verify(token, config.JWT_SECRET, async (err, decoded) => {
       if (err) {
         // Check for token expiration
         if (err.name === 'TokenExpiredError') {
@@ -100,8 +99,7 @@ export const requireAdmin = (req, res, next) => {
  * Generate JWT token
  */
 export const generateToken = (user) => {
-  // تم زيادة مدة الصلاحية إلى 365 يومًا (سنة) لتقليل فشل WebSocket بسبب انتهاء الصلاحية
-  return jwt.sign({ userId: user._id, role: user.role }, JWT_SECRET, { expiresIn: '365d' });
+  return jwt.sign({ userId: user._id, role: user.role }, config.JWT_SECRET, { expiresIn: '365d' });
 };
 
 // This function is not used in the file, but it was in the original app.mjs
@@ -139,7 +137,7 @@ export const optionalAuth = (db) => async (req, res, next) => {
     }
 
     try {
-        const decoded = jwt.verify(token, JWT_SECRET);
+        const decoded = jwt.verify(token, config.JWT_SECRET);
         let user = await User.findById(decoded.userId);
         if (!user && decoded && decoded.userId) {
             user = { _id: decoded.userId, role: decoded.role || 'user', email: decoded.email };

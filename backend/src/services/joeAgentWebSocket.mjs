@@ -5,7 +5,7 @@ import ChatSession from '../database/models/ChatSession.mjs';
 import jwt from 'jsonwebtoken';
 import { getMode } from '../core/runtime-mode.mjs';
 import { localLlamaService } from './llm/local-llama.service.mjs';
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+import config from '../config.mjs';
 
 /**
  * Joe Agent WebSocket Server - v2.0 "Unified"
@@ -71,7 +71,7 @@ export class JoeAgentWebSocketServer {
       // 2. التحقق من التوكين
       let decoded;
       try {
-        const secret = this.dependencies.JWT_SECRET || JWT_SECRET;
+        const secret = this.dependencies.JWT_SECRET || config.JWT_SECRET;
         decoded = jwt.verify(token, secret);
       } catch (err) {
         // Detailed logging for JWT errors
@@ -191,7 +191,7 @@ export class JoeAgentWebSocketServer {
       try {
         const token = socket.handshake?.auth?.token || socket.handshake?.query?.token;
         if (!token) return next(new Error('NO_TOKEN'));
-        const secret = this.dependencies.JWT_SECRET || JWT_SECRET;
+        const secret = this.dependencies.JWT_SECRET || config.JWT_SECRET;
         const decoded = jwt.verify(token, secret);
         socket.data = socket.data || {};
         socket.data.userId = decoded.userId;
