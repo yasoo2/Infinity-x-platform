@@ -639,7 +639,7 @@ export const useJoeChat = () => {
           const devPorts = new Set(['4173','5173','3000']);
           if (isLocal && devPorts.has(u.port || '')) {
             sioBase = `${u.protocol}//${u.hostname}:4000`;
-          } else if (u.hostname === 'www.xelitesolutions.com') {
+          } else if (u.hostname === 'www.xelitesolutions.com' || u.hostname === 'xelitesolutions.com') {
             sioBase = `${u.protocol}//api.xelitesolutions.com`;
           }
         } catch { /* noop */ }
@@ -765,7 +765,7 @@ export const useJoeChat = () => {
           const devPorts = new Set(['4173','5173','3000']);
           if (isLocal && devPorts.has(u.port || '')) {
             sanitizedHttp1 = `${u.protocol}//${u.hostname}:4000`;
-          } else if (u.hostname === 'www.xelitesolutions.com') {
+          } else if (u.hostname === 'www.xelitesolutions.com' || u.hostname === 'xelitesolutions.com') {
             sanitizedHttp1 = `${u.protocol}//api.xelitesolutions.com`;
           }
         } catch { /* noop */ }

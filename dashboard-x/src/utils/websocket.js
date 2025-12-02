@@ -48,8 +48,11 @@ export const connectWebSocket = (onMessage, onOpen, onClose) => {
     ? apiClient.defaults.baseURL
     : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
   try {
-    if (typeof window !== 'undefined' && window.location.hostname === 'www.xelitesolutions.com') {
-      httpBase = 'https://api.xelitesolutions.com';
+    if (typeof window !== 'undefined') {
+      const h = window.location.hostname;
+      if (h === 'www.xelitesolutions.com' || h === 'xelitesolutions.com') {
+        httpBase = 'https://api.xelitesolutions.com';
+      }
     }
   } catch { /* noop */ }
   const sanitizedHttp = String(httpBase).replace(/\/(api.*)?$/, '').replace(/\/+$/, '');

@@ -28,7 +28,7 @@
     resolvedBase = origin;
     try {
       const h = window.location.hostname || '';
-      if (h === 'www.xelitesolutions.com') {
+      if (h === 'www.xelitesolutions.com' || h === 'xelitesolutions.com') {
         resolvedBase = 'https://api.xelitesolutions.com';
       }
     } catch { /* noop */ }
