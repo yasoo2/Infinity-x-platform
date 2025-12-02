@@ -194,7 +194,7 @@ class AIEngineService {
             throw new Error('OpenAI is not initialized.');
         }
         const response = await this.models.openai.chat.completions.create({
-            model: options.model || 'gpt-4.1-mini',
+            model: options.model || 'gpt-4o-mini',
             messages: [{ role: 'user', content: prompt }],
             temperature: options.temperature || 0.7,
             max_tokens: options.maxTokens || 2000,
