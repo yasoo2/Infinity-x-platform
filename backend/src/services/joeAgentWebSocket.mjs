@@ -191,6 +191,8 @@ export class JoeAgentWebSocketServer {
               const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model, lang: data.lang });
               if (ws.readyState === ws.OPEN) {
                 ws.send(JSON.stringify({ type: 'response', response: result.response, toolsUsed: result.toolsUsed, sessionId }));
+                try { ws.send(JSON.stringify({ type: 'progress', progress: 100, step: 'Done' })); } catch { void 0 }
+                try { ws.send(JSON.stringify({ type: 'task_complete', sessionId })); } catch { void 0 }
               }
               try {
                 const content = String(result?.response || '').trim();
@@ -296,6 +298,8 @@ export class JoeAgentWebSocketServer {
             const model = data.model || null;
             const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model, lang: data.lang });
             socket.emit('response', { response: result.response, toolsUsed: result.toolsUsed, sessionId });
+            try { socket.emit('progress', { progress: 100, step: 'Done' }); } catch { void 0 }
+            try { socket.emit('task_complete', { sessionId }); } catch { void 0 }
             try {
               const content = String(result?.response || '').trim();
               if (content && mongoose.Types.ObjectId.isValid(sessionId)) {

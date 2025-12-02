@@ -94,7 +94,9 @@ const joeRouterFactory = ({ requireRole, optionalAuth, db }) => {
         return res.status(400).json({ success: false, error: 'MISSING_INSTRUCTION' });
       }
       const out = await toolManager.execute('autoPlanAndExecute', { instruction, context });
-      return res.json(out);
+      const response = out?.response || out?.output || out?.summary || out?.message || '';
+      const toolsUsed = Array.isArray(out?.toolsUsed) ? out.toolsUsed : (Array.isArray(out?.toolCalls) ? out.toolCalls.map(tc => tc.function?.name).filter(Boolean) : []);
+      return res.json({ ...out, response, toolsUsed });
     } catch (err) {
       console.error('❌ /api/joe/execute error', err);
       return res.status(500).json({ success: false, error: 'SERVER_ERROR', message: err.message });
