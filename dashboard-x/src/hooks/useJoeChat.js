@@ -308,6 +308,7 @@ export const useJoeChat = () => {
   const syncInProgressRef = useRef(false);
   const saveTimerRef = useRef(null);
   const sioSendTimeoutRef = useRef(null);
+  const activeModelRef = useRef(null);
 
   const [state, dispatch] = useReducer(chatReducer, {
     conversations: {},
@@ -333,6 +334,22 @@ export const useJoeChat = () => {
 
   const stateRef = useRef(state);
   useEffect(() => { stateRef.current = state; }, [state]);
+
+  useEffect(() => {
+    const ac = new AbortController();
+    const { signal } = ac;
+    const fetchActiveModel = async () => {
+      try {
+        const { data } = await apiClient.get('/api/v1/ai/providers', { signal });
+        const m = data?.activeModel || null;
+        if (m) activeModelRef.current = m;
+      } catch { /* noop */ }
+    };
+    fetchActiveModel();
+    const onRuntime = () => { fetchActiveModel(); };
+    try { window.addEventListener('joe:runtime', onRuntime); } catch { /* noop */ }
+    return () => { ac.abort(); try { window.removeEventListener('joe:runtime', onRuntime); } catch { /* noop */ } };
+  }, []);
 
   useEffect(() => {
     const c = globalThis && globalThis.console ? globalThis.console : null;
@@ -965,7 +982,7 @@ export const useJoeChat = () => {
 
     const trySend = (attempt = 0) => {
       if (sioRef.current && sioRef.current.connected) {
-        let selectedModel = localStorage.getItem('aiSelectedModel');
+        let selectedModel = activeModelRef.current || localStorage.getItem('aiSelectedModel');
         if (!selectedModel) {
           selectedModel = 'gpt-4o';
         }
@@ -1003,7 +1020,7 @@ export const useJoeChat = () => {
         return;
       }
       if (ws.current?.readyState === WebSocket.OPEN) {
-        let selectedModel = localStorage.getItem('aiSelectedModel');
+        let selectedModel = activeModelRef.current || localStorage.getItem('aiSelectedModel');
         if (!selectedModel) {
           selectedModel = 'gpt-4o';
         }
@@ -1038,7 +1055,7 @@ export const useJoeChat = () => {
         return;
       }
       (async () => {
-        let selectedModel = localStorage.getItem('aiSelectedModel');
+        let selectedModel = activeModelRef.current || localStorage.getItem('aiSelectedModel');
         if (!selectedModel) {
           selectedModel = 'gpt-4o';
         }
