@@ -639,6 +639,8 @@ export const useJoeChat = () => {
           const devPorts = new Set(['4173','5173','3000']);
           if (isLocal && devPorts.has(u.port || '')) {
             sioBase = `${u.protocol}//${u.hostname}:4000`;
+          } else if (u.hostname === 'www.xelitesolutions.com') {
+            sioBase = `${u.protocol}//api.xelitesolutions.com`;
           }
         } catch { /* noop */ }
         sioUrl = `${sioBase}/joe-agent`;
@@ -763,6 +765,8 @@ export const useJoeChat = () => {
           const devPorts = new Set(['4173','5173','3000']);
           if (isLocal && devPorts.has(u.port || '')) {
             sanitizedHttp1 = `${u.protocol}//${u.hostname}:4000`;
+          } else if (u.hostname === 'www.xelitesolutions.com') {
+            sanitizedHttp1 = `${u.protocol}//api.xelitesolutions.com`;
           }
         } catch { /* noop */ }
         const wsBase = sanitizedHttp1.replace(/^https/, 'wss').replace(/^http/, 'ws');
