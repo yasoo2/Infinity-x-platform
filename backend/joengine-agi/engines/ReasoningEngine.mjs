@@ -4,14 +4,13 @@
  */
 
 import { OpenAI } from 'openai';
-import { localLlamaService } from '../../src/services/llm/local-llama.service.mjs'
-import { runLocalLlamaChat } from '../../src/services/llm/localLlama.service.mjs'
+// Local LLaMA removed from Joe system
 
 export class ReasoningEngine {
     constructor(config = {}) {
         this.availableTools = config.availableTools || [];
         this.model = 'gpt-4o';
-        this.engineMode = (process.env.AI_ENGINE_MODE || '').toLowerCase();
+        this.engineMode = 'openai';
         try {
             if (config.openaiApiKey) {
                 this.openai = new OpenAI({ apiKey: config.openaiApiKey });
@@ -84,61 +83,20 @@ ${this.availableTools.map(tool => `- **${tool.name}**: ${tool.description}`).joi
             { role: 'user', content: `URGENT: Create a plan for this request: "${userRequest}"` }
         ];
 
-        // Mode: local_llama preferred
-        if (this.engineMode === 'local_llama') {
+        if (this.openai) {
             try {
-                const text = await runLocalLlamaChat(messages, { temperature: 0.1, maxTokens: 1024 });
-                const plan = JSON.parse(text.trim());
+                const response = await this.openai.chat.completions.create({
+                    model: this.model,
+                    messages,
+                    response_format: { type: 'json_object' },
+                    temperature: 0.1
+                });
+                const planJson = response.choices[0].message.content;
+                const plan = JSON.parse(planJson);
                 console.log('✅ Execution plan generated successfully.');
                 return { success: true, plan: plan.plan };
-            } catch (e) {
-                console.error(`❌ LLaMA planning failed: ${e.message}`);
-                // Fallback to OpenAI if available
-                if (this.openai) {
-                    try {
-                        const response = await this.openai.chat.completions.create({
-                            model: this.model,
-                            messages,
-                            response_format: { type: 'json_object' },
-                            temperature: 0.1
-                        });
-                        const planJson = response.choices[0].message.content;
-                        const plan = JSON.parse(planJson);
-                        console.log('✅ Execution plan generated successfully.');
-                        return { success: true, plan: plan.plan };
-                    } catch (err) {
-                        console.error(`❌ OpenAI planning failed: ${err.message}`);
-                    }
-                }
-            }
-        } else {
-            // Mode: openai preferred
-            if (this.openai) {
-                try {
-                    const response = await this.openai.chat.completions.create({
-                        model: this.model,
-                        messages,
-                        response_format: { type: 'json_object' },
-                        temperature: 0.1
-                    });
-                    const planJson = response.choices[0].message.content;
-                    const plan = JSON.parse(planJson);
-                    console.log('✅ Execution plan generated successfully.');
-                    return { success: true, plan: plan.plan };
-                } catch (error) {
-                    console.error(`❌ OpenAI planning failed: ${error.message}`);
-                }
-            }
-            // Fallback to local if ready
-            try {
-                if (localLlamaService.isReady()) {
-                    const text = await runLocalLlamaChat(messages, { temperature: 0.1, maxTokens: 1024 });
-                    const plan = JSON.parse(text.trim());
-                    console.log('✅ Execution plan generated successfully.');
-                    return { success: true, plan: plan.plan };
-                }
-            } catch (e) {
-                console.error(`❌ LLaMA fallback failed: ${e.message}`);
+            } catch (error) {
+                console.error(`❌ OpenAI planning failed: ${error.message}`);
             }
         }
 

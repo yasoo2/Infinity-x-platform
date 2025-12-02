@@ -1,5 +1,4 @@
 import OpenAI from 'openai';
-import { localLlamaService } from '../services/llm/local-llama.service.mjs'
 import toolManager from '../services/tools/tool-manager.service.mjs';
 
 let openai;
@@ -55,9 +54,7 @@ class AgentTeam {
   }
 
   async analyzeAndPlan(instruction, streamUpdate) {
-    if (!this.llm && !localLlamaService.isReady()) {
-      try { localLlamaService.startInitialize(); } catch { /* noop */ }
-    }
+    // Local engine removed; rely on OpenAI only
     const availableTools = toolManager.getToolSchemas();
     streamUpdate({ type: 'status', message: '🧠 Planner received instruction. Analyzing...' });
 
@@ -110,21 +107,6 @@ class AgentTeam {
       }
     } catch (error) {
       console.error('[Planner] OpenAI planning failed:', error);
-    }
-    try {
-      if (localLlamaService.isReady()) {
-        const parts = [];
-        await localLlamaService.stream([
-          { role: 'system', content: 'Respond with a JSON plan with steps.' },
-          { role: 'user', content: prompt }
-        ], (p) => { parts.push(p); }, { temperature: 0.2, maxTokens: 1024 });
-        const text = parts.join('');
-        const plan = JSON.parse(text);
-        streamUpdate({ type: 'status', message: '✅ Plan created successfully.' });
-        return plan;
-      }
-    } catch (error) {
-      console.error('[Planner] LLaMA planning failed:', error);
     }
     streamUpdate({ type: 'error', message: 'Planner failed: No AI provider available.' });
     return null;

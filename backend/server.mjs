@@ -208,16 +208,7 @@ async function setupDependencies() {
     }
     const sandboxManager = await new SandboxManager().initializeConnections();
     const memoryManager = new MemoryManager();
-    const { localLlamaService } = await import('./src/services/llm/local-llama.service.mjs');
-    try {
-        const shouldAutoLoad = String(process.env.LLAMA_AUTO_LOAD || '').toLowerCase() === 'true';
-        const hasModel = !!localLlamaService.modelPath && (await import('fs')).default.existsSync(localLlamaService.modelPath);
-        if (shouldAutoLoad && hasModel) {
-            localLlamaService.startInitialize();
-        } else {
-            console.log('🦙 Local LLaMA auto-load skipped:', { shouldAutoLoad, hasModel, modelPath: localLlamaService.modelPath });
-        }
-    } catch { /* noop */ }
+    // Local LLaMA removed from Joe system
     
     const dependencies = {
         db,
@@ -311,11 +302,7 @@ async function startServer() {
 
     // Background initialization (non-blocking)
     Promise.resolve().then(async () => {
-      try {
-        if (String(process.env.LLAMA_AUTO_LOAD || '').toLowerCase() === 'true') {
-          localLlamaService.startInitialize();
-        }
-      } catch { /* noop */ }
+      // Local LLaMA removed
       try {
         const seedPreset = String(process.env.JOE_TOOL_SEED || 'core');
         await toolManager.execute('seedCuratedTools', { preset: seedPreset });

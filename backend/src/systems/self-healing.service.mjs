@@ -4,7 +4,7 @@
  */
 
 import OpenAI from 'openai';
-import { localLlamaService } from '../services/llm/local-llama.service.mjs'
+// Local LLaMA removed from Joe system
 import fs from 'fs/promises';
 import { codeReviewSystem } from './code-review.service.mjs';
 
@@ -16,7 +16,6 @@ try {
 } catch {
   openai = null;
 }
-try { if (!localLlamaService.isReady()) localLlamaService.startInitialize(); } catch { /* noop */ }
 
 class SelfHealingSystem {
 
@@ -70,19 +69,6 @@ class SelfHealingSystem {
     } catch(e) {
         console.error('OpenAI analysis failed:', e);
     }
-    try {
-        if (localLlamaService.isReady()) {
-            const parts = [];
-            await localLlamaService.stream([
-                { role: 'system', content: 'You are an expert error analysis AI. Respond with JSON.' },
-                { role: 'user', content: prompt }
-            ], (p) => { parts.push(p); }, { temperature: 0.2, maxTokens: 512 });
-            const text = parts.join('');
-            return JSON.parse(text);
-        }
-    } catch(e) {
-        console.error('LLaMA analysis failed:', e);
-    }
     return { rootCause: 'Analysis failed', impact: 'Unknown' };
   }
 
@@ -109,20 +95,6 @@ class SelfHealingSystem {
         }
     } catch(e) {
         console.error('OpenAI generateSolutions failed:', e);
-    }
-    try {
-        if (localLlamaService.isReady()) {
-            const parts = [];
-            await localLlamaService.stream([
-                { role: 'system', content: 'You are an expert software engineer specialized in debugging and fixing errors. Respond with JSON.' },
-                { role: 'user', content: prompt }
-            ], (p) => { parts.push(p); }, { temperature: 0.2, maxTokens: 1024 });
-            const text = parts.join('');
-            const obj = JSON.parse(text);
-            return obj.solutions || [];
-        }
-    } catch(e) {
-        console.error('LLaMA generateSolutions failed:', e);
     }
     return [];
   }

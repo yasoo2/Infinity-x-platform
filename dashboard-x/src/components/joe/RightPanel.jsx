@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
-import { FiZap, FiTool, FiCheckCircle, FiActivity, FiCpu } from 'react-icons/fi';
+import { FiZap, FiTool, FiCheckCircle, FiActivity } from 'react-icons/fi';
 import apiClient from '../../api/client';
 
 const PlanStep = ({ step, index }) => {
@@ -43,7 +43,6 @@ const RightPanel = ({ isProcessing, plan, forceStatus = false, wsConnected = fal
   const showPlan = !forceStatus && isProcessing && plan && plan.length > 0;
   const [health, setHealth] = useState(null);
   const [runtime, setRuntime] = useState(null);
-  const [ai, setAi] = useState(null);
   const [engine, setEngine] = useState(null);
   const formatUptime = (s) => {
     if (!s && s !== 0) return '';
@@ -76,10 +75,7 @@ const RightPanel = ({ isProcessing, plan, forceStatus = false, wsConnected = fal
         const e = await apiClient.get('/api/v1/engine/status', { signal });
         setEngine(e.data);
       } catch { void 0; }
-      try {
-        const p = await apiClient.get('/api/v1/ai/providers', { signal });
-        setAi(p.data);
-      } catch { void 0; }
+      // Removed providers fetch: state not used in panel
     };
     fetchAll();
     return () => ac.abort();
@@ -132,11 +128,11 @@ const RightPanel = ({ isProcessing, plan, forceStatus = false, wsConnected = fal
 
             <div className="p-4 bg-gray-800/80 rounded-lg border border-gray-700">
               <div className="flex items-center gap-3 mb-2">
-                <FiCpu className="text-blue-500" size={20} />
+                <FiActivity className="text-blue-500" size={20} />
                 <h4 className="font-semibold text-white">AI Engine</h4>
               </div>
               <p className="text-sm text-gray-400">
-                {engine?.ok ? (engine.mode === 'local_llama' ? 'محلي • جاهز' : (engine.mode === 'openai' ? 'OpenAI • نشط' : 'غير معروف')) : (runtime?.success ? `${runtime.mode} • ${runtime.offlineReady ? 'Ready' : 'Not Ready'}` : 'Unknown')}
+                {engine?.ok ? (engine.mode === 'openai' ? 'OpenAI • نشط' : 'غير معروف') : 'غير معروف'}
               </p>
               {runtime?.success && runtime.loading && (
                 <div className="mt-2 text-xs text-blue-400">تحميل: {runtime.stage || 'Starting'} • {runtime.percent || 0}%</div>

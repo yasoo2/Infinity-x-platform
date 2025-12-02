@@ -697,8 +697,8 @@ export const useJoeChat = () => {
           const text = String(d?.response || '').trim();
           if (text) {
             try {
-              const id = state.currentConversationId;
-              const msgs = id ? (state.conversations[id]?.messages || []) : [];
+              const id = stateRef.current.currentConversationId;
+              const msgs = id ? (stateRef.current.conversations[id]?.messages || []) : [];
               const last = msgs.length ? String(msgs[msgs.length - 1]?.content || '') : '';
               if (text !== last) {
                 dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
@@ -967,8 +967,7 @@ export const useJoeChat = () => {
       if (sioRef.current && sioRef.current.connected) {
         let selectedModel = localStorage.getItem('aiSelectedModel');
         if (!selectedModel) {
-          const rt = (typeof window !== 'undefined' && window.__joeRuntimeStatus) ? window.__joeRuntimeStatus : null;
-          selectedModel = (rt && rt.offlineReady && !rt.hasProvider) ? 'offline-local' : 'gpt-4o';
+          selectedModel = 'gpt-4o';
         }
         const lang = getLang();
         const conv = state.conversations[convId] || null;
@@ -1006,8 +1005,7 @@ export const useJoeChat = () => {
       if (ws.current?.readyState === WebSocket.OPEN) {
         let selectedModel = localStorage.getItem('aiSelectedModel');
         if (!selectedModel) {
-          const rt = (typeof window !== 'undefined' && window.__joeRuntimeStatus) ? window.__joeRuntimeStatus : null;
-          selectedModel = (rt && rt.offlineReady && !rt.hasProvider) ? 'offline-local' : 'gpt-4o';
+          selectedModel = 'gpt-4o';
         }
         const lang = getLang();
       const conv = state.conversations[convId] || null;
@@ -1042,8 +1040,7 @@ export const useJoeChat = () => {
       (async () => {
         let selectedModel = localStorage.getItem('aiSelectedModel');
         if (!selectedModel) {
-          const rt = (typeof window !== 'undefined' && window.__joeRuntimeStatus) ? window.__joeRuntimeStatus : null;
-          selectedModel = (rt && rt.offlineReady && !rt.hasProvider) ? 'offline-local' : 'gpt-4o';
+          selectedModel = 'gpt-4o';
         }
         const lang = getLang();
         const conv = state.conversations[convId] || null;

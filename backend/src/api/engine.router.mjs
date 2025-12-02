@@ -1,21 +1,21 @@
 import express from 'express'
-import { localLlamaService } from '../services/llm/local-llama.service.mjs'
+// Local engine removed from Joe system
 
 const engineRouterFactory = ({ optionalAuth }) => {
   const router = express.Router()
   if (optionalAuth) router.use(optionalAuth)
 
   router.get('/status', (req, res) => {
-    const mode = (process.env.AI_ENGINE_MODE || '').toLowerCase() || (process.env.OPENAI_API_KEY ? 'openai' : (localLlamaService.isReady() ? 'local_llama' : 'unknown'))
+    const mode = (process.env.OPENAI_API_KEY ? 'openai' : 'unknown')
     res.json({
       ok: true,
       mode,
-      offlineReady: localLlamaService.isReady(),
-      loading: localLlamaService.loading,
-      stage: localLlamaService.loadingStage,
-      percent: localLlamaService.loadingPercent,
+      offlineReady: false,
+      loading: false,
+      stage: 'disabled',
+      percent: 0,
       hasOpenAI: !!process.env.OPENAI_API_KEY,
-      modelPath: localLlamaService.modelPath || ''
+      modelPath: ''
     })
   })
 
