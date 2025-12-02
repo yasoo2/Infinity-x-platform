@@ -18,7 +18,9 @@ const chatHistoryRouterFactory = ({ optionalAuth, requireRole, db }) => {
   // List sessions
   router.get('/sessions', async (req, res) => {
     try {
-      if (hasDb && req.user?._id) {
+      const u = req.user?._id
+      const isUserObjId = typeof u === 'string' && mongoose.Types.ObjectId.isValid(u)
+      if (hasDb && isUserObjId) {
         const list = await ChatSession.find({ userId: req.user._id }).sort({ lastModified: -1 })
         return res.json({ success: true, sessions: list.map(s => ({ id: s._id.toString(), title: s.title, lastModified: s.lastModified })) })
       }
@@ -33,7 +35,9 @@ const chatHistoryRouterFactory = ({ optionalAuth, requireRole, db }) => {
   router.post('/sessions', requireRole ? requireRole('USER') : (req, _res, next) => next(), async (req, res) => {
     try {
       const title = String(req.body?.title || 'New Conversation')
-      if (hasDb && req.user?._id) {
+      const u = req.user?._id
+      const isUserObjId = typeof u === 'string' && mongoose.Types.ObjectId.isValid(u)
+      if (hasDb && isUserObjId) {
         const s = await ChatSession.create({ userId: req.user._id, title, lastModified: new Date() })
         return res.json({ success: true, session: { _id: s._id.toString(), id: s._id.toString(), title } })
       }
