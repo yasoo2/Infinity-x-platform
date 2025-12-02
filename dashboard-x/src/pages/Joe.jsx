@@ -316,6 +316,10 @@ const JoeContent = () => {
         try { localStorage.setItem('lang', next); } catch { void 0; }
         setLang(next);
         try { window.dispatchEvent(new CustomEvent('joe:lang', { detail: { lang: next } })); } catch { void 0; }
+      } else if (e.key === 'Escape') {
+        setIsSidePanelOpen(false);
+        setIsRightPanelOpen(false);
+        setRobotActive(false);
       }
     };
     window.addEventListener('keydown', onKey);

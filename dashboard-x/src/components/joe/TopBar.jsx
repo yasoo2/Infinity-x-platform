@@ -512,6 +512,16 @@ const AIMenuButton = ({ runtimeMode }) => {
   const [search, setSearch] = React.useState('');
   const [region, setRegion] = React.useState('all');
   const [detailId, setDetailId] = React.useState(null);
+  React.useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        setDetailId(null);
+        setMenuOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   const buttonRef = React.useRef(null);
 
   const loadProviders = async () => {
