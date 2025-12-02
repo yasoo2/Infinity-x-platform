@@ -449,12 +449,25 @@ ${transcript.slice(0, 8000)}`;
         } else {
           try {
             const llm = _dependencies.localLlamaService;
-            const llmMessages = [systemPrompt, ...conversationHistory.map(item => item.command).reverse(), userMessage];
-            const parts = [];
-            await llm.stream(llmMessages, (p) => { parts.push(String(p || '')); }, { temperature: 0.4, maxTokens: 1024 });
-            finalContent = parts.join('');
+            if (!llm?.isReady?.()) {
+              try { llm.startInitialize(); } catch { /* noop */ }
+              const startTs = Date.now();
+              while (Date.now() - startTs < 12000) { // wait up to 12s
+                if (llm.isReady()) break;
+                if (llm.loadingStage === 'missing_model' || llm.loadingStage === 'error') break;
+                await new Promise(res => setTimeout(res, 300));
+              }
+            }
+            if (llm?.isReady?.()) {
+              const llmMessages = [systemPrompt, ...conversationHistory.map(item => item.command).reverse(), userMessage];
+              const parts = [];
+              await llm.stream(llmMessages, (p) => { parts.push(String(p || '')); }, { temperature: 0.4, maxTokens: 1024 });
+              finalContent = parts.join('');
+            } else {
+              finalContent = targetLang === 'ar' ? 'النموذج المحلي غير جاهز حالياً.' : 'Local model is not ready.';
+            }
           } catch {
-            finalContent = targetLang === 'ar' ? 'تعذّر استخدام النموذج المحلي مؤقتاً.' : 'Unable to use local model temporarily.';
+            finalContent = targetLang === 'ar' ? 'تعذّر استخدام النموذج المحلي حالياً.' : 'Unable to use local model temporarily.';
           }
         }
     }

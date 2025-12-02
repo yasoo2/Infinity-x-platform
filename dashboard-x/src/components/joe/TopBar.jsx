@@ -64,6 +64,8 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
     try { return localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'; } catch { return 'en'; }
   });
   const [offlineReady, setOfflineReady] = React.useState(false);
+  const [runtimeStage, setRuntimeStage] = React.useState('');
+  const [runtimePercent, setRuntimePercent] = React.useState(0);
   const [version, setVersion] = React.useState('');
   const [runtimeMode, setRuntimeMode] = React.useState('online');
   
@@ -88,10 +90,14 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
         const { data } = await apiClient.get('/api/v1/runtime-mode/status');
         const offlineReady = Boolean(data?.offlineReady);
         const mode = String(data?.mode || 'online');
+        const stage = String(data?.stage || '');
+        const percent = Number(data?.percent || 0);
         setOfflineReady(offlineReady);
         setRuntimeMode(mode);
+        setRuntimeStage(stage);
+        setRuntimePercent(percent);
         if (data?.version) setVersion(String(data.version));
-        try { window.__joeRuntimeStatus = { offlineReady, mode, hasProvider: Boolean(data?.hasProvider) }; } catch { /* noop */ }
+        try { window.__joeRuntimeStatus = { offlineReady, mode, hasProvider: Boolean(data?.hasProvider), stage, percent }; } catch { /* noop */ }
       } catch (e) { void e; }
     })();
   }, []);
@@ -325,6 +331,8 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
                 try {
                   const { data } = await apiClient.get('/api/v1/runtime-mode/status');
                   setOfflineReady(Boolean(data?.offlineReady));
+                  setRuntimeStage(String(data?.stage || ''));
+                  setRuntimePercent(Number(data?.percent || 0));
                 } catch { void 0 }
               }
               if (offlineReady) {
@@ -335,7 +343,7 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
               }
             } catch { void 0 }
           }}
-          className={`p-1.5 px-2 h-7 inline-flex items-center justify-center rounded-lg transition-colors border ${runtimeMode==='offline' ? 'bg-green-600 text-black hover:bg-green-700 border-green-500/50' : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border-yellow-600/40'}`}
+          className={`p-1.5 px-2 h-7 inline-flex items-center justify-center rounded-lg transition-colors border ${runtimeMode==='offline' && offlineReady && runtimeStage==='done' ? 'bg-green-600 text-black hover:bg-green-700 border-green-500/50' : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border-yellow-600/40'}`}
           title={lang==='ar'?'المحلي':'Local'}
         >
           <FiCpu size={12} />

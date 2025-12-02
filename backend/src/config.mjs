@@ -3,7 +3,7 @@
  * Central Configuration System
  * Manages all environment variables for the application.
  * Ensures that all configurations are loaded from a single, reliable source (.env file).
- * @version 2.0
+ * @version 2.1
  */
 
 import dotenv from 'dotenv';
@@ -17,7 +17,7 @@ const config = {
     NODE_ENV: process.env.NODE_ENV || 'development',
     PORT: process.env.PORT || 8080,
     // System Version
-    VERSION: '2.0',
+    VERSION: '2.1',
 
     // Database Configuration
     // This is the critical part. The application will FAIL if this is not set.

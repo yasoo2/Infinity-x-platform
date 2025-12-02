@@ -696,15 +696,24 @@ export const useJoeChat = () => {
         socket.on('response', (d) => {
           const text = String(d?.response || '').trim();
           if (text) {
-            dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
+            try {
+              const id = state.currentConversationId;
+              const msgs = id ? (state.conversations[id]?.messages || []) : [];
+              const last = msgs.length ? String(msgs[msgs.length - 1]?.content || '') : '';
+              if (text !== last) {
+                dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
+              }
+            } catch { dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } }); }
           }
           dispatch({ type: 'STOP_PROCESSING' });
           dispatch({ type: 'REMOVE_PENDING_LOGS' });
+          try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
           if (syncRef.current) syncRef.current();
         });
         socket.on('task_complete', () => {
           dispatch({ type: 'STOP_PROCESSING' });
           dispatch({ type: 'REMOVE_PENDING_LOGS' });
+          try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
           if (syncRef.current) syncRef.current();
         });
         socket.on('session_updated', () => { if (syncRef.current) syncRef.current(); });
@@ -712,6 +721,7 @@ export const useJoeChat = () => {
           const msg = typeof e === 'string' ? e : (e?.message || 'ERROR');
           dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `[ERROR]: ${msg}` } });
           dispatch({ type: 'STOP_PROCESSING' });
+          try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
         });
         sioRef.current = socket;
         const useWs = (() => { try { return localStorage.getItem('joeUseWS') === 'true'; } catch { return false; } })();
@@ -970,7 +980,14 @@ export const useJoeChat = () => {
             const { data } = await apiClient.post('/api/v1/joe/execute', { instruction: inputText, context: { sessionId: sidToUse, lang, model: selectedModel } });
             const text = String(data?.response || data?.message || '').trim();
             if (text) {
-              dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
+              try {
+                const id = sidToUse;
+                const msgs = id ? (state.conversations[id]?.messages || []) : [];
+                const last = msgs.length ? String(msgs[msgs.length - 1]?.content || '') : '';
+                if (text !== last) {
+                  dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
+                }
+              } catch { dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } }); }
               try {
                 const r = await getChatMessages(sidToUse);
                 const exists = (r?.messages || []).some(m => String(m?.content || '') === text && m?.type !== 'user');
