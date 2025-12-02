@@ -179,18 +179,11 @@ The self-correction mechanism has been activated. A detailed, multi-step plan ha
         const start = Date.now();
         const os = await import('os');
         const { getConfig } = await import('../services/ai/runtime-config.mjs');
-        let localLlamaService = null;
-        try { const mod = await import('../services/llm/local-llama.service.mjs'); localLlamaService = mod?.localLlamaService || null; } catch { localLlamaService = null; }
         const cfg = getConfig();
         const toolsCount = Array.isArray(tm?.getToolSchemas?.()) ? tm.getToolSchemas().length : 0;
         const envChecks = ['NODE_ENV','MONGO_URI','OPENAI_API_KEY','REDIS_URL','JWT_SECRET'];
         const missingEnv = envChecks.filter(k => !process.env[k]);
-        const llama = {
-            ready: !!(localLlamaService && typeof localLlamaService.isReady === 'function' && localLlamaService.isReady()),
-            stage: localLlamaService?.loadingStage || 'missing',
-            percent: localLlamaService?.loadingPercent || 0,
-            modelPathExists: !!(localLlamaService?.modelPath && require('fs').existsSync(localLlamaService.modelPath))
-        };
+        const llama = { ready: false, stage: 'disabled', percent: 0, modelPathExists: false };
         const health = {
             uptime: process.uptime(),
             loadavg: os.loadavg(),
@@ -207,9 +200,7 @@ The self-correction mechanism has been activated. A detailed, multi-step plan ha
             try { autoFixResult = await tm.execute('autoFix', {}); } catch { autoFixResult = null; }
         }
         const recommendations = [];
-        if (!llama.ready && llama.stage === 'missing_model') {
-            recommendations.push(lang==='ar' ? 'أضف ملف النموذج إلى المسار backend/models/llama.gguf لتمكين الوضع المحلي.' : 'Place model file at backend/models/llama.gguf to enable offline mode.');
-        }
+        // Local model disabled by design
         if (missingEnv.includes('JWT_SECRET')) {
             recommendations.push(lang==='ar' ? 'اضبط متغير البيئة JWT_SECRET بقيمة آمنة.' : 'Set a secure JWT_SECRET environment variable.');
         }
