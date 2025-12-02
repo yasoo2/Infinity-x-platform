@@ -152,20 +152,24 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   useEffect(() => {
     let active = true;
     let attempts = 0;
+    const controller = new AbortController();
     const fetchOnce = async () => {
       try {
-        const status = await getSystemStatus();
+        const status = await getSystemStatus({ signal: controller.signal });
         const cnt = Number(status?.toolsCount || 0);
         if (!Number.isNaN(cnt)) {
           setToolsCount(cnt);
           if (cnt > 0) return;
         }
-      } catch { void 0; }
+      } catch (err) {
+        const m = String(err?.message || '');
+        if (/canceled|abort(ed)?/i.test(m)) return;
+      }
       attempts++;
       if (active && attempts < 5) setTimeout(fetchOnce, 1500);
     };
     fetchOnce();
-    return () => { active = false; };
+    return () => { active = false; try { controller.abort(); } catch { /* ignore */ } };
   }, []);
 
   useEffect(() => {
