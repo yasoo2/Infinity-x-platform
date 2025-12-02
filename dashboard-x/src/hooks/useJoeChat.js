@@ -932,12 +932,12 @@ export const useJoeChat = () => {
         ws.current.send(JSON.stringify({ action: 'instruct', message: inputText, sessionId: sidToUse, model: selectedModel, lang }));
         return;
       }
-      if (attempt < 6) {
+      if (attempt < 12) {
         setTimeout(() => trySend(attempt + 1), 500);
         return;
       }
       const lang = getLang();
-      const msg = lang === 'ar' ? 'اتصال WebSocket غير متاح حالياً، جارِ إعادة الاتصال بالخادم...' : 'WebSocket is not connected yet. Reconnecting...';
+      const msg = lang === 'ar' ? 'الاتصال غير متاح حالياً، جارِ إعادة الاتصال بالخادم...' : 'Connection is not available yet. Reconnecting...';
       dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: msg } });
       dispatch({ type: 'STOP_PROCESSING' });
     };
