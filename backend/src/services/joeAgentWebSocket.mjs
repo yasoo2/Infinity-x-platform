@@ -57,7 +57,7 @@ export class JoeAgentWebSocketServer {
         console.log(`[JoeAgentV2] Handshake: UA=${ua || 'N/A'} EXT=${ext || 'N/A'} PROTO=${proto || 'N/A'} ORIGIN=${origin || 'N/A'} PATH=${req.url}`);
         if (origin) {
           const envOrigins = String(process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
-          const defaults = ['localhost', '.onrender.com', 'xelitesolutions.com', 'www.xelitesolutions.com'];
+          const defaults = ['localhost', '127.0.0.1', '::1', '.onrender.com', 'xelitesolutions.com', 'www.xelitesolutions.com'];
           const allowedHosts = envOrigins.length ? envOrigins : defaults;
           const u = new URL(origin);
           const host = u.host || '';

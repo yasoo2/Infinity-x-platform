@@ -636,6 +636,11 @@ export const useJoeChat = () => {
           dispatch({ type: 'STOP_PROCESSING' });
           dispatch({ type: 'ADD_WS_LOG', payload: `[SIO] Disconnected: ${String(reason||'')}` });
         });
+        socket.on('connect_error', (err) => {
+          dispatch({ type: 'SET_WS_CONNECTED', payload: false });
+          const msg = typeof err?.message === 'string' ? err.message : 'CONNECT_ERROR';
+          dispatch({ type: 'ADD_WS_LOG', payload: `[SIO] Connect error: ${msg}` });
+        });
         socket.on('status', (d) => { dispatch({ type: 'ADD_WS_LOG', payload: `[SIO] ${JSON.stringify(d)}` }); });
         socket.on('stream', (d) => { if (typeof d?.content === 'string') { dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: d.content } }); } });
         socket.on('progress', (d) => { const p = Number(d?.progress || d?.pct || 0); const step = d?.step || d?.status || ''; dispatch({ type: 'SET_PROGRESS', payload: { progress: p, step } }); });
