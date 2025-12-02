@@ -14,7 +14,7 @@ const runtimeModeRouterFactory = ({ optionalAuth }) => {
     if (!hasProvider && !localLlamaService.isReady() && !localLlamaService.loading) {
       try { localLlamaService.startInitialize(); } catch { /* ignore */ }
     }
-    res.json({ success: true, mode: getMode(), offlineReady: localLlamaService.isReady(), loading: localLlamaService.loading, stage: localLlamaService.loadingStage, percent: localLlamaService.loadingPercent, version: config.VERSION, hasProvider })
+    res.json({ success: true, mode: getMode(), offlineReady: localLlamaService.isReady(), loading: localLlamaService.loading, stage: localLlamaService.loadingStage, percent: localLlamaService.loadingPercent, version: config.VERSION, hasProvider, modelPath: localLlamaService.modelPath })
   })
 
   router.post('/toggle', (req, res) => {

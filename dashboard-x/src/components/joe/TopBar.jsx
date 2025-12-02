@@ -92,12 +92,13 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
         const mode = String(data?.mode || 'online');
         const stage = String(data?.stage || '');
         const percent = Number(data?.percent || 0);
+        const modelPath = String(data?.modelPath || '');
         setOfflineReady(offlineReady);
         setRuntimeMode(mode);
         setRuntimeStage(stage);
         setRuntimePercent(percent);
         if (data?.version) setVersion(String(data.version));
-        try { window.__joeRuntimeStatus = { offlineReady, mode, hasProvider: Boolean(data?.hasProvider), stage, percent }; } catch { /* noop */ }
+        try { window.__joeRuntimeStatus = { offlineReady, mode, hasProvider: Boolean(data?.hasProvider), stage, percent, modelPath }; } catch { /* noop */ }
       } catch (e) { void e; }
     })();
   }, []);
@@ -361,7 +362,15 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
             } catch { void 0 }
           }}
           className={`p-1.5 px-2 h-7 inline-flex items-center justify-center rounded-lg transition-colors border ${runtimeMode==='offline' && offlineReady && runtimeStage==='done' ? 'bg-green-600 text-black hover:bg-green-700 border-green-500/50' : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border-yellow-600/40'}`}
-          title={lang==='ar'? (offlineReady ? 'المحلي جاهز' : `تحميل النموذج المحلي ${runtimePercent}%`) : (offlineReady ? 'Local ready' : `Loading local model ${runtimePercent}%`)}
+          title={(function(){
+            if (lang==='ar') {
+              if (!offlineReady && runtimeStage==='missing_model') return `المسار غير موجود: ${String(window.__joeRuntimeStatus?.modelPath||'')}`;
+              return offlineReady ? 'المحلي جاهز' : `تحميل النموذج المحلي ${runtimePercent}%`;
+            } else {
+              if (!offlineReady && runtimeStage==='missing_model') return `Model path missing: ${String(window.__joeRuntimeStatus?.modelPath||'')}`;
+              return offlineReady ? 'Local ready' : `Loading local model ${runtimePercent}%`;
+            }
+          })()}
         >
           <FiCpu size={12} />
           <span className="ml-1 text-[11px] font-semibold">Joe Ai</span>
