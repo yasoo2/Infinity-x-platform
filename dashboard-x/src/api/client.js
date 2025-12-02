@@ -48,12 +48,16 @@
   // Request interceptor: attach session token and correct headers
   apiClient.interceptors.request.use(
     (config) => {
-      const token = localStorage.getItem('sessionToken');
+      const urlPath = String(config.url || '');
+      const skipAuth = urlPath === '/api/v1/runtime-mode/status' || urlPath === '/api/v1/integration/health' || urlPath === '/api/v1/health';
+      const token = skipAuth ? null : localStorage.getItem('sessionToken');
       if (token) {
         config.headers['Authorization'] = `Bearer ${token}`;
+      } else if (skipAuth && config.headers && 'Authorization' in config.headers) {
+        try { delete config.headers['Authorization']; } catch { /* noop */ }
       }
       // Let axios set JSON content-type; ensure we don't override FormData headers
-      if (!isFormData(config.data) && !config.headers['Content-Type']) {
+      if (!isFormData(config.data) && !config.headers['Content-Type'] && (config.method || 'GET').toUpperCase() !== 'GET') {
         // axios will set to application/json automatically; explicit is fine too:
         config.headers['Content-Type'] = 'application/json';
       }
