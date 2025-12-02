@@ -34,7 +34,7 @@ const aiRouterFactory = ({ optionalAuth }) => {
           // Prefer a minimal completion call instead of listing models (which requires api.model.read scope)
           const ping = await client.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: 'ping' }] })
           const ok = !!ping?.id
-          if (!ok) return res.status(400).json({ success: false, error: 'OPENAI_VERIFY_FAILED' })
+          if (!ok) return res.status(400).json({ success: false, error: 'OPENAI_VERIFY_FAILED', code: 'OPENAI_VERIFY_FAILED' })
           setKey('openai', apiKey)
           return res.json({ success: true, provider: 'openai', models: ['gpt-4o', 'gpt-4o-mini'] })
         } catch (e) {
@@ -47,8 +47,12 @@ const aiRouterFactory = ({ optionalAuth }) => {
             setKey('openai', apiKey)
             return res.json({ success: true, provider: 'openai', models: ['gpt-4o', 'gpt-4o-mini'] })
           } catch (e2) {
-            const msg = e2?.message || e?.message || 'OPENAI_VERIFY_FAILED'
-            return res.status(400).json({ success: false, error: msg })
+            const m = e2?.message || e?.message || ''
+            const insufficient = /insufficient permissions|missing scopes|scope/i.test(m)
+            if (insufficient) {
+              return res.status(401).json({ success: false, error: 'INSUFFICIENT_SCOPES', code: 'INSUFFICIENT_SCOPES', message: 'The API key lacks required scope (model.request). Create a non-restricted key or adjust organization/project roles.' })
+            }
+            return res.status(400).json({ success: false, error: 'OPENAI_VERIFY_FAILED', code: 'OPENAI_VERIFY_FAILED', message: m || 'OPENAI_VERIFY_FAILED' })
           }
         }
       }
@@ -60,12 +64,16 @@ const aiRouterFactory = ({ optionalAuth }) => {
           // Minimal content generation to verify key validity without listing models
           const resp = await model.generateContent({ contents: [{ role: 'user', parts: [{ text: 'ping' }] }] }).catch(() => null)
           const ok = !!resp
-          if (!ok) return res.status(400).json({ success: false, error: 'GEMINI_VERIFY_FAILED' })
+          if (!ok) return res.status(400).json({ success: false, error: 'GEMINI_VERIFY_FAILED', code: 'GEMINI_VERIFY_FAILED' })
           setKey('gemini', apiKey)
           return res.json({ success: true, provider: 'gemini', models: ['gemini-1.5-pro-latest'] })
         } catch (e) {
-          const msg = e?.message || 'GEMINI_VERIFY_FAILED'
-          return res.status(400).json({ success: false, error: msg })
+          const m = e?.message || ''
+          const insufficient = /insufficient permissions|missing scopes|scope/i.test(m)
+          if (insufficient) {
+            return res.status(401).json({ success: false, error: 'INSUFFICIENT_SCOPES', code: 'INSUFFICIENT_SCOPES', message: 'The API key lacks required scope. Ensure the key allows model requests and your role has sufficient permissions.' })
+          }
+          return res.status(400).json({ success: false, error: 'GEMINI_VERIFY_FAILED', code: 'GEMINI_VERIFY_FAILED', message: m || 'GEMINI_VERIFY_FAILED' })
         }
       }
 

@@ -542,8 +542,12 @@ const AIMenuButton = ({ runtimeMode }) => {
       setValidationError(e => ({ ...e, [id]: '' }));
     } catch (err) {
       setValid(v => ({ ...v, [id]: false }));
+      const code = err?.code;
       const details = err?.details;
-      const msg = (details && (details.message || details.error)) || err?.message || 'فشل التحقق من المفتاح';
+      let msg = (details && (details.message || details.error)) || err?.message || 'فشل التحقق من المفتاح';
+      if (code === 'INSUFFICIENT_SCOPES') {
+        msg = 'المفتاح مقيّد ولا يملك صلاحية model.request. أنشئ مفتاحًا غير مقيّد أو عدّل صلاحيات الحساب/المشروع.';
+      }
       setValidationError(e => ({ ...e, [id]: String(msg) }));
     }
     finally { setLoading(false); }

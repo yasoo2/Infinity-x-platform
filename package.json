@@ -7,7 +7,9 @@
     "start": "node backend/server.mjs",
     "dev": "nodemon backend/server.mjs --watch backend --ext mjs,json",
     "lint": "eslint --ignore-pattern backend/src/systems/code-review.service.mjs backend/src dashboard-x/src",
-    "deploy:prod:backend": "if [ -z \"$RENDER_API_KEY\" ] || [ -z \"$RENDER_SERVICE_ID\" ]; then echo 'Missing RENDER_API_KEY or RENDER_SERVICE_ID'; exit 1; else curl -s -X POST -H \"Authorization: Bearer $RENDER_API_KEY\" https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys | jq .; fi"
+    "deploy:prod:backend": "if [ -z \"$RENDER_API_KEY\" ] || [ -z \"$RENDER_SERVICE_ID\" ]; then echo 'Missing RENDER_API_KEY or RENDER_SERVICE_ID'; exit 1; else curl -s -X POST -H \"Authorization: Bearer $RENDER_API_KEY\" https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys | jq .; fi",
+    "prepare": "husky",
+    "auto-push": "node scripts/auto-push.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -41,12 +43,14 @@
     "@types/react": "^19.2.6",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
+    "chokidar": "^5.0.0",
     "eslint": "^9.39.1",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
+    "husky": "^9.1.7",
     "nodemon": "^3.1.0",
     "socket.io-client": "^4.8.1",
     "terser": "^5.31.0",
