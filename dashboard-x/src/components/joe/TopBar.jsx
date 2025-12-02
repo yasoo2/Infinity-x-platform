@@ -514,20 +514,27 @@ const AIMenuButton = ({ runtimeMode }) => {
   const [detailId, setDetailId] = React.useState(null);
   const buttonRef = React.useRef(null);
 
+  const providersAbortRef = React.useRef(null);
   const loadProviders = async () => {
     setLoading(true);
     try {
-      const data = await getAIProviders();
+      if (providersAbortRef.current) { try { providersAbortRef.current.abort(); } catch { /* ignore */ } }
+      const controller = new AbortController();
+      providersAbortRef.current = controller;
+      const data = await getAIProviders({ signal: controller.signal });
       const list = data.providers && data.providers.length ? data.providers : DEFAULT_AI_PROVIDERS;
       setProviders(list);
       setActive({ provider: data.activeProvider, model: data.activeModel });
-    } catch {
-      setProviders(DEFAULT_AI_PROVIDERS);
+    } catch (err) {
+      const m = String(err?.message || '');
+      if (/canceled|abort(ed)?/i.test(m)) { /* silent on cancel */ }
+      else { setProviders(DEFAULT_AI_PROVIDERS); }
     } finally { setLoading(false); }
   };
 
   React.useEffect(() => {
     if (menuOpen) loadProviders();
+    return () => { try { providersAbortRef.current?.abort(); } catch { /* ignore */ } };
   }, [menuOpen]);
 
   const filtered = providers.filter(p => {

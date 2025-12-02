@@ -389,9 +389,13 @@ export const useJoeChat = () => {
   const handleNewConversation = useCallback(async (selectNew = true) => {
     let toolsCount = 0;
     try {
-      const status = await getSystemStatus();
+      const controller = new AbortController();
+      const status = await getSystemStatus({ signal: controller.signal });
       toolsCount = Number(status?.toolsCount || 0);
-    } catch { toolsCount = 0; }
+    } catch (err) {
+      const m = String(err?.message || '');
+      if (/canceled|abort(ed)?/i.test(m)) { /* ignore */ } else { toolsCount = 0; }
+    }
     const lang = getLang();
     const en = `Welcome to Joe AI Assistant! 👋\n\nYour AI-powered engineering partner with ${toolsCount} tools and functions.\n\nI can help you with:\n💬 Chat & Ask - Get instant answers and explanations\n🛠️ Build & Create - Generate projects and applications\n🔍 Analyze & Process - Work with data and generate insights\n\nStart by typing an instruction below, attaching a file, or using your voice.`;
     const ar = `مرحبًا بك في مساعد جو الذكي! 👋\n\nشريكك الهندسي المدعوم بالذكاء مع ${toolsCount} أداة ووظيفة.\n\nأستطيع مساعدتك في:\n💬 المحادثة والسؤال - إجابات وشروحات فورية\n🛠️ البناء والإنشاء - توليد مشاريع وتطبيقات\n🔍 التحليل والمعالجة - العمل مع البيانات وتوليد رؤى\n\nابدأ بكتابة تعليماتك أدناه أو إرفاق ملف أو استخدام الصوت.`;
@@ -488,6 +492,9 @@ export const useJoeChat = () => {
           if (!notFound) {
             console.warn('syncBackendSessions detail fetch error:', err);
           }
+          if (notFound && sess?.id) {
+            try { delete convs[sess.id]; } catch { /* ignore */ }
+          }
           continue;
         }
       }
@@ -502,7 +509,10 @@ export const useJoeChat = () => {
       if (e?.code === 'ERR_CANCELED' || /canceled|abort(ed)?/i.test(String(e?.message || ''))) {
         return;
       }
-      if (e?.status !== 403) {
+      const status = e?.status ?? e?.response?.status;
+      const code = e?.code ?? e?.response?.data?.code;
+      const notFound = status === 404 || String(e?.details?.error || code || '').toUpperCase() === 'NOT_FOUND';
+      if (e?.status !== 403 && !notFound) {
         console.warn('syncBackendSessions error:', e);
       }
     } finally {
@@ -619,6 +629,36 @@ export const useJoeChat = () => {
           dispatch({ type: 'SET_WS_CONNECTED', payload: false });
           dispatch({ type: 'STOP_PROCESSING' });
           dispatch({ type: 'ADD_WS_LOG', payload: `[SIO] Disconnected: ${String(reason||'')}` });
+        });
+        socket.on('connect_error', async (err) => {
+          const msg = String(err?.message || 'connect_error');
+          dispatch({ type: 'ADD_WS_LOG', payload: `[SIO] Connect error: ${msg}` });
+          if (/INVALID_TOKEN|NO_TOKEN/i.test(msg)) {
+            try { localStorage.removeItem('sessionToken'); } catch { /* noop */ }
+            try {
+              const r = await getGuestToken();
+              if ((r?.ok || r?.success) && r?.token) {
+                try { localStorage.setItem('sessionToken', r.token); } catch { /* noop */ }
+                socket.auth = { token: r.token };
+                try { socket.connect(); } catch { /* noop */ }
+              }
+            } catch { /* noop */ }
+          }
+        });
+        socket.on('error', async (err) => {
+          const msg = typeof err === 'string' ? err : String(err?.message || 'error');
+          dispatch({ type: 'ADD_WS_LOG', payload: `[SIO] Error: ${msg}` });
+          if (/INVALID_TOKEN|NO_TOKEN/i.test(msg)) {
+            try { localStorage.removeItem('sessionToken'); } catch { /* noop */ }
+            try {
+              const r = await getGuestToken();
+              if ((r?.ok || r?.success) && r?.token) {
+                try { localStorage.setItem('sessionToken', r.token); } catch { /* noop */ }
+                socket.auth = { token: r.token };
+                try { socket.connect(); } catch { /* noop */ }
+              }
+            } catch { /* noop */ }
+          }
         });
         socket.on('status', (d) => { dispatch({ type: 'ADD_WS_LOG', payload: `[SIO] ${JSON.stringify(d)}` }); });
         socket.on('stream', (d) => { if (typeof d?.content === 'string') { dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: d.content } }); } });

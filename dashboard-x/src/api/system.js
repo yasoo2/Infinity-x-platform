@@ -128,8 +128,8 @@ export const withAbort = () => {
   };
 
   // AI Providers Management
-export const getAIProviders = () =>
-    call(() => apiClient.get(v1('/ai/providers')));
+export const getAIProviders = (opts) =>
+    call(() => apiClient.get(v1('/ai/providers'), { signal: opts?.signal }));
 
 export const validateAIKey = (provider, apiKey) =>
     call(() => apiClient.post(v1('/ai/validate'), { provider, apiKey }));
