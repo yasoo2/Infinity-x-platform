@@ -696,6 +696,16 @@ export const useJoeChat = () => {
             return;
           }
           dispatch({ type: 'ADD_WS_LOG', payload: `[SIO] Connect error: ${msg}` });
+          // If production and SIO keeps failing, fall back to native WebSocket automatically
+          try {
+            const h = window.location.hostname;
+            const isProd = h && !(/localhost|127\.0\.0\.1/.test(h));
+            if (isProd) {
+              try { localStorage.setItem('joeUseWS', 'true'); } catch { /* noop */ }
+              // Trigger WS path
+              try { if (ws.current && ws.current.readyState !== WebSocket.CLOSED) { ws.current.close(); } } catch { /* noop */ }
+            }
+          } catch { /* noop */ }
           if (/INVALID_TOKEN|NO_TOKEN/i.test(msg)) {
             try { localStorage.removeItem('sessionToken'); } catch { /* noop */ }
             try {
