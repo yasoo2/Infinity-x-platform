@@ -542,8 +542,9 @@ const AIMenuButton = ({ runtimeMode }) => {
       setValidationError(e => ({ ...e, [id]: '' }));
     } catch (err) {
       setValid(v => ({ ...v, [id]: false }));
-      const msg = (err && err.message) ? err.message : 'فشل التحقق من المفتاح';
-      setValidationError(e => ({ ...e, [id]: msg }));
+      const details = err?.details;
+      const msg = (details && (details.message || details.error)) || err?.message || 'فشل التحقق من المفتاح';
+      setValidationError(e => ({ ...e, [id]: String(msg) }));
     }
     finally { setLoading(false); }
   }, [keys]);
@@ -561,8 +562,9 @@ const AIMenuButton = ({ runtimeMode }) => {
         try { window.dispatchEvent(new CustomEvent('joe:runtime', { detail: { mode } })); } catch { void 0; }
       } catch (err2) { void err2; }
     } catch (err) {
-      const msg = (err && err.message) ? err.message : 'فشل تفعيل المزود';
-      setActivationError(e => ({ ...e, [id]: msg }));
+      const details = err?.details;
+      const msg = (details && (details.message || details.error)) || err?.message || 'فشل تفعيل المزود';
+      setActivationError(e => ({ ...e, [id]: String(msg) }));
     }
     finally { setLoading(false); }
   };
