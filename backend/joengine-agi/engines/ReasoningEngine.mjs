@@ -4,15 +4,22 @@
  */
 
 import { OpenAI } from 'openai';
+import { localLlamaService } from '../../src/services/llm/local-llama.service.mjs'
 
 export class ReasoningEngine {
     constructor(config = {}) {
-        if (!config.openaiApiKey) {
-            throw new Error('OpenAI API key is required for the ReasoningEngine.');
+        this.availableTools = config.availableTools || [];
+        this.model = 'gpt-4o';
+        try {
+            if (config.openaiApiKey) {
+                this.openai = new OpenAI({ apiKey: config.openaiApiKey });
+            } else {
+                this.openai = null;
+            }
+        } catch {
+            this.openai = null;
         }
-        this.openai = new OpenAI({ apiKey: config.openaiApiKey });
-        this.model = 'gpt-4o'; 
-        this.availableTools = config.availableTools || []; 
+        try { if (!localLlamaService.isReady()) localLlamaService.startInitialize(); } catch { /* noop */ }
     }
 
     /**
@@ -70,30 +77,42 @@ ${this.availableTools.map(tool => `- **${tool.name}**: ${tool.description}`).joi
 \`\`\`
 `;
 
+        const messages = [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: `URGENT: Create a plan for this request: "${userRequest}"` }
+        ];
+
         try {
-            const response = await this.openai.chat.completions.create({
-                model: this.model,
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: `URGENT: Create a plan for this request: "${userRequest}"` }
-                ],
-                response_format: { type: 'json_object' },
-                temperature: 0.1, 
-            });
-
-            const planJson = response.choices[0].message.content;
-            const plan = JSON.parse(planJson);
-
-            console.log('✅ Execution plan generated successfully.');
-            return { success: true, plan: plan.plan };
-
+            if (localLlamaService.isReady()) {
+                const parts = [];
+                await localLlamaService.stream(messages, (piece) => { parts.push(piece); }, { temperature: 0.1, maxTokens: 1024 });
+                const text = parts.join('').trim();
+                const plan = JSON.parse(text);
+                console.log('✅ Execution plan generated successfully.');
+                return { success: true, plan: plan.plan };
+            }
         } catch (error) {
-            console.error(`❌ Error in Reasoning Engine while creating plan: ${error.message}`);
-            return {
-                success: false,
-                error: `Failed to create a plan: ${error.message}`
-            };
+            console.error(`❌ LLaMA planning failed: ${error.message}`);
         }
+
+        try {
+            if (this.openai) {
+                const response = await this.openai.chat.completions.create({
+                    model: this.model,
+                    messages,
+                    response_format: { type: 'json_object' },
+                    temperature: 0.1
+                });
+                const planJson = response.choices[0].message.content;
+                const plan = JSON.parse(planJson);
+                console.log('✅ Execution plan generated successfully.');
+                return { success: true, plan: plan.plan };
+            }
+        } catch (error) {
+            console.error(`❌ OpenAI planning failed: ${error.message}`);
+        }
+
+        return { success: false, error: 'No AI provider available for planning.' };
     }
 }
 

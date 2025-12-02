@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { localLlamaService } from '../services/llm/local-llama.service.mjs'
 import toolManager from '../services/tools/tool-manager.service.mjs';
 
 let openai;
@@ -54,9 +55,8 @@ class AgentTeam {
   }
 
   async analyzeAndPlan(instruction, streamUpdate) {
-    if (!this.llm) {
-      streamUpdate({ type: 'error', message: 'Planner is disabled. OpenAI is not configured.' });
-      throw new Error('OpenAI is not configured. Please set the OPENAI_API_KEY.');
+    if (!this.llm && !localLlamaService.isReady()) {
+      try { localLlamaService.startInitialize(); } catch { /* noop */ }
     }
     const availableTools = toolManager.getToolSchemas();
     streamUpdate({ type: 'status', message: '🧠 Planner received instruction. Analyzing...' });
@@ -97,24 +97,37 @@ class AgentTeam {
 
     try {
       streamUpdate({ type: 'thought', message: 'Planner is thinking and constructing the plan...' });
-      
-      const response = await this.llm.chat.completions.create({
-        model: "gpt-4-turbo-preview",
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" },
-      });
-
-      const planJson = response.choices[0].message.content;
-      streamUpdate({ type: 'status', message: '✅ Plan created successfully.' });
-      
-      const plan = JSON.parse(planJson);
-      return plan;
-
+      if (this.llm) {
+        const response = await this.llm.chat.completions.create({
+          model: "gpt-4-turbo-preview",
+          messages: [{ role: "user", content: prompt }],
+          response_format: { type: "json_object" }
+        });
+        const planJson = response.choices[0].message.content;
+        streamUpdate({ type: 'status', message: '✅ Plan created successfully.' });
+        const plan = JSON.parse(planJson);
+        return plan;
+      }
     } catch (error) {
-      console.error('[Planner] Failed to create plan:', error);
-      streamUpdate({ type: 'error', message: `Planner failed: ${error.message}` });
-      return null;
+      console.error('[Planner] OpenAI planning failed:', error);
     }
+    try {
+      if (localLlamaService.isReady()) {
+        const parts = [];
+        await localLlamaService.stream([
+          { role: 'system', content: 'Respond with a JSON plan with steps.' },
+          { role: 'user', content: prompt }
+        ], (p) => { parts.push(p); }, { temperature: 0.2, maxTokens: 1024 });
+        const text = parts.join('');
+        const plan = JSON.parse(text);
+        streamUpdate({ type: 'status', message: '✅ Plan created successfully.' });
+        return plan;
+      }
+    } catch (error) {
+      console.error('[Planner] LLaMA planning failed:', error);
+    }
+    streamUpdate({ type: 'error', message: 'Planner failed: No AI provider available.' });
+    return null;
   }
 
   async executeTask(task) {
