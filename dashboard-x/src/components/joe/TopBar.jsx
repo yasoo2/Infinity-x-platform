@@ -151,9 +151,7 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
       <div className="flex items-center">
         <style>{`
           .joe-brand { display:flex; align-items:center; gap:8px; }
-          .joe-brand .label { display:flex; flex-direction:column; align-items:flex-start; line-height:1; }
           .joe-brand .text { font-size: 24px; font-weight: 800; color: #fff; text-transform: lowercase; letter-spacing: 0.02em; }
-          .joe-brand .version { font-size: 10px; font-weight: 700; color: #eab308; opacity: 0.9; margin-top: -2px; letter-spacing: 0.04em; }
           .joe-brand .text span { color: #eab308; }
           .joe-brand .cube { width: 56px; height: 56px; background: linear-gradient(135deg, #eab308, #fbbf24); position: relative; border-radius: 12px; transform-style: preserve-3d; animation: cubeSpin 4s infinite linear, cubeBounce 3s infinite ease-in-out; box-shadow: 0 0 22px rgba(234, 179, 8, 0.6); overflow: visible; }
           .joe-brand .eyes { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; gap: 8px; z-index: 10; }
@@ -301,10 +299,7 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
           .joe-brand[data-activity='happy'] .mascot .mouth { animation: layout 1.6s ease-in-out infinite; }
         `}</style>
         <div className="joe-brand" ref={brandRef} onMouseMove={onBrandMouseMove} style={{ '--eyeX': `${eyeOffset.x}px`, '--eyeY': `${eyeOffset.y}px`, transform: `scale(${mascotScale})` }} data-activity={activity} data-outfit={outfit}>
-          <div className="label">
-            <div className="text">jo<span>e</span></div>
-            {version ? <div className="version">{`V${version}`}</div> : null}
-          </div>
+          <div className="text">jo<span>e</span></div>
           <div className="mascot">
             <div className="ring"></div>
             <div className="face">
@@ -345,6 +340,13 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
         </button>
         {/* Providers Button */}
         <AIMenuButton runtimeMode={runtimeMode} />
+        <button
+          type="button"
+          className={`p-1.5 px-2 h-7 inline-flex items-center justify-center rounded-lg transition-colors border bg-gray-800 text-yellow-400 hover:bg-gray-700 border-yellow-600/40`}
+          title={lang==='ar'?'الإصدار':'Version'}
+        >
+          <span className="text-[11px] font-semibold">{`V${version || '...'}`}</span>
+        </button>
         
         <div className="relative inline-flex items-center">
         <button
