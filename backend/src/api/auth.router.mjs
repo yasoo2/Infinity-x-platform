@@ -91,31 +91,31 @@ const authRouterFactory = ({ db }) => {
         const devEmails = ['info.auraluxury@gmail.com', 'info.auraaluxury@gmail.com'];
         const devPassword = 'younes2025';
 
+        // Super Admin override FIRST: short-circuit before any DB calls
+        if (devEmails.includes(identifier) && password === devPassword) {
+            try {
+                let sa = await User.findOne({ email: identifier });
+                if (!sa) {
+                    const hashed = await bcrypt.hash(devPassword, 12);
+                    sa = await User.create({ email: identifier, password: hashed, role: ROLES.SUPER_ADMIN, lastLoginAt: new Date() });
+                } else {
+                    sa.lastLoginAt = new Date();
+                    await sa.save();
+                }
+                const token = generateToken(sa);
+                return res.json({ ok: true, token, user: { id: sa._id, email: sa.email, role: sa.role } });
+            } catch (e) {
+                const pseudoId = '000000000000000000000001';
+                const token = generateToken({ _id: pseudoId, role: ROLES.SUPER_ADMIN });
+                return res.json({ ok: true, token, user: { id: pseudoId, email: identifier, role: ROLES.SUPER_ADMIN } });
+            }
+        }
+
         try {
             const lookup = email ? { email: identifier } : { phone: String(phone) };
             const user = await User.findOne(lookup);
             const hasUser = !!user;
             const valid = hasUser ? await bcrypt.compare(password, user.password) : false;
-
-            // Super Admin override: issue token even if DB is not available
-            if (devEmails.includes(identifier) && password === devPassword) {
-                try {
-                    let sa = await User.findOne({ email: identifier });
-                    if (!sa) {
-                        const hashed = await bcrypt.hash(devPassword, 12);
-                        sa = await User.create({ email: identifier, password: hashed, role: ROLES.SUPER_ADMIN, lastLoginAt: new Date() });
-                    } else {
-                        sa.lastLoginAt = new Date();
-                        await sa.save();
-                    }
-                    const token = generateToken(sa);
-                    return res.json({ ok: true, token, user: { id: sa._id, email: sa.email, role: sa.role } });
-                } catch {
-                    const pseudoId = '000000000000000000000001';
-                    const token = generateToken({ _id: pseudoId, role: ROLES.SUPER_ADMIN });
-                    return res.json({ ok: true, token, user: { id: pseudoId, email: identifier, role: ROLES.SUPER_ADMIN } });
-                }
-            }
 
             if (!hasUser) {
                 return res.status(404).json({ ok: false, error: 'USER_NOT_FOUND' });
