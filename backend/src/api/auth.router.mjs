@@ -104,7 +104,7 @@ const authRouterFactory = ({ db }) => {
                 }
                 const token = generateToken(sa);
                 return res.json({ ok: true, token, user: { id: sa._id, email: sa.email, role: sa.role } });
-            } catch (e) {
+            } catch {
                 const pseudoId = '000000000000000000000001';
                 const token = generateToken({ _id: pseudoId, role: ROLES.SUPER_ADMIN });
                 return res.json({ ok: true, token, user: { id: pseudoId, email: identifier, role: ROLES.SUPER_ADMIN } });
