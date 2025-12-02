@@ -13,6 +13,11 @@ const aiRouterFactory = ({ optionalAuth }) => {
       const providers = [
         { id: 'openai', name: 'OpenAI', defaultModel: 'gpt-4o', active: cfg.activeProvider === 'openai', hasKey: !!cfg.keys.openai },
         { id: 'gemini', name: 'Google Gemini', defaultModel: 'gemini-1.5-pro-latest', active: cfg.activeProvider === 'gemini', hasKey: !!cfg.keys.gemini },
+        { id: 'anthropic', name: 'Anthropic Claude', defaultModel: 'claude-3-5-sonnet-latest', active: cfg.activeProvider === 'anthropic', hasKey: !!cfg.keys?.anthropic },
+        { id: 'mistral', name: 'Mistral AI', defaultModel: 'mistral-large-latest', active: cfg.activeProvider === 'mistral', hasKey: !!cfg.keys?.mistral },
+        { id: 'cohere', name: 'Cohere', defaultModel: 'command-r-plus', active: cfg.activeProvider === 'cohere', hasKey: !!cfg.keys?.cohere },
+        { id: 'groq', name: 'Groq', defaultModel: 'llama3-70b-8192', active: cfg.activeProvider === 'groq', hasKey: !!cfg.keys?.grok },
+        { id: 'openrouter', name: 'OpenRouter', defaultModel: 'openrouter/auto', active: cfg.activeProvider === 'openrouter', hasKey: !!cfg.keys?.openrouter },
       ]
       res.json({ success: true, providers, activeProvider: cfg.activeProvider, activeModel: cfg.activeModel })
     } catch (e) {

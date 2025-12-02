@@ -7,6 +7,11 @@ import apiClient from '../../api/client';
 const DEFAULT_AI_PROVIDERS = [
   { id: 'openai', name: 'OpenAI', siteUrl: 'https://openai.com', createUrl: 'https://platform.openai.com/api-keys', defaultModel: 'gpt-4o', color: '#10a37f', icon: '🟢', region: 'global', logo: 'https://logo.clearbit.com/openai.com' },
   { id: 'gemini', name: 'Google Gemini', siteUrl: 'https://ai.google.dev', createUrl: 'https://aistudio.google.com/app/apikey', defaultModel: 'gemini-1.5-pro-latest', color: '#7c3aed', icon: '🔷', region: 'global', logo: 'https://logo.clearbit.com/google.com' },
+  { id: 'anthropic', name: 'Anthropic Claude', siteUrl: 'https://www.anthropic.com', createUrl: 'https://console.anthropic.com/account/keys', defaultModel: 'claude-3-5-sonnet-latest', color: '#f59e0b', icon: '🟡', region: 'global', logo: 'https://logo.clearbit.com/anthropic.com' },
+  { id: 'mistral', name: 'Mistral AI', siteUrl: 'https://mistral.ai', createUrl: 'https://console.mistral.ai/api-keys/', defaultModel: 'mistral-large-latest', color: '#2563eb', icon: '🔵', region: 'global', logo: 'https://logo.clearbit.com/mistral.ai' },
+  { id: 'cohere', name: 'Cohere', siteUrl: 'https://cohere.com', createUrl: 'https://dashboard.cohere.com/api-keys', defaultModel: 'command-r-plus', color: '#ef4444', icon: '🔴', region: 'global', logo: 'https://logo.clearbit.com/cohere.com' },
+  { id: 'groq', name: 'Groq', siteUrl: 'https://groq.com', createUrl: 'https://console.groq.com/keys', defaultModel: 'llama3-70b-8192', color: '#dc2626', icon: '⚡', region: 'global', logo: 'https://logo.clearbit.com/groq.com' },
+  { id: 'openrouter', name: 'OpenRouter', siteUrl: 'https://openrouter.ai', createUrl: 'https://openrouter.ai/settings/keys', defaultModel: 'openrouter/auto', color: '#84cc16', icon: '🔀', region: 'global', logo: 'https://logo.clearbit.com/openrouter.ai' },
 ];
 
 import PropTypes from 'prop-types';
