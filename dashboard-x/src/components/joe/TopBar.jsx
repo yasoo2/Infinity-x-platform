@@ -637,19 +637,37 @@ const AIMenuButton = ({ runtimeMode }) => {
                 >
                   <div className="w-full flex items-center justify-between">
                     <span className="inline-flex items-center gap-2">
-                      {(!logoError[p.id] && p.logo) ? (
-                        <img
-                          src={p.logo}
-                          alt={p.name}
-                          className={`w-5 h-5 rounded-full ${isActive ? 'ring-2 ring-green-500/50' : 'ring-1 ring-yellow-600/30'} transition-transform group-hover:scale-105`}
-                          referrerPolicy="no-referrer"
-                          crossOrigin="anonymous"
-                          loading="lazy"
-                          onError={() => setLogoError(e => ({ ...e, [p.id]: true }))}
-                        />
-                      ) : (
-                        <span className="w-5 h-5 rounded-full grid place-items-center text-[12px]" style={{ background: '#111', color: p.color }}>{p.icon || '🤖'}</span>
-                      )}
+                      {(() => {
+                        const domain = (() => { try { return new URL(p.siteUrl).hostname; } catch { return ''; } })();
+                        const faviconUrl = domain ? `https://www.google.com/s2/favicons?sz=64&domain=${domain}` : '';
+                        if (!logoError[p.id] && p.logo) {
+                          return (
+                            <img
+                              src={p.logo}
+                              alt={p.name}
+                              className={`w-5 h-5 rounded-full ${isActive ? 'ring-2 ring-green-500/50' : 'ring-1 ring-yellow-600/30'} transition-transform group-hover:scale-105`}
+                              referrerPolicy="no-referrer"
+                              crossOrigin="anonymous"
+                              loading="lazy"
+                              onError={() => setLogoError(e => ({ ...e, [p.id]: true }))}
+                            />
+                          );
+                        }
+                        if (!logoError[`${p.id}:favicon`] && faviconUrl) {
+                          return (
+                            <img
+                              src={faviconUrl}
+                              alt={p.name}
+                              className={`w-5 h-5 rounded-full ${isActive ? 'ring-2 ring-green-500/50' : 'ring-1 ring-yellow-600/30'} transition-transform group-hover:scale-105`}
+                              referrerPolicy="no-referrer"
+                              crossOrigin="anonymous"
+                              loading="lazy"
+                              onError={() => setLogoError(e => ({ ...e, [`${p.id}:favicon`]: true }))}
+                            />
+                          );
+                        }
+                        return (<span className="w-5 h-5 rounded-full grid place-items-center text-[12px]" style={{ background: '#111', color: p.color }}>{p.icon || '🤖'}</span>);
+                      })()}
                       <span className="flex flex-col items-start leading-tight">
                         <span className="flex items-center gap-2">
                           <span className="text-sm font-semibold">{p.name}</span>
@@ -670,22 +688,28 @@ const AIMenuButton = ({ runtimeMode }) => {
       {!!detailId && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setDetailId(null)}>
           <div id="ai-provider-detail" className="w-[520px] max-w-[95vw] bg-[#0b0f1a] border border-yellow-600/40 rounded-2xl shadow-2xl" onClick={(e)=>e.stopPropagation()}>
-            <div className="px-5 py-4 border-b border-yellow-600/40 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-white">
-                {(() => {
-                  const p = providers.find(x => x.id === detailId) || {};
-                  return (
-                    <>
-                      {(!logoError[p.id] && p.logo) ? (
-                        <img src={p.logo} alt={p.name} className="w-5 h-5 rounded" referrerPolicy="no-referrer" crossOrigin="anonymous" loading="lazy" onError={() => setLogoError(e => ({ ...e, [p.id]: true }))} />
-                      ) : (
-                        <span className="text-lg" style={{ color: p.color }}>{p.icon || '🤖'}</span>
-                      )}
+                    <div className="px-5 py-4 border-b border-yellow-600/40 flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-white">
+                        {(() => {
+                          const p = providers.find(x => x.id === detailId) || {};
+                          return (
+                            <>
+                      {(() => {
+                        const domain = (() => { try { return new URL(p.siteUrl).hostname; } catch { return ''; } })();
+                        const faviconUrl = domain ? `https://www.google.com/s2/favicons?sz=64&domain=${domain}` : '';
+                        if (!logoError[p.id] && p.logo) {
+                          return (<img src={p.logo} alt={p.name} className="w-5 h-5 rounded" referrerPolicy="no-referrer" crossOrigin="anonymous" loading="lazy" onError={() => setLogoError(e => ({ ...e, [p.id]: true }))} />);
+                        }
+                        if (!logoError[`${p.id}:favicon`] && faviconUrl) {
+                          return (<img src={faviconUrl} alt={p.name} className="w-5 h-5 rounded" referrerPolicy="no-referrer" crossOrigin="anonymous" loading="lazy" onError={() => setLogoError(e => ({ ...e, [`${p.id}:favicon`]: true }))} />);
+                        }
+                        return (<span className="text-lg" style={{ color: p.color }}>{p.icon || '🤖'}</span>);
+                      })()}
                       <span className="font-semibold">{p.name}</span>
                     </>
-                  );
-                })()}
-              </div>
+                          );
+                        })()}
+                      </div>
               <button onClick={() => setDetailId(null)} className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm">إغلاق</button>
             </div>
             <div className="p-5 space-y-4">
