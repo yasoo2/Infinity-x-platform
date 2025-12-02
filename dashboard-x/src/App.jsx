@@ -1,5 +1,6 @@
 
 import React, { useEffect } from 'react';
+import apiClient from './api/client';
 // Corrected the import path again. Build tools like Vite often handle file extensions
 // automatically, so we should import without the .jsx extension.
 import AppRoutes from './Routes'; 
@@ -22,6 +23,10 @@ const App = () => {
       const currentIsLocal = current && /localhost|127\.0\.0\.1/.test(String(current));
       if (!isLocal && (!current || currentIsLocal)) {
         localStorage.setItem('apiBaseUrl', origin);
+      }
+      const host = typeof window !== 'undefined' ? window.location.hostname : '';
+      if (host === 'localhost' || host === '127.0.0.1') {
+        apiClient.defaults.baseURL = 'http://localhost:4000';
       }
     } catch { void 0; }
   }, []);

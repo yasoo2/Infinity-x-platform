@@ -1,9 +1,9 @@
 
 import { useReducer, useEffect, useCallback, useRef } from 'react';
 import { io } from 'socket.io-client';
+import apiClient from '../api/client';
 import { v4 as uuidv4 } from 'uuid';
 import { getChatSessions, getChatSessionById, getGuestToken, getSystemStatus, createChatSession, updateChatSession, addChatMessage, getChatMessages } from '../api/system';
-import apiClient from '../api/client';
 
 const JOE_CHAT_HISTORY = 'joeChatHistory';
 
@@ -302,8 +302,8 @@ export const useJoeChat = () => {
   const reconnectAttempts = useRef(0);
   const reconnectTimer = useRef(null);
   const isConnectingRef = useRef(false);
-  const syncRef = useRef(null);
   const reconnectCountdownInterval = useRef(null);
+  const syncRef = useRef(null);
   const syncAbortRef = useRef(null);
   const syncInProgressRef = useRef(false);
   const saveTimerRef = useRef(null);
@@ -479,7 +479,6 @@ export const useJoeChat = () => {
           if (!notFound) {
             console.warn('syncBackendSessions detail fetch error:', err);
           }
-          // Skip missing sessions and continue syncing others
           continue;
         }
       }
@@ -510,23 +509,8 @@ export const useJoeChat = () => {
     syncRef.current = syncBackendSessions;
   }, [syncBackendSessions]);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
-      if (document.visibilityState !== 'visible') return;
-      if (syncRef.current) syncRef.current();
-    }, 20000);
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        if (syncRef.current) syncRef.current();
-      }
-    };
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => {
-      clearInterval(interval);
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
-  }, [syncBackendSessions]);
+
+  
 
   useEffect(() => {
     if (Object.keys(state.conversations).length > 0) {
@@ -554,12 +538,7 @@ export const useJoeChat = () => {
     }
   }, [state.conversations, state.currentConversationId]);
 
-  // Abort any in-flight sync when this hook unmounts to avoid dangling requests
-  useEffect(() => {
-    return () => {
-      try { syncAbortRef.current?.abort(); } catch { void 0; }
-    };
-  }, []);
+  
 
   useEffect(() => {
     try {
@@ -612,16 +591,11 @@ export const useJoeChat = () => {
           return;
         }
         let sioUrl;
-        const isDevSio = typeof import.meta !== 'undefined' && import.meta.env?.MODE !== 'production';
-        if (isDevSio) {
-          sioUrl = 'http://localhost:4000/joe-agent';
-        } else if (import.meta.env.VITE_API_BASE_URL) {
-          const base = String(import.meta.env.VITE_API_BASE_URL).replace(/\/$/, '');
-          sioUrl = `${base}/joe-agent`;
-        } else {
-          const origin = window.location.origin.replace(/\/$/, '');
-          sioUrl = `${origin}/joe-agent`;
-        }
+        const httpBase2 = typeof apiClient?.defaults?.baseURL === 'string'
+          ? apiClient.defaults.baseURL
+          : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
+        const sanitizedHttp = String(httpBase2).replace(/\/+$/, '');
+        sioUrl = `${sanitizedHttp}/joe-agent`;
         const socket = io(sioUrl, { auth: { token: sessionToken }, transports: ['websocket','polling'] });
         socket.on('connect', () => {
           reconnectAttempts.current = 0;
@@ -661,19 +635,14 @@ export const useJoeChat = () => {
           dispatch({ type: 'STOP_PROCESSING' });
         });
         sioRef.current = socket;
-        // Use VITE_WS_URL if defined, otherwise build from VITE_API_BASE_URL
+        // Build WebSocket URL from centralized apiClient baseURL
         let wsUrl;
-        const isDev = typeof import.meta !== 'undefined' && import.meta.env?.MODE !== 'production';
-        if (isDev) {
-          wsUrl = `ws://localhost:4000/ws/joe-agent?token=${sessionToken}`;
-        } else if (import.meta.env.VITE_WS_URL) {
-          const baseWsUrl = import.meta.env.VITE_WS_URL.replace(/\/ws.*$/, '');
-          wsUrl = `${baseWsUrl}/ws/joe-agent?token=${sessionToken}`;
-        } else {
-          const apiBase = import.meta.env.VITE_API_BASE_URL || window.location.origin;
-          const wsBase = apiBase.replace(/^https/, 'wss').replace(/^http/, 'ws');
-          wsUrl = `${wsBase}/ws/joe-agent?token=${sessionToken}`;
-        }
+        const httpBase = typeof apiClient?.defaults?.baseURL === 'string'
+          ? apiClient.defaults.baseURL
+          : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
+        const sanitizedHttp1 = String(httpBase).replace(/\/(api.*)?$/, '').replace(/\/+$/, '');
+        const wsBase = sanitizedHttp1.replace(/^https/, 'wss').replace(/^http/, 'ws');
+        wsUrl = `${wsBase}/ws/joe-agent?token=${sessionToken}`;
         console.warn('[Joe Agent] Connecting to WebSocket:', wsUrl.replace(/token=.*/, 'token=***'));
         ws.current = new WebSocket(wsUrl);
         const connectionTimeout = setTimeout(() => {

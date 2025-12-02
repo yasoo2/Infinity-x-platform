@@ -1,8 +1,8 @@
   import React, { useEffect, useReducer, useCallback } from 'react';
   import { Store, ShoppingCart, TrendingUp, AlertCircle, CheckCircle, Loader, BarChart3, Package, Search, Download } from 'lucide-react';
+  import apiClient from '../api/client';
 
-  // API Configuration
-  const API_BASE = import.meta.env?.VITE_API_BASE_URL || 'https://api.xelitesolutions.com';
+  // API base handled centrally by apiClient
 
   // State Management with useReducer
   const initialState = {
@@ -75,14 +75,12 @@
     // Fetch platforms from API
     const fetchPlatforms = async () => {
       try {
-        const response = await fetch(`${API_BASE}/api/universal-store/platforms`);
-        const data = await response.json();
-        if (data.ok) {
+        const { data } = await apiClient.get('/api/universal-store/platforms');
+        if (data?.ok) {
           dispatch({ type: 'SET_PLATFORMS', value: data.platforms });
         } else {
-          // Fallback platforms if API fails
-          dispatch({ 
-            type: 'SET_PLATFORMS', 
+          dispatch({
+            type: 'SET_PLATFORMS',
             value: [
               { id: 'shopify', name: 'Shopify', authType: 'token' },
               { id: 'woocommerce', name: 'WooCommerce', authType: 'basic' },
@@ -96,9 +94,8 @@
         }
       } catch (err) {
         console.error('Error fetching platforms:', err);
-        // Fallback platforms
-        dispatch({ 
-          type: 'SET_PLATFORMS', 
+        dispatch({
+          type: 'SET_PLATFORMS',
           value: [
             { id: 'shopify', name: 'Shopify', authType: 'token' },
             { id: 'woocommerce', name: 'WooCommerce', authType: 'basic' },
@@ -150,23 +147,13 @@
     // API call wrapper with error handling
     const apiCall = async (endpoint, payload) => {
       try {
-        const response = await fetch(`${API_BASE}${endpoint}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error || 'حدث خطأ في الاتصال');
+        const { data } = await apiClient.post(endpoint, payload);
+        if (!data?.ok) {
+          throw new Error(data?.error || 'حدث خطأ في الاتصال');
         }
-
         return data;
       } catch (err) {
-        throw new Error(err.message || 'فشل الاتصال بالخادم');
+        throw new Error(err?.message || 'فشل الاتصال بالخادم');
       }
     };
 

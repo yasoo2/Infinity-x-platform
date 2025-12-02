@@ -2,20 +2,25 @@
 
   // Base URL normalization: prefer explicit env; otherwise use same-origin
   let resolvedBase;
-  let lsBase = null;
-  try { lsBase = localStorage.getItem('apiBaseUrl'); } catch { lsBase = null; }
   const envBase = typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL);
-  if (lsBase && String(lsBase).trim().length > 0) {
-    resolvedBase = lsBase;
-  } else if (envBase && String(envBase).trim().length > 0) {
-    resolvedBase = envBase;
-  } else if (typeof window !== 'undefined') {
-    const origin = window.location.origin;
-    resolvedBase = origin;
-  } else {
+  const isDev = !!(import.meta?.env?.DEV);
+  const origin = typeof window !== 'undefined' ? window.location.origin : null;
+  const host = typeof window !== 'undefined' ? window.location.hostname : '';
+  const normalize = (u) => String(u || '').replace(/\/+$/, '');
+  if (isDev) {
+    resolvedBase = normalize(origin);
+  } else if (host === 'localhost' || host === '127.0.0.1') {
     resolvedBase = 'http://localhost:4000';
+  } else {
+    if (envBase && String(envBase).trim().length > 0) {
+      resolvedBase = normalize(envBase);
+    } else {
+      resolvedBase = normalize(origin);
+    }
   }
   const BASE_URL = String(resolvedBase).replace(/\/+$/, '');
+  let errCount = 0;
+  let errStart = 0;
 
   // Helper to detect FormData
   const isFormData = (data) =>
@@ -32,14 +37,13 @@
     withCredentials: false, // set true only if server uses cookies for auth
   });
 
-  // Optional: a simple retry policy for idempotent requests (GET/HEAD)
   const shouldRetry = (error) => {
     const status = error.response?.status;
     const method = error.config?.method?.toUpperCase();
-    // Retry on network or 5xx for idempotent methods
     const idempotent = method === 'GET' || method === 'HEAD';
     return (error.code === 'ECONNABORTED' || !status || (status >= 500 && status < 600)) && idempotent;
   };
+
 
   // Request interceptor: attach session token and correct headers
   apiClient.interceptors.request.use(
@@ -96,12 +100,10 @@
       return response;
     },
     async (error) => {
-      // Optional retry
       if (shouldRetry(error)) {
         try {
           return await axios.request(error.config);
         } catch (e) {
-          // fall through to unified handling
           error = e;
         }
       }
@@ -109,10 +111,8 @@
       const status = error.response?.status;
 
       if (status === 401) {
-        // Clear token and emit an event; let the app decide how to redirect
         localStorage.removeItem('sessionToken');
         window.dispatchEvent(new CustomEvent('auth:unauthorized'));
-        // Fallback redirect if app doesn't handle event within a tick
         if (!isRedirecting) {
           isRedirecting = true;
           setTimeout(() => {
@@ -124,8 +124,45 @@
         }
       }
       if (status === 403) {
+        const cfg = error.config || {};
+        const method = (cfg.method || '').toUpperCase();
+        const isAuthPath = /\/api\/v1\/auth\//.test(String(cfg.url || ''));
+        if (!isAuthPath && method === 'GET' && !cfg._retryGuest) {
+          cfg._retryGuest = true;
+          try {
+            const { data } = await axios.post(`${BASE_URL}/api/v1/auth/guest-token`);
+            const t = data?.token || data?.jwt || data?.access_token;
+            if (t) {
+              try { localStorage.setItem('sessionToken', t); } catch { void 0; }
+              cfg.headers = cfg.headers || {};
+              cfg.headers['Authorization'] = `Bearer ${t}`;
+              return await axios.request(cfg);
+            }
+          } catch { /* ignore */ }
+        }
         const details = normalizeError(error);
         window.dispatchEvent(new CustomEvent('auth:forbidden', { detail: details }));
+      }
+
+      if (!status || error.code === 'ECONNABORTED') {
+        const now = Date.now();
+        if (!errStart) errStart = now;
+        errCount += 1;
+        const elapsed = now - errStart;
+        if (errCount >= 3 && elapsed <= 20000) {
+          const fallback = typeof window !== 'undefined'
+            ? ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                ? 'http://localhost:4000'
+                : window.location.origin)
+            : apiClient.defaults.baseURL;
+          apiClient.defaults.baseURL = String(fallback).replace(/\/+$/, '');
+          errCount = 0;
+          errStart = 0;
+          try { window.dispatchEvent(new CustomEvent('api:baseurl:reset')); } catch { void 0; }
+        } else if (elapsed > 20000) {
+          errCount = 1;
+          errStart = now;
+        }
       }
 
       // Throw normalized error for consistent handling in callers

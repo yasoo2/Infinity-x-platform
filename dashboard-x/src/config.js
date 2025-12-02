@@ -3,16 +3,16 @@
 
   // API Configuration - متوافق مع نظامك
   const getApiConfig = () => {
-    const isDevelopment = import.meta.env.MODE !== 'production';
     const overrideApi = import.meta.env.VITE_API_BASE_URL;
     const overrideWs = import.meta.env.VITE_WS_BASE_URL;
+    const host = typeof window !== 'undefined' ? window.location.hostname : '';
+    const isDev = !!(import.meta?.env?.DEV);
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const apiBase = (host === 'localhost' || host === '127.0.0.1') ? 'http://localhost:4000/api/v1' : (overrideApi ? `${String(overrideApi).replace(/\/$/, '')}/api/v1` : `${origin}/api/v1`);
+    const wsOrigin = (host === 'localhost' || host === '127.0.0.1') ? 'ws://localhost:4000' : (overrideWs || origin.replace(/^https/, 'wss').replace(/^http/, 'ws'));
     return {
-      apiBaseUrl: isDevelopment
-        ? 'http://localhost:4000/api/v1'
-        : (overrideApi || 'https://api.xelitesolutions.com/api/v1'),
-      wsBaseUrl: isDevelopment
-        ? 'ws://localhost:4000'
-        : (overrideWs || 'wss://api.xelitesolutions.com')
+      apiBaseUrl: isDev ? `${origin}/api/v1` : apiBase,
+      wsBaseUrl: wsOrigin,
     };
   };
 

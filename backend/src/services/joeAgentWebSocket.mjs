@@ -111,7 +111,7 @@ export class JoeAgentWebSocketServer {
           let data;
           try {
             data = JSON.parse(message);
-          } catch (parseError) {
+          } catch {
             const lang = 'ar';
             const msg = lang==='ar' ? 'صيغة JSON غير صالحة.' : 'Invalid JSON format.';
             ws.send(JSON.stringify({ type: 'error', code: 'INVALID_FORMAT', message: msg }));
@@ -206,18 +206,27 @@ export class JoeAgentWebSocketServer {
             return;
           }
 
-            const model = data.model || 'gpt-4o';
-            const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model, lang: data.lang });
-            if (ws.readyState === ws.OPEN) {
-              ws.send(JSON.stringify({ type: 'response', response: result.response, toolsUsed: result.toolsUsed, sessionId }));
-            }
             try {
-              const content = String(result?.response || '').trim();
-              if (content && mongoose.Types.ObjectId.isValid(sessionId)) {
-                await ChatMessage.create({ sessionId, userId, type: 'joe', content });
-                await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date(), updatedAt: new Date() } });
+              const model = data.model || 'gpt-4o';
+              const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model, lang: data.lang });
+              if (ws.readyState === ws.OPEN) {
+                ws.send(JSON.stringify({ type: 'response', response: result.response, toolsUsed: result.toolsUsed, sessionId }));
               }
-            } catch { void 0 }
+              try {
+                const content = String(result?.response || '').trim();
+                if (content && mongoose.Types.ObjectId.isValid(sessionId)) {
+                  await ChatMessage.create({ sessionId, userId, type: 'joe', content });
+                  await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date(), updatedAt: new Date() } });
+                }
+              } catch { void 0 }
+            } catch (err) {
+              if (ws.readyState === ws.OPEN) {
+                const lang = String(data.lang || 'ar');
+                const msg = lang==='ar' ? 'حدث خطأ أثناء معالجة الطلب.' : 'An error occurred while processing the request.';
+                ws.send(JSON.stringify({ type: 'error', message: msg, details: String(err?.message || err) }));
+              }
+              try { console.error('[JoeAgentV2] Processing error:', err); } catch { /* noop */ }
+            }
 
           } else if (data.action === 'cancel') {
             // Handle cancel action if needed

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import axios from 'axios';
+import apiClient from '../api/client';
 
 const useBrowserWebSocket = () => {
   const [screenshot, setScreenshot] = useState(null);
@@ -13,13 +13,12 @@ const useBrowserWebSocket = () => {
       let sessionToken = null;
       try { sessionToken = localStorage.getItem('sessionToken'); } catch { sessionToken = null; }
 
-      const isDev = typeof import.meta !== 'undefined' && import.meta.env?.MODE !== 'production';
-      const apiBase = isDev ? 'http://localhost:4000' : (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000'));
-      const wsBase = apiBase.replace(/^https/, 'wss').replace(/^http/, 'ws');
+      const base = (typeof apiClient?.defaults?.baseURL === 'string' ? apiClient.defaults.baseURL : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000'));
+      const wsBase = String(base).replace(/^https/, 'wss').replace(/^http/, 'ws');
       const ensureToken = async () => {
         if (sessionToken) return sessionToken;
         try {
-          const { data } = await axios.post(`${apiBase}/api/v1/auth/guest-token`);
+          const { data } = await apiClient.post('/api/v1/auth/guest-token');
           if (data?.ok && data?.token) {
             try { localStorage.setItem('sessionToken', data.token); } catch { /* noop */ }
             sessionToken = data.token;
