@@ -29,6 +29,7 @@ const JoeContent = () => {
   const [isBottomCollapsed, setIsBottomCollapsed] = useState(false);
   const [isStatusPanelOpen, setIsStatusPanelOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [panicMode, setPanicMode] = useState(false);
   const [panelStyles, setPanelStyles] = useState({ left: { color: '#1f2937', width: 1, radius: 0 }, right: { color: '#1f2937', width: 1, radius: 0 } });
   const toggleBottomPanel = () => setIsBottomPanelOpen(!isBottomPanelOpen);
   const [leftWidth, setLeftWidth] = useState(288);
@@ -43,6 +44,10 @@ const JoeContent = () => {
     update();
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
+  }, []);
+
+  useEffect(() => {
+    try { window.dispatchEvent(new CustomEvent('joe:closeOverlays')); } catch { /* ignore */ }
   }, []);
 
   useEffect(() => {
@@ -320,11 +325,25 @@ const JoeContent = () => {
         setIsSidePanelOpen(false);
         setIsRightPanelOpen(false);
         setRobotActive(false);
+      } else if (((isMac ? e.metaKey : e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'x')) {
+        e.preventDefault();
+        setPanicMode(v => !v);
+        try { window.dispatchEvent(new CustomEvent('joe:closeOverlays')); } catch { /* ignore */ }
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [lang]);
+
+  useEffect(() => {
+    if (panicMode) {
+      setIsSidePanelOpen(false);
+      setIsRightPanelOpen(false);
+      setIsBottomPanelOpen(false);
+      setRobotActive(false);
+      try { window.dispatchEvent(new CustomEvent('joe:closeOverlays')); } catch { /* ignore */ }
+    }
+  }, [panicMode]);
 
   useEffect(() => {
     try { localStorage.setItem('joeRobotScale', String(robotScale)); } catch { void 0; }

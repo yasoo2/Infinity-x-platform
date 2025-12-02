@@ -26,7 +26,11 @@ class MemoryManager extends EventEmitter {
 
         this.startAutoCleanup();
         console.log('✅ Memory Manager v4.4.0 initialized. DB will be fetched on-demand.');
-        this.initializeLTMCollections();
+        try {
+            this.initializeLTMCollections();
+        } catch (e) {
+            try { console.warn('⚠️ MemoryManager: LTM initialization skipped, DB not available.', e?.message || String(e)); } catch { /* noop */ }
+        }
     }
 
     _getDB() {
@@ -108,10 +112,13 @@ class MemoryManager extends EventEmitter {
     // --- Long-Term Memory (LTM) Methods ---
 
     initializeLTMCollections() {
-        const db = this._getDB();
-        // Ensure indexes for efficient querying
-        db.collection('joe_knowledge_patterns').createIndex({ userId: 1, type: 1 });
-        db.collection('joe_knowledge_patterns').createIndex({ keywords: 1 });
+        try {
+            const db = this._getDB();
+            if (!db) return;
+            // Ensure indexes for efficient querying
+            db.collection('joe_knowledge_patterns').createIndex({ userId: 1, type: 1 });
+            db.collection('joe_knowledge_patterns').createIndex({ keywords: 1 });
+        } catch { /* ignore when DB is unavailable */ }
     }
 
     async checkForLTM(userId, interaction) {
