@@ -936,10 +936,36 @@ export const useJoeChat = () => {
         setTimeout(() => trySend(attempt + 1), 500);
         return;
       }
-      const lang = getLang();
-      const msg = lang === 'ar' ? 'الاتصال غير متاح حالياً، جارِ إعادة الاتصال بالخادم...' : 'Connection is not available yet. Reconnecting...';
-      dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: msg } });
-      dispatch({ type: 'STOP_PROCESSING' });
+      (async () => {
+        const selectedModel = localStorage.getItem('aiSelectedModel') || 'gpt-4o';
+        const lang = getLang();
+        const conv = state.conversations[convId] || null;
+        const sidToUse = sid || conv?.sessionId || convId;
+        try {
+          const { data } = await apiClient.post('/api/v1/joe/execute', {
+            instruction: inputText,
+            context: { sessionId: sidToUse, lang, model: selectedModel }
+          });
+          const text = String(data?.response || data?.message || '').trim();
+          if (text) {
+            dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
+            try {
+              const r = await getChatMessages(sidToUse);
+              const exists = (r?.messages || []).some(m => String(m?.content || '') === text && m?.type !== 'user');
+              if (!exists) {
+                await addChatMessage(sidToUse, { type: 'joe', content: text });
+              }
+            } catch { /* ignore */ }
+          }
+        } catch (e) {
+          const m = lang === 'ar' ? 'فشل الإرسال عبر REST، حاول لاحقًا.' : 'REST fallback failed, please try again later.';
+          dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `${m} ${e?.message || ''}`.trim() } });
+        } finally {
+          dispatch({ type: 'STOP_PROCESSING' });
+          dispatch({ type: 'REMOVE_PENDING_LOGS' });
+          if (syncRef.current) syncRef.current();
+        }
+      })();
     };
     trySend();
   }, [state.input, state.currentConversationId, state.conversations]);
