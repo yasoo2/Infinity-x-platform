@@ -1019,14 +1019,14 @@ export const useJoeChat = () => {
         }
         const lang = getLang();
         const conv = state.conversations[convId] || null;
-        const sidToUse = sid || conv?.sessionId || convId;
-        const payload = { action: 'instruct', message: inputText, sessionId: sidToUse, lang };
+        const sidToUse = conv?.sessionId || sid || null;
+        const payload = { action: 'instruct', message: inputText, sessionId: sidToUse || undefined, lang };
         if (selectedModel) payload.model = selectedModel;
         sioRef.current.emit('message', payload);
         try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
         sioSendTimeoutRef.current = setTimeout(async () => {
           try {
-            const ctx = { sessionId: sidToUse, lang };
+            const ctx = { sessionId: sidToUse || undefined, lang };
             if (selectedModel) ctx.model = selectedModel;
             const { data } = await apiClient.post('/api/v1/joe/execute', { instruction: inputText, context: ctx });
             const text = String(data?.response || data?.message || '').trim();
@@ -1040,9 +1040,12 @@ export const useJoeChat = () => {
                 }
               } catch { dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } }); }
               try {
-                const r = await getChatMessages(sidToUse);
-                const exists = (r?.messages || []).some(m => String(m?.content || '') === text && m?.type !== 'user');
-                if (!exists) { await addChatMessage(sidToUse, { type: 'joe', content: text }); }
+                const isObjId = typeof sidToUse === 'string' && /^[a-f0-9]{24}$/i.test(sidToUse);
+                if (isObjId) {
+                  const r = await getChatMessages(sidToUse);
+                  const exists = (r?.messages || []).some(m => String(m?.content || '') === text && m?.type !== 'user');
+                  if (!exists) { await addChatMessage(sidToUse, { type: 'joe', content: text }); }
+                }
               } catch { /* noop */ }
             }
           } catch { /* noop */ } finally {
