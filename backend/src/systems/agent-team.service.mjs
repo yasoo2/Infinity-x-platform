@@ -7,11 +7,12 @@ try {
   openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY
   });
-  // Test the connection to ensure the key is valid, but don't crash the server.
-  openai.models.list().catch(error => {
-    console.warn('⚠️ OpenAI API Key seems invalid, but server will continue running. OpenAI features will fail.', error.message);
-    openai = null; // Invalidate the client if the key is wrong
-  });
+  // Test the connection with a lightweight request that requires model.request scope
+  openai.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: 'ping' }] })
+    .catch(error => {
+      console.warn('⚠️ OpenAI API Key seems invalid, but server will continue running. OpenAI features may fail.', error.message);
+      openai = null; // Invalidate the client if the key is wrong
+    });
 } catch {
   console.warn('⚠️ OpenAI API Key is missing. OpenAI features will be disabled.');
   openai = null;
@@ -24,7 +25,7 @@ class ArchitectAgent {
   async execute(task) {
     if (!openai) throw new Error('OpenAI is not configured. Please set the OPENAI_API_KEY.');
     const prompt = `As an expert system architect, design a complete architecture for this task: "${task.description}". Provide: 1. Full architecture design. 2. Tech stack choices. 3. UML diagrams (in Mermaid format). 4. Scalability strategy. 5. Performance recommendations.`;
-    const response = await openai.chat.completions.create({ model: 'gpt-4o', messages: [{ role: 'system', content: 'You are an expert system architect.' }, { role: 'user', content: prompt }] });
+    const response = await openai.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'You are an expert system architect.' }, { role: 'user', content: prompt }] });
     return { agent: 'architect', result: response.choices[0].message.content };
   }
 }
@@ -33,7 +34,7 @@ class DeveloperAgent {
   async execute(task) {
     if (!openai) throw new Error('OpenAI is not configured. Please set the OPENAI_API_KEY.');
     const prompt = `As a professional developer, write clean, SOLID, and optimized code for: "${task.description}". Include error handling and best practices.`;
-    const response = await openai.chat.completions.create({ model: 'gpt-4o', messages: [{ role: 'system', content: 'You are an expert developer.' }, { role: 'user', content: prompt }] });
+    const response = await openai.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'You are an expert developer.' }, { role: 'user', content: prompt }] });
     const code = response.choices[0].message.content;
     return { agent: 'developer', result: { code } };
   }
@@ -96,7 +97,7 @@ class AgentTeam {
       streamUpdate({ type: 'thought', message: 'Planner is thinking and constructing the plan...' });
       if (this.llm) {
         const response = await this.llm.chat.completions.create({
-          model: "gpt-4-turbo-preview",
+          model: "gpt-4o-mini",
           messages: [{ role: "user", content: prompt }],
           response_format: { type: "json_object" }
         });
@@ -168,7 +169,7 @@ class AgentTeam {
     Produce a final, clean, and comprehensive response.
     `;
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: 'You are a lead project integrator.' },
         { role: 'user', content: prompt }
