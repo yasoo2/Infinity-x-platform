@@ -3,20 +3,30 @@
   // Base URL normalization: prefer explicit env; otherwise use same-origin
   let resolvedBase;
   const envBase = typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL);
-  const isDev = !!(import.meta?.env?.DEV);
+  const explicitBase = typeof import.meta !== 'undefined' && import.meta.env?.VITE_EXPLICIT_API_BASE;
+  const isLocal = (u) => { try { const h = new URL(String(u)).hostname; return h === 'localhost' || h === '127.0.0.1'; } catch { return /localhost|127\.0\.0\.1/.test(String(u)); } };
+  const isDev = typeof import.meta !== 'undefined' && !!import.meta.env?.DEV;
   const origin = typeof window !== 'undefined' ? window.location.origin : null;
   const host = typeof window !== 'undefined' ? window.location.hostname : '';
   const normalize = (u) => String(u || '').replace(/\/+$/, '');
-  if (isDev) {
-    resolvedBase = normalize(origin);
-  } else if (host === 'localhost' || host === '127.0.0.1') {
-    resolvedBase = 'http://localhost:4000';
-  } else {
-    if (envBase && String(envBase).trim().length > 0) {
-      resolvedBase = normalize(envBase);
+
+  if (typeof window !== 'undefined' && isDev) {
+    resolvedBase = window.location.origin;
+  } else if (lsBase && String(lsBase).trim().length > 0) {
+    resolvedBase = lsBase;
+  } else if (explicitBase && String(explicitBase).trim().length > 0) {
+    // Use explicit base URL from environment variable (e.g., from Front Cloud settings)
+    resolvedBase = explicitBase;
+  } else if (envBase && String(envBase).trim().length > 0) {
+    if (typeof window !== 'undefined' && !isLocal(window.location.origin) && isLocal(envBase)) {
+      resolvedBase = window.location.origin;
     } else {
-      resolvedBase = normalize(origin);
+      resolvedBase = envBase;
     }
+  } else if (typeof window !== 'undefined') {
+    resolvedBase = origin;
+  } else {
+    resolvedBase = 'http://localhost:4000';
   }
   const BASE_URL = String(resolvedBase).replace(/\/+$/, '');
   let errCount = 0;
