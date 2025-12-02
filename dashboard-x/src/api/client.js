@@ -2,6 +2,8 @@
 
   // Base URL normalization: prefer explicit env; otherwise use same-origin
   let resolvedBase;
+  let lsBase = null;
+  try { lsBase = localStorage.getItem('apiBaseUrl'); } catch { lsBase = null; }
   const envBase = typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL);
   const explicitBase = typeof import.meta !== 'undefined' && import.meta.env?.VITE_EXPLICIT_API_BASE;
   const isLocal = (u) => { try { const h = new URL(String(u)).hostname; return h === 'localhost' || h === '127.0.0.1'; } catch { return /localhost|127\.0\.0\.1/.test(String(u)); } };
