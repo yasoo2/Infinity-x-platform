@@ -44,9 +44,14 @@ const ensureToken = async () => {
 
 export const connectWebSocket = (onMessage, onOpen, onClose) => {
   const isDev = typeof import.meta !== 'undefined' && import.meta.env?.MODE !== 'production';
-  const httpBase = typeof apiClient?.defaults?.baseURL === 'string'
+  let httpBase = typeof apiClient?.defaults?.baseURL === 'string'
     ? apiClient.defaults.baseURL
     : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
+  try {
+    if (typeof window !== 'undefined' && window.location.hostname === 'www.xelitesolutions.com') {
+      httpBase = 'https://api.xelitesolutions.com';
+    }
+  } catch { /* noop */ }
   const sanitizedHttp = String(httpBase).replace(/\/(api.*)?$/, '').replace(/\/+$/, '');
   const baseWsUrl = sanitizedHttp.replace(/^https/, 'wss').replace(/^http/, 'ws');
 
