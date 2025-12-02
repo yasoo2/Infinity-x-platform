@@ -31,14 +31,25 @@ const aiRouterFactory = ({ optionalAuth }) => {
       if (provider === 'openai') {
         try {
           const client = new OpenAI({ apiKey })
-          const list = await client.models.list()
-          const ok = Array.isArray(list?.data) && list.data.length > 0
-          if (!ok) return res.status(400).json({ success: false, error: 'NO_MODELS' })
+          // Prefer a minimal completion call instead of listing models (which requires api.model.read scope)
+          const ping = await client.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: 'ping' }] })
+          const ok = !!ping?.id
+          if (!ok) return res.status(400).json({ success: false, error: 'OPENAI_VERIFY_FAILED' })
           setKey('openai', apiKey)
-          return res.json({ success: true, provider: 'openai', models: list.data.map(m => m.id) })
+          return res.json({ success: true, provider: 'openai', models: ['gpt-4o', 'gpt-4o-mini'] })
         } catch (e) {
-          const msg = e?.message || 'OPENAI_VERIFY_FAILED'
-          return res.status(400).json({ success: false, error: msg })
+          // Fallback: attempt with gpt-4o
+          try {
+            const client2 = new OpenAI({ apiKey })
+            const ping2 = await client2.chat.completions.create({ model: 'gpt-4o', messages: [{ role: 'user', content: 'ping' }] })
+            const ok2 = !!ping2?.id
+            if (!ok2) throw e
+            setKey('openai', apiKey)
+            return res.json({ success: true, provider: 'openai', models: ['gpt-4o', 'gpt-4o-mini'] })
+          } catch (e2) {
+            const msg = e2?.message || e?.message || 'OPENAI_VERIFY_FAILED'
+            return res.status(400).json({ success: false, error: msg })
+          }
         }
       }
 
@@ -46,7 +57,10 @@ const aiRouterFactory = ({ optionalAuth }) => {
         try {
           const client = new GoogleGenerativeAI(apiKey)
           const model = client.getGenerativeModel({ model: 'gemini-1.5-pro-latest' })
-          void model
+          // Minimal content generation to verify key validity without listing models
+          const resp = await model.generateContent({ contents: [{ role: 'user', parts: [{ text: 'ping' }] }] }).catch(() => null)
+          const ok = !!resp
+          if (!ok) return res.status(400).json({ success: false, error: 'GEMINI_VERIFY_FAILED' })
           setKey('gemini', apiKey)
           return res.json({ success: true, provider: 'gemini', models: ['gemini-1.5-pro-latest'] })
         } catch (e) {
