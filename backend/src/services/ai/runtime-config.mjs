@@ -1,6 +1,6 @@
 const aiConfig = {
   activeProvider: process.env.OPENAI_API_KEY ? 'openai' : (process.env.GOOGLE_API_KEY ? 'gemini' : null),
-  activeModel: process.env.OPENAI_API_KEY ? 'gpt-4o' : (process.env.GOOGLE_API_KEY ? 'gemini-1.5-pro-latest' : null),
+  activeModel: null,
   keys: {
     openai: process.env.OPENAI_API_KEY || null,
     gemini: process.env.GOOGLE_API_KEY || null,
@@ -10,7 +10,7 @@ const aiConfig = {
 
 export function setActive(provider, model) {
   aiConfig.activeProvider = provider;
-  aiConfig.activeModel = model || aiConfig.activeModel;
+  aiConfig.activeModel = model || null;
 }
 
 export function setKey(provider, key) {

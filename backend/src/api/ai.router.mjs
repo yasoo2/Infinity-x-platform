@@ -81,12 +81,11 @@ const aiRouterFactory = ({ optionalAuth, db }) => {
 
   router.post('/activate', allowLoggedIn, async (req, res) => {
     try {
-      const { provider, model } = req.body || {};
+      const { provider } = req.body || {};
       if (!provider || !providers.find(p => p.id === provider)) {
         return res.status(400).json({ ok: false, error: 'UNKNOWN_PROVIDER' });
       }
-      const def = providers.find(p => p.id === provider)?.defaultModel;
-      const selectedModel = model || def || activeModel;
+      const selectedModel = null;
       const userId = req.user?.id || req.user?.userId || req.user?._id;
       if (!userId) return res.status(403).json({ ok: false, error: 'ACCESS_DENIED' });
       if (db) {

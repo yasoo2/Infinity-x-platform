@@ -189,7 +189,7 @@ export class JoeAgentWebSocketServer {
           
 
             try {
-              const model = data.model || 'gpt-4o';
+              const model = data.model || null;
               const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model, lang: data.lang });
               if (ws.readyState === ws.OPEN) {
                 ws.send(JSON.stringify({ type: 'response', response: result.response, toolsUsed: result.toolsUsed, sessionId }));
@@ -296,7 +296,7 @@ export class JoeAgentWebSocketServer {
               }
             } catch { void 0 }
             
-            const model = data.model || 'gpt-4o';
+            const model = data.model || null;
             const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model, lang: data.lang });
             socket.emit('response', { response: result.response, toolsUsed: result.toolsUsed, sessionId });
             try {

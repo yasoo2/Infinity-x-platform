@@ -991,16 +991,20 @@ export const useJoeChat = () => {
       if (sioRef.current && sioRef.current.connected) {
         let selectedModel = activeModelRef.current || localStorage.getItem('aiSelectedModel');
         if (!selectedModel) {
-          selectedModel = 'gpt-4o';
+          selectedModel = null;
         }
         const lang = getLang();
         const conv = state.conversations[convId] || null;
         const sidToUse = sid || conv?.sessionId || convId;
-        sioRef.current.emit('message', { action: 'instruct', message: inputText, sessionId: sidToUse, model: selectedModel, lang });
+        const payload = { action: 'instruct', message: inputText, sessionId: sidToUse, lang };
+        if (selectedModel) payload.model = selectedModel;
+        sioRef.current.emit('message', payload);
         try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
         sioSendTimeoutRef.current = setTimeout(async () => {
           try {
-            const { data } = await apiClient.post('/api/v1/joe/execute', { instruction: inputText, context: { sessionId: sidToUse, lang, model: selectedModel } });
+            const ctx = { sessionId: sidToUse, lang };
+            if (selectedModel) ctx.model = selectedModel;
+            const { data } = await apiClient.post('/api/v1/joe/execute', { instruction: inputText, context: ctx });
             const text = String(data?.response || data?.message || '').trim();
             if (text) {
               try {
@@ -1029,16 +1033,20 @@ export const useJoeChat = () => {
       if (ws.current?.readyState === WebSocket.OPEN) {
         let selectedModel = activeModelRef.current || localStorage.getItem('aiSelectedModel');
         if (!selectedModel) {
-          selectedModel = 'gpt-4o';
+          selectedModel = null;
         }
         const lang = getLang();
       const conv = state.conversations[convId] || null;
       const sidToUse = sid || conv?.sessionId || convId;
-        ws.current.send(JSON.stringify({ action: 'instruct', message: inputText, sessionId: sidToUse, model: selectedModel, lang }));
+        const msg = { action: 'instruct', message: inputText, sessionId: sidToUse, lang };
+        if (selectedModel) msg.model = selectedModel;
+        ws.current.send(JSON.stringify(msg));
         try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
         sioSendTimeoutRef.current = setTimeout(async () => {
           try {
-            const { data } = await apiClient.post('/api/v1/joe/execute', { instruction: inputText, context: { sessionId: sidToUse, lang, model: selectedModel } });
+            const ctx2 = { sessionId: sidToUse, lang };
+            if (selectedModel) ctx2.model = selectedModel;
+            const { data } = await apiClient.post('/api/v1/joe/execute', { instruction: inputText, context: ctx2 });
             const text = String(data?.response || data?.message || '').trim();
             if (text) {
               dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
@@ -1064,7 +1072,7 @@ export const useJoeChat = () => {
       (async () => {
         let selectedModel = activeModelRef.current || localStorage.getItem('aiSelectedModel');
         if (!selectedModel) {
-          selectedModel = 'gpt-4o';
+          selectedModel = null;
         }
         const lang = getLang();
         const conv = state.conversations[convId] || null;
@@ -1072,7 +1080,7 @@ export const useJoeChat = () => {
         try {
           const { data } = await apiClient.post('/api/v1/joe/execute', {
             instruction: inputText,
-            context: { sessionId: sidToUse, lang, model: selectedModel }
+            context: (() => { const c = { sessionId: sidToUse, lang }; if (selectedModel) c.model = selectedModel; return c; })()
           });
           const text = String(data?.response || data?.message || '').trim();
           if (text) {

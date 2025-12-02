@@ -23,6 +23,28 @@ import MANUS_STYLE_PROMPT from '../../prompts/manusStylePrompt.mjs';
 // Clients will be instantiated per-request from runtime configuration
 
 let _dependencies = {};
+let _modelCache = { openai: null };
+async function resolveAutoModel(provider, openaiClient, geminiClient) {
+  if (provider === 'openai' && openaiClient) {
+    const now = Date.now();
+    const c = _modelCache.openai;
+    if (c && c.expiresAt > now && c.id) return c.id;
+    try {
+      const list = await openaiClient.models.list();
+      const items = (list?.data || []).sort((a, b) => (b.created || 0) - (a.created || 0));
+      const pick = items.find(m => /(?:^|[-_.])(o4|o3|gpt-4|gpt-4o|gpt)/i.test(String(m.id))) || items[0];
+      const id = (pick && pick.id) ? pick.id : 'gpt-4o';
+      _modelCache.openai = { id, expiresAt: now + 300000 };
+      return id;
+    } catch {
+      return 'gpt-4o';
+    }
+  }
+  if (provider === 'gemini' && geminiClient) {
+    return 'gemini-1.5-pro-latest';
+  }
+  return 'gpt-4o';
+}
 function init(dependencies) { _dependencies = dependencies || {}; }
 
 // =========================
@@ -70,7 +92,7 @@ function shouldAugment(msg) {
  * @param {string} [options.model='gpt-4o'] - The model to use (e.g., 'gpt-4o', 'gemini-1.5-pro-latest').
  * @returns {Promise<object>} - The final response and metadata.
  */
-async function processMessage(userId, message, sessionId, { model = 'gpt-4o', lang } = {}) {
+async function processMessage(userId, message, sessionId, { model = null, lang } = {}) {
     const { memoryManager } = _dependencies;
     if (!memoryManager) { throw new Error('MemoryManager not initialized'); }
     const startTime = Date.now();
@@ -125,9 +147,12 @@ async function processMessage(userId, message, sessionId, { model = 'gpt-4o', la
       geminiClient = new GoogleGenerativeAI(effectiveKeys.gemini);
     }
 
-    // Choose default model from user config if model not explicitly provided
     if (!model) {
-      model = (userCfg?.activeModel) || cfg.activeModel || 'gpt-4o';
+      model = (userCfg?.activeModel) || cfg.activeModel || null;
+      if (!model) {
+        const provider = (userCfg?.activeProvider) || cfg.activeProvider || (effectiveKeys.openai ? 'openai' : (effectiveKeys.gemini ? 'gemini' : null));
+        model = await resolveAutoModel(provider, openaiClient, geminiClient);
+      }
     }
 
     if (model === 'offline-local' || (!effectiveKeys.openai && !effectiveKeys.gemini && _dependencies?.localLlamaService?.isReady?.())) {

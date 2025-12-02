@@ -22,7 +22,6 @@ const DEFAULT_AI_PROVIDERS = [
   { id: 'perplexity', name: 'Perplexity', siteUrl: 'https://www.perplexity.ai', createUrl: 'https://www.perplexity.ai/settings', defaultModel: 'pplx-70b-online', color: '#0ea5e9', icon: '🔍', region: 'global', logo: 'https://logo.clearbit.com/perplexity.ai' },
   { id: 'stability', name: 'Stability AI', siteUrl: 'https://stability.ai', createUrl: 'https://platform.stability.ai/account/keys', defaultModel: 'stable-diffusion-xl', color: '#7dd3fc', icon: '🎨', region: 'global', logo: 'https://logo.clearbit.com/stability.ai' },
   { id: 'meta', name: 'Meta LLaMA (via providers)', siteUrl: 'https://llama.meta.com', createUrl: 'https://llama.meta.com/', defaultModel: 'llama-3-70b-instruct', color: '#3b82f6', icon: '🧠', region: 'global', logo: 'https://logo.clearbit.com/meta.com' },
-  
   { id: 'ibm-watsonx', name: 'IBM watsonx', siteUrl: 'https://www.ibm.com/watsonx', createUrl: 'https://cloud.ibm.com/watsonx', defaultModel: 'ibm/granite-20b-instruct', color: '#1f2937', icon: '🔷', region: 'global', logo: 'https://logo.clearbit.com/ibm.com' },
   { id: 'databricks-mosaic', name: 'Databricks Mosaic', siteUrl: 'https://www.databricks.com', createUrl: 'https://www.databricks.com/product/mosaic-ai', defaultModel: 'db/mpt-7b-instruct', color: '#f43f5e', icon: '🧩', region: 'global', logo: 'https://logo.clearbit.com/databricks.com' },
   { id: 'snowflake-cortex', name: 'Snowflake Cortex', siteUrl: 'https://www.snowflake.com', createUrl: 'https://www.snowflake.com/en/data-cloud/cortex/', defaultModel: 'snowflake/llm', color: '#60a5fa', icon: '❄️', region: 'global', logo: 'https://logo.clearbit.com/snowflake.com' },
@@ -582,12 +581,12 @@ const AIMenuButton = ({ runtimeMode }) => {
     finally { setLoading(false); }
   }, [keys]);
 
-  const handleActivate = async (id, model) => {
+  const handleActivate = async (id) => {
     try {
       setLoading(true);
-      await activateAIProvider(id, model);
-      setActive({ provider: id, model });
-      try { localStorage.setItem('aiSelectedModel', model); } catch { void 0; }
+      await activateAIProvider(id);
+      setActive({ provider: id, model: null });
+      try { localStorage.removeItem('aiSelectedModel'); } catch { void 0; }
       setActivationError(e => ({ ...e, [id]: '' }));
       try {
         const mode = 'online';
@@ -678,7 +677,7 @@ const AIMenuButton = ({ runtimeMode }) => {
                           <span className="text-sm font-semibold">{p.name}</span>
                           <span className="text-xs text-gray-400">• {p.region==='china' ? 'الصين' : 'العالمي'}</span>
                         </span>
-                        <span className="text-[11px] text-gray-400">{p.defaultModel}</span>
+                        
                       </span>
                     </span>
                     <span className={`text-[10px] px-2 py-0.5 rounded-full ${isActive ? 'bg-green-600/20 text-green-300 ring-1 ring-green-500/50' : 'bg-gray-700/40 text-gray-300 ring-1 ring-yellow-600/30'}`}>{isActive ? 'نشط' : 'غير نشط'}</span>
@@ -732,10 +731,7 @@ const AIMenuButton = ({ runtimeMode }) => {
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      <select defaultValue={p.defaultModel} className="px-3 py-2 rounded-lg bg-[#0e1524] border border-yellow-600/30 text-white">
-                        <option value={p.defaultModel}>{p.defaultModel}</option>
-                      </select>
-                      <button onClick={() => handleActivate(p.id, p.defaultModel)} className="px-3 py-2 rounded-lg bg-yellow-600 hover:bg-yellow-700 text-black">تفعيل المزود</button>
+                      <button onClick={() => handleActivate(p.id)} className="px-3 py-2 rounded-lg bg-yellow-600 hover:bg-yellow-700 text-black">تفعيل المزود</button>
                       {!!activationError[p.id] && (
                         <span className="text-xs text-red-400 ml-1">{activationError[p.id]}</span>
                       )}

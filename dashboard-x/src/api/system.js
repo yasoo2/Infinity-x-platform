@@ -134,8 +134,8 @@ export const getAIProviders = (opts) =>
 export const validateAIKey = (provider, apiKey) =>
     call(() => apiClient.post(v1('/ai/validate'), { provider, apiKey }));
 
-export const activateAIProvider = (provider, model) =>
-    call(() => apiClient.post(v1('/ai/activate'), { provider, model }));
+export const activateAIProvider = (provider) =>
+    call(() => apiClient.post(v1('/ai/activate'), { provider }));
 
 export const getChatSessions = (opts) =>
   call(() => apiClient.get(chatHistory('/sessions'), { signal: opts?.signal }));
