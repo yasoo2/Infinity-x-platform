@@ -131,10 +131,10 @@ const RightPanel = ({ isProcessing, plan, forceStatus = false, wsConnected = fal
                 <h4 className="font-semibold text-white">AI Engine</h4>
               </div>
               <p className="text-sm text-gray-400">
-                {ai?.ok ? `${ai.activeProvider || ''} • ${ai.activeModel || ''}` : (runtime?.success ? `${runtime.mode} • ${runtime.offlineReady ? 'Ready' : 'Not Ready'}` : 'Unknown')}
+                {runtime?.success && runtime.offlineReady ? `محلي • جاهز` : (ai?.ok ? `${ai.activeProvider || ''} • ${ai.activeModel || ''}` : (runtime?.success ? `${runtime.mode} • ${runtime.offlineReady ? 'Ready' : 'Not Ready'}` : 'Unknown'))}
               </p>
               {runtime?.success && runtime.loading && (
-                <div className="mt-2 text-xs text-blue-400">Loading: {runtime.stage || 'Starting'} • {runtime.percent || 0}%</div>
+                <div className="mt-2 text-xs text-blue-400">تحميل: {runtime.stage || 'Starting'} • {runtime.percent || 0}%</div>
               )}
             </div>
 

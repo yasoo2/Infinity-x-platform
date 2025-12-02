@@ -1,10 +1,9 @@
-import path from 'path'
 import fs from 'fs'
 import os from 'os'
 
 class LocalLlamaService {
   constructor() {
-    this.modelPath = process.env.LLAMA_MODEL_PATH || path.join(process.cwd(), 'backend', 'models', 'llama.gguf')
+    this.modelPath = process.env.LLAMA_MODEL_PATH || ''
     this.llama = null
     this.model = null
     this.context = null
