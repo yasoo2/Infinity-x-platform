@@ -635,7 +635,10 @@ export const useJoeChat = () => {
           dispatch({ type: 'STOP_PROCESSING' });
         });
         sioRef.current = socket;
-        // Build WebSocket URL from centralized apiClient baseURL
+        const useWs = (() => { try { return localStorage.getItem('joeUseWS') === 'true'; } catch { return false; } })();
+        if (!useWs) {
+          return;
+        }
         let wsUrl;
         const httpBase = typeof apiClient?.defaults?.baseURL === 'string'
           ? apiClient.defaults.baseURL

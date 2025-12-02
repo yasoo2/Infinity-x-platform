@@ -177,6 +177,8 @@ export class JoeAgentWebSocketServer {
               } catch { /* noop */ }
             }
 
+            // Send immediate progress feedback
+            try { ws.send(JSON.stringify({ type: 'progress', progress: 1, step: 'Starting' })); } catch { /* noop */ }
             // 1. Save user message to DB
             try {
               if (mongoose.Types.ObjectId.isValid(sessionId)) {
@@ -273,11 +275,11 @@ export class JoeAgentWebSocketServer {
       }
     });
 
-    this.nsp.on('connection', (socket) => {
-      socket.emit('status', { message: 'Connected to Joe Agent v2 "Unified". Ready for instructions.' });
+      this.nsp.on('connection', (socket) => {
+        socket.emit('status', { message: 'Connected to Joe Agent v2 "Unified". Ready for instructions.' });
 
-      socket.on('message', async (data) => {
-        try {
+        socket.on('message', async (data) => {
+          try {
           if (!data || typeof data.action !== 'string' || typeof data.message !== 'string') {
             const lang = String(data?.lang || 'ar');
             const msg = lang==='ar' ? 'تنسيق الرسالة غير صالح.' : 'Invalid message format.';
@@ -306,6 +308,7 @@ export class JoeAgentWebSocketServer {
           socket.data.sessionId = sessionId;
           socket.join(sessionId);
           if (data.action === 'instruct') {
+            try { socket.emit('progress', { progress: 1, step: 'Starting' }); } catch { /* noop */ }
             try {
               if (mongoose.Types.ObjectId.isValid(sessionId)) {
                 await ChatMessage.create({ sessionId, userId, type: 'user', content: data.message });
