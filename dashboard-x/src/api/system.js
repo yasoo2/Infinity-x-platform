@@ -129,13 +129,13 @@ export const withAbort = () => {
 
   // AI Providers Management
 export const getAIProviders = (opts) =>
-    call(() => apiClient.get(v1('/ai/providers'), { signal: opts?.signal }));
+    call(() => apiClient.get(v1('/ai/providers'), { signal: opts?.signal, timeout: 20000 }));
 
-export const validateAIKey = (provider, apiKey) =>
-    call(() => apiClient.post(v1('/ai/validate'), { provider, apiKey }));
+export const validateAIKey = (provider, apiKey, opts) =>
+    call(() => apiClient.post(v1('/ai/validate'), { provider, apiKey }, { signal: opts?.signal, timeout: 45000 }));
 
-export const activateAIProvider = (provider) =>
-    call(() => apiClient.post(v1('/ai/activate'), { provider }));
+export const activateAIProvider = (provider, opts) =>
+    call(() => apiClient.post(v1('/ai/activate'), { provider }, { signal: opts?.signal, timeout: 30000 }));
 
 export const getChatSessions = (opts) =>
   call(() => apiClient.get(chatHistory('/sessions'), { signal: opts?.signal }));

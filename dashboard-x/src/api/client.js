@@ -9,8 +9,7 @@
   const isLocal = (u) => { try { const h = new URL(String(u)).hostname; return h === 'localhost' || h === '127.0.0.1'; } catch { return /localhost|127\.0\.0\.1/.test(String(u)); } };
   const isDev = typeof import.meta !== 'undefined' && !!import.meta.env?.DEV;
   const origin = typeof window !== 'undefined' ? window.location.origin : null;
-  const host = typeof window !== 'undefined' ? window.location.hostname : '';
-  const normalize = (u) => String(u || '').replace(/\/+$/, '');
+  
 
   if (typeof window !== 'undefined' && isDev) {
     resolvedBase = window.location.origin;

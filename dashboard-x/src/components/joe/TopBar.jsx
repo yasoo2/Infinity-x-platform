@@ -7,42 +7,6 @@ import apiClient from '../../api/client';
 const DEFAULT_AI_PROVIDERS = [
   { id: 'openai', name: 'OpenAI', siteUrl: 'https://openai.com', createUrl: 'https://platform.openai.com/api-keys', defaultModel: 'gpt-4o', color: '#10a37f', icon: '🟢', region: 'global', logo: 'https://logo.clearbit.com/openai.com' },
   { id: 'gemini', name: 'Google Gemini', siteUrl: 'https://ai.google.dev', createUrl: 'https://aistudio.google.com/app/apikey', defaultModel: 'gemini-1.5-pro-latest', color: '#7c3aed', icon: '🔷', region: 'global', logo: 'https://logo.clearbit.com/google.com' },
-  { id: 'grok', name: 'xAI Grok', siteUrl: 'https://x.ai', createUrl: 'https://console.x.ai/', defaultModel: 'grok-2', color: '#111827', icon: '⚫️', region: 'global', logo: 'https://logo.clearbit.com/x.ai' },
-  { id: 'anthropic', name: 'Anthropic Claude', siteUrl: 'https://www.anthropic.com', createUrl: 'https://console.anthropic.com/account/keys', defaultModel: 'claude-3-5-sonnet-latest', color: '#f59e0b', icon: '🟡', region: 'global', logo: 'https://logo.clearbit.com/anthropic.com' },
-  { id: 'mistral', name: 'Mistral AI', siteUrl: 'https://mistral.ai', createUrl: 'https://console.mistral.ai/api-keys/', defaultModel: 'mistral-large-latest', color: '#2563eb', icon: '🔵', region: 'global', logo: 'https://logo.clearbit.com/mistral.ai' },
-  { id: 'cohere', name: 'Cohere', siteUrl: 'https://cohere.com', createUrl: 'https://dashboard.cohere.com/api-keys', defaultModel: 'command-r-plus', color: '#ef4444', icon: '🔴', region: 'global', logo: 'https://logo.clearbit.com/cohere.com' },
-  { id: 'azure-openai', name: 'Azure OpenAI', siteUrl: 'https://azure.microsoft.com', createUrl: 'https://portal.azure.com/#view/Microsoft_Azure_ProjectOxford/CompositeKeys', defaultModel: 'gpt-4o', color: '#0ea5e9', icon: '☁️', region: 'global', logo: 'https://logo.clearbit.com/azure.com' },
-  { id: 'aws-bedrock', name: 'AWS Bedrock', siteUrl: 'https://aws.amazon.com/bedrock/', createUrl: 'https://us-east-1.console.aws.amazon.com/bedrock/home', defaultModel: 'anthropic.claude-3-sonnet', color: '#f97316', icon: '🟠', region: 'global', logo: 'https://logo.clearbit.com/aws.amazon.com' },
-  { id: 'huggingface', name: 'Hugging Face', siteUrl: 'https://huggingface.co', createUrl: 'https://huggingface.co/settings/tokens', defaultModel: 'tiiuae/falcon-180b', color: '#eab308', icon: '🤗', region: 'global', logo: 'https://logo.clearbit.com/huggingface.co' },
-  { id: 'together', name: 'Together AI', siteUrl: 'https://www.together.ai', createUrl: 'https://api.together.xyz/settings/api-keys', defaultModel: 'meta-llama/Meta-Llama-3-70B-Instruct', color: '#22c55e', icon: '🟩', region: 'global', logo: 'https://logo.clearbit.com/together.ai' },
-  { id: 'replicate', name: 'Replicate', siteUrl: 'https://replicate.com', createUrl: 'https://replicate.com/account/api-tokens', defaultModel: 'meta/llama-3-70b-instruct', color: '#06b6d4', icon: '🌀', region: 'global', logo: 'https://logo.clearbit.com/replicate.com' },
-  { id: 'octoai', name: 'OctoAI', siteUrl: 'https://octoai.com', createUrl: 'https://octoai.cloud/dashboard/keys', defaultModel: 'meta-llama/llama-3-70b-instruct', color: '#9333ea', icon: '🐙', region: 'global', logo: 'https://logo.clearbit.com/octoai.com' },
-  { id: 'openrouter', name: 'OpenRouter', siteUrl: 'https://openrouter.ai', createUrl: 'https://openrouter.ai/settings/keys', defaultModel: 'openrouter/auto', color: '#84cc16', icon: '🔀', region: 'global', logo: 'https://logo.clearbit.com/openrouter.ai' },
-  { id: 'groq', name: 'Groq', siteUrl: 'https://groq.com', createUrl: 'https://console.groq.com/keys', defaultModel: 'llama3-70b-8192', color: '#dc2626', icon: '⚡', region: 'global', logo: 'https://logo.clearbit.com/groq.com' },
-  { id: 'perplexity', name: 'Perplexity', siteUrl: 'https://www.perplexity.ai', createUrl: 'https://www.perplexity.ai/settings', defaultModel: 'pplx-70b-online', color: '#0ea5e9', icon: '🔍', region: 'global', logo: 'https://logo.clearbit.com/perplexity.ai' },
-  { id: 'stability', name: 'Stability AI', siteUrl: 'https://stability.ai', createUrl: 'https://platform.stability.ai/account/keys', defaultModel: 'stable-diffusion-xl', color: '#7dd3fc', icon: '🎨', region: 'global', logo: 'https://logo.clearbit.com/stability.ai' },
-  { id: 'meta', name: 'Meta LLaMA (via providers)', siteUrl: 'https://llama.meta.com', createUrl: 'https://llama.meta.com/', defaultModel: 'llama-3-70b-instruct', color: '#3b82f6', icon: '🧠', region: 'global', logo: 'https://logo.clearbit.com/meta.com' },
-  { id: 'ibm-watsonx', name: 'IBM watsonx', siteUrl: 'https://www.ibm.com/watsonx', createUrl: 'https://cloud.ibm.com/watsonx', defaultModel: 'ibm/granite-20b-instruct', color: '#1f2937', icon: '🔷', region: 'global', logo: 'https://logo.clearbit.com/ibm.com' },
-  { id: 'databricks-mosaic', name: 'Databricks Mosaic', siteUrl: 'https://www.databricks.com', createUrl: 'https://www.databricks.com/product/mosaic-ai', defaultModel: 'db/mpt-7b-instruct', color: '#f43f5e', icon: '🧩', region: 'global', logo: 'https://logo.clearbit.com/databricks.com' },
-  { id: 'snowflake-cortex', name: 'Snowflake Cortex', siteUrl: 'https://www.snowflake.com', createUrl: 'https://www.snowflake.com/en/data-cloud/cortex/', defaultModel: 'snowflake/llm', color: '#60a5fa', icon: '❄️', region: 'global', logo: 'https://logo.clearbit.com/snowflake.com' },
-  { id: 'baidu-ernie', name: 'Baidu ERNIE', siteUrl: 'https://ai.baidu.com', createUrl: 'https://console.bce.baidu.com/ai/', defaultModel: 'ERNIE-4.0', color: '#2563eb', icon: '🔵', region: 'china', logo: 'https://logo.clearbit.com/baidu.com' },
-  { id: 'ali-qianwen', name: 'Alibaba Tongyi Qianwen', siteUrl: 'https://tongyi.aliyun.com', createUrl: 'https://dashscope.console.aliyun.com/', defaultModel: 'qwen-turbo', color: '#f59e0b', icon: '🟡', region: 'china', logo: 'https://logo.clearbit.com/aliyun.com' },
-  { id: 'tencent-hunyuan', name: 'Tencent Hunyuan', siteUrl: 'https://hunyuan.tencent.com', createUrl: 'https://cloud.tencent.com/product/hunyuan', defaultModel: 'hunyuan-large', color: '#0ea5e9', icon: '☁️', region: 'china', logo: 'https://logo.clearbit.com/tencent.com' },
-  { id: 'iflytek-spark', name: 'iFLYTEK Spark', siteUrl: 'https://www.xfyun.cn', createUrl: 'https://console.xfyun.cn/', defaultModel: 'spark', color: '#ef4444', icon: '🔴', region: 'china', logo: 'https://logo.clearbit.com/xfyun.cn' },
-  { id: 'bytedance-volc', name: 'Volcengine (ByteDance)', siteUrl: 'https://www.volcengine.com', createUrl: 'https://console.volcengine.com/iam/keymanage', defaultModel: 'skylark', color: '#06b6d4', icon: '🌀', region: 'china', logo: 'https://logo.clearbit.com/volcengine.com' },
-  { id: 'zhipu-glm', name: 'Zhipu GLM', siteUrl: 'https://www.zhipuai.cn', createUrl: 'https://open.bigmodel.cn/dev/api', defaultModel: 'glm-4', color: '#9333ea', icon: '🟣', region: 'china', logo: 'https://logo.clearbit.com/zhipuai.cn' },
-  { id: 'moonshot-kimi', name: 'Moonshot Kimi', siteUrl: 'https://kimi.moonshot.cn', createUrl: 'https://platform.moonshot.cn/console', defaultModel: 'kimi-2-large', color: '#14b8a6', icon: '🟩', region: 'china', logo: 'https://logo.clearbit.com/moonshot.cn' },
-  { id: 'baichuan', name: 'Baichuan AI', siteUrl: 'https://www.baichuan-ai.com', createUrl: 'https://platform.baichuan-ai.com/console', defaultModel: 'baichuan2-53b', color: '#f43f5e', icon: '🟥', region: 'china', logo: 'https://logo.clearbit.com/baichuan-ai.com' },
-  { id: 'minimax', name: 'MiniMax', siteUrl: 'https://www.minimax-zh.com', createUrl: 'https://www.minimax-zh.com/account/keys', defaultModel: 'abab-6.5', color: '#22c55e', icon: '🟩', region: 'china', logo: 'https://logo.clearbit.com/minimax-zh.com' },
-  { id: 'sensetime-sensenova', name: 'SenseTime SenseNova', siteUrl: 'https://www.sensetime.com', createUrl: 'https://open-platform.sensetime.com/', defaultModel: 'sensechat-5', color: '#e11d48', icon: '💮', region: 'china', logo: 'https://logo.clearbit.com/sensetime.com' },
-  { id: 'deepseek', name: 'DeepSeek', siteUrl: 'https://www.deepseek.com', createUrl: 'https://platform.deepseek.com/api_keys', defaultModel: 'deepseek-chat', color: '#3b82f6', icon: '🔵', region: 'china', logo: 'https://logo.clearbit.com/deepseek.com' },
-  { id: 'huawei-pangu', name: 'Huawei Pangu', siteUrl: 'https://www.huaweicloud.com/intl/en-us/product/pangu', createUrl: 'https://console.huaweicloud.com/apig', defaultModel: 'pangu-3', color: '#ef4444', icon: '🔴', region: 'china', logo: 'https://logo.clearbit.com/huaweicloud.com' },
-  { id: 'jd-yanxi', name: 'JD Yanxi', siteUrl: 'https://www.jdcloud.com', createUrl: 'https://console.jdcloud.com/ai', defaultModel: 'yanxi', color: '#dc2626', icon: '🟥', region: 'china', logo: 'https://logo.clearbit.com/jdcloud.com' },
-  { id: '360-zhinao', name: '360 Zhinao', siteUrl: 'https://ai.360.cn', createUrl: 'https://ai.360.cn/', defaultModel: 'zhinao', color: '#16a34a', icon: '🟢', region: 'china', logo: 'https://logo.clearbit.com/360.cn' },
-  { id: 'tencent-qq', name: 'QQ AI', siteUrl: 'https://www.qq.com', createUrl: 'https://qq.com/', defaultModel: 'qq-ai', color: '#0ea5e9', icon: '🔷', region: 'china', logo: 'https://logo.clearbit.com/qq.com' },
-  { id: 'netease', name: 'NetEase AI', siteUrl: 'https://www.163.com', createUrl: 'https://netease.com/', defaultModel: 'netease-ai', color: '#ef4444', icon: '🔴', region: 'china', logo: 'https://logo.clearbit.com/163.com' },
-  { id: '01ai-yi', name: '01.AI Yi', siteUrl: 'https://01.ai', createUrl: 'https://01.ai/', defaultModel: 'yi-34b-chat', color: '#0ea5e9', icon: '🔷', region: 'china', logo: 'https://logo.clearbit.com/01.ai' },
-  { id: 'kunlun-ai', name: 'Kunlun AI', siteUrl: 'https://www.kunlun.ai', createUrl: 'https://www.kunlun.ai/', defaultModel: 'kunlun-large', color: '#16a34a', icon: '🟢', region: 'china', logo: 'https://logo.clearbit.com/kunlun.ai' },
 ];
 
 import PropTypes from 'prop-types';
@@ -530,7 +494,10 @@ const AIMenuButton = ({ runtimeMode }) => {
       const controller = new AbortController();
       providersAbortRef.current = controller;
       const data = await getAIProviders({ signal: controller.signal });
-      const list = data.providers && data.providers.length ? data.providers : DEFAULT_AI_PROVIDERS;
+      const allowedMap = Object.fromEntries(DEFAULT_AI_PROVIDERS.map(p => [p.id, p]));
+      const list = (data.providers || [])
+        .map(p => ({ ...allowedMap[p.id], ...p }))
+        .filter(p => !!allowedMap[p.id]);
       setProviders(list);
       setActive({ provider: data.activeProvider, model: data.activeModel });
     } catch (err) {

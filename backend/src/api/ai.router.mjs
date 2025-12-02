@@ -11,22 +11,10 @@ const aiRouterFactory = ({ optionalAuth }) => {
     try {
       const cfg = getConfig()
       const providers = [
-        {
-          id: 'openai',
-          name: 'OpenAI',
-          active: cfg.activeProvider === 'openai',
-          hasKey: !!cfg.keys.openai,
-          defaultModel: 'gpt-4o'
-        },
-        {
-          id: 'gemini',
-          name: 'Google Gemini',
-          active: cfg.activeProvider === 'gemini',
-          hasKey: !!cfg.keys.gemini,
-          defaultModel: 'gemini-1.5-pro-latest'
-        }
+        { id: 'openai', name: 'OpenAI', defaultModel: 'gpt-4o', active: cfg.activeProvider === 'openai', hasKey: !!cfg.keys.openai },
+        { id: 'gemini', name: 'Google Gemini', defaultModel: 'gemini-1.5-pro-latest', active: cfg.activeProvider === 'gemini', hasKey: !!cfg.keys.gemini },
       ]
-      res.json({ success: true, providers })
+      res.json({ success: true, providers, activeProvider: cfg.activeProvider, activeModel: cfg.activeModel })
     } catch (e) {
       res.status(500).json({ success: false, message: e?.message || 'FAILED_PROVIDERS' })
     }
