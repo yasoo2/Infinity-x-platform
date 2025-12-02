@@ -64,6 +64,7 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
     try { return localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'; } catch { return 'en'; }
   });
   const [offlineReady, setOfflineReady] = React.useState(false);
+  const [version, setVersion] = React.useState('');
   const [runtimeMode, setRuntimeMode] = React.useState('online');
   
   React.useEffect(() => {
@@ -87,6 +88,7 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
         const { data } = await apiClient.get('/api/v1/runtime-mode/status');
         setOfflineReady(Boolean(data?.offlineReady));
         setRuntimeMode(String(data?.mode || 'online'));
+        if (data?.version) setVersion(String(data.version));
       } catch (e) { void e; }
     })();
   }, []);
@@ -149,7 +151,9 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
       <div className="flex items-center">
         <style>{`
           .joe-brand { display:flex; align-items:center; gap:8px; }
+          .joe-brand .label { display:flex; flex-direction:column; align-items:flex-start; line-height:1; }
           .joe-brand .text { font-size: 24px; font-weight: 800; color: #fff; text-transform: lowercase; letter-spacing: 0.02em; }
+          .joe-brand .version { font-size: 10px; font-weight: 700; color: #eab308; opacity: 0.9; margin-top: -2px; letter-spacing: 0.04em; }
           .joe-brand .text span { color: #eab308; }
           .joe-brand .cube { width: 56px; height: 56px; background: linear-gradient(135deg, #eab308, #fbbf24); position: relative; border-radius: 12px; transform-style: preserve-3d; animation: cubeSpin 4s infinite linear, cubeBounce 3s infinite ease-in-out; box-shadow: 0 0 22px rgba(234, 179, 8, 0.6); overflow: visible; }
           .joe-brand .eyes { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; gap: 8px; z-index: 10; }
@@ -297,8 +301,9 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
           .joe-brand[data-activity='happy'] .mascot .mouth { animation: layout 1.6s ease-in-out infinite; }
         `}</style>
         <div className="joe-brand" ref={brandRef} onMouseMove={onBrandMouseMove} style={{ '--eyeX': `${eyeOffset.x}px`, '--eyeY': `${eyeOffset.y}px`, transform: `scale(${mascotScale})` }} data-activity={activity} data-outfit={outfit}>
-          <div className="text">
-            jo<span>e</span>
+          <div className="label">
+            <div className="text">jo<span>e</span></div>
+            {version ? <div className="version">{`V${version}`}</div> : null}
           </div>
           <div className="mascot">
             <div className="ring"></div>
