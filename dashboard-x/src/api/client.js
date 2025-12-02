@@ -61,6 +61,15 @@
         // axios will set to application/json automatically; explicit is fine too:
         config.headers['Content-Type'] = 'application/json';
       }
+      // Prevent baseURL + url from duplicating /api/v1 when env base already includes it
+      try {
+        const base = String(apiClient.defaults.baseURL || '');
+        const baseHasV1 = /\/api\/v1$/i.test(base);
+        const urlHasV1 = /^\/api\/v1(\/|$)/i.test(String(config.url || ''));
+        if (baseHasV1 && urlHasV1) {
+          config.url = String(config.url || '').replace(/^\/api\/v1/, '/');
+        }
+      } catch { /* noop */ }
       // Prevent accidental double slashes in URL
       if (config.url?.startsWith('/')) {
         config.url = config.url.replace(/^\/+/, '/');

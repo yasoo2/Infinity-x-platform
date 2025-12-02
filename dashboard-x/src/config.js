@@ -8,7 +8,11 @@
     const host = typeof window !== 'undefined' ? window.location.hostname : '';
     const isDev = !!(import.meta?.env?.DEV);
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    const apiBase = (host === 'localhost' || host === '127.0.0.1') ? 'http://localhost:4000/api/v1' : (overrideApi ? `${String(overrideApi).replace(/\/$/, '')}/api/v1` : `${origin}/api/v1`);
+    const normOverride = String(overrideApi || '').replace(/\/+$/, '');
+    const overrideHasV1 = /\/api\/v1$/i.test(normOverride);
+    const apiBase = (host === 'localhost' || host === '127.0.0.1')
+      ? 'http://localhost:4000/api/v1'
+      : (overrideApi ? (overrideHasV1 ? normOverride : `${normOverride}/api/v1`) : `${origin}/api/v1`);
     const wsOrigin = (host === 'localhost' || host === '127.0.0.1') ? 'ws://localhost:4000' : (overrideWs || origin.replace(/^https/, 'wss').replace(/^http/, 'ws'));
     return {
       apiBaseUrl: isDev ? `${origin}/api/v1` : apiBase,
