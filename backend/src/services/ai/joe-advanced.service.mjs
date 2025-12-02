@@ -155,7 +155,7 @@ async function processMessage(userId, message, sessionId, { model = null, lang }
       }
     }
 
-    if (model === 'offline-local' || (!effectiveKeys.openai && !effectiveKeys.gemini && _dependencies?.localLlamaService?.isReady?.())) {
+    if (model === '__disabled__') {
         const availableTools2 = toolManager.getToolSchemas();
         const llm = _dependencies.localLlamaService;
         let planText = '';
@@ -505,11 +505,11 @@ ${transcript.slice(0, 8000)}`;
                       await llm.stream(llmMessages, (p) => { parts.push(String(p || '')); }, { temperature: 0.4, maxTokens: 1024 });
                       finalContent = parts.join('');
                     } else {
-                      finalContent = targetLang === 'ar' ? 'النموذج المحلي غير جاهز حالياً.' : 'Local model is not ready.';
+                      finalContent = targetLang === 'ar' ? 'يرجى تفعيل مزود الذكاء من زر مزودين.' : 'Please activate an AI provider from the Providers menu.';
                     }
                 } catch (e10) {
                   void e10;
-                  finalContent = targetLang === 'ar' ? 'تعذّر استخدام النموذج المحلي حالياً.' : 'Unable to use local model temporarily.';
+                  finalContent = targetLang === 'ar' ? 'تعذّر استخدام المزود الحالي، يرجى التحقق من المفتاح أو تفعيل مزود آخر.' : 'Provider unavailable; please check the key or activate another provider.';
                 }
               }
             }
@@ -714,10 +714,10 @@ ${transcript.slice(0, 8000)}`;
               await llm.stream(llmMessages, (p) => { parts.push(String(p || '')); }, { temperature: 0.4, maxTokens: 1024 });
               finalContent = parts.join('');
             } else {
-              finalContent = targetLang === 'ar' ? 'النموذج المحلي غير جاهز حالياً.' : 'Local model is not ready.';
+              finalContent = targetLang === 'ar' ? 'يرجى تفعيل مزود الذكاء من زر مزودين.' : 'Please activate an AI provider from the Providers menu.';
             }
           } catch {
-            finalContent = targetLang === 'ar' ? 'تعذّر استخدام النموذج المحلي حالياً.' : 'Unable to use local model temporarily.';
+            finalContent = targetLang === 'ar' ? 'تعذّر استخدام المزود الحالي، يرجى التحقق من المفتاح أو تفعيل مزود آخر.' : 'Provider unavailable; please check the key or activate another provider.';
           }
         }
     }
