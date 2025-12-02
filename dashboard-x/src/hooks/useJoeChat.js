@@ -883,11 +883,10 @@ export const useJoeChat = () => {
                 }
               } catch { void 0; }
             }
-            if (isCompleteEvent) {
-              dispatch({ type: 'STOP_PROCESSING' });
-              dispatch({ type: 'REMOVE_PENDING_LOGS' });
-              if (syncRef.current) syncRef.current();
-            }
+            try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { }
+            dispatch({ type: 'STOP_PROCESSING' });
+            dispatch({ type: 'REMOVE_PENDING_LOGS' });
+            if (syncRef.current) syncRef.current();
             return;
           }
 
@@ -908,6 +907,7 @@ export const useJoeChat = () => {
 
           if (type === 'error') {
             dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `[ERROR]: ${data.message}` } });
+            try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { }
             dispatch({ type: 'STOP_PROCESSING' });
             return;
           }
