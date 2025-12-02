@@ -1,7 +1,7 @@
 
 /**
  * Unified Admin Management Script
- * @version 2.1
+ * @version 2.2
  *
  * This script provides a centralized, command-line tool to manage super admins.
  * It connects directly to the database to create or update admin credentials.

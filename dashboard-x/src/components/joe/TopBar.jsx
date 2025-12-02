@@ -101,6 +101,23 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
       } catch (e) { void e; }
     })();
   }, []);
+
+  React.useEffect(() => {
+    let timer = null;
+    const shouldPoll = (!offlineReady || (runtimeStage && runtimeStage !== 'done'));
+    if (shouldPoll) {
+      timer = setInterval(async () => {
+        try {
+          const { data } = await apiClient.get('/api/v1/runtime-mode/status');
+          setOfflineReady(Boolean(data?.offlineReady));
+          setRuntimeStage(String(data?.stage || ''));
+          setRuntimePercent(Number(data?.percent || 0));
+          setRuntimeMode(String(data?.mode || 'online'));
+        } catch { /* noop */ }
+      }, 1200);
+    }
+    return () => { if (timer) clearInterval(timer); };
+  }, [offlineReady, runtimeStage]);
   React.useEffect(() => {
     const onRuntime = (e) => {
       const m = e?.detail?.mode;
@@ -344,10 +361,13 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
             } catch { void 0 }
           }}
           className={`p-1.5 px-2 h-7 inline-flex items-center justify-center rounded-lg transition-colors border ${runtimeMode==='offline' && offlineReady && runtimeStage==='done' ? 'bg-green-600 text-black hover:bg-green-700 border-green-500/50' : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border-yellow-600/40'}`}
-          title={lang==='ar'?'المحلي':'Local'}
+          title={lang==='ar'? (offlineReady ? 'المحلي جاهز' : `تحميل النموذج المحلي ${runtimePercent}%`) : (offlineReady ? 'Local ready' : `Loading local model ${runtimePercent}%`)}
         >
           <FiCpu size={12} />
           <span className="ml-1 text-[11px] font-semibold">Joe Ai</span>
+          {(!offlineReady || (runtimeStage && runtimeStage !== 'done')) && runtimePercent > 0 ? (
+            <span className="ml-1 text-[10px] font-semibold text-yellow-400">{`${Math.min(100, Math.max(0, Math.round(runtimePercent)))}%`}</span>
+          ) : null}
         </button>
         {/* Providers Button */}
         <AIMenuButton runtimeMode={runtimeMode} />
