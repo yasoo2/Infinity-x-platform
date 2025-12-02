@@ -179,16 +179,17 @@ The self-correction mechanism has been activated. A detailed, multi-step plan ha
         const start = Date.now();
         const os = await import('os');
         const { getConfig } = await import('../services/ai/runtime-config.mjs');
-        const { localLlamaService } = await import('../services/llm/local-llama.service.mjs');
+        let localLlamaService = null;
+        try { const mod = await import('../services/llm/local-llama.service.mjs'); localLlamaService = mod?.localLlamaService || null; } catch { localLlamaService = null; }
         const cfg = getConfig();
         const toolsCount = Array.isArray(tm?.getToolSchemas?.()) ? tm.getToolSchemas().length : 0;
         const envChecks = ['NODE_ENV','MONGO_URI','OPENAI_API_KEY','REDIS_URL','JWT_SECRET'];
         const missingEnv = envChecks.filter(k => !process.env[k]);
         const llama = {
-            ready: localLlamaService.isReady(),
-            stage: localLlamaService.loadingStage,
-            percent: localLlamaService.loadingPercent,
-            modelPathExists: !!localLlamaService.modelPath && require('fs').existsSync(localLlamaService.modelPath)
+            ready: !!(localLlamaService && typeof localLlamaService.isReady === 'function' && localLlamaService.isReady()),
+            stage: localLlamaService?.loadingStage || 'missing',
+            percent: localLlamaService?.loadingPercent || 0,
+            modelPathExists: !!(localLlamaService?.modelPath && require('fs').existsSync(localLlamaService.modelPath))
         };
         const health = {
             uptime: process.uptime(),

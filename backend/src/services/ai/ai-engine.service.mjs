@@ -5,7 +5,6 @@
  */
 
 import { OpenAI } from 'openai';
-import { LocalLlamaService } from '../llm/local-llama.service.mjs'; // تصحيح مسار الاستيراد
 
 class AIEngineService {
     constructor(dependencies) {
@@ -108,8 +107,8 @@ class AIEngineService {
                 console.warn('⚠️ Local Llama is disabled by environment variable.');
                 return null;
             }
-            // LocalLlamaService هو الواجهة الموحدة للنموذج المحلي
-            return new LocalLlamaService();
+            console.warn('⚠️ Local Llama will be lazily initialized on first use.');
+            return null;
         } catch (error) {
             console.error('❌ Failed to initialize Local Llama:', error.message);
             return null;
@@ -245,11 +244,21 @@ class AIEngineService {
      * Generate content using Local Llama
      */
     async generateWithLocalLlama(prompt, options = {}) {
-        if (!this.models.llama) {
-            throw new Error('Local Llama is not initialized.');
+        let llamaClient = this.models.llama;
+        if (!llamaClient) {
+            try {
+                const isEnabled = process.env.LOCAL_LLAMA_ENABLED === 'true';
+                if (!isEnabled) throw new Error('Local Llama disabled.');
+                const mod = await import('../llm/local-llama.service.mjs');
+                const Svc = mod?.LocalLlamaService || null;
+                if (!Svc) throw new Error('Local Llama module missing.');
+                llamaClient = new Svc();
+                this.models.llama = llamaClient;
+            } catch (e) {
+                throw new Error(e?.message || 'Local Llama initialization failed.');
+            }
         }
-        // LocalLlamaService should have a unified interface like generateContent
-        const response = await this.models.llama.generateContent(prompt, options);
+        const response = await llamaClient.generateContent(prompt, options);
         return {
             model: 'llama',
             content: response.content,

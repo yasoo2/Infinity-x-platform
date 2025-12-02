@@ -2,7 +2,15 @@ import express from 'express'
 import searchTools from '../tools_refactored/search.tool.mjs'
 import browserTool from '../services/tools/browser.tool.mjs'
 import { getMode } from '../core/runtime-mode.mjs'
-import { localLlamaService } from '../services/llm/local-llama.service.mjs'
+let _localLlamaService = null
+const getLocalLlamaSafe = async () => {
+  if (_localLlamaService) return _localLlamaService
+  try {
+    const mod = await import('../services/llm/local-llama.service.mjs')
+    _localLlamaService = mod?.localLlamaService || null
+  } catch { _localLlamaService = null }
+  return _localLlamaService
+}
 
 const chatRouterFactory = ({ optionalAuth }) => {
   const router = express.Router()
@@ -14,11 +22,13 @@ const chatRouterFactory = ({ optionalAuth }) => {
       if (!prompt) return res.status(400).json({ success: false, error: 'PROMPT_REQUIRED' })
       const mode = getMode()
       if (mode === 'offline') {
-        if (!localLlamaService.isReady()) {
-          const ok = await localLlamaService.initialize()
+        const svc = await getLocalLlamaSafe()
+        if (!svc) return res.status(503).json({ success: false, error: 'MODEL_NOT_AVAILABLE' })
+        if (!svc.isReady()) {
+          const ok = await svc.initialize()
           if (!ok) return res.status(503).json({ success: false, error: 'MODEL_NOT_INITIALIZED' })
         }
-        const text = await localLlamaService.generate(prompt, req.body?.options || {})
+        const text = await svc.generate(prompt, req.body?.options || {})
         return res.json({ success: true, text, sources: [] })
       } else {
         const sr = await searchTools.searchWeb({ query: prompt })
@@ -52,14 +62,13 @@ const chatRouterFactory = ({ optionalAuth }) => {
       const mode = getMode()
       if (mode === 'offline') {
         write('وضع المصنع الذاتي مفعل')
-        if (!localLlamaService.isReady()) {
-          const ok = await localLlamaService.initialize()
-          if (!ok) {
-            write('تعذر تحميل النموذج المحلي')
-            return res.end()
-          }
+        const svc = await getLocalLlamaSafe()
+        if (!svc) { write('النموذج المحلي غير متاح'); return res.end() }
+        if (!svc.isReady()) {
+          const ok = await svc.initialize()
+          if (!ok) { write('تعذر تحميل النموذج المحلي'); return res.end() }
         }
-        await localLlamaService.stream(src, (t) => write(t), req.body?.options || {})
+        await svc.stream(src, (t) => write(t), req.body?.options || {})
       } else {
         const sr = await searchTools.searchWeb({ query: prompt })
         if (!sr.success || !sr.results?.length) {
