@@ -86,9 +86,12 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
     (async () => {
       try {
         const { data } = await apiClient.get('/api/v1/runtime-mode/status');
-        setOfflineReady(Boolean(data?.offlineReady));
-        setRuntimeMode(String(data?.mode || 'online'));
+        const offlineReady = Boolean(data?.offlineReady);
+        const mode = String(data?.mode || 'online');
+        setOfflineReady(offlineReady);
+        setRuntimeMode(mode);
         if (data?.version) setVersion(String(data.version));
+        try { window.__joeRuntimeStatus = { offlineReady, mode, hasProvider: Boolean(data?.hasProvider) }; } catch { /* noop */ }
       } catch (e) { void e; }
     })();
   }, []);

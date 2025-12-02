@@ -955,7 +955,11 @@ export const useJoeChat = () => {
 
     const trySend = (attempt = 0) => {
       if (sioRef.current && sioRef.current.connected) {
-        const selectedModel = localStorage.getItem('aiSelectedModel') || 'gpt-4o';
+        let selectedModel = localStorage.getItem('aiSelectedModel');
+        if (!selectedModel) {
+          const rt = (typeof window !== 'undefined' && window.__joeRuntimeStatus) ? window.__joeRuntimeStatus : null;
+          selectedModel = (rt && rt.offlineReady && !rt.hasProvider) ? 'offline-local' : 'gpt-4o';
+        }
         const lang = getLang();
         const conv = state.conversations[convId] || null;
         const sidToUse = sid || conv?.sessionId || convId;
@@ -983,7 +987,11 @@ export const useJoeChat = () => {
         return;
       }
       if (ws.current?.readyState === WebSocket.OPEN) {
-        const selectedModel = localStorage.getItem('aiSelectedModel') || 'gpt-4o';
+        let selectedModel = localStorage.getItem('aiSelectedModel');
+        if (!selectedModel) {
+          const rt = (typeof window !== 'undefined' && window.__joeRuntimeStatus) ? window.__joeRuntimeStatus : null;
+          selectedModel = (rt && rt.offlineReady && !rt.hasProvider) ? 'offline-local' : 'gpt-4o';
+        }
         const lang = getLang();
       const conv = state.conversations[convId] || null;
       const sidToUse = sid || conv?.sessionId || convId;
@@ -1015,7 +1023,11 @@ export const useJoeChat = () => {
         return;
       }
       (async () => {
-        const selectedModel = localStorage.getItem('aiSelectedModel') || 'gpt-4o';
+        let selectedModel = localStorage.getItem('aiSelectedModel');
+        if (!selectedModel) {
+          const rt = (typeof window !== 'undefined' && window.__joeRuntimeStatus) ? window.__joeRuntimeStatus : null;
+          selectedModel = (rt && rt.offlineReady && !rt.hasProvider) ? 'offline-local' : 'gpt-4o';
+        }
         const lang = getLang();
         const conv = state.conversations[convId] || null;
         const sidToUse = sid || conv?.sessionId || convId;

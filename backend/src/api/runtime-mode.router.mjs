@@ -2,13 +2,19 @@ import express from 'express'
 import { getMode, toggleMode, setMode } from '../core/runtime-mode.mjs'
 import { localLlamaService } from '../services/llm/local-llama.service.mjs'
 import config from '../config.mjs'
+import { getConfig } from '../services/ai/runtime-config.mjs'
 
 const runtimeModeRouterFactory = ({ optionalAuth }) => {
   const router = express.Router()
   if (optionalAuth) router.use(optionalAuth)
 
   router.get('/status', (req, res) => {
-    res.json({ success: true, mode: getMode(), offlineReady: localLlamaService.isReady(), loading: localLlamaService.loading, stage: localLlamaService.loadingStage, percent: localLlamaService.loadingPercent, version: config.VERSION })
+    const cfg = getConfig();
+    const hasProvider = Boolean(cfg?.keys?.openai || cfg?.keys?.gemini);
+    if (!hasProvider && !localLlamaService.isReady() && !localLlamaService.loading) {
+      try { localLlamaService.startInitialize(); } catch { /* ignore */ }
+    }
+    res.json({ success: true, mode: getMode(), offlineReady: localLlamaService.isReady(), loading: localLlamaService.loading, stage: localLlamaService.loadingStage, percent: localLlamaService.loadingPercent, version: config.VERSION, hasProvider })
   })
 
   router.post('/toggle', (req, res) => {

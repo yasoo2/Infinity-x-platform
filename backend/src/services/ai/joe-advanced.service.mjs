@@ -448,7 +448,24 @@ ${transcript.slice(0, 8000)}`;
         if (pieces.length) {
           finalContent = pieces.filter(Boolean).join('\n\n');
         } else {
-          finalContent = prefix ? `تم الاستلام: ${prefix}\n\nلا توجد مفاتيح نماذج مفعّلة حالياً. يمكنني متابعة التحليل والتنفيذ للأدوات المتاحة، أو قم بتفعيل مزوّد ذكاء من لوحة الإعدادات للحصول على إجابات أعمق.` : `لا توجد مفاتيح نماذج مفعّلة حالياً. فعّل مزوّد ذكاء للحصول على إجابات أعمق، ويمكنني مؤقتاً استخدام الأدوات المدمجة والتحليل الإجرائي.`;
+          const lp = String(preview || '').toLowerCase();
+          if (targetLang === 'ar') {
+            if (/^\s*(من انت|من أنت)\b/.test(lp)) {
+              finalContent = prefix ? `تم الاستلام: ${prefix}\n\nأنا JOE (Just One Engine)، مساعد ذكاء اصطناعي مصمم لمساعدتك عملياً: أخطط، أنفذ الأدوات المتاحة، وأقدّم إجابات واضحة ومباشرة. كيف يمكنني خدمتك الآن؟` : `أنا JOE (Just One Engine)، مساعد ذكاء اصطناعي مصمم لمساعدتك عملياً: أخطط، أنفذ الأدوات المتاحة، وأقدّم إجابات واضحة ومباشرة. كيف يمكنني خدمتك الآن؟`;
+            } else if (/^\s*(مرحبا|مرحباً|اهلا|أهلاً)\b/.test(lp)) {
+              finalContent = `مرحباً! أنا JOE، مساعد ذكاء اصطناعي عملي. أخبرني بما تريد وسأتولى التحليل والتنفيذ وإعطاء إجابة واضحة.`;
+            } else {
+              finalContent = prefix ? `تم الاستلام: ${prefix}\n\nسأجيب بشكل مباشر قدر الإمكان: أنا JOE، مساعد عملي يعتمد الأدوات المدمجة والتحليل الإجرائي لتقديم إجابات واقعية دون الحاجة لمفاتيح خارجية. اشرح المطلوب وسأبدأ فوراً.` : `أنا JOE، مساعد عملي يعتمد الأدوات المدمجة والتحليل الإجرائي لتقديم إجابات واقعية دون الحاجة لمفاتيح خارجية. اشرح المطلوب وسأبدأ فوراً.`;
+            }
+          } else {
+            if (/^\s*(who are you|who r u|what are you)\b/.test(lp)) {
+              finalContent = prefix ? `Received: ${prefix}\n\nI am JOE (Just One Engine), a practical AI assistant. I plan, run available tools, and provide clear, direct answers. How can I help?` : `I am JOE (Just One Engine), a practical AI assistant. I plan, run available tools, and provide clear, direct answers. How can I help?`;
+            } else if (/^\s*(hi|hello|hey)\b/.test(lp)) {
+              finalContent = `Hello! I am JOE, a practical AI assistant. Tell me what you need and I will analyze, execute tools, and provide a clear answer.`;
+            } else {
+              finalContent = prefix ? `Received: ${prefix}\n\nI will answer directly: I am JOE, a practical assistant that relies on built‑in tools and procedural analysis to provide realistic answers without external keys. Describe your goal and I will start.` : `I am JOE, a practical assistant that relies on built‑in tools and procedural analysis to provide realistic answers without external keys. Describe your goal and I will start.`;
+            }
+          }
         }
     }
 
