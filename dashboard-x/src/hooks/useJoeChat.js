@@ -309,6 +309,7 @@ export const useJoeChat = () => {
   const reconnectCountdownInterval = useRef(null);
   const syncAbortRef = useRef(null);
   const syncInProgressRef = useRef(false);
+  const consoleOrigRef = useRef({ log: null, warn: null, error: null });
 
   const [state, dispatch] = useReducer(chatReducer, {
     conversations: {},
@@ -337,18 +338,18 @@ export const useJoeChat = () => {
 
   useEffect(() => {
     const c = globalThis && globalThis.console ? globalThis.console : null;
-    const origLog = c && c['log'] ? c['log'] : null;
-    const origWarn = c && c['warn'] ? c['warn'] : null;
-    const origError = c && c['error'] ? c['error'] : null;
-    if (c && origLog) c['log'] = (...args) => {
+    if (c && !consoleOrigRef.current.log) {
+      consoleOrigRef.current.log = c['log'] || null;
+      consoleOrigRef.current.warn = c['warn'] || null;
+      consoleOrigRef.current.error = c['error'] || null;
+    }
+    if (c && consoleOrigRef.current.log) c['log'] = (...args) => {
       try { dispatch({ type: 'ADD_WS_LOG', payload: { id: Date.now(), type: 'info', text: args.map(a=>typeof a==='string'?a:JSON.stringify(a)).join(' ') } }); } catch { void 0; }
-      return args.length, undefined;
     };
-    if (c && origWarn) c['warn'] = (...args) => {
+    if (c && consoleOrigRef.current.warn) c['warn'] = (...args) => {
       try { dispatch({ type: 'ADD_WS_LOG', payload: { id: Date.now(), type: 'warning', text: args.map(a=>typeof a==='string'?a:JSON.stringify(a)).join(' ') } }); } catch { void 0; }
-      return args.length, undefined;
     };
-    if (c && origError) c['error'] = (...args) => {
+    if (c && consoleOrigRef.current.error) c['error'] = (...args) => {
       try {
         const text = args.map(a=>typeof a==='string'?a:JSON.stringify(a)).join(' ');
         const isAbort = /(ERR_ABORTED|CanceledError|abort(ed)?)/i.test(text);
@@ -362,7 +363,6 @@ export const useJoeChat = () => {
           }
         }
       } catch { void 0; }
-      return args.length, undefined;
     };
     const onWindowError = (e) => {
       try { dispatch({ type: 'ADD_WS_LOG', payload: { id: Date.now(), type: 'error', text: String(e.message || e.error || 'Error') } }); } catch { void 0; }
@@ -377,15 +377,15 @@ export const useJoeChat = () => {
     window.addEventListener('auth:unauthorized', onAuthUnauthorized);
     window.addEventListener('auth:forbidden', onAuthForbidden);
     return () => {
-      if (c && origLog) c['log'] = origLog;
-      if (c && origWarn) c['warn'] = origWarn;
-      if (c && origError) c['error'] = origError;
+      if (c && consoleOrigRef.current.log) c['log'] = consoleOrigRef.current.log;
+      if (c && consoleOrigRef.current.warn) c['warn'] = consoleOrigRef.current.warn;
+      if (c && consoleOrigRef.current.error) c['error'] = consoleOrigRef.current.error;
       window.removeEventListener('error', onWindowError);
       window.removeEventListener('unhandledrejection', onRejection);
       window.removeEventListener('auth:unauthorized', onAuthUnauthorized);
       window.removeEventListener('auth:forbidden', onAuthForbidden);
     };
-  });
+  }, []);
 
   // ... (useEffect for localStorage loading remains the same)
   const handleNewConversation = useCallback(async (selectNew = true) => {
