@@ -26,6 +26,12 @@
     }
   } else if (typeof window !== 'undefined') {
     resolvedBase = origin;
+    try {
+      const h = window.location.hostname || '';
+      if (h === 'www.xelitesolutions.com') {
+        resolvedBase = 'https://api.xelitesolutions.com';
+      }
+    } catch { /* noop */ }
   } else {
     resolvedBase = 'http://localhost:4000';
   }
