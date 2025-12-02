@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getSystemStatus } from '../api/system';
 import CardStat from '../components/CardStat';
 
@@ -10,15 +10,25 @@ export default function Overview() {
   const [rtOnline, setRtOnline] = useState(false);
   const [rtMs, setRtMs] = useState(null);
   const [rtTransport, setRtTransport] = useState('');
+  const lastAbortRef = useRef(null);
 
   const fetchStatus = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await getSystemStatus();
+      if (lastAbortRef.current) {
+        try { lastAbortRef.current.abort(); } catch { /* ignore */ }
+      }
+      const controller = new AbortController();
+      lastAbortRef.current = controller;
+      const data = await getSystemStatus({ signal: controller.signal });
       setStatus(data);
       setLastUpdated(new Date());
     } catch (err) {
+      const m = String(err?.message || '');
+      if (/canceled|abort(ed)?/i.test(m)) {
+        return;
+      }
       setError(err.message);
     } finally {
       setLoading(false);
@@ -51,6 +61,7 @@ export default function Overview() {
       window.removeEventListener('ws:connected', onWsConnected);
       window.removeEventListener('ws:disconnected', onWsDisconnected);
       window.removeEventListener('system:refresh', onSystemRefresh);
+      try { lastAbortRef.current?.abort(); } catch { /* ignore */ }
     };
   }, []);
 

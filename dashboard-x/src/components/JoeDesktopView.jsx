@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Terminal, Cpu, Maximize2, Minimize2, Pause, Play, Mic, Grid3x3, ChevronDown, ChevronUp } from 'lucide-react';
+import { Terminal, Cpu, Maximize2, Minimize2, Mic, Grid3x3, ChevronDown, ChevronUp } from 'lucide-react';
 import PropTypes from 'prop-types';
 
 /**
@@ -12,7 +12,6 @@ import PropTypes from 'prop-types';
  * - التحكم الكامل
  */
 const JoeDesktopView = ({ isProcessing, progress, wsLog, onVoiceInput }) => {
-  const [isFrozen, setIsFrozen] = useState(false);
   const [isGridVisible, setIsGridVisible] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -32,7 +31,6 @@ const JoeDesktopView = ({ isProcessing, progress, wsLog, onVoiceInput }) => {
   // Get status icon
   const getStatusIcon = () => {
     if (isProcessing) return <Cpu className="w-4 h-4 text-fuchsia-400 animate-pulse" />;
-    if (isFrozen) return <Pause className="w-4 h-4 text-yellow-400" />;
     return <Terminal className="w-4 h-4 text-cyan-400" />;
   };
 
@@ -61,7 +59,6 @@ const JoeDesktopView = ({ isProcessing, progress, wsLog, onVoiceInput }) => {
         <div className="flex items-center gap-3">
           {getStatusIcon()}
           <span className="text-sm font-bold text-white">جو - سطح المكتب (JOE Desktop)</span>
-          {isFrozen && <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded">متجمد</span>}
         </div>
 
         <div className="flex items-center gap-2">
@@ -80,7 +77,7 @@ const JoeDesktopView = ({ isProcessing, progress, wsLog, onVoiceInput }) => {
 
           {/* Status text */}
           <span className="text-xs text-gray-400 ml-4">
-            {isProcessing ? `جاري المعالجة...` : isFrozen ? 'متجمد' : 'جاهز'}
+            {isProcessing ? `جاري المعالجة...` : 'جاهز'}
           </span>
           <button
             onClick={() => setIsLogsCollapsed((v) => !v)}
@@ -93,19 +90,6 @@ const JoeDesktopView = ({ isProcessing, progress, wsLog, onVoiceInput }) => {
 
         {/* Control buttons */}
         <div className="flex items-center gap-2">
-          {/* Freeze button */}
-          <button
-            onClick={() => setIsFrozen(!isFrozen)}
-            className={`p-2 rounded transition-all ${
-              isFrozen
-                ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30'
-                : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700'
-            }`}
-            title={isFrozen ? 'تحرير الشاشة' : 'تجميد الشاشة'}
-          >
-            {isFrozen ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
-          </button>
-
           {/* Grid toggle */}
           <button
             onClick={() => setIsGridVisible(!isGridVisible)}
@@ -197,16 +181,7 @@ const JoeDesktopView = ({ isProcessing, progress, wsLog, onVoiceInput }) => {
           </div>
         )}
 
-        {/* Frozen overlay */}
-        {isFrozen && (
-          <div className="absolute inset-0 bg-black/30 flex items-center justify-center z-20 backdrop-blur-sm">
-            <div className="text-center">
-              <Pause className="w-12 h-12 text-yellow-400 mx-auto mb-2" />
-              <p className="text-yellow-400 font-bold">الشاشة متجمدة</p>
-              <p className="text-yellow-400/70 text-sm mt-1">اضغط على زر التشغيل لتحرير الشاشة</p>
-            </div>
-          </div>
-        )}
+        
       </div>
 
       {/* Footer - Info bar */}

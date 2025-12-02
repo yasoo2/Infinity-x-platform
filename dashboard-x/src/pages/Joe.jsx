@@ -35,8 +35,6 @@ const JoeContent = () => {
   const [rightWidth, setRightWidth] = useState(320);
   const [dragLeft, setDragLeft] = useState(false);
   const [dragRight, setDragRight] = useState(false);
-  const [backendOk, setBackendOk] = useState(true);
-  const [runtimeStatus, setRuntimeStatus] = useState(null);
 
   useEffect(() => {
     const update = () => setIsMobile(window.innerWidth < 768);
@@ -140,24 +138,7 @@ const JoeContent = () => {
       return null;
     }
   });
-  const [robotSize, setRobotSize] = useState(() => {
-    const vw = window.innerWidth;
-    let base = { w: 120, h: 140 };
-    if (vw < 640) base = { w: 88, h: 104 };
-    else if (vw < 1024) base = { w: 104, h: 122 };
-    const scale = (() => {
-      try {
-        const v = parseFloat(localStorage.getItem('joeRobotScale'));
-        return Number.isFinite(v) && v > 0 ? v : 1;
-      } catch {
-        return 1;
-      }
-    })();
-    return {
-      w: Math.round(base.w * scale),
-      h: Math.round(base.h * scale),
-    };
-  });
+  const [robotSize, setRobotSize] = useState({ w: 120, h: 140 });
   const [dragState, setDragState] = useState(null);
   const wasDragging = React.useRef(false);
   const ROBOT_MARGIN = 16;
@@ -180,16 +161,16 @@ const JoeContent = () => {
     return () => window.removeEventListener('mousemove', onMouseMove);
   }, []);
 
-  const computeRobotSize = useCallback((scale) => {
+  const computeRobotSize = useCallback(() => {
     const vw = window.innerWidth;
     let base = { w: 120, h: 140 };
     if (vw < 640) base = { w: 88, h: 104 };
     else if (vw < 1024) base = { w: 104, h: 122 };
     return {
-      w: Math.round(base.w * scale),
-      h: Math.round(base.h * scale),
+      w: Math.round(base.w * robotScale),
+      h: Math.round(base.h * robotScale),
     };
-  }, []);
+  }, [robotScale]);
 
   const getRectForCorner = useCallback((corner) => {
     const vw = window.innerWidth; const vh = window.innerHeight;
@@ -207,22 +188,20 @@ const JoeContent = () => {
   };
 
   const findBestCorner = useCallback(() => {
-    try {
-      const candidates = ['bl','br','tl','tr'];
-      const elements = Array.from(document.querySelectorAll('button,a,input,textarea,select,[role="dialog"],[data-joe-important="true"]'));
-      const vis = elements.filter(el => {
-        const s = getComputedStyle(el);
-        return s.visibility !== 'hidden' && s.display !== 'none' && s.pointerEvents !== 'none';
-      }).map(el => el.getBoundingClientRect());
-      let best = 'bl';
-      let bestScore = Number.POSITIVE_INFINITY;
-      for (const c of candidates) {
-        const r = getRectForCorner(c);
-        const score = vis.reduce((sum, vr) => sum + rectOverlapArea(r, vr), 0);
-        if (score < bestScore) { bestScore = score; best = c; }
-      }
-      setRobotCorner(best);
-    } catch { /* no-op */ }
+    const candidates = ['bl','br','tl','tr'];
+    const elements = Array.from(document.querySelectorAll('button,a,input,textarea,select,[role="dialog"],[data-joe-important="true"]'));
+    const vis = elements.filter(el => {
+      const s = getComputedStyle(el);
+      return s.visibility !== 'hidden' && s.display !== 'none' && s.pointerEvents !== 'none';
+    }).map(el => el.getBoundingClientRect());
+    let best = 'bl';
+    let bestScore = Number.POSITIVE_INFINITY;
+    for (const c of candidates) {
+      const r = getRectForCorner(c);
+      const score = vis.reduce((sum, vr) => sum + rectOverlapArea(r, vr), 0);
+      if (score < bestScore) { bestScore = score; best = c; }
+    }
+    setRobotCorner(best);
   }, [getRectForCorner]);
 
   const findBestCornerRef = React.useRef(findBestCorner);
@@ -275,32 +254,21 @@ const JoeContent = () => {
   };
 
   useEffect(() => {
-    const rafId = { current: 0 };
-    let lastRun = 0;
-    const minInterval = 150;
-    const scheduleFind = () => {
-      const now = Date.now();
-      if (now - lastRun < minInterval) return;
-      if (rafId.current) return;
-      rafId.current = requestAnimationFrame(() => {
-        rafId.current = 0;
-        lastRun = Date.now();
-        try { findBestCornerRef.current(); } catc  useEffect(() => {
-    const onResize = () => {
-      setRobotSize(computeRobotSize(robotScale));
-      scheduleFind();
-    };
-    setRobotSize(computeRobotSize(robotScale));
-    scheduleFind();
+    const onResize = () => { setRobotSize(computeRobotSize()); findBestCornerRef.current(); };
+    const onScroll = () => findBestCornerRef.current();
+    setRobotSize(computeRobotSize());
+    findBestCornerRef.current();
     window.addEventListener('resize', onResize);
+    window.addEventListener('scroll', onScroll, { passive: true });
     const onOpenProviders = () => setRobotActive(false);
     window.addEventListener('joe:openProviders', onOpenProviders);
     return () => {
       window.removeEventListener('resize', onResize);
+      window.removeEventListener('scroll', onScroll);
       window.removeEventListener('joe:openProviders', onOpenProviders);
-      try { if (rafId.current) cancelAnimationFrame(rafId.current); } catch { /* ignore */ }
+      
     };
-  }, [computeRobotSize, robotScale]);
+  }, [computeRobotSize]);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -338,58 +306,12 @@ const JoeContent = () => {
   const toggleBorderSettings = () => navigate('/dashboard/users');
   const { user } = useAuth();
 
-
+ 
 
   const leftStyle = { borderRight: `${panelStyles.left.width}px solid ${panelStyles.left.color}`, borderRadius: panelStyles.left.radius };
   const rightStyle = { borderLeft: `${panelStyles.right.width}px solid ${panelStyles.right.color}`, borderRadius: panelStyles.right.radius };
   
   
-  useEffect(() => {
-    let cancelled = false;
-    let ctrl;
-    const check = async () => {
-      try { ctrl?.abort(); } catch { /* ignore */ }
-      try {
-        ctrl = new AbortController();
-        const h = await apiClient.get('/api/v1/health', { signal: ctrl.signal });
-        if (!cancelled) setBackendOk(Boolean(h?.data?.success && h?.data?.status === 'ok'));
-      } catch {
-        if (!cancelled) setBackendOk(false);
-      }
-      try {
-        ctrl = new AbortController();
-        const r = await apiClient.get('/api/v1/runtime-mode/status', { signal: ctrl.signal });
-        if (!cancelled) setRuntimeStatus(r?.data || null);
-      } catch {
-        if (!cancelled) setRuntimeStatus(null);
-      }
-    };
-    check();
-    const id = setInterval(check, 10000);
-    return () => { cancelled = true; try { ctrl?.abort(); } catch { /* ignore */ } clearInterval(id); };
-  }, []);
-
-  const statusAlert = (() => {
-    if (!backendOk) return { text: lang === 'ar' ? 'الخادم غير نشط — تحقق من التشغيل' : 'Backend inactive — start the server', cls: 'bg-red-600 text-white border border-red-500' };
-    if (runtimeStatus?.success && runtimeStatus.loading) {
-      const stage = String(runtimeStatus.stage || 'Loading');
-      const percent = Number(runtimeStatus.percent || 0);
-      const tAr = `جاري تحميل النموذج: ${stage} • ${percent}%`;
-      const tEn = `Loading model: ${stage} • ${percent}%`;
-      return { text: lang === 'ar' ? tAr : tEn, cls: 'bg-blue-600 text-white border border-blue-500' };
-    }
-    if (runtimeStatus?.success && !runtimeStatus.offlineReady && runtimeStatus.stage === 'missing_model') {
-      const tAr = 'النموذج المحلي غير موجود — اضبط LLAMA_MODEL_PATH';
-      const tEn = 'Local model missing — set LLAMA_MODEL_PATH';
-      return { text: lang === 'ar' ? tAr : tEn, cls: 'bg-yellow-600 text-black border border-yellow-500' };
-    }
-    if (runtimeStatus?.success && runtimeStatus.mode === 'offline' && runtimeStatus.offlineReady) {
-      const tAr = 'الوضع المحلي جاهز';
-      const tEn = 'Local mode ready';
-      return { text: lang === 'ar' ? tAr : tEn, cls: 'bg-green-600 text-black border border-green-500' };
-    }
-    return null;
-  })();
 
   useEffect(() => {
     const onMove = (e) => {
@@ -439,16 +361,6 @@ const JoeContent = () => {
         onToggleLogs={toggleBottomPanel}
         isLogsOpen={isBottomPanelOpen && !isBottomCollapsed}
       />
-      {statusAlert && (
-        <div className={`w-full ${statusAlert.cls}`}>
-          <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between">
-            <span className="text-sm font-semibold">{statusAlert.text}</span>
-            <button onClick={toggleStatusPanel} className="px-2 py-1 rounded bg-gray-900/20 border border-white/20 text-xs">
-              {lang === 'ar' ? 'تفاصيل' : 'Details'}
-            </button>
-          </div>
-        </div>
-      )}
       
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
@@ -594,9 +506,9 @@ const JoeContent = () => {
                     <button onClick={(e)=>{ e.stopPropagation(); setRobotCorner('br'); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'نقل: يمين-أسفل':'Move BR'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); setRobotCorner('tl'); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'نقل: يسار-أعلى':'Move TL'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); setRobotCorner('tr'); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'نقل: يمين-أعلى':'Move TR'}</button>
-                    <button onClick={(e)=>{ e.stopPropagation(); setRobotScale(0.85); setRobotSize(computeRobotSize(0.85)); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'حجم صغير':'Small'}</button>
-                    <button onClick={(e)=>{ e.stopPropagation(); setRobotScale(1.0); setRobotSize(computeRobotSize(1.0)); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'حجم متوسط':'Medium'}</button>
-                    <button onClick={(e)=>{ e.stopPropagation(); setRobotScale(1.25); setRobotSize(computeRobotSize(1.25)); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'حجم كبير':'Large'}</button>
+                    <button onClick={(e)=>{ e.stopPropagation(); setRobotScale(0.85); setRobotSize(computeRobotSize()); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'حجم صغير':'Small'}</button>
+                    <button onClick={(e)=>{ e.stopPropagation(); setRobotScale(1.0); setRobotSize(computeRobotSize()); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'حجم متوسط':'Medium'}</button>
+                    <button onClick={(e)=>{ e.stopPropagation(); setRobotScale(1.25); setRobotSize(computeRobotSize()); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'حجم كبير':'Large'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); toggleSidePanel(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'لوحة اليسار':'Left Panel'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); toggleRightPanel(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'لوحة اليمين':'Right Panel'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); toggleBottomPanel(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'سجلّ النظام':'Logs'}</button>

@@ -1,38 +1,29 @@
 import express from 'express'
-import { getMode, toggleMode, setMode } from '../core/runtime-mode.mjs'
-import { localLlamaService } from '../services/llm/local-llama.service.mjs'
+// runtime mode toggling disabled
+// Local LLaMA removed from Joe system
+import config from '../config.mjs'
+import { getConfig } from '../services/ai/runtime-config.mjs'
 
 const runtimeModeRouterFactory = ({ optionalAuth }) => {
   const router = express.Router()
   if (optionalAuth) router.use(optionalAuth)
 
   router.get('/status', (req, res) => {
-    res.json({ success: true, mode: getMode(), offlineReady: localLlamaService.isReady(), loading: localLlamaService.loading, stage: localLlamaService.loadingStage, percent: localLlamaService.loadingPercent })
+    const cfg = getConfig();
+    const hasProvider = Boolean(cfg?.keys?.openai || cfg?.keys?.gemini);
+    res.json({ success: true, mode: 'online', offlineReady: false, loading: false, stage: 'disabled', percent: 0, version: config.VERSION, hasProvider, modelPath: '' })
   })
 
   router.post('/toggle', (req, res) => {
-    const current = getMode()
-    const next = current === 'online' ? 'offline' : 'online'
-    if (next === 'offline' && !localLlamaService.isReady()) {
-      return res.status(400).json({ success: false, error: 'OFFLINE_NOT_READY', mode: current, offlineReady: false })
-    }
-    const applied = toggleMode()
-    res.json({ success: true, mode: applied })
+    res.json({ success: true, mode: 'online' })
   })
 
   router.post('/load', async (req, res) => {
-    try {
-      localLlamaService.startInitialize()
-      res.json({ success: true, started: true, loading: localLlamaService.loading, stage: localLlamaService.loadingStage, percent: localLlamaService.loadingPercent })
-    } catch (e) {
-      res.status(500).json({ success: false, error: e?.message || 'INIT_FAILED' })
-    }
+    res.json({ success: false, error: 'LOCAL_DISABLED', loading: false, stage: 'disabled', percent: 0 })
   })
 
   router.post('/set', (req, res) => {
-    const m = String(req.body?.mode || '').toLowerCase()
-    setMode(m)
-    res.json({ success: true, mode: getMode() })
+    res.json({ success: true, mode: 'online' })
   })
 
   return router

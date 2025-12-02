@@ -47,7 +47,6 @@ import toolSearchFactory from './src/services/tools/tool-code-search.tool.mjs';
 import toolRefactorFactory from './src/services/tools/tool-code-refactor.tool.mjs';
 import toolAutoFixFactory from './src/services/tools/tool-auto-fix.tool.mjs';
 import toolSystemConnectorsFactory from './src/services/tools/tool-system-connectors.tool.mjs';
-import { localLlamaService } from './src/services/llm/local-llama.service.mjs';
 import { liveStreamingService } from './src/services/liveStreamingService.mjs';
 import LiveStreamWebSocketServer from './src/services/liveStreamWebSocket.mjs';
 
@@ -208,16 +207,7 @@ async function setupDependencies() {
     }
     const sandboxManager = await new SandboxManager().initializeConnections();
     const memoryManager = new MemoryManager();
-    const { localLlamaService } = await import('./src/services/llm/local-llama.service.mjs');
-    try {
-        const shouldAutoLoad = String(process.env.LLAMA_AUTO_LOAD || '').toLowerCase() === 'true';
-        const hasModel = !!localLlamaService.modelPath && (await import('fs')).default.existsSync(localLlamaService.modelPath);
-        if (shouldAutoLoad && hasModel) {
-            localLlamaService.startInitialize();
-        } else {
-            console.log('🦙 Local LLaMA auto-load skipped:', { shouldAutoLoad, hasModel, modelPath: localLlamaService.modelPath });
-        }
-    } catch { /* noop */ }
+    // Local LLaMA removed from Joe system
     
     const dependencies = {
         db,
@@ -228,7 +218,6 @@ async function setupDependencies() {
         schedulingSystem,
         requireRole: requireRole(db),
         optionalAuth: optionalAuth(db),
-        localLlamaService,
         liveStreamingService,
         JWT_SECRET: process.env.JWT_SECRET || 'a-very-weak-secret-for-dev',
     };
@@ -311,11 +300,7 @@ async function startServer() {
 
     // Background initialization (non-blocking)
     Promise.resolve().then(async () => {
-      try {
-        if (String(process.env.LLAMA_AUTO_LOAD || '').toLowerCase() === 'true') {
-          localLlamaService.startInitialize();
-        }
-      } catch { /* noop */ }
+      // Local LLaMA removed
       try {
         const seedPreset = String(process.env.JOE_TOOL_SEED || 'core');
         await toolManager.execute('seedCuratedTools', { preset: seedPreset });

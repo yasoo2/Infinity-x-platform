@@ -3,8 +3,9 @@ import toolManager from '../services/tools/tool-manager.service.mjs';
 import { ObjectId } from 'mongodb';
 
 // Renamed to factory and set as default export for consistency with the new architecture
-const joeRouterFactory = ({ requireRole, db }) => {
+const joeRouterFactory = ({ requireRole, optionalAuth, db }) => {
   const router = express.Router();
+  if (optionalAuth) router.use(optionalAuth);
 
   // GET /api/v1/joe/ping
   router.get('/ping', (req, res) => {
@@ -86,7 +87,7 @@ const joeRouterFactory = ({ requireRole, db }) => {
   });
 
   // POST /api/v1/joe/execute - Analyze instruction and auto-run relevant tools
-  router.post('/execute', requireRole('USER'), async (req, res) => {
+  router.post('/execute', async (req, res) => {
     try {
       const { instruction, context } = req.body || {};
       if (!instruction) {

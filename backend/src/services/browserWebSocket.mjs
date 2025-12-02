@@ -55,13 +55,28 @@ class BrowserWebSocketServer {
     switch (type) {
       case 'navigate':
         {
-          const navResult = await this.browserController.navigate(payload.url);
-          ws.send(JSON.stringify({ type: 'navigate_result', payload: navResult }));
+          ws.send(JSON.stringify({ type: 'navigate_started', payload: { url: payload.url } }));
+          const navPromise = this.browserController.navigate(payload.url);
           setTimeout(async () => {
-            const screenshot = await this.browserController.getScreenshot();
-            const pageInfo = await this.browserController.getPageInfo();
-            ws.send(JSON.stringify({ type: 'screenshot', payload: { screenshot, pageInfo } }));
-          }, 1000);
+            try {
+              const screenshot = await this.browserController.getScreenshot();
+              const pageInfo = await this.browserController.getPageInfo();
+              ws.send(JSON.stringify({ type: 'screenshot', payload: { screenshot, pageInfo } }));
+            } catch (e) { void e }
+          }, 600);
+          try {
+            const navResult = await navPromise;
+            ws.send(JSON.stringify({ type: 'navigate_result', payload: navResult }));
+            setTimeout(async () => {
+              try {
+                const screenshot = await this.browserController.getScreenshot();
+                const pageInfo = await this.browserController.getPageInfo();
+                ws.send(JSON.stringify({ type: 'screenshot', payload: { screenshot, pageInfo } }));
+              } catch (e) { void e }
+            }, 600);
+          } catch (e) {
+            ws.send(JSON.stringify({ type: 'error', message: e?.message || 'NAVIGATION_FAILED' }));
+          }
           break;
         }
 

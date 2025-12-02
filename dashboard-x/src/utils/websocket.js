@@ -44,19 +44,11 @@ const ensureToken = async () => {
 
 export const connectWebSocket = (onMessage, onOpen, onClose) => {
   const isDev = typeof import.meta !== 'undefined' && import.meta.env?.MODE !== 'production';
-  const envWs = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_WS_URL) || null;
-  const envApi = (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL)) || null;
-  const originWs = (typeof window !== 'undefined' ? window.location.origin : 'ws://localhost:4000').replace(/^https/, 'wss').replace(/^http/, 'ws');
-  let baseWsUrl;
-  if (envWs) {
-    baseWsUrl = envWs.replace(/\/(ws.*)?$/, '');
-  } else if (envApi) {
-    baseWsUrl = String(envApi).replace(/^https/, 'wss').replace(/^http/, 'ws').replace(/\/(api.*)?$/, '');
-  } else if (isDev) {
-    baseWsUrl = 'ws://localhost:4000';
-  } else {
-    baseWsUrl = originWs;
-  }
+  const httpBase = typeof apiClient?.defaults?.baseURL === 'string'
+    ? apiClient.defaults.baseURL
+    : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
+  const sanitizedHttp = String(httpBase).replace(/\/(api.*)?$/, '').replace(/\/+$/, '');
+  const baseWsUrl = sanitizedHttp.replace(/^https/, 'wss').replace(/^http/, 'ws');
 
   const scheduleReconnect = () => {
     failedAttempts++;

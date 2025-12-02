@@ -82,7 +82,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
     const el = scrollContainerRef.current;
     if (!el) return;
     const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
-    const atBottom = distance <= 2;
+    const atBottom = distance <= 20;
     if (!atBottom) return;
     requestAnimationFrame(() => {
       el.scrollTop = el.scrollHeight;
@@ -113,6 +113,19 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
           });
         });
       }
+      if (last?.type !== 'user') {
+        const el = scrollContainerRef.current;
+        if (el) {
+          const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+          if (distance <= 300) {
+            requestAnimationFrame(() => {
+              el.scrollTop = el.scrollHeight;
+              messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+              setShowScrollButton(false);
+            });
+          }
+        }
+      }
       prevMsgCountRef.current = messages.length;
       lastSenderRef.current = last?.type;
     }
@@ -139,20 +152,24 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   useEffect(() => {
     let active = true;
     let attempts = 0;
+    const controller = new AbortController();
     const fetchOnce = async () => {
       try {
-        const status = await getSystemStatus();
+        const status = await getSystemStatus({ signal: controller.signal });
         const cnt = Number(status?.toolsCount || 0);
         if (!Number.isNaN(cnt)) {
           setToolsCount(cnt);
           if (cnt > 0) return;
         }
-      } catch { void 0; }
+      } catch (err) {
+        const m = String(err?.message || '');
+        if (/canceled|abort(ed)?/i.test(m)) return;
+      }
       attempts++;
       if (active && attempts < 5) setTimeout(fetchOnce, 1500);
     };
     fetchOnce();
-    return () => { active = false; };
+    return () => { active = false; try { controller.abort(); } catch { /* ignore */ } };
   }, []);
 
   useEffect(() => {
@@ -221,7 +238,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   const checkScroll = () => {
     const el = scrollContainerRef.current;
     if (!el) return;
-    const threshold = 80;
+    const threshold = 160;
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
     showScrollRef.current = !atBottom;
     setShowScrollButton(!atBottom);
@@ -467,7 +484,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   return (
     <div className="flex flex-col h-full bg-gray-900">
       {/* Messages Area - Spacious and Centered */}
-      <div className="flex-1 overflow-y-auto relative" ref={scrollContainerRef} style={{ scrollBehavior: 'auto', overscrollBehavior: 'contain', overflowAnchor: 'none' }}>
+      <div className="flex-1 overflow-y-auto relative" ref={scrollContainerRef} style={{ scrollBehavior: 'smooth', overscrollBehavior: 'auto', overflowAnchor: 'auto' }}>
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 border border-gray-800 rounded-xl bg-gray-900/60" style={{ paddingBottom: Math.max(24, inputAreaHeight + 24) }}>
           {messages.length === 0 ? (
             <WelcomeScreen toolsCount={toolsCount} />

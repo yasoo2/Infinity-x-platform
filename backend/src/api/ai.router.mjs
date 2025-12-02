@@ -48,14 +48,12 @@ const aiRouterFactory = ({ optionalAuth, db }) => {
     { id: 'perplexity', name: 'Perplexity', createUrl: 'https://www.perplexity.ai/settings', defaultModel: 'pplx-70b-online' },
     { id: 'stability', name: 'Stability AI', createUrl: 'https://platform.stability.ai/account/keys', defaultModel: 'stable-diffusion-xl' },
     { id: 'meta', name: 'Meta LLaMA (via providers)', createUrl: 'https://llama.meta.com/', defaultModel: 'llama-3-70b-instruct' },
-    { id: 'ollama', name: 'Ollama (Local)', createUrl: 'https://ollama.ai/', defaultModel: 'llama3:latest' },
-    { id: 'lmstudio', name: 'LM Studio (Local)', createUrl: 'https://lmstudio.ai/', defaultModel: 'llama-3-70b-instruct' },
     { id: 'ibm-watsonx', name: 'IBM watsonx', createUrl: 'https://cloud.ibm.com/watsonx', defaultModel: 'ibm/granite-20b-instruct' },
     { id: 'databricks-mosaic', name: 'Databricks Mosaic', createUrl: 'https://www.databricks.com/product/mosaic-ai', defaultModel: 'db/mpt-7b-instruct' },
     { id: 'snowflake-cortex', name: 'Snowflake Cortex', createUrl: 'https://www.snowflake.com/en/data-cloud/cortex/', defaultModel: 'snowflake/llm' },
   ];
 
-  router.get('/providers', allowLoggedIn, async (req, res) => {
+  router.get('/providers', async (req, res) => {
     try {
       let userActiveProvider = activeProvider;
       let userActiveModel = activeModel;
@@ -83,13 +81,12 @@ const aiRouterFactory = ({ optionalAuth, db }) => {
 
   router.post('/activate', allowLoggedIn, async (req, res) => {
     try {
-      const { provider, model } = req.body || {};
+      const { provider } = req.body || {};
       if (!provider || !providers.find(p => p.id === provider)) {
         return res.status(400).json({ ok: false, error: 'UNKNOWN_PROVIDER' });
       }
-      const def = providers.find(p => p.id === provider)?.defaultModel;
-      const selectedModel = model || def || activeModel;
-      const userId = req.user?.id || req.user?.userId;
+      const selectedModel = null;
+      const userId = req.user?.id || req.user?.userId || req.user?._id;
       if (!userId) return res.status(403).json({ ok: false, error: 'ACCESS_DENIED' });
       if (db) {
         await db.collection('ai_user_config').updateOne(
@@ -110,7 +107,7 @@ const aiRouterFactory = ({ optionalAuth, db }) => {
       if (!provider || !apiKey) {
         return res.status(400).json({ ok: false, error: 'PROVIDER_AND_API_KEY_REQUIRED' });
       }
-      const userId = req.user?.id || req.user?.userId;
+      const userId = req.user?.id || req.user?.userId || req.user?._id;
       if (!userId) return res.status(403).json({ ok: false, error: 'ACCESS_DENIED' });
       if (provider === 'openai') {
         const client = new OpenAI({ apiKey });

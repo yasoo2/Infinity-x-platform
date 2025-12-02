@@ -4,8 +4,6 @@ import ChatMessage from '../database/models/ChatMessage.mjs';
 import ChatSession from '../database/models/ChatSession.mjs';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
-import { getMode } from '../core/runtime-mode.mjs';
-import { localLlamaService } from './llm/local-llama.service.mjs';
 import config from '../config.mjs';
 
 /**
@@ -151,7 +149,6 @@ export class JoeAgentWebSocketServer {
 
           if (data.action === 'instruct') {
             console.log(`[JoeAgentV2] Received instruction: "${data.message}"`);
-            const currentMode = getMode();
             const userId = ws.userId;
             let sessionId = data.sessionId || ws.sessionId;
             const now = new Date();
@@ -177,6 +174,8 @@ export class JoeAgentWebSocketServer {
               } catch { /* noop */ }
             }
 
+            // Send immediate progress feedback
+            try { ws.send(JSON.stringify({ type: 'progress', progress: 1, step: 'Starting' })); } catch { /* noop */ }
             // 1. Save user message to DB
             try {
               if (mongoose.Types.ObjectId.isValid(sessionId)) {
@@ -185,9 +184,11 @@ export class JoeAgentWebSocketServer {
             } catch (e) {
               console.error('[JoeAgentV2] Failed to save user message:', e);
             }
-          if (currentMode === 'offline' && localLlamaService.isReady()) {
+          
+
             try {
-              const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model: 'offline-local', lang: data.lang });
+              const model = data.model || null;
+              const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model, lang: data.lang });
               if (ws.readyState === ws.OPEN) {
                 ws.send(JSON.stringify({ type: 'response', response: result.response, toolsUsed: result.toolsUsed, sessionId }));
               }
@@ -200,24 +201,12 @@ export class JoeAgentWebSocketServer {
               } catch { void 0 }
             } catch (err) {
               if (ws.readyState === ws.OPEN) {
-                ws.send(JSON.stringify({ type: 'error', message: err.message }));
+                const lang = String(data.lang || 'ar');
+                const msg = lang==='ar' ? 'حدث خطأ أثناء معالجة الطلب.' : 'An error occurred while processing the request.';
+                ws.send(JSON.stringify({ type: 'error', message: msg, details: String(err?.message || err) }));
               }
+              try { console.error('[JoeAgentV2] Processing error:', err); } catch { /* noop */ }
             }
-            return;
-          }
-
-            const model = data.model || 'gpt-4o';
-            const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model, lang: data.lang });
-            if (ws.readyState === ws.OPEN) {
-              ws.send(JSON.stringify({ type: 'response', response: result.response, toolsUsed: result.toolsUsed, sessionId }));
-            }
-            try {
-              const content = String(result?.response || '').trim();
-              if (content && mongoose.Types.ObjectId.isValid(sessionId)) {
-                await ChatMessage.create({ sessionId, userId, type: 'joe', content });
-                await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date(), updatedAt: new Date() } });
-              }
-            } catch { void 0 }
 
           } else if (data.action === 'cancel') {
             // Handle cancel action if needed
@@ -264,11 +253,11 @@ export class JoeAgentWebSocketServer {
       }
     });
 
-    this.nsp.on('connection', (socket) => {
-      socket.emit('status', { message: 'Connected to Joe Agent v2 "Unified". Ready for instructions.' });
+      this.nsp.on('connection', (socket) => {
+        socket.emit('status', { message: 'Connected to Joe Agent v2 "Unified". Ready for instructions.' });
 
-      socket.on('message', async (data) => {
-        try {
+        socket.on('message', async (data) => {
+          try {
           if (!data || typeof data.action !== 'string' || typeof data.message !== 'string') {
             const lang = String(data?.lang || 'ar');
             const msg = lang==='ar' ? 'تنسيق الرسالة غير صالح.' : 'Invalid message format.';
@@ -291,35 +280,20 @@ export class JoeAgentWebSocketServer {
               return;
             }
           }
-          const currentMode = getMode();
           const userId = socket.data.userId;
           const sessionId = data.sessionId || socket.data.sessionId || `session_${Date.now()}`;
           socket.data.sessionId = sessionId;
           socket.join(sessionId);
           if (data.action === 'instruct') {
+            try { socket.emit('progress', { progress: 1, step: 'Starting' }); } catch { /* noop */ }
             try {
               if (mongoose.Types.ObjectId.isValid(sessionId)) {
                 await ChatMessage.create({ sessionId, userId, type: 'user', content: data.message });
                 await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date(), updatedAt: new Date() } });
               }
             } catch { void 0 }
-            if (currentMode === 'offline' && localLlamaService.isReady()) {
-              try {
-                const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model: 'offline-local', lang: data.lang });
-                socket.emit('response', { response: result.response, toolsUsed: result.toolsUsed, sessionId });
-                try {
-                  const content = String(result?.response || '').trim();
-                  if (content && mongoose.Types.ObjectId.isValid(sessionId)) {
-                    await ChatMessage.create({ sessionId, userId, type: 'joe', content });
-                    await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date(), updatedAt: new Date() } });
-                  }
-                } catch { void 0 }
-              } catch (err) {
-                socket.emit('error', { message: err.message });
-              }
-              return;
-            }
-            const model = data.model || 'gpt-4o';
+            
+            const model = data.model || null;
             const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model, lang: data.lang });
             socket.emit('response', { response: result.response, toolsUsed: result.toolsUsed, sessionId });
             try {

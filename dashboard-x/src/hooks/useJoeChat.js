@@ -1,6 +1,7 @@
 
 import { useReducer, useEffect, useCallback, useRef } from 'react';
 import { io } from 'socket.io-client';
+import apiClient from '../api/client';
 import { v4 as uuidv4 } from 'uuid';
 import { getChatSessions, getChatSessionById, getGuestToken, getSystemStatus, createChatSession, updateChatSession, addChatMessage, getChatMessages } from '../api/system';
 
@@ -150,12 +151,8 @@ const chatReducer = (state, action) => {
         case 'SET_TRANSCRIPT':
             return { ...state, transcript: action.payload, input: action.payload };
 
-        case 'ADD_WS_LOG': {
-            const entry = action.payload;
-            const next = [...state.wsLog, entry];
-            const capped = next.length > 1000 ? next.slice(next.length - 1000) : next;
-            return { ...state, wsLog: capped };
-        }
+        case 'ADD_WS_LOG':
+            return { ...state, wsLog: [...state.wsLog, action.payload] };
 
         case 'ADD_PENDING_LOG': {
             const id = action.payload;
@@ -305,11 +302,13 @@ export const useJoeChat = () => {
   const reconnectAttempts = useRef(0);
   const reconnectTimer = useRef(null);
   const isConnectingRef = useRef(false);
-  const syncRef = useRef(null);
   const reconnectCountdownInterval = useRef(null);
+  const syncRef = useRef(null);
   const syncAbortRef = useRef(null);
   const syncInProgressRef = useRef(false);
   const saveTimerRef = useRef(null);
+  const sioSendTimeoutRef = useRef(null);
+  const activeModelRef = useRef(null);
 
   const [state, dispatch] = useReducer(chatReducer, {
     conversations: {},
@@ -335,6 +334,22 @@ export const useJoeChat = () => {
 
   const stateRef = useRef(state);
   useEffect(() => { stateRef.current = state; }, [state]);
+
+  useEffect(() => {
+    const ac = new AbortController();
+    const { signal } = ac;
+    const fetchActiveModel = async () => {
+      try {
+        const { data } = await apiClient.get('/api/v1/ai/providers', { signal });
+        const m = data?.activeModel || null;
+        if (m) activeModelRef.current = m;
+      } catch { /* noop */ }
+    };
+    fetchActiveModel();
+    const onRuntime = () => { fetchActiveModel(); };
+    try { window.addEventListener('joe:runtime', onRuntime); } catch { /* noop */ }
+    return () => { ac.abort(); try { window.removeEventListener('joe:runtime', onRuntime); } catch { /* noop */ } };
+  }, []);
 
   useEffect(() => {
     const c = globalThis && globalThis.console ? globalThis.console : null;
@@ -392,9 +407,13 @@ export const useJoeChat = () => {
   const handleNewConversation = useCallback(async (selectNew = true) => {
     let toolsCount = 0;
     try {
-      const status = await getSystemStatus();
+      const controller = new AbortController();
+      const status = await getSystemStatus({ signal: controller.signal });
       toolsCount = Number(status?.toolsCount || 0);
-    } catch { toolsCount = 0; }
+    } catch (err) {
+      const m = String(err?.message || '');
+      if (/canceled|abort(ed)?/i.test(m)) { /* ignore */ } else { toolsCount = 0; }
+    }
     const lang = getLang();
     const en = `Welcome to Joe AI Assistant! 👋\n\nYour AI-powered engineering partner with ${toolsCount} tools and functions.\n\nI can help you with:\n💬 Chat & Ask - Get instant answers and explanations\n🛠️ Build & Create - Generate projects and applications\n🔍 Analyze & Process - Work with data and generate insights\n\nStart by typing an instruction below, attaching a file, or using your voice.`;
     const ar = `مرحبًا بك في مساعد جو الذكي! 👋\n\nشريكك الهندسي المدعوم بالذكاء مع ${toolsCount} أداة ووظيفة.\n\nأستطيع مساعدتك في:\n💬 المحادثة والسؤال - إجابات وشروحات فورية\n🛠️ البناء والإنشاء - توليد مشاريع وتطبيقات\n🔍 التحليل والمعالجة - العمل مع البيانات وتوليد رؤى\n\nابدأ بكتابة تعليماتك أدناه أو إرفاق ملف أو استخدام الصوت.`;
@@ -466,8 +485,17 @@ export const useJoeChat = () => {
       }
       const s = await getChatSessions({ signal });
       const list = s?.sessions || [];
+      const seen = new Set();
+      const validList = list.filter((sess) => {
+        const id = String(sess?.id || '').trim();
+        if (!id || seen.has(id)) return false;
+        seen.add(id);
+        const isObjId = /^[a-f0-9]{24}$/i.test(id);
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+        return isObjId || isUuid;
+      });
       const convs = { ...state.conversations };
-      for (const sess of list) {
+      for (const sess of validList) {
         if (!sess?.id) continue;
         try {
           const detail = await getChatSessionById(sess.id, { signal });
@@ -482,7 +510,9 @@ export const useJoeChat = () => {
           if (!notFound) {
             console.warn('syncBackendSessions detail fetch error:', err);
           }
-          // Skip missing sessions and continue syncing others
+          if (notFound && sess?.id) {
+            try { delete convs[sess.id]; } catch { /* ignore */ }
+          }
           continue;
         }
       }
@@ -497,7 +527,10 @@ export const useJoeChat = () => {
       if (e?.code === 'ERR_CANCELED' || /canceled|abort(ed)?/i.test(String(e?.message || ''))) {
         return;
       }
-      if (e?.status !== 403) {
+      const status = e?.status ?? e?.response?.status;
+      const code = e?.code ?? e?.response?.data?.code;
+      const notFound = status === 404 || String(e?.details?.error || code || '').toUpperCase() === 'NOT_FOUND';
+      if (e?.status !== 403 && !notFound) {
         console.warn('syncBackendSessions error:', e);
       }
     } finally {
@@ -513,57 +546,36 @@ export const useJoeChat = () => {
     syncRef.current = syncBackendSessions;
   }, [syncBackendSessions]);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
-      if (document.visibilityState !== 'visible') return;
-      if (syncRef.current) syncRef.current();
-    }, 20000);
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        if (syncRef.current) syncRef.current();
-      }
-    };
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => {
-      clearInterval(interval);
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
-  }, [syncBackendSessions]);
 
-  // تم تعطيل هذا الـ useEffect لأنه قد يسبب تجميدًا للواجهة عند محاولة حفظ كميات كبيرة من البيانات
-  // useEffect(() => {
-  //   if (Object.keys(state.conversations).length > 0) {
-  //     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-  //     const payload = {
-  //       conversations: state.conversations,
-  //       currentConversationId: state.currentConversationId,
-  //     };
-  //     const count = Object.keys(payload.conversations).length;
-  //     const id = payload.currentConversationId;
-  //     saveTimerRef.current = setTimeout(() => {
-  //       try {
-  //         if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) {
-  //           console.warn('[useEffect] Saving to localStorage:', { conversationCount: count, currentId: id });
-  //         }
-  //         const nextStr = JSON.stringify(payload);
-  //         const prevStr = localStorage.getItem(JOE_CHAT_HISTORY);
-  //         if (prevStr !== nextStr) {
-  //           localStorage.setItem(JOE_CHAT_HISTORY, nextStr);
-  //         }
-  //       } catch (e) {
-  //         try { console.warn('Failed to save chat history:', e); } catch { void 0; }
-  //       }
-  //     }, 400);
-  //   }
-  // }, [state.conversations, state.currentConversationId]);
+  
 
-  // Abort any in-flight sync when this hook unmounts to avoid dangling requests
   useEffect(() => {
-    return () => {
-      try { syncAbortRef.current?.abort(); } catch { void 0; }
-    };
-  }, []);
+    if (Object.keys(state.conversations).length > 0) {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      const payload = {
+        conversations: state.conversations,
+        currentConversationId: state.currentConversationId,
+      };
+      const count = Object.keys(payload.conversations).length;
+      const id = payload.currentConversationId;
+      saveTimerRef.current = setTimeout(() => {
+        try {
+          if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) {
+            console.warn('[useEffect] Saving to localStorage:', { conversationCount: count, currentId: id });
+          }
+          const nextStr = JSON.stringify(payload);
+          const prevStr = localStorage.getItem(JOE_CHAT_HISTORY);
+          if (prevStr !== nextStr) {
+            localStorage.setItem(JOE_CHAT_HISTORY, nextStr);
+          }
+        } catch (e) {
+          try { console.warn('Failed to save chat history:', e); } catch { void 0; }
+        }
+      }, 400);
+    }
+  }, [state.conversations, state.currentConversationId]);
+
+  
 
   useEffect(() => {
     try {
@@ -616,18 +628,37 @@ export const useJoeChat = () => {
           return;
         }
         let sioUrl;
-        const isDevSio = typeof import.meta !== 'undefined' && import.meta.env?.MODE !== 'production';
-        const envApiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL;
-        if (envApiBase) {
-          const base = String(envApiBase).replace(/\/$/, '');
-          sioUrl = `${base}/joe-agent`;
-        } else if (!isDevSio) {
-          const origin = window.location.origin.replace(/\/$/, '');
-          sioUrl = `${origin}/joe-agent`;
-        } else {
-          sioUrl = 'http://localhost:4000/joe-agent';
-        }
-        const socket = io(sioUrl, { auth: { token: sessionToken }, transports: ['websocket','polling'] });
+        const httpBase2 = typeof apiClient?.defaults?.baseURL === 'string'
+          ? apiClient.defaults.baseURL
+          : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
+        const sanitizedHttp = String(httpBase2).replace(/\/+$/, '');
+        let sioBase = sanitizedHttp;
+        try {
+          const u = new URL(sanitizedHttp);
+          const isLocal = (u.hostname === 'localhost' || u.hostname === '127.0.0.1');
+          const devPorts = new Set(['4173','5173','3000']);
+          if (isLocal && devPorts.has(u.port || '')) {
+            sioBase = `${u.protocol}//${u.hostname}:4000`;
+          }
+        } catch { /* noop */ }
+        sioUrl = `${sioBase}/joe-agent`;
+        const isDevLocal = (() => {
+          try { const u = new URL(sioBase); return (u.hostname === 'localhost' || u.hostname === '127.0.0.1') && ['4173','5173','3000'].includes(u.port || ''); } catch { return false; }
+        })();
+        const initialTransports = isDevLocal ? ['websocket','polling'] : ['websocket','polling'];
+        const socket = io(sioUrl, {
+          auth: { token: sessionToken },
+          path: '/socket.io',
+          transports: initialTransports,
+          upgrade: true,
+          reconnection: true,
+          reconnectionAttempts: 10,
+          reconnectionDelay: 500,
+          reconnectionDelayMax: 4000,
+          timeout: 5000,
+          forceNew: true,
+          withCredentials: false,
+        });
         socket.on('connect', () => {
           reconnectAttempts.current = 0;
           isConnectingRef.current = false;
@@ -642,21 +673,71 @@ export const useJoeChat = () => {
           dispatch({ type: 'STOP_PROCESSING' });
           dispatch({ type: 'ADD_WS_LOG', payload: `[SIO] Disconnected: ${String(reason||'')}` });
         });
+        socket.on('connect_error', async (err) => {
+          const msg = String(err?.message || 'connect_error');
+          if (/websocket error/i.test(msg)) {
+            try { socket.io.opts.transports = ['polling']; socket.connect(); } catch { /* noop */ }
+            return;
+          }
+          if (/xhr poll error|transport error/i.test(msg)) {
+            try { socket.io.opts.transports = ['websocket']; socket.connect(); } catch { /* noop */ }
+            return;
+          }
+          dispatch({ type: 'ADD_WS_LOG', payload: `[SIO] Connect error: ${msg}` });
+          if (/INVALID_TOKEN|NO_TOKEN/i.test(msg)) {
+            try { localStorage.removeItem('sessionToken'); } catch { /* noop */ }
+            try {
+              const r = await getGuestToken();
+              if ((r?.ok || r?.success) && r?.token) {
+                try { localStorage.setItem('sessionToken', r.token); } catch { /* noop */ }
+                socket.auth = { token: r.token };
+                try { socket.connect(); } catch { /* noop */ }
+              }
+            } catch { /* noop */ }
+          }
+        });
+        socket.on('error', async (err) => {
+          const msg = typeof err === 'string' ? err : String(err?.message || 'error');
+          dispatch({ type: 'ADD_WS_LOG', payload: `[SIO] Error: ${msg}` });
+          if (/xhr poll error|transport error/i.test(msg)) {
+            try { socket.io.opts.transports = ['websocket']; socket.connect(); } catch { /* noop */ }
+          }
+          if (/INVALID_TOKEN|NO_TOKEN/i.test(msg)) {
+            try { localStorage.removeItem('sessionToken'); } catch { /* noop */ }
+            try {
+              const r = await getGuestToken();
+              if ((r?.ok || r?.success) && r?.token) {
+                try { localStorage.setItem('sessionToken', r.token); } catch { /* noop */ }
+                socket.auth = { token: r.token };
+                try { socket.connect(); } catch { /* noop */ }
+              }
+            } catch { /* noop */ }
+          }
+        });
         socket.on('status', (d) => { dispatch({ type: 'ADD_WS_LOG', payload: `[SIO] ${JSON.stringify(d)}` }); });
         socket.on('stream', (d) => { if (typeof d?.content === 'string') { dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: d.content } }); } });
         socket.on('progress', (d) => { const p = Number(d?.progress || d?.pct || 0); const step = d?.step || d?.status || ''; dispatch({ type: 'SET_PROGRESS', payload: { progress: p, step } }); });
         socket.on('response', (d) => {
           const text = String(d?.response || '').trim();
           if (text) {
-            dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
+            try {
+              const id = stateRef.current.currentConversationId;
+              const msgs = id ? (stateRef.current.conversations[id]?.messages || []) : [];
+              const last = msgs.length ? String(msgs[msgs.length - 1]?.content || '') : '';
+              if (text !== last) {
+                dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
+              }
+            } catch { dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } }); }
           }
           dispatch({ type: 'STOP_PROCESSING' });
           dispatch({ type: 'REMOVE_PENDING_LOGS' });
+          try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
           if (syncRef.current) syncRef.current();
         });
         socket.on('task_complete', () => {
           dispatch({ type: 'STOP_PROCESSING' });
           dispatch({ type: 'REMOVE_PENDING_LOGS' });
+          try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
           if (syncRef.current) syncRef.current();
         });
         socket.on('session_updated', () => { if (syncRef.current) syncRef.current(); });
@@ -664,23 +745,28 @@ export const useJoeChat = () => {
           const msg = typeof e === 'string' ? e : (e?.message || 'ERROR');
           dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `[ERROR]: ${msg}` } });
           dispatch({ type: 'STOP_PROCESSING' });
+          try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
         });
         sioRef.current = socket;
-        // Use VITE_WS_URL if defined, otherwise build from VITE_API_BASE_URL
-        let wsUrl;
-        const envWsUrl = import.meta.env.VITE_WS_URL;
-
-        if (envWsUrl) {
-          // Use the explicit environment variable if it exists.
-          wsUrl = `${envWsUrl}/ws/joe-agent?token=${sessionToken}`;
-        } else if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) {
-          // In development and if no env var is set, fall back to localhost.
-          wsUrl = `ws://localhost:4000/ws/joe-agent?token=${sessionToken}`;
-        } else {
-          // In production, derive the URL from the window's location.
-          const origin = window.location.origin.replace(/^https/, 'wss').replace(/^http/, 'ws');
-          wsUrl = `${origin}/ws/joe-agent?token=${sessionToken}`;
+        const useWs = (() => { try { return localStorage.getItem('joeUseWS') === 'true'; } catch { return false; } })();
+        if (!useWs) {
+          return;
         }
+        let wsUrl;
+        const httpBase = typeof apiClient?.defaults?.baseURL === 'string'
+          ? apiClient.defaults.baseURL
+          : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
+        let sanitizedHttp1 = String(httpBase).replace(/\/(api.*)?$/, '').replace(/\/+$/, '');
+        try {
+          const u = new URL(sanitizedHttp1);
+          const isLocal = (u.hostname === 'localhost' || u.hostname === '127.0.0.1');
+          const devPorts = new Set(['4173','5173','3000']);
+          if (isLocal && devPorts.has(u.port || '')) {
+            sanitizedHttp1 = `${u.protocol}//${u.hostname}:4000`;
+          }
+        } catch { /* noop */ }
+        const wsBase = sanitizedHttp1.replace(/^https/, 'wss').replace(/^http/, 'ws');
+        wsUrl = `${wsBase}/ws/joe-agent?token=${sessionToken}`;
         console.warn('[Joe Agent] Connecting to WebSocket:', wsUrl.replace(/token=.*/, 'token=***'));
         ws.current = new WebSocket(wsUrl);
         const connectionTimeout = setTimeout(() => {
@@ -729,7 +815,7 @@ export const useJoeChat = () => {
           reconnectCountdownInterval.current = setInterval(() => {
             const remaining = Math.max(0, eta - Date.now());
             dispatch({ type: 'SET_RECONNECT_REMAINING', payload: remaining });
-          }, 1000);
+          }, 250);
           if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
           reconnectTimer.current = setTimeout(async () => {
             if (shouldResetToken) {
@@ -750,8 +836,8 @@ export const useJoeChat = () => {
         };
         
         ws.current.onmessage = async (event) => {
-          let data;
-          try { data = JSON.parse(event.data); } catch { data = {}; }
+          const data = JSON.parse(event.data);
+          dispatch({ type: 'ADD_WS_LOG', payload: `[WS] Received: ${event.data}` });
 
           const type = data.type || data.event || '';
           const isCompleteEvent = (
@@ -903,31 +989,119 @@ export const useJoeChat = () => {
 
     const trySend = (attempt = 0) => {
       if (sioRef.current && sioRef.current.connected) {
-        const selectedModel = localStorage.getItem('aiSelectedModel') || 'gpt-4o';
-        const preferredModel = localStorage.getItem('aiPreferredModel') || selectedModel; // إضافة خيار النموذج المفضل
+        let selectedModel = activeModelRef.current || localStorage.getItem('aiSelectedModel');
+        if (!selectedModel) {
+          selectedModel = null;
+        }
         const lang = getLang();
         const conv = state.conversations[convId] || null;
         const sidToUse = sid || conv?.sessionId || convId;
-        sioRef.current.emit('message', { action: 'instruct', message: inputText, sessionId: sidToUse, model: selectedModel, preferredModel, lang });
+        const payload = { action: 'instruct', message: inputText, sessionId: sidToUse, lang };
+        if (selectedModel) payload.model = selectedModel;
+        sioRef.current.emit('message', payload);
+        try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
+        sioSendTimeoutRef.current = setTimeout(async () => {
+          try {
+            const ctx = { sessionId: sidToUse, lang };
+            if (selectedModel) ctx.model = selectedModel;
+            const { data } = await apiClient.post('/api/v1/joe/execute', { instruction: inputText, context: ctx });
+            const text = String(data?.response || data?.message || '').trim();
+            if (text) {
+              try {
+                const id = sidToUse;
+                const msgs = id ? (state.conversations[id]?.messages || []) : [];
+                const last = msgs.length ? String(msgs[msgs.length - 1]?.content || '') : '';
+                if (text !== last) {
+                  dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
+                }
+              } catch { dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } }); }
+              try {
+                const r = await getChatMessages(sidToUse);
+                const exists = (r?.messages || []).some(m => String(m?.content || '') === text && m?.type !== 'user');
+                if (!exists) { await addChatMessage(sidToUse, { type: 'joe', content: text }); }
+              } catch { /* noop */ }
+            }
+          } catch { /* noop */ } finally {
+            dispatch({ type: 'STOP_PROCESSING' });
+            dispatch({ type: 'REMOVE_PENDING_LOGS' });
+            try { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } catch { /* noop */ }
+            if (syncRef.current) syncRef.current();
+          }
+        }, 8000);
         return;
       }
       if (ws.current?.readyState === WebSocket.OPEN) {
-        const selectedModel = localStorage.getItem('aiSelectedModel') || 'gpt-4o';
-        const preferredModel = localStorage.getItem('aiPreferredModel') || selectedModel; // إضافة خيار النموذج المفضل
+        let selectedModel = activeModelRef.current || localStorage.getItem('aiSelectedModel');
+        if (!selectedModel) {
+          selectedModel = null;
+        }
         const lang = getLang();
       const conv = state.conversations[convId] || null;
       const sidToUse = sid || conv?.sessionId || convId;
-        ws.current.send(JSON.stringify({ action: 'instruct', message: inputText, sessionId: sidToUse, model: selectedModel, preferredModel, lang }));
+        const msg = { action: 'instruct', message: inputText, sessionId: sidToUse, lang };
+        if (selectedModel) msg.model = selectedModel;
+        ws.current.send(JSON.stringify(msg));
+        try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
+        sioSendTimeoutRef.current = setTimeout(async () => {
+          try {
+            const ctx2 = { sessionId: sidToUse, lang };
+            if (selectedModel) ctx2.model = selectedModel;
+            const { data } = await apiClient.post('/api/v1/joe/execute', { instruction: inputText, context: ctx2 });
+            const text = String(data?.response || data?.message || '').trim();
+            if (text) {
+              dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
+              try {
+                const r = await getChatMessages(sidToUse);
+                const exists = (r?.messages || []).some(m => String(m?.content || '') === text && m?.type !== 'user');
+                if (!exists) { await addChatMessage(sidToUse, { type: 'joe', content: text }); }
+              } catch { /* noop */ }
+            }
+          } catch { /* noop */ } finally {
+            dispatch({ type: 'STOP_PROCESSING' });
+            dispatch({ type: 'REMOVE_PENDING_LOGS' });
+            try { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } catch { /* noop */ }
+            if (syncRef.current) syncRef.current();
+          }
+        }, 8000);
         return;
       }
-      if (attempt < 6) {
+      if (attempt < 12) {
         setTimeout(() => trySend(attempt + 1), 500);
         return;
       }
-      const lang = getLang();
-      const msg = lang === 'ar' ? 'اتصال WebSocket غير متاح حالياً، جارِ إعادة الاتصال بالخادم...' : 'WebSocket is not connected yet. Reconnecting...';
-      dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: msg } });
-      dispatch({ type: 'STOP_PROCESSING' });
+      (async () => {
+        let selectedModel = activeModelRef.current || localStorage.getItem('aiSelectedModel');
+        if (!selectedModel) {
+          selectedModel = null;
+        }
+        const lang = getLang();
+        const conv = state.conversations[convId] || null;
+        const sidToUse = sid || conv?.sessionId || convId;
+        try {
+          const { data } = await apiClient.post('/api/v1/joe/execute', {
+            instruction: inputText,
+            context: (() => { const c = { sessionId: sidToUse, lang }; if (selectedModel) c.model = selectedModel; return c; })()
+          });
+          const text = String(data?.response || data?.message || '').trim();
+          if (text) {
+            dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
+            try {
+              const r = await getChatMessages(sidToUse);
+              const exists = (r?.messages || []).some(m => String(m?.content || '') === text && m?.type !== 'user');
+              if (!exists) {
+                await addChatMessage(sidToUse, { type: 'joe', content: text });
+              }
+            } catch { /* ignore */ }
+          }
+        } catch (e) {
+          const m = lang === 'ar' ? 'فشل الإرسال عبر REST، حاول لاحقًا.' : 'REST fallback failed, please try again later.';
+          dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `${m} ${e?.message || ''}`.trim() } });
+        } finally {
+          dispatch({ type: 'STOP_PROCESSING' });
+          dispatch({ type: 'REMOVE_PENDING_LOGS' });
+          if (syncRef.current) syncRef.current();
+        }
+      })();
     };
     trySend();
   }, [state.input, state.currentConversationId, state.conversations]);

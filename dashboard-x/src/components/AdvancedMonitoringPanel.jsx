@@ -1,7 +1,7 @@
-  import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-  import PropTypes from 'prop-types';
-  import { Activity, Cpu, HardDrive, Zap, AlertCircle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
-  import axios from 'axios';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import PropTypes from 'prop-types';
+import { Activity, Cpu, HardDrive, Zap, AlertCircle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import apiClient from '../api/client';
 
   // ألوان الحالات للأنشطة والتنبيهات
   const STATUS_STYLES = {
@@ -53,7 +53,7 @@
   );
 
   export default function AdvancedMonitoringPanel({ apiBase, refreshMs = 5000, mockMode = false }) {
-    const API_BASE = apiBase || import.meta?.env?.VITE_API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+    const baseUrl = apiBase || (typeof apiClient?.defaults?.baseURL === 'string' ? apiClient.defaults.baseURL : (typeof window !== 'undefined' ? window.location.origin : ''));
 
     const [systemStats, setSystemStats] = useState({
       cpu: 0,
@@ -76,7 +76,7 @@
     const fetchStats = useCallback(async (signal) => {
       try {
         setError(null);
-        const { data } = await axios.get(`${API_BASE}/api/live-stream/status`, { signal });
+        const { data } = await apiClient.get('/api/live-stream/status', { signal });
         if (data?.success) {
           const stats = data.stats || {};
           setSystemStats((prev) => ({
@@ -91,13 +91,13 @@
           throw new Error(data?.message || 'فشل جلب البيانات');
         }
       } catch (e) {
-        if (axios.isCancel(e)) return;
+        if (e?.code === 'ERR_CANCELED' || e?.name === 'CanceledError') return;
         setError(e?.message || 'حدث خطأ غير متوقع');
         // احتفظ بالبيانات الحالية ولا تُسقط الواجهه
       } finally {
         setIsLoading(false);
       }
-    }, [API_BASE, mockMode]);
+    }, [mockMode]);
 
     useEffect(() => {
       const controller = new AbortController();
@@ -111,7 +111,7 @@
     }, [fetchStats, refreshMs]);
 
     const buildWsUrl = useCallback(() => {
-      const base = API_BASE || '';
+      const base = baseUrl || '';
       const wsBase = String(base).replace(/^https/, 'wss').replace(/^http/, 'ws');
       let url = `${wsBase}/ws/live-stream`;
       try {
@@ -119,7 +119,7 @@
         if (token) url += `?token=${token}`;
       } catch { /* noop */ }
       return url;
-    }, [API_BASE]);
+    }, [baseUrl]);
 
     const connectWs = useCallback(() => {
       try {
@@ -147,23 +147,23 @@
 
     const handleStartStream = useCallback(async () => {
       try {
-        await axios.post(`${API_BASE}/api/v1/live-stream/start`);
+        await apiClient.post('/api/v1/live-stream/start');
         setIsStreaming(true);
         connectWs();
       } catch (e) {
         setError(e?.message || 'فشل بدء البث');
       }
-    }, [API_BASE, connectWs]);
+    }, [connectWs]);
 
     const handleStopStream = useCallback(async () => {
       try {
-        await axios.post(`${API_BASE}/api/v1/live-stream/stop`);
+        await apiClient.post('/api/v1/live-stream/stop');
         setIsStreaming(false);
         disconnectWs();
       } catch (e) {
         setError(e?.message || 'فشل إيقاف البث');
       }
-    }, [API_BASE, disconnectWs]);
+    }, [disconnectWs]);
 
     // بيانات Mock للأنشطة والتنبيهات (يمكن استبدالها بمصدر حقيقي)
     useEffect(() => {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiMaximize2, FiLogOut, FiSidebar, FiActivity, FiUsers, FiTerminal, FiCpu } from 'react-icons/fi';
+import { FiMaximize2, FiLogOut, FiSidebar, FiActivity, FiUsers, FiTerminal } from 'react-icons/fi';
 import { Sparkles, Key, ExternalLink, Search as SearchIcon } from 'lucide-react';
 import { getAIProviders, validateAIKey, activateAIProvider } from '../../api/system';
 import apiClient from '../../api/client';
@@ -22,8 +22,6 @@ const DEFAULT_AI_PROVIDERS = [
   { id: 'perplexity', name: 'Perplexity', siteUrl: 'https://www.perplexity.ai', createUrl: 'https://www.perplexity.ai/settings', defaultModel: 'pplx-70b-online', color: '#0ea5e9', icon: '🔍', region: 'global', logo: 'https://logo.clearbit.com/perplexity.ai' },
   { id: 'stability', name: 'Stability AI', siteUrl: 'https://stability.ai', createUrl: 'https://platform.stability.ai/account/keys', defaultModel: 'stable-diffusion-xl', color: '#7dd3fc', icon: '🎨', region: 'global', logo: 'https://logo.clearbit.com/stability.ai' },
   { id: 'meta', name: 'Meta LLaMA (via providers)', siteUrl: 'https://llama.meta.com', createUrl: 'https://llama.meta.com/', defaultModel: 'llama-3-70b-instruct', color: '#3b82f6', icon: '🧠', region: 'global', logo: 'https://logo.clearbit.com/meta.com' },
-  { id: 'ollama', name: 'Ollama (Local)', siteUrl: 'https://ollama.ai', createUrl: 'https://ollama.ai/', defaultModel: 'llama3:latest', color: '#374151', icon: '💻', region: 'global', logo: 'https://logo.clearbit.com/ollama.com' },
-  { id: 'lmstudio', name: 'LM Studio (Local)', siteUrl: 'https://lmstudio.ai', createUrl: 'https://lmstudio.ai/', defaultModel: 'llama-3-70b-instruct', color: '#64748b', icon: '🖥️', region: 'global', logo: 'https://logo.clearbit.com/lmstudio.ai' },
   { id: 'ibm-watsonx', name: 'IBM watsonx', siteUrl: 'https://www.ibm.com/watsonx', createUrl: 'https://cloud.ibm.com/watsonx', defaultModel: 'ibm/granite-20b-instruct', color: '#1f2937', icon: '🔷', region: 'global', logo: 'https://logo.clearbit.com/ibm.com' },
   { id: 'databricks-mosaic', name: 'Databricks Mosaic', siteUrl: 'https://www.databricks.com', createUrl: 'https://www.databricks.com/product/mosaic-ai', defaultModel: 'db/mpt-7b-instruct', color: '#f43f5e', icon: '🧩', region: 'global', logo: 'https://logo.clearbit.com/databricks.com' },
   { id: 'snowflake-cortex', name: 'Snowflake Cortex', siteUrl: 'https://www.snowflake.com', createUrl: 'https://www.snowflake.com/en/data-cloud/cortex/', defaultModel: 'snowflake/llm', color: '#60a5fa', icon: '❄️', region: 'global', logo: 'https://logo.clearbit.com/snowflake.com' },
@@ -64,6 +62,9 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
     try { return localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'; } catch { return 'en'; }
   });
   const [offlineReady, setOfflineReady] = React.useState(false);
+  const [runtimeStage, setRuntimeStage] = React.useState('');
+  
+  const [version, setVersion] = React.useState('');
   const [runtimeMode, setRuntimeMode] = React.useState('online');
   
   React.useEffect(() => {
@@ -85,11 +86,37 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
     (async () => {
       try {
         const { data } = await apiClient.get('/api/v1/runtime-mode/status');
-        setOfflineReady(Boolean(data?.offlineReady));
-        setRuntimeMode(String(data?.mode || 'online'));
+        const offlineReady = Boolean(data?.offlineReady);
+        const mode = String(data?.mode || 'online');
+        const stage = String(data?.stage || '');
+        
+        const modelPath = String(data?.modelPath || '');
+        setOfflineReady(offlineReady);
+        setRuntimeMode(mode);
+        setRuntimeStage(stage);
+        
+        if (data?.version) setVersion(String(data.version));
+        try { window.__joeRuntimeStatus = { offlineReady, mode, hasProvider: Boolean(data?.hasProvider), stage, modelPath }; } catch { /* noop */ }
       } catch (e) { void e; }
     })();
   }, []);
+
+  React.useEffect(() => {
+    let timer = null;
+    const shouldPoll = (!offlineReady || (runtimeStage && runtimeStage !== 'done'));
+    if (shouldPoll) {
+      timer = setInterval(async () => {
+        try {
+          const { data } = await apiClient.get('/api/v1/runtime-mode/status');
+          setOfflineReady(Boolean(data?.offlineReady));
+          setRuntimeStage(String(data?.stage || ''));
+          
+          setRuntimeMode(String(data?.mode || 'online'));
+        } catch { /* noop */ }
+      }, 1200);
+    }
+    return () => { if (timer) clearInterval(timer); };
+  }, [offlineReady, runtimeStage]);
   React.useEffect(() => {
     const onRuntime = (e) => {
       const m = e?.detail?.mode;
@@ -297,9 +324,7 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
           .joe-brand[data-activity='happy'] .mascot .mouth { animation: layout 1.6s ease-in-out infinite; }
         `}</style>
         <div className="joe-brand" ref={brandRef} onMouseMove={onBrandMouseMove} style={{ '--eyeX': `${eyeOffset.x}px`, '--eyeY': `${eyeOffset.y}px`, transform: `scale(${mascotScale})` }} data-activity={activity} data-outfit={outfit}>
-          <div className="text">
-            jo<span>e</span>
-          </div>
+          <div className="text">jo<span>e</span></div>
           <div className="mascot">
             <div className="ring"></div>
             <div className="face">
@@ -313,33 +338,16 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
 
         {/* Right: Control Buttons */}
       <div className="flex items-center gap-1.5">
-        {/* Local Button */}
-        <button
-          onClick={async () => {
-            try {
-              if (!offlineReady) {
-                await apiClient.post('/api/v1/runtime-mode/load');
-                try {
-                  const { data } = await apiClient.get('/api/v1/runtime-mode/status');
-                  setOfflineReady(Boolean(data?.offlineReady));
-                } catch { void 0 }
-              }
-              if (offlineReady) {
-                await apiClient.post('/api/v1/runtime-mode/set', { mode: 'offline' });
-                try { localStorage.setItem('aiSelectedModel', 'offline-local'); } catch { void 0; }
-                setRuntimeMode('offline');
-                try { window.dispatchEvent(new CustomEvent('joe:runtime', { detail: { mode: 'offline' } })); } catch { void 0; }
-              }
-            } catch { void 0 }
-          }}
-          className={`p-1.5 px-2 h-7 inline-flex items-center justify-center rounded-lg transition-colors border ${runtimeMode==='offline' ? 'bg-green-600 text-black hover:bg-green-700 border-green-500/50' : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border-yellow-600/40'}`}
-          title={lang==='ar'?'المحلي':'Local'}
-        >
-          <FiCpu size={12} />
-          <span className="ml-1 text-[11px] font-semibold">Joe Ai</span>
-        </button>
+        {/* Providers Button Only */}
         {/* Providers Button */}
         <AIMenuButton runtimeMode={runtimeMode} />
+        <button
+          type="button"
+          className={`p-1.5 px-2 h-7 inline-flex items-center justify-center rounded-lg transition-colors border bg-gray-800 text-yellow-400 hover:bg-gray-700 border-yellow-600/40`}
+          title={lang==='ar'?'الإصدار':'Version'}
+        >
+          <span className="text-[11px] font-semibold">{`V${version || '...'}`}</span>
+        </button>
         
         <div className="relative inline-flex items-center">
         <button
@@ -514,21 +522,37 @@ const AIMenuButton = ({ runtimeMode }) => {
   const [detailId, setDetailId] = React.useState(null);
   const buttonRef = React.useRef(null);
 
+  const providersAbortRef = React.useRef(null);
   const loadProviders = async () => {
     setLoading(true);
     try {
-      const data = await getAIProviders();
+      if (providersAbortRef.current) { try { providersAbortRef.current.abort(); } catch { /* ignore */ } }
+      const controller = new AbortController();
+      providersAbortRef.current = controller;
+      const data = await getAIProviders({ signal: controller.signal });
       const list = data.providers && data.providers.length ? data.providers : DEFAULT_AI_PROVIDERS;
       setProviders(list);
       setActive({ provider: data.activeProvider, model: data.activeModel });
-    } catch {
-      setProviders(DEFAULT_AI_PROVIDERS);
+    } catch (err) {
+      const m = String(err?.message || '');
+      if (/canceled|abort(ed)?/i.test(m)) { /* silent on cancel */ }
+      else { setProviders(DEFAULT_AI_PROVIDERS); }
     } finally { setLoading(false); }
   };
 
   React.useEffect(() => {
     if (menuOpen) loadProviders();
+    return () => { try { providersAbortRef.current?.abort(); } catch { /* ignore */ } };
   }, [menuOpen]);
+
+  React.useEffect(() => {
+    try {
+      const current = localStorage.getItem('aiSelectedModel');
+      if ((!current || current.trim() === '') && active?.model) {
+        localStorage.setItem('aiSelectedModel', active.model);
+      }
+    } catch { /* noop */ }
+  }, [active]);
 
   const filtered = providers.filter(p => {
     const byName = p.name.toLowerCase().includes(search.toLowerCase());
@@ -542,7 +566,7 @@ const AIMenuButton = ({ runtimeMode }) => {
     try { localStorage.setItem('aiProviderKeys', JSON.stringify(next)); } catch { void 0; }
   };
 
-  const handleValidate = async (id) => {
+  const handleValidate = React.useCallback(async (id) => {
     try {
       setLoading(true);
       const k = keys[id];
@@ -555,18 +579,17 @@ const AIMenuButton = ({ runtimeMode }) => {
       setValidationError(e => ({ ...e, [id]: msg }));
     }
     finally { setLoading(false); }
-  };
+  }, [keys]);
 
-  const handleActivate = async (id, model) => {
+  const handleActivate = async (id) => {
     try {
       setLoading(true);
-      await activateAIProvider(id, model);
-      setActive({ provider: id, model });
-      try { localStorage.setItem('aiSelectedModel', model); } catch { void 0; }
+      await activateAIProvider(id);
+      setActive({ provider: id, model: null });
+      try { localStorage.removeItem('aiSelectedModel'); } catch { void 0; }
       setActivationError(e => ({ ...e, [id]: '' }));
       try {
-        const isLocal = id === 'ollama' || id === 'lmstudio';
-        const mode = isLocal ? 'offline' : 'online';
+        const mode = 'online';
         await apiClient.post('/api/v1/runtime-mode/set', { mode });
         try { window.dispatchEvent(new CustomEvent('joe:runtime', { detail: { mode } })); } catch { void 0; }
       } catch (err2) { void err2; }
@@ -654,7 +677,7 @@ const AIMenuButton = ({ runtimeMode }) => {
                           <span className="text-sm font-semibold">{p.name}</span>
                           <span className="text-xs text-gray-400">• {p.region==='china' ? 'الصين' : 'العالمي'}</span>
                         </span>
-                        <span className="text-[11px] text-gray-400">{p.defaultModel}</span>
+                        
                       </span>
                     </span>
                     <span className={`text-[10px] px-2 py-0.5 rounded-full ${isActive ? 'bg-green-600/20 text-green-300 ring-1 ring-green-500/50' : 'bg-gray-700/40 text-gray-300 ring-1 ring-yellow-600/30'}`}>{isActive ? 'نشط' : 'غير نشط'}</span>
@@ -708,10 +731,7 @@ const AIMenuButton = ({ runtimeMode }) => {
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      <select defaultValue={p.defaultModel} className="px-3 py-2 rounded-lg bg-[#0e1524] border border-yellow-600/30 text-white">
-                        <option value={p.defaultModel}>{p.defaultModel}</option>
-                      </select>
-                      <button onClick={() => handleActivate(p.id, p.defaultModel)} className="px-3 py-2 rounded-lg bg-yellow-600 hover:bg-yellow-700 text-black">تفعيل المزود</button>
+                      <button onClick={() => handleActivate(p.id)} className="px-3 py-2 rounded-lg bg-yellow-600 hover:bg-yellow-700 text-black">تفعيل المزود</button>
                       {!!activationError[p.id] && (
                         <span className="text-xs text-red-400 ml-1">{activationError[p.id]}</span>
                       )}

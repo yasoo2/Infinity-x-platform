@@ -14,7 +14,7 @@ import {
   ExternalLink,
 } from 'lucide-react'; // استيراد أيقونات إضافية
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://api.xelitesolutions.com';
+//
 
 // Reducer for build process state
 const buildReducer = (state, action) => {
@@ -162,7 +162,7 @@ export default function Build() {
         repoName: title.toLowerCase().replace(/[^a-z0-9]/g, '-')
       };
 
-      const response = await apiClient.post(`${API_BASE}/api/page-builder/create`, payload);
+      const response = await apiClient.post('/api/page-builder/create', payload);
 
       if (response.data.ok) {
         addLog('✅ تم توليد الكود البرمجي بنجاح!', 'success');

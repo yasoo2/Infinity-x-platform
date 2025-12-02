@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { Upload, FileText, Image, File } from 'lucide-react';
+import apiClient from '../api/client';
 
 export default function FileUpload({ onFileAnalyzed }) {
   const [isDragging, setIsDragging] = useState(false);
@@ -43,13 +44,7 @@ export default function FileUpload({ onFileAnalyzed }) {
       const formData = new FormData();
       formData.append('file', file);
 
-      const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
-      const response = await fetch(`${base}/api/file/upload`, {
-        method: 'POST',
-        body: formData
-      });
-
-      const data = await response.json();
+      const { data } = await apiClient.post('/api/file/upload', formData);
 
       if (data.ok) {
         onFileAnalyzed({
