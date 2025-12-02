@@ -58,6 +58,25 @@ const JoeContent = () => {
     return () => window.removeEventListener('joe:lang', onLang);
   }, []);
 
+  useEffect(() => {
+    const resetDrag = () => {
+      try {
+        setDragLeft(false);
+        setDragRight(false);
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+      } catch { /* ignore */ }
+    };
+    window.addEventListener('blur', resetDrag);
+    window.addEventListener('focus', resetDrag);
+    window.addEventListener('visibilitychange', () => { if (document.hidden) resetDrag(); });
+    return () => {
+      window.removeEventListener('blur', resetDrag);
+      window.removeEventListener('focus', resetDrag);
+      window.removeEventListener('visibilitychange', () => { if (document.hidden) resetDrag(); });
+    };
+  }, []);
+
   // تم استبدال وظيفة تبديل اللغة باختصار لوحة المفاتيح Ctrl/Cmd+L أدناه
 
   useEffect(() => {
@@ -129,10 +148,13 @@ const JoeContent = () => {
   const pupilRightRef = React.useRef(null);
   const [robotActive, setRobotActive] = useState(false);
   const [robotCorner, setRobotCorner] = useState('bl');
+  const clamp = (x, min, max) => Math.max(min, Math.min(max, x));
   const [robotScale, setRobotScale] = useState(() => {
     try {
       const v = parseFloat(localStorage.getItem('joeRobotScale'));
-      return Number.isFinite(v) && v > 0 ? v : 1;
+      const c = clamp(Number.isFinite(v) && v > 0 ? v : 1, 0.75, 1.5);
+      if (v !== c) try { localStorage.setItem('joeRobotScale', String(c)); } catch { /* ignore */ }
+      return c;
     } catch {
       return 1;
     }
@@ -190,9 +212,10 @@ const JoeContent = () => {
     let base = { w: 120, h: 140 };
     if (vw < 640) base = { w: 88, h: 104 };
     else if (vw < 1024) base = { w: 104, h: 122 };
+    const s = clamp(scale, 0.75, 1.5);
     return {
-      w: Math.round(base.w * scale),
-      h: Math.round(base.h * scale),
+      w: Math.round(base.w * s),
+      h: Math.round(base.h * s),
     };
   }, []);
 
@@ -341,6 +364,10 @@ const JoeContent = () => {
       setIsRightPanelOpen(false);
       setIsBottomPanelOpen(false);
       setRobotActive(false);
+      setRobotCorner('br');
+      setRobotPos(null);
+      setRobotScale(1);
+      setRobotSize(computeRobotSize(1));
       try { window.dispatchEvent(new CustomEvent('joe:closeOverlays')); } catch { /* ignore */ }
     }
   }, [panicMode]);
@@ -451,7 +478,18 @@ const JoeContent = () => {
   }, [dragLeft, dragRight]);
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-brand-gradient bg-grid-dark text-white overflow-hidden" onClick={() => { try { window.dispatchEvent(new CustomEvent('joe:closeOverlays')); } catch { /* ignore */ } }}>
+    <div
+      className="h-screen w-screen flex flex-col bg-brand-gradient bg-grid-dark text-white overflow-hidden"
+      onClick={() => {
+        try { window.dispatchEvent(new CustomEvent('joe:closeOverlays')); } catch { /* ignore */ }
+        try {
+          setDragLeft(false);
+          setDragRight(false);
+          document.body.style.userSelect = '';
+          document.body.style.cursor = '';
+        } catch { /* ignore */ }
+      }}
+    >
       
         {/* Top Bar - Enhanced */}
       <TopBar 
