@@ -14,7 +14,19 @@
   if (typeof window !== 'undefined' && isDev) {
     resolvedBase = window.location.origin;
   } else if (lsBase && String(lsBase).trim().length > 0) {
-    resolvedBase = lsBase;
+    // Prefer stored base only if not pointing to www; sanitize if needed
+    try {
+      const u = new URL(String(lsBase));
+      const host = u.hostname;
+      if (host === 'www.xelitesolutions.com' || host === 'xelitesolutions.com') {
+        resolvedBase = 'https://api.xelitesolutions.com';
+        try { localStorage.setItem('apiBaseUrl', resolvedBase); } catch { /* noop */ }
+      } else {
+        resolvedBase = lsBase;
+      }
+    } catch {
+      resolvedBase = lsBase;
+    }
   } else if (explicitBase && String(explicitBase).trim().length > 0) {
     // Use explicit base URL from environment variable (e.g., from Front Cloud settings)
     resolvedBase = explicitBase;
@@ -35,6 +47,14 @@
   } else {
     resolvedBase = 'http://localhost:4000';
   }
+  // Final sanitation: if resolvedBase still points to www/bare domain, force api
+  try {
+    const u2 = new URL(String(resolvedBase));
+    const host2 = u2.hostname;
+    if (host2 === 'www.xelitesolutions.com' || host2 === 'xelitesolutions.com') {
+      resolvedBase = 'https://api.xelitesolutions.com';
+    }
+  } catch { /* noop */ }
   const BASE_URL = String(resolvedBase).replace(/\/+$/, '');
   let errCount = 0;
   let errStart = 0;
