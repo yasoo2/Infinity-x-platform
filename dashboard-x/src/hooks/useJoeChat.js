@@ -463,8 +463,17 @@ export const useJoeChat = () => {
       }
       const s = await getChatSessions({ signal });
       const list = s?.sessions || [];
+      const seen = new Set();
+      const validList = list.filter((sess) => {
+        const id = String(sess?.id || '').trim();
+        if (!id || seen.has(id)) return false;
+        seen.add(id);
+        const isObjId = /^[a-f0-9]{24}$/i.test(id);
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+        return isObjId || isUuid;
+      });
       const convs = { ...state.conversations };
-      for (const sess of list) {
+      for (const sess of validList) {
         if (!sess?.id) continue;
         try {
           const detail = await getChatSessionById(sess.id, { signal });
