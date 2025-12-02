@@ -144,7 +144,7 @@ const AppRoutes = () => {
         <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
           <Route path="joe" element={<Joe />} />
           <Route path="overview" element={<Overview />} />
-          <Route path="activity" element={<ProtectedRoute allowedRoles={['super_admin', 'admin']}><Activity /></ProtectedRoute>} />
+          <Route path="activity" element={<Activity />} />
           <Route path="build" element={<Build />} />
           <Route path="command" element={<Command />} />
           <Route path="monitoring" element={<MonitoringPage />} />

@@ -4,7 +4,6 @@ import ChatMessage from '../database/models/ChatMessage.mjs';
 import ChatSession from '../database/models/ChatSession.mjs';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
-import { getMode } from '../core/runtime-mode.mjs';
 import config from '../config.mjs';
 
 /**
@@ -150,7 +149,6 @@ export class JoeAgentWebSocketServer {
 
           if (data.action === 'instruct') {
             console.log(`[JoeAgentV2] Received instruction: "${data.message}"`);
-            const currentMode = getMode();
             const userId = ws.userId;
             let sessionId = data.sessionId || ws.sessionId;
             const now = new Date();
@@ -282,7 +280,6 @@ export class JoeAgentWebSocketServer {
               return;
             }
           }
-          const currentMode = getMode();
           const userId = socket.data.userId;
           const sessionId = data.sessionId || socket.data.sessionId || `session_${Date.now()}`;
           socket.data.sessionId = sessionId;
