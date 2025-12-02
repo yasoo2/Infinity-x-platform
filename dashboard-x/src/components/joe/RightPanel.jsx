@@ -44,6 +44,7 @@ const RightPanel = ({ isProcessing, plan, forceStatus = false, wsConnected = fal
   const [health, setHealth] = useState(null);
   const [runtime, setRuntime] = useState(null);
   const [ai, setAi] = useState(null);
+  const [engine, setEngine] = useState(null);
   const formatUptime = (s) => {
     if (!s && s !== 0) return '';
     const h = Math.floor(s / 3600);
@@ -70,6 +71,10 @@ const RightPanel = ({ isProcessing, plan, forceStatus = false, wsConnected = fal
       try {
         const r = await apiClient.get('/api/v1/runtime-mode/status', { signal });
         setRuntime(r.data);
+      } catch { void 0; }
+      try {
+        const e = await apiClient.get('/api/v1/engine/status', { signal });
+        setEngine(e.data);
       } catch { void 0; }
       try {
         const p = await apiClient.get('/api/v1/ai/providers', { signal });
@@ -131,7 +136,7 @@ const RightPanel = ({ isProcessing, plan, forceStatus = false, wsConnected = fal
                 <h4 className="font-semibold text-white">AI Engine</h4>
               </div>
               <p className="text-sm text-gray-400">
-                {runtime?.success && runtime.offlineReady ? `محلي • جاهز` : (ai?.ok ? `${ai.activeProvider || ''} • ${ai.activeModel || ''}` : (runtime?.success ? `${runtime.mode} • ${runtime.offlineReady ? 'Ready' : 'Not Ready'}` : 'Unknown'))}
+                {engine?.ok ? (engine.mode === 'local_llama' ? 'محلي • جاهز' : (engine.mode === 'openai' ? 'OpenAI • نشط' : 'غير معروف')) : (runtime?.success ? `${runtime.mode} • ${runtime.offlineReady ? 'Ready' : 'Not Ready'}` : 'Unknown')}
               </p>
               {runtime?.success && runtime.loading && (
                 <div className="mt-2 text-xs text-blue-400">تحميل: {runtime.stage || 'Starting'} • {runtime.percent || 0}%</div>

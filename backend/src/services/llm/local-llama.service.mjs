@@ -97,6 +97,13 @@ class LocalLlamaService {
     const chunks = String(full || '').match(/.{1,64}/g) || []
     for (const c of chunks) onToken(c)
   }
+
+  async runLocalLlamaChat(messages, opts = {}) {
+    if (!this.isReady()) throw new Error('MODEL_NOT_INITIALIZED')
+    const parts = []
+    await this.stream(messages, (p) => { parts.push(p) }, opts)
+    return parts.join('')
+  }
 }
 
 export const localLlamaService = new LocalLlamaService()
