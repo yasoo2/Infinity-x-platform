@@ -10,12 +10,7 @@ const healthRouterFactory = ({ db, optionalAuth }) => {
 
   router.get('/', async (req, res) => {
     const mode = getMode()
-    let offlineReady = false
-    try {
-      const mod = await import('../services/llm/local-llama.service.mjs')
-      const svc = mod?.localLlamaService
-      offlineReady = Boolean(svc && typeof svc.isReady === 'function' && svc.isReady())
-    } catch { offlineReady = false }
+    const offlineReady = false
     const { activeProvider, activeModel } = getConfig()
     let dbOk = false
     try {
