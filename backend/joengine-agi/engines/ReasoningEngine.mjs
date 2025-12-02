@@ -20,7 +20,6 @@ export class ReasoningEngine {
         } catch {
             this.openai = null;
         }
-        try { if (!localLlamaService.isReady()) localLlamaService.startInitialize(); } catch { /* noop */ }
     }
 
     /**

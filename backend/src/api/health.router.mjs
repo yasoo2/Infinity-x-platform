@@ -1,7 +1,6 @@
 import express from 'express'
 import os from 'os'
 import { getMode } from '../core/runtime-mode.mjs'
-import { localLlamaService } from '../services/llm/local-llama.service.mjs'
 import toolManager from '../services/tools/tool-manager.service.mjs'
 import { getConfig } from '../services/ai/runtime-config.mjs'
 
@@ -11,7 +10,12 @@ const healthRouterFactory = ({ db, optionalAuth }) => {
 
   router.get('/', async (req, res) => {
     const mode = getMode()
-    const offlineReady = localLlamaService.isReady()
+    let offlineReady = false
+    try {
+      const mod = await import('../services/llm/local-llama.service.mjs')
+      const svc = mod?.localLlamaService
+      offlineReady = Boolean(svc && typeof svc.isReady === 'function' && svc.isReady())
+    } catch { offlineReady = false }
     const { activeProvider, activeModel } = getConfig()
     let dbOk = false
     try {
