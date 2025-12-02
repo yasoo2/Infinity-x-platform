@@ -5,12 +5,16 @@
   let lsBase = null;
   try { lsBase = localStorage.getItem('apiBaseUrl'); } catch { lsBase = null; }
   const envBase = typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL);
+  const explicitBase = typeof import.meta !== 'undefined' && import.meta.env?.VITE_EXPLICIT_API_BASE;
   const isLocal = (u) => { try { const h = new URL(String(u)).hostname; return h === 'localhost' || h === '127.0.0.1'; } catch { return /localhost|127\.0\.0\.1/.test(String(u)); } };
   const isDev = typeof import.meta !== 'undefined' && !!import.meta.env?.DEV;
   if (typeof window !== 'undefined' && isDev) {
     resolvedBase = window.location.origin;
   } else if (lsBase && String(lsBase).trim().length > 0) {
     resolvedBase = lsBase;
+  } else if (explicitBase && String(explicitBase).trim().length > 0) {
+    // Use explicit base URL from environment variable (e.g., from Front Cloud settings)
+    resolvedBase = explicitBase;
   } else if (envBase && String(envBase).trim().length > 0) {
     if (typeof window !== 'undefined' && !isLocal(window.location.origin) && isLocal(envBase)) {
       resolvedBase = window.location.origin;
