@@ -5,7 +5,6 @@ import ChatSession from '../database/models/ChatSession.mjs';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import { getMode } from '../core/runtime-mode.mjs';
-import { localLlamaService } from './llm/local-llama.service.mjs';
 import config from '../config.mjs';
 
 /**
@@ -187,26 +186,7 @@ export class JoeAgentWebSocketServer {
             } catch (e) {
               console.error('[JoeAgentV2] Failed to save user message:', e);
             }
-          if (currentMode === 'offline' && localLlamaService.isReady()) {
-            try {
-              const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model: 'offline-local', lang: data.lang });
-              if (ws.readyState === ws.OPEN) {
-                ws.send(JSON.stringify({ type: 'response', response: result.response, toolsUsed: result.toolsUsed, sessionId }));
-              }
-              try {
-                const content = String(result?.response || '').trim();
-                if (content && mongoose.Types.ObjectId.isValid(sessionId)) {
-                  await ChatMessage.create({ sessionId, userId, type: 'joe', content });
-                  await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date(), updatedAt: new Date() } });
-                }
-              } catch { void 0 }
-            } catch (err) {
-              if (ws.readyState === ws.OPEN) {
-                ws.send(JSON.stringify({ type: 'error', message: err.message }));
-              }
-            }
-            return;
-          }
+          
 
             try {
               const model = data.model || 'gpt-4o';
@@ -315,22 +295,7 @@ export class JoeAgentWebSocketServer {
                 await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date(), updatedAt: new Date() } });
               }
             } catch { void 0 }
-            if (currentMode === 'offline' && localLlamaService.isReady()) {
-              try {
-                const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model: 'offline-local', lang: data.lang });
-                socket.emit('response', { response: result.response, toolsUsed: result.toolsUsed, sessionId });
-                try {
-                  const content = String(result?.response || '').trim();
-                  if (content && mongoose.Types.ObjectId.isValid(sessionId)) {
-                    await ChatMessage.create({ sessionId, userId, type: 'joe', content });
-                    await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date(), updatedAt: new Date() } });
-                  }
-                } catch { void 0 }
-              } catch (err) {
-                socket.emit('error', { message: err.message });
-              }
-              return;
-            }
+            
             const model = data.model || 'gpt-4o';
             const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model, lang: data.lang });
             socket.emit('response', { response: result.response, toolsUsed: result.toolsUsed, sessionId });

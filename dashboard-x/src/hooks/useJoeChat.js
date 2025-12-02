@@ -645,7 +645,7 @@ export const useJoeChat = () => {
         const isDevLocal = (() => {
           try { const u = new URL(sioBase); return (u.hostname === 'localhost' || u.hostname === '127.0.0.1') && ['4173','5173','3000'].includes(u.port || ''); } catch { return false; }
         })();
-        const initialTransports = isDevLocal ? ['polling'] : ['polling','websocket'];
+        const initialTransports = isDevLocal ? ['websocket','polling'] : ['websocket','polling'];
         const socket = io(sioUrl, {
           auth: { token: sessionToken },
           path: '/socket.io',
@@ -679,6 +679,10 @@ export const useJoeChat = () => {
             try { socket.io.opts.transports = ['polling']; socket.connect(); } catch { /* noop */ }
             return;
           }
+          if (/xhr poll error|transport error/i.test(msg)) {
+            try { socket.io.opts.transports = ['websocket']; socket.connect(); } catch { /* noop */ }
+            return;
+          }
           dispatch({ type: 'ADD_WS_LOG', payload: `[SIO] Connect error: ${msg}` });
           if (/INVALID_TOKEN|NO_TOKEN/i.test(msg)) {
             try { localStorage.removeItem('sessionToken'); } catch { /* noop */ }
@@ -695,6 +699,9 @@ export const useJoeChat = () => {
         socket.on('error', async (err) => {
           const msg = typeof err === 'string' ? err : String(err?.message || 'error');
           dispatch({ type: 'ADD_WS_LOG', payload: `[SIO] Error: ${msg}` });
+          if (/xhr poll error|transport error/i.test(msg)) {
+            try { socket.io.opts.transports = ['websocket']; socket.connect(); } catch { /* noop */ }
+          }
           if (/INVALID_TOKEN|NO_TOKEN/i.test(msg)) {
             try { localStorage.removeItem('sessionToken'); } catch { /* noop */ }
             try {

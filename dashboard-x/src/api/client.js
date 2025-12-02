@@ -131,7 +131,8 @@
         const cfg = error.config || {};
         const method = (cfg.method || '').toUpperCase();
         const isAuthPath = /\/api\/v1\/auth\//.test(String(cfg.url || ''));
-        if (!isAuthPath && method === 'GET' && !cfg._retryGuest) {
+        const isAiPath = /\/api\/v1\/ai\//.test(String(cfg.url || ''));
+        if (!isAuthPath && (method === 'GET' || isAiPath) && !cfg._retryGuest) {
           cfg._retryGuest = true;
           try {
             const { data } = await axios.post(`${BASE_URL}/api/v1/auth/guest-token`);

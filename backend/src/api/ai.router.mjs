@@ -55,7 +55,7 @@ const aiRouterFactory = ({ optionalAuth, db }) => {
     { id: 'snowflake-cortex', name: 'Snowflake Cortex', createUrl: 'https://www.snowflake.com/en/data-cloud/cortex/', defaultModel: 'snowflake/llm' },
   ];
 
-  router.get('/providers', allowLoggedIn, async (req, res) => {
+  router.get('/providers', async (req, res) => {
     try {
       let userActiveProvider = activeProvider;
       let userActiveModel = activeModel;
@@ -89,7 +89,7 @@ const aiRouterFactory = ({ optionalAuth, db }) => {
       }
       const def = providers.find(p => p.id === provider)?.defaultModel;
       const selectedModel = model || def || activeModel;
-      const userId = req.user?.id || req.user?.userId;
+      const userId = req.user?.id || req.user?.userId || req.user?._id;
       if (!userId) return res.status(403).json({ ok: false, error: 'ACCESS_DENIED' });
       if (db) {
         await db.collection('ai_user_config').updateOne(
@@ -110,7 +110,7 @@ const aiRouterFactory = ({ optionalAuth, db }) => {
       if (!provider || !apiKey) {
         return res.status(400).json({ ok: false, error: 'PROVIDER_AND_API_KEY_REQUIRED' });
       }
-      const userId = req.user?.id || req.user?.userId;
+      const userId = req.user?.id || req.user?.userId || req.user?._id;
       if (!userId) return res.status(403).json({ ok: false, error: 'ACCESS_DENIED' });
       if (provider === 'openai') {
         const client = new OpenAI({ apiKey });
