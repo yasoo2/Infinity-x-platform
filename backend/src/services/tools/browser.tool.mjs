@@ -111,4 +111,93 @@ screenshotWebsite.metadata = {
 };
 
 
-export default { browseWebsite, screenshotWebsite };
+function extractYouTubeId(url) {
+  try {
+    const u = new URL(url);
+    if (u.hostname.includes('youtube.com')) {
+      const v = u.searchParams.get('v');
+      if (v) return v;
+      const list = u.searchParams.get('list');
+      void list;
+      const paths = u.pathname.split('/').filter(Boolean);
+      const last = paths.pop();
+      if (u.pathname.startsWith('/shorts/') && last) return last;
+    }
+    if (u.hostname.includes('youtu.be')) {
+      const id = u.pathname.split('/').filter(Boolean)[0];
+      if (id) return id;
+    }
+  } catch { /* noop */ }
+  return null;
+}
+
+async function fetchYouTubeTranscript(videoId) {
+  const endpoints = [
+    `https://youtubetranscript.com/?server_vid2=${encodeURIComponent(videoId)}`,
+    `https://youtubetranscript.com/?server_vid2=${encodeURIComponent(videoId)}&lang=en`,
+    `https://youtubetranscript.com/?server_vid2=${encodeURIComponent(videoId)}&lang=ar`
+  ];
+  for (const ep of endpoints) {
+    try {
+      const res = await fetch(ep, { headers: { 'Accept': 'application/json, text/xml;q=0.9, */*;q=0.8' } });
+      const ct = String(res.headers.get('content-type') || '');
+      if (ct.includes('application/json')) {
+        const data = await res.json();
+        const items = Array.isArray(data) ? data : (Array.isArray(data?.transcript) ? data.transcript : []);
+        const text = items.map(x => x.text).join(' ').trim();
+        if (text) return text;
+      } else {
+        const xml = await res.text();
+        const $ = cheerio.load(xml, { xmlMode: true });
+        const text = $('text').map((_, el) => $(el).text()).get().join(' ').trim();
+        if (text) return text;
+      }
+    } catch { /* try next */ }
+  }
+  return '';
+}
+
+function detectLang(str) {
+  const s = String(str || '');
+  const hasArabic = /[\u0600-\u06FF]/.test(s);
+  return hasArabic ? 'ar' : 'en';
+}
+
+export default (dependencies) => {
+  void dependencies;
+  async function analyzeVideoFromUrl({ url, targetLanguage }) {
+    try {
+      const u = String(url || '').trim();
+      if (!u) return { success: false, error: 'URL_REQUIRED' };
+      const youId = extractYouTubeId(u);
+      let transcript = '';
+      let source = '';
+      let title = '';
+      if (youId) {
+        transcript = await fetchYouTubeTranscript(youId);
+        source = 'youtube';
+        try {
+          const page = await browseWebsite({ url: u });
+          title = page?.title || '';
+        } catch { title = ''; }
+      } else if (/\.(mp4|webm|m4v|mov)(\?|$)/i.test(u)) {
+        source = 'direct';
+      } else if (/(vimeo\.com)/i.test(u)) {
+        source = 'vimeo';
+      } else {
+        source = 'unknown';
+      }
+      const lang = String(targetLanguage || detectLang(transcript)).toLowerCase();
+      return { success: true, source, title, transcript, language: lang };
+    } catch (e) {
+      return { success: false, error: e?.message || String(e) };
+    }
+  }
+  analyzeVideoFromUrl.metadata = {
+    name: 'analyzeVideoFromUrl',
+    description: 'Extract transcript and metadata from a video URL (YouTube supported).',
+    parameters: { type: 'object', properties: { url: { type: 'string' }, targetLanguage: { type: 'string' } }, required: ['url'] }
+  };
+
+  return { browseWebsite, screenshotWebsite, analyzeVideoFromUrl };
+};

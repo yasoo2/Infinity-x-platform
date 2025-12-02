@@ -1,6 +1,6 @@
-import React, { useCallback } from 'react';
-import { FiMaximize2, FiLogOut, FiSidebar, FiActivity, FiUsers, FiTerminal } from 'react-icons/fi';
-import { Sparkles, Key, CheckCircle, XCircle, ExternalLink, Search as SearchIcon } from 'lucide-react';
+import React from 'react';
+import { FiMaximize2, FiLogOut, FiSidebar, FiActivity, FiUsers, FiTerminal, FiCpu } from 'react-icons/fi';
+import { Sparkles, Key, ExternalLink, Search as SearchIcon } from 'lucide-react';
 import { getAIProviders, validateAIKey, activateAIProvider } from '../../api/system';
 import apiClient from '../../api/client';
 
@@ -64,6 +64,7 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
     try { return localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'; } catch { return 'en'; }
   });
   const [offlineReady, setOfflineReady] = React.useState(false);
+  const [runtimeMode, setRuntimeMode] = React.useState('online');
   
   React.useEffect(() => {
     const onLang = () => {
@@ -85,8 +86,17 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
       try {
         const { data } = await apiClient.get('/api/v1/runtime-mode/status');
         setOfflineReady(Boolean(data?.offlineReady));
+        setRuntimeMode(String(data?.mode || 'online'));
       } catch (e) { void e; }
     })();
+  }, []);
+  React.useEffect(() => {
+    const onRuntime = (e) => {
+      const m = e?.detail?.mode;
+      if (m) setRuntimeMode(String(m));
+    };
+    window.addEventListener('joe:runtime', onRuntime);
+    return () => window.removeEventListener('joe:runtime', onRuntime);
   }, []);
   const onBrandMouseMove = (e) => {
     if (!brandRef.current) return;
@@ -303,6 +313,33 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
 
         {/* Right: Control Buttons */}
       <div className="flex items-center gap-1.5">
+        {/* Local Button */}
+        <button
+          onClick={async () => {
+            try {
+              if (!offlineReady) {
+                await apiClient.post('/api/v1/runtime-mode/load');
+                try {
+                  const { data } = await apiClient.get('/api/v1/runtime-mode/status');
+                  setOfflineReady(Boolean(data?.offlineReady));
+                } catch { void 0 }
+              }
+              if (offlineReady) {
+                await apiClient.post('/api/v1/runtime-mode/set', { mode: 'offline' });
+                try { localStorage.setItem('aiSelectedModel', 'offline-local'); } catch { void 0; }
+                setRuntimeMode('offline');
+                try { window.dispatchEvent(new CustomEvent('joe:runtime', { detail: { mode: 'offline' } })); } catch { void 0; }
+              }
+            } catch { void 0 }
+          }}
+          className={`p-1.5 px-2 h-7 inline-flex items-center justify-center rounded-lg transition-colors border ${runtimeMode==='offline' ? 'bg-green-600 text-black hover:bg-green-700 border-green-500/50' : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border-yellow-600/40'}`}
+          title={lang==='ar'?'المحلي':'Local'}
+        >
+          <FiCpu size={12} />
+          <span className="ml-1 text-[11px] font-semibold">Joe Ai</span>
+        </button>
+        {/* Providers Button */}
+        <AIMenuButton runtimeMode={runtimeMode} />
         
         <div className="relative inline-flex items-center">
         <button
@@ -390,8 +427,7 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
           </div>
         )}
 
-        {/* AI Providers Button */}
-        <AIMenuButton />
+        
 
         {/* Language Toggle */}
         <div className="relative inline-flex items-center">
@@ -461,8 +497,8 @@ TopBar.propTypes = {
   isSuperAdmin: PropTypes.bool,
 };
 
-const AIMenuButton = () => {
-  const [open, setOpen] = React.useState(false);
+const AIMenuButton = ({ runtimeMode }) => {
+  const [menuOpen, setMenuOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [providers, setProviders] = React.useState([]);
   const [active, setActive] = React.useState({ provider: null, model: null });
@@ -472,16 +508,11 @@ const AIMenuButton = () => {
   const [valid, setValid] = React.useState({});
   const [validationError, setValidationError] = React.useState({});
   const [activationError, setActivationError] = React.useState({});
-  const [closing, setClosing] = React.useState(false);
   const [logoError, setLogoError] = React.useState({});
-
-  const handlePanelClose = useCallback(() => {
-    setClosing(true);
-    setTimeout(() => {
-      setOpen(false);
-      setClosing(false);
-    }, 180);
-  }, []);
+  const [search, setSearch] = React.useState('');
+  const [region, setRegion] = React.useState('all');
+  const [detailId, setDetailId] = React.useState(null);
+  const buttonRef = React.useRef(null);
 
   const loadProviders = async () => {
     setLoading(true);
@@ -495,30 +526,15 @@ const AIMenuButton = () => {
     } finally { setLoading(false); }
   };
 
-  const [search, setSearch] = React.useState('');
-  const [region, setRegion] = React.useState('all');
+  React.useEffect(() => {
+    if (menuOpen) loadProviders();
+  }, [menuOpen]);
+
   const filtered = providers.filter(p => {
     const byName = p.name.toLowerCase().includes(search.toLowerCase());
     const byRegion = region === 'all' ? true : (p.region === region);
     return byName && byRegion;
   });
-
-  React.useEffect(() => {
-    if (open) loadProviders();
-  }, [open]);
-
-  React.useEffect(() => {
-    const onOpen = () => setOpen(true);
-    window.addEventListener('joe:openProviders', onOpen);
-    return () => window.removeEventListener('joe:openProviders', onOpen);
-  }, []);
-
-  React.useEffect(() => {
-    const handleKeyDown = (e) => { if (e.key === 'Escape' && open) handlePanelClose(); };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [open, handlePanelClose]);
-
 
   const onKeyChange = (id, value) => {
     const next = { ...keys, [id]: value };
@@ -548,119 +564,171 @@ const AIMenuButton = () => {
       setActive({ provider: id, model });
       try { localStorage.setItem('aiSelectedModel', model); } catch { void 0; }
       setActivationError(e => ({ ...e, [id]: '' }));
+      try {
+        const isLocal = id === 'ollama' || id === 'lmstudio';
+        const mode = isLocal ? 'offline' : 'online';
+        await apiClient.post('/api/v1/runtime-mode/set', { mode });
+        try { window.dispatchEvent(new CustomEvent('joe:runtime', { detail: { mode } })); } catch { void 0; }
+      } catch (err2) { void err2; }
     } catch (err) {
-      const msg = (err && err.message) ? err.message : 'فشل تفعيل المزود (يتطلب صلاحية Super Admin)';
+      const msg = (err && err.message) ? err.message : 'فشل تفعيل المزود';
       setActivationError(e => ({ ...e, [id]: msg }));
     }
     finally { setLoading(false); }
   };
 
-  const Panel = (
-    <div className={`fixed inset-0 z-[100] flex items-start justify-center pt-16 bg-black/40 backdrop-blur-sm transition-opacity duration-200 ${closing ? 'opacity-0' : 'opacity-100'}`} onClick={handlePanelClose}>
-      <style>{`
-        @keyframes panelIn { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
-        @keyframes panelOut { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(8px) scale(0.98); } }
-        .ai-panel { animation: panelIn 200ms ease-out; transform-origin: center; will-change: transform, opacity; }
-        .ai-panel.closing { animation: panelOut 180ms ease-in; }
-      `}</style>
-      <div className={`ai-panel ${closing ? 'closing' : ''} w-[940px] max-w-[96vw] bg-[#0b0f1a] border border-yellow-600/40 rounded-2xl shadow-2xl max-h-[80vh] overflow-hidden`} onClick={(e)=>e.stopPropagation()}>
-      <div className="px-5 py-4 border-b border-yellow-600/40 flex items-center justify-between sticky top-0 bg-[#0b0f1a]">
-        <div className="flex items-center gap-2 text-white"><Sparkles className="w-5 h-5 text-yellow-400"/> <span className="font-semibold">مزودي الذكاء الصناعي</span></div>
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <input value={search} onChange={(e)=>setSearch(e.target.value)} className="pl-8 px-3 py-2 rounded-lg bg-[#0e1524] border border-yellow-600/30 text-white text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500" placeholder="بحث عن مزود"/>
-            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400"><SearchIcon className="w-4 h-4"/></span>
-          </div>
-          <select value={region} onChange={(e)=>setRegion(e.target.value)} className="px-3 py-2 rounded-lg bg-[#0e1524] border border-yellow-600/30 text-white text-sm">
-            <option value="all">الكل</option>
-            <option value="global">العالمي</option>
-            <option value="china">الصين</option>
-          </select>
-          
-          <button onClick={handlePanelClose} className="px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white">إغلاق</button>
-        </div>
-      </div>
-      <div className="p-5 max-h-[70vh] overflow-y-auto">
-        {loading && <div className="text-sm text-gray-400 mb-3">جاري التحميل...</div>}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.map(p => {
-          const isActive = active.provider === p.id;
-          const isValid = valid[p.id] === true;
-          return (
-            <div key={p.id} className="rounded-2xl border border-yellow-600/20 bg-gradient-to-br from-[#0e1524] to-[#0b1220] shadow-lg">
-              <div className="p-4 border-b border-yellow-600/20 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <a href={p.createUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:opacity-90">
-                    {(!logoError[p.id] && p.logo) ? (
-                      <img
-                        src={p.logo}
-                        alt={p.name}
-                        className="w-6 h-6 rounded"
-                        referrerPolicy="no-referrer"
-                        crossOrigin="anonymous"
-                        loading="lazy"
-                        onError={() => setLogoError(e => ({ ...e, [p.id]: true }))}
-                      />
-                    ) : (
-                      <span className="text-xl" style={{ color: p.color }}>{p.icon || '🤖'}</span>
-                    )}
-                    <span className="text-white font-semibold underline decoration-dotted">{p.name}</span>
-                  </a>
-                </div>
-                <div className="flex items-center gap-2">
-                  {p.siteUrl && (
-                    <a href={p.siteUrl} target="_blank" rel="noopener noreferrer" className="p-2 bg-gray-800 border border-yellow-600/40 text-gray-200 rounded inline-flex items-center gap-1 hover:bg-yellow-600 hover:text-black"><ExternalLink className="w-3 h-3"/> زيارة الموقع</a>
-                  )}
-                  <a href={p.createUrl} target="_blank" rel="noopener noreferrer" className="p-2 bg-gray-800 border border-yellow-600/40 text-gray-200 rounded inline-flex items-center gap-1 hover:bg-yellow-600 hover:text-black"><ExternalLink className="w-3 h-3"/> إنشاء مفتاح</a>
-                </div>
-              </div>
-              <div className="p-4 space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className={`text-xs px-2 py-1 rounded-full inline-flex items-center gap-1 ${isActive ? 'bg-green-600/20 text-green-300 ring-1 ring-yellow-500' : 'bg-red-600/20 text-red-300 ring-1 ring-yellow-500'}`}>{isActive ? <CheckCircle className="w-3 h-3"/> : <XCircle className="w-3 h-3"/>}{isActive ? 'النظام يعمل على المزود' : 'غير مفعل'}</span>
-                  <span className={`text-xs px-2 py-1 rounded-full inline-flex items-center gap-1 ${isValid ? 'bg-emerald-600/20 text-emerald-300 ring-1 ring-yellow-500' : 'bg-red-600/20 text-red-300 ring-1 ring-yellow-500'}`}>{isValid ? <CheckCircle className="w-3 h-3"/> : <XCircle className="w-3 h-3"/>}{isValid ? 'المفتاح صالح' : 'المفتاح غير صالح'}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Key className="w-4 h-4 text-yellow-300"/>
-                  <input className="flex-1 px-3 py-2 rounded-lg bg-[#0e1524] border border-yellow-600/30 text-white" placeholder="أدخل المفتاح" value={keys[p.id] || ''} onChange={(e)=>onKeyChange(p.id, e.target.value)} />
-                  <button onClick={()=>handleValidate(p.id)} className="p-2 rounded-lg bg-yellow-600 hover:bg-yellow-700 text-black border border-yellow-600">تحقق</button>
-                  {!!validationError[p.id] && (
-                    <span className="text-xs text-red-400 ml-2">{validationError[p.id]}</span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <select defaultValue={p.defaultModel} className="px-3 py-2 rounded-lg bg-[#0e1524] border border-yellow-600/30 text-white">
-                    <option value={p.defaultModel}>{p.defaultModel}</option>
-                  </select>
-                  <button onClick={()=>handleActivate(p.id, p.defaultModel)} className="p-2 rounded-lg bg-yellow-600 hover:bg-yellow-700 text-black">تفعيل المزود</button>
-                  {!!activationError[p.id] && (
-                    <span className="text-xs text-red-400 ml-2">{activationError[p.id]}</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-        </div>
-      </div>
-      </div>
-    </div>
-  );
+  React.useEffect(() => {
+    if (!detailId) return;
+    const k = keys[detailId];
+    if (k) handleValidate(detailId);
+  }, [detailId, handleValidate, keys]);
 
   React.useEffect(() => {
-    const openHandler = () => setOpen(true);
-    const closeHandler = () => setOpen(false);
-    window.addEventListener('joe:openProviders', openHandler);
-    window.addEventListener('joe:closeProviders', closeHandler);
-    return () => {
-      window.removeEventListener('joe:openProviders', openHandler);
-      window.removeEventListener('joe:closeProviders', closeHandler);
+    const handleClickOutside = (e) => {
+      if (!menuOpen) return;
+      if (buttonRef.current && !buttonRef.current.contains(e.target)) {
+        const panel = document.getElementById('ai-providers-list');
+        const modal = document.getElementById('ai-provider-detail');
+        if (panel && panel.contains(e.target)) return;
+        if (modal && modal.contains(e.target)) return;
+        setMenuOpen(false);
+      }
     };
-  }, []);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [menuOpen]);
+
   return (
     <div className="relative">
-      {open && Panel}
+      <div className="relative inline-flex items-center" ref={buttonRef}>
+        <button
+          onClick={() => setMenuOpen(v => !v)}
+          className={`p-1.5 px-2 h-7 inline-flex items-center justify-center rounded-lg transition-colors border ${runtimeMode==='online' ? 'bg-green-600 text-black hover:bg-green-700 border-green-500/50' : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border-yellow-600/40'}`}
+          title="مزودي الذكاء الصناعي"
+        >
+          <Sparkles className="w-4 h-4" />
+          <span className="ml-1 text-[11px] font-semibold">مزودين</span>
+        </button>
+      </div>
+
+      {menuOpen && (
+        <div id="ai-providers-list" className="absolute right-0 top-10 z-50 w-80 bg-gray-900 border border-yellow-600/40 rounded-lg shadow-xl">
+          <div className="p-2 border-b border-yellow-600/20 flex items-center gap-2">
+            <div className="relative flex-1">
+              <input value={search} onChange={(e)=>setSearch(e.target.value)} className="pl-7 px-2 py-1.5 w-full rounded bg-[#0e1524] border border-yellow-600/30 text-white text-xs" placeholder="بحث"/>
+              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400"><SearchIcon className="w-3 h-3"/></span>
+            </div>
+            <select value={region} onChange={(e)=>setRegion(e.target.value)} className="px-2 py-1.5 rounded bg-[#0e1524] border border-yellow-600/30 text-white text-xs">
+              <option value="all">الكل</option>
+              <option value="global">العالمي</option>
+              <option value="china">الصين</option>
+            </select>
+          </div>
+          <div className="max-h-[60vh] overflow-y-auto">
+            {loading && <div className="px-3 py-2 text-xs text-gray-400">جاري التحميل...</div>}
+            {filtered.map(p => {
+              const isActive = active.provider === p.id;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => setDetailId(p.id)}
+                  className={`group w-full text-right px-3 py-2.5 border-b border-yellow-600/10 hover:bg-gray-800 transition-colors ${isActive ? 'text-green-400' : 'text-yellow-300'}`}
+                >
+                  <div className="w-full flex items-center justify-between">
+                    <span className="inline-flex items-center gap-2">
+                      {(!logoError[p.id] && p.logo) ? (
+                        <img
+                          src={p.logo}
+                          alt={p.name}
+                          className={`w-5 h-5 rounded-full ${isActive ? 'ring-2 ring-green-500/50' : 'ring-1 ring-yellow-600/30'} transition-transform group-hover:scale-105`}
+                          referrerPolicy="no-referrer"
+                          crossOrigin="anonymous"
+                          loading="lazy"
+                          onError={() => setLogoError(e => ({ ...e, [p.id]: true }))}
+                        />
+                      ) : (
+                        <span className="w-5 h-5 rounded-full grid place-items-center text-[12px]" style={{ background: '#111', color: p.color }}>{p.icon || '🤖'}</span>
+                      )}
+                      <span className="flex flex-col items-start leading-tight">
+                        <span className="flex items-center gap-2">
+                          <span className="text-sm font-semibold">{p.name}</span>
+                          <span className="text-xs text-gray-400">• {p.region==='china' ? 'الصين' : 'العالمي'}</span>
+                        </span>
+                        <span className="text-[11px] text-gray-400">{p.defaultModel}</span>
+                      </span>
+                    </span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full ${isActive ? 'bg-green-600/20 text-green-300 ring-1 ring-green-500/50' : 'bg-gray-700/40 text-gray-300 ring-1 ring-yellow-600/30'}`}>{isActive ? 'نشط' : 'غير نشط'}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {!!detailId && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setDetailId(null)}>
+          <div id="ai-provider-detail" className="w-[520px] max-w-[95vw] bg-[#0b0f1a] border border-yellow-600/40 rounded-2xl shadow-2xl" onClick={(e)=>e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-yellow-600/40 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-white">
+                {(() => {
+                  const p = providers.find(x => x.id === detailId) || {};
+                  return (
+                    <>
+                      {(!logoError[p.id] && p.logo) ? (
+                        <img src={p.logo} alt={p.name} className="w-5 h-5 rounded" referrerPolicy="no-referrer" crossOrigin="anonymous" loading="lazy" onError={() => setLogoError(e => ({ ...e, [p.id]: true }))} />
+                      ) : (
+                        <span className="text-lg" style={{ color: p.color }}>{p.icon || '🤖'}</span>
+                      )}
+                      <span className="font-semibold">{p.name}</span>
+                    </>
+                  );
+                })()}
+              </div>
+              <button onClick={() => setDetailId(null)} className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm">إغلاق</button>
+            </div>
+            <div className="p-5 space-y-4">
+              {(() => {
+                const p = providers.find(x => x.id === detailId) || {};
+                const isActive = active.provider === p.id;
+                const isValid = valid[p.id] === true;
+                return (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <a href={p.createUrl} target="_blank" rel="noopener noreferrer" className="px-3 py-2 rounded-lg bg-gray-800 border border-yellow-600/40 text-gray-200 inline-flex items-center gap-1 hover:bg-yellow-600 hover:text-black"><ExternalLink className="w-3 h-3"/> الحصول على المفتاح</a>
+                      <span className={`text-xs px-2 py-1 rounded-full inline-flex items-center gap-1 ${isActive ? 'bg-green-600/20 text-green-300 ring-1 ring-yellow-500' : 'bg-yellow-600/20 text-yellow-300 ring-1 ring-yellow-500'}`}>{isActive ? 'مزود فعّال' : 'مزود غير فعّال'}</span>
+                      <span className={`text-xs px-2 py-1 rounded-full inline-flex items-center gap-1 ${isValid ? 'bg-emerald-600/20 text-emerald-300 ring-1 ring-yellow-500' : 'bg-yellow-600/20 text-yellow-300 ring-1 ring-yellow-500'}`}>{isValid ? 'المفتاح يعمل' : 'المفتاح منتهي/غير صالح'}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Key className="w-4 h-4 text-yellow-300"/>
+                      <input className="flex-1 px-3 py-2 rounded-lg bg-[#0e1524] border border-yellow-600/30 text-white" placeholder="أدخل المفتاح" value={keys[p.id] || ''} onChange={(e)=>onKeyChange(p.id, e.target.value)} />
+                      <button onClick={() => handleValidate(p.id)} className="px-3 py-2 rounded-lg bg-yellow-600 hover:bg-yellow-700 text-black border border-yellow-600">تحقق</button>
+                      {!!validationError[p.id] && (
+                        <span className="text-xs text-red-400 ml-1">{validationError[p.id]}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <select defaultValue={p.defaultModel} className="px-3 py-2 rounded-lg bg-[#0e1524] border border-yellow-600/30 text-white">
+                        <option value={p.defaultModel}>{p.defaultModel}</option>
+                      </select>
+                      <button onClick={() => handleActivate(p.id, p.defaultModel)} className="px-3 py-2 rounded-lg bg-yellow-600 hover:bg-yellow-700 text-black">تفعيل المزود</button>
+                      {!!activationError[p.id] && (
+                        <span className="text-xs text-red-400 ml-1">{activationError[p.id]}</span>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
+};
+
+AIMenuButton.propTypes = {
+  runtimeMode: PropTypes.string,
 };
 
 export default TopBar;

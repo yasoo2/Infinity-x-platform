@@ -3,6 +3,7 @@ import joeAdvanced from './ai/joe-advanced.service.mjs';
 import ChatMessage from '../database/models/ChatMessage.mjs';
 import ChatSession from '../database/models/ChatSession.mjs';
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 import { getMode } from '../core/runtime-mode.mjs';
 import { localLlamaService } from './llm/local-llama.service.mjs';
 import config from '../config.mjs';
@@ -26,6 +27,10 @@ export class JoeAgentWebSocketServer {
     this.setupWebSocketServer();
     this.setupEventListeners();
     this.streamBuffers = new Map();
+    this.rateLimits = new Map();
+    this.rateWindowMs = Number(process.env.WS_RATE_WINDOW_MS || 60000);
+    this.rateMaxCount = Number(process.env.WS_RATE_MAX_COUNT || 120);
+    this.maxMessageLength = Number(process.env.WS_MAX_MESSAGE_LENGTH || 10000000);
     // Heartbeat to keep connections alive and detect broken sockets
     this.heartbeat = setInterval(() => {
       this.wss.clients.forEach((client) => {
@@ -51,11 +56,14 @@ export class JoeAgentWebSocketServer {
         const proto = req.headers['sec-websocket-protocol'];
         console.log(`[JoeAgentV2] Handshake: UA=${ua || 'N/A'} EXT=${ext || 'N/A'} PROTO=${proto || 'N/A'} ORIGIN=${origin || 'N/A'} PATH=${req.url}`);
         if (origin) {
+          const envOrigins = String(process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+          const defaults = ['localhost', '.onrender.com', 'xelitesolutions.com', 'www.xelitesolutions.com'];
+          const allowedHosts = envOrigins.length ? envOrigins : defaults;
           const u = new URL(origin);
-          const host = u.host;
-          const allowed = host.startsWith('localhost') || host.endsWith('.onrender.com') || host.endsWith('xelitesolutions.com') || host.endsWith('www.xelitesolutions.com');
+          const host = u.host || '';
+          const hostname = host.split(':')[0];
+          const allowed = allowedHosts.some(h => hostname === h || hostname.endsWith(h) || hostname.includes('localhost'));
           if (!allowed) {
-            console.log(`[JoeAgentV2] Connection rejected: Origin not allowed (${origin}).`);
             ws.close(1008, 'Policy Violation: Origin not allowed');
             return;
           }
@@ -87,7 +95,7 @@ export class JoeAgentWebSocketServer {
       // 3. ربط الاتصال بمعلومات المستخدم
       console.log(`[JoeAgentV2] Client connected. User ID: ${decoded.userId}`);
       ws.userId = decoded.userId;
-      ws.sessionId = `session_${Date.now()}`; // يمكن استخدام أي معرف جلسة آخر
+      ws.sessionId = null;
       ws.role = decoded.role; // تخزين الدور للتحقق من الصلاحيات
 
       // التحقق من الصلاحيات: السماح للمستخدمين العاديين والضيوف
@@ -104,41 +112,90 @@ export class JoeAgentWebSocketServer {
           try {
             data = JSON.parse(message);
           } catch (parseError) {
-            console.error('[JoeAgentV2] JSON Parse Error:', parseError);
-            ws.send(JSON.stringify({ type: 'error', message: 'Invalid JSON format.' }));
+            const lang = 'ar';
+            const msg = lang==='ar' ? 'صيغة JSON غير صالحة.' : 'Invalid JSON format.';
+            ws.send(JSON.stringify({ type: 'error', code: 'INVALID_FORMAT', message: msg }));
             return;
           }
 
           // Stricter validation for expected message format
+          const lang = String(data.lang || 'ar');
           if (typeof data.action !== 'string' || typeof data.message !== 'string') {
-            ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format. Expected { action: string, message: string }.' }));
+            const msg = lang==='ar' ? 'تنسيق الرسالة غير صالح.' : 'Invalid message format.';
+            ws.send(JSON.stringify({ type: 'error', code: 'INVALID_MESSAGE', message: msg }));
             return;
+          }
+          const preview = String(data.message || '').trim();
+          if (!preview) {
+            const msg = lang==='ar' ? 'الرسالة فارغة غير مسموح بها.' : 'Empty message not allowed.';
+            ws.send(JSON.stringify({ type: 'error', code: 'EMPTY_MESSAGE', message: msg }));
+            return;
+          }
+          if (preview.length > this.maxMessageLength) {
+            const msg = lang==='ar' ? 'الرسالة طويلة جدًا.' : 'Message too long.';
+            ws.send(JSON.stringify({ type: 'error', code: 'MESSAGE_TOO_LONG', message: msg }));
+            return;
+          }
+          {
+            const now = Date.now();
+            const rl = this.rateLimits.get(ws.userId) || { start: now, count: 0 };
+            if (now - rl.start > this.rateWindowMs) { rl.start = now; rl.count = 0; }
+            rl.count += 1;
+            this.rateLimits.set(ws.userId, rl);
+            if (rl.count > this.rateMaxCount) {
+              const msg = lang==='ar' ? 'عدد الرسائل مرتفع. حاول لاحقًا.' : 'Too many messages. Try later.';
+              ws.send(JSON.stringify({ type: 'error', code: 'RATE_LIMIT', message: msg }));
+              return;
+            }
           }
 
           if (data.action === 'instruct') {
             console.log(`[JoeAgentV2] Received instruction: "${data.message}"`);
             const currentMode = getMode();
             const userId = ws.userId;
-            const sessionId = data.sessionId || ws.sessionId;
+            let sessionId = data.sessionId || ws.sessionId;
+            const now = new Date();
+            const validId = sessionId && mongoose.Types.ObjectId.isValid(sessionId);
+            if (!validId) {
+              try {
+                const title = preview.length > 60 ? preview.slice(0, 60) : (preview || 'New Conversation');
+                const created = await ChatSession.create({ userId, title, lastModified: now, createdAt: now, updatedAt: now });
+                sessionId = created._id.toString();
+                ws.sessionId = sessionId;
+                if (ws.readyState === ws.OPEN) {
+                  ws.send(JSON.stringify({ type: 'session_created', sessionId }));
+                }
+              } catch { /* noop */ }
+            } else {
+              try {
+                const title = preview.length > 60 ? preview.slice(0, 60) : (preview || 'New Conversation');
+                await ChatSession.updateOne(
+                  { _id: sessionId },
+                  { $set: { lastModified: now, updatedAt: now }, $setOnInsert: { userId, title, createdAt: now } },
+                  { upsert: true }
+                );
+              } catch { /* noop */ }
+            }
 
             // 1. Save user message to DB
             try {
-              await ChatMessage.create({ sessionId, userId, type: 'user', content: data.message });
-              await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date() } });
+              if (mongoose.Types.ObjectId.isValid(sessionId)) {
+                await ChatMessage.create({ sessionId, userId, type: 'user', content: data.message });
+              }
             } catch (e) {
               console.error('[JoeAgentV2] Failed to save user message:', e);
             }
           if (currentMode === 'offline' && localLlamaService.isReady()) {
             try {
-              const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model: 'offline-local' });
+              const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model: 'offline-local', lang: data.lang });
               if (ws.readyState === ws.OPEN) {
                 ws.send(JSON.stringify({ type: 'response', response: result.response, toolsUsed: result.toolsUsed, sessionId }));
               }
               try {
                 const content = String(result?.response || '').trim();
-                if (content) {
+                if (content && mongoose.Types.ObjectId.isValid(sessionId)) {
                   await ChatMessage.create({ sessionId, userId, type: 'joe', content });
-                  await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date() } });
+                  await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date(), updatedAt: new Date() } });
                 }
               } catch { void 0 }
             } catch (err) {
@@ -150,15 +207,15 @@ export class JoeAgentWebSocketServer {
           }
 
             const model = data.model || 'gpt-4o';
-            const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model });
+            const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model, lang: data.lang });
             if (ws.readyState === ws.OPEN) {
               ws.send(JSON.stringify({ type: 'response', response: result.response, toolsUsed: result.toolsUsed, sessionId }));
             }
             try {
               const content = String(result?.response || '').trim();
-              if (content) {
+              if (content && mongoose.Types.ObjectId.isValid(sessionId)) {
                 await ChatMessage.create({ sessionId, userId, type: 'joe', content });
-                await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date() } });
+                await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date(), updatedAt: new Date() } });
               }
             } catch { void 0 }
 
@@ -168,7 +225,8 @@ export class JoeAgentWebSocketServer {
             // Note: Actual cancellation logic in joeAdvanced.service.mjs is needed here
             ws.send(JSON.stringify({ type: 'status', message: 'Cancellation request received.' }));
           } else {
-             ws.send(JSON.stringify({ type: 'error', message: `Unknown action: ${data.action}` }));
+             const msg = lang==='ar' ? 'إجراء غير معروف.' : 'Unknown action.';
+             ws.send(JSON.stringify({ type: 'error', code: 'UNKNOWN_ACTION', message: msg }));
           }
 
         } catch (error) {
@@ -212,8 +270,26 @@ export class JoeAgentWebSocketServer {
       socket.on('message', async (data) => {
         try {
           if (!data || typeof data.action !== 'string' || typeof data.message !== 'string') {
-            socket.emit('error', { message: 'Invalid message format. Expected { action: string, message: string }.' });
+            const lang = String(data?.lang || 'ar');
+            const msg = lang==='ar' ? 'تنسيق الرسالة غير صالح.' : 'Invalid message format.';
+            socket.emit('error', { code: 'INVALID_MESSAGE', message: msg });
             return;
+          }
+          const lang = String(data.lang || 'ar');
+          const preview = String(data.message || '').trim();
+          if (!preview) { const msg = lang==='ar' ? 'الرسالة فارغة غير مسموح بها.' : 'Empty message not allowed.'; socket.emit('error', { code: 'EMPTY_MESSAGE', message: msg }); return; }
+          if (preview.length > this.maxMessageLength) { const msg = lang==='ar' ? 'الرسالة طويلة جدًا.' : 'Message too long.'; socket.emit('error', { code: 'MESSAGE_TOO_LONG', message: msg }); return; }
+          {
+            const now = Date.now();
+            const rl = this.rateLimits.get(socket.data.userId) || { start: now, count: 0 };
+            if (now - rl.start > this.rateWindowMs) { rl.start = now; rl.count = 0; }
+            rl.count += 1;
+            this.rateLimits.set(socket.data.userId, rl);
+            if (rl.count > this.rateMaxCount) {
+              const msg = lang==='ar' ? 'عدد الرسائل مرتفع. حاول لاحقًا.' : 'Too many messages. Try later.';
+              socket.emit('error', { code: 'RATE_LIMIT', message: msg });
+              return;
+            }
           }
           const currentMode = getMode();
           const userId = socket.data.userId;
@@ -221,16 +297,21 @@ export class JoeAgentWebSocketServer {
           socket.data.sessionId = sessionId;
           socket.join(sessionId);
           if (data.action === 'instruct') {
-            try { await ChatMessage.create({ sessionId, userId, type: 'user', content: data.message }); await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date() } }); } catch { void 0 }
+            try {
+              if (mongoose.Types.ObjectId.isValid(sessionId)) {
+                await ChatMessage.create({ sessionId, userId, type: 'user', content: data.message });
+                await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date(), updatedAt: new Date() } });
+              }
+            } catch { void 0 }
             if (currentMode === 'offline' && localLlamaService.isReady()) {
               try {
-                const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model: 'offline-local' });
+                const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model: 'offline-local', lang: data.lang });
                 socket.emit('response', { response: result.response, toolsUsed: result.toolsUsed, sessionId });
                 try {
                   const content = String(result?.response || '').trim();
-                  if (content) {
+                  if (content && mongoose.Types.ObjectId.isValid(sessionId)) {
                     await ChatMessage.create({ sessionId, userId, type: 'joe', content });
-                    await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date() } });
+                    await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date(), updatedAt: new Date() } });
                   }
                 } catch { void 0 }
               } catch (err) {
@@ -239,19 +320,20 @@ export class JoeAgentWebSocketServer {
               return;
             }
             const model = data.model || 'gpt-4o';
-            const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model });
+            const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model, lang: data.lang });
             socket.emit('response', { response: result.response, toolsUsed: result.toolsUsed, sessionId });
             try {
               const content = String(result?.response || '').trim();
-              if (content) {
+              if (content && mongoose.Types.ObjectId.isValid(sessionId)) {
                 await ChatMessage.create({ sessionId, userId, type: 'joe', content });
-                await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date() } });
+                await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date(), updatedAt: new Date() } });
               }
             } catch { void 0 }
           } else if (data.action === 'cancel') {
             socket.emit('status', { message: 'Cancellation request received.' });
           } else {
-            socket.emit('error', { message: `Unknown action: ${data.action}` });
+            const msg = lang==='ar' ? 'إجراء غير معروف.' : 'Unknown action.';
+            socket.emit('error', { code: 'UNKNOWN_ACTION', message: msg });
           }
         } catch (error) {
           socket.emit('error', { message: `Server Error: ${error.message}` });

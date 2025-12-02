@@ -2,9 +2,11 @@
 
   // Base URL normalization: prefer explicit env; otherwise use same-origin
   let resolvedBase;
-  const envBase = typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL;
-  if (typeof window !== 'undefined' && String(window.location.hostname).startsWith('localhost')) {
-    resolvedBase = 'http://localhost:4000';
+  let lsBase = null;
+  try { lsBase = localStorage.getItem('apiBaseUrl'); } catch { lsBase = null; }
+  const envBase = typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL);
+  if (lsBase && String(lsBase).trim().length > 0) {
+    resolvedBase = lsBase;
   } else if (envBase && String(envBase).trim().length > 0) {
     resolvedBase = envBase;
   } else if (typeof window !== 'undefined') {

@@ -2,6 +2,7 @@
   import PropTypes from 'prop-types';
   import { Plus, Trash2, MessageSquare, Loader2, ChevronLeft, ChevronRight, History } from 'lucide-react'; // أيقونات Lucide
   import { getChatSessions, deleteChatSession, getGuestToken, withAbort } from '../api/system';
+  import apiClient from '../api/client';
 
   // API base غير مستخدم بعد التحويل إلى دوال system.js
 

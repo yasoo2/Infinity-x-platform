@@ -70,7 +70,7 @@ function shouldAugment(msg) {
  * @param {string} [options.model='gpt-4o'] - The model to use (e.g., 'gpt-4o', 'gemini-1.5-pro-latest').
  * @returns {Promise<object>} - The final response and metadata.
  */
-async function processMessage(userId, message, sessionId, { model = 'gpt-4o' } = {}) {
+async function processMessage(userId, message, sessionId, { model = 'gpt-4o', lang } = {}) {
     const { memoryManager } = _dependencies;
     if (!memoryManager) { throw new Error('MemoryManager not initialized'); }
     const startTime = Date.now();
@@ -84,7 +84,9 @@ async function processMessage(userId, message, sessionId, { model = 'gpt-4o' } =
         parts: [{ text: item.command.content || String(item.command) }]
     })).reverse();
 
-    const systemPrompt = { role: 'system', content: MANUS_STYLE_PROMPT };
+    const targetLang = (String(lang || '').toLowerCase() === 'ar') ? 'ar' : 'en';
+    const languageDirective = targetLang === 'ar' ? 'اعتمد العربية في جميع الردود، ولخص المحتوى بشكل واضح مع نقاط موجزة وعناوين فرعية.' : 'Respond in English. Provide a clear summary with bullet points and subheadings.';
+    const systemPrompt = { role: 'system', content: `${MANUS_STYLE_PROMPT}\n\n${languageDirective}` };
     const userMessage = { role: 'user', content: message };
 
     const messagesForOpenAI = [systemPrompt, ...conversationHistory.map(item => item.command).reverse(), userMessage];
@@ -176,13 +178,35 @@ async function processMessage(userId, message, sessionId, { model = 'gpt-4o' } =
           const preview = String(message || '').trim();
           const lower = preview.toLowerCase();
           const hasUrl = /https?:\/\/[^\s]+/i.test(preview);
+          const videoUrlMatch = preview.match(/https?:\/\/[^\s]+/i);
           const wantsSecurity = /(security|audit|ثغرات|أمن|حماية)/i.test(lower);
           const wantsIngest = /(ingest|knowledge|معرفة|ادخال|استيعاب)/i.test(lower);
           const wantsQuery = /(query|search|سؤال|ابحث|استعلام)/i.test(lower);
           const wantsFormat = /(format|prettier|تنسيق)/i.test(lower);
           const wantsLint = /(lint|تحليل|فحص)/i.test(lower);
           let pieces = [];
-          if (hasUrl) {
+          if (videoUrlMatch) {
+            const url = videoUrlMatch[0];
+            try {
+              const vr = await toolManager.execute('analyzeVideoFromUrl', { url, targetLanguage: targetLang });
+              toolResults.push({ tool: 'analyzeVideoFromUrl', args: { url, targetLanguage: targetLang }, result: vr });
+              toolCalls.push({ function: { name: 'analyzeVideoFromUrl', arguments: { url, targetLanguage: targetLang } } });
+              const transcript = String(vr?.transcript || '').trim();
+              if (transcript) {
+                try {
+                  const llm = _dependencies.localLlamaService;
+                  const sumPrompt = targetLang === 'ar' ? `ألخص محتوى الفيديو التالي بالعربية مع نقاط رئيسية وعناوين فرعية ومخرجات واضحة:
+${transcript.slice(0, 8000)}` : `Summarize the following video transcript in English with key points, subheadings, and clear output:
+${transcript.slice(0, 8000)}`;
+                  const parts = [];
+                  await llm.stream([{ role: 'user', content: sumPrompt }], (p) => { parts.push(String(p||'')); }, { temperature: 0.2, maxTokens: 1024 });
+                  pieces.push(parts.join(''));
+                } catch { pieces.push(transcript.slice(0, 2000)); }
+              } else {
+                pieces.push(targetLang === 'ar' ? 'لا يوجد نص مستخرج للفيديو.' : 'No transcript extracted for the video.');
+              }
+            } catch { void 0 }
+          } else if (hasUrl) {
             try {
               const url = (preview.match(/https?:\/\/[^\s]+/i) || [])[0];
               const r = await toolManager.execute('browseWebsite', { url });
@@ -245,7 +269,7 @@ async function processMessage(userId, message, sessionId, { model = 'gpt-4o' } =
         // --- GEMINI EXECUTION PATH ---
         const geminiModel = geminiClient.getGenerativeModel({
             model: model,
-            systemInstruction: MANUS_STYLE_PROMPT,
+            systemInstruction: `${MANUS_STYLE_PROMPT}\n\n${languageDirective}`,
             tools: [{ functionDeclarations: adaptToolsForGemini(availableTools) }]
         });
         const chat = geminiModel.startChat({ history });
@@ -353,10 +377,23 @@ async function processMessage(userId, message, sessionId, { model = 'gpt-4o' } =
         if (hasUrl) {
           try {
             const url = (preview.match(/https?:\/\/[^\s]+/i) || [])[0];
-            const r = await toolManager.execute('browseWebsite', { url });
-            toolResults.push({ tool: 'browseWebsite', args: { url }, result: r });
-            toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
-            pieces.push(String(r?.summary || r?.content || ''));
+            const isVideo = /(youtube\.com|youtu\.be|vimeo\.com)|\.(mp4|webm|m4v|mov)(\?|$)/i.test(url);
+            if (isVideo) {
+              const vr = await toolManager.execute('analyzeVideoFromUrl', { url, targetLanguage: targetLang });
+              toolResults.push({ tool: 'analyzeVideoFromUrl', args: { url, targetLanguage: targetLang }, result: vr });
+              toolCalls.push({ function: { name: 'analyzeVideoFromUrl', arguments: { url, targetLanguage: targetLang } } });
+              const tx = String(vr?.transcript || '').trim();
+              if (tx) {
+                pieces.push(tx.slice(0, 2000));
+              } else {
+                pieces.push(targetLang === 'ar' ? 'لا يوجد نص مستخرج للفيديو.' : 'No transcript extracted for the video.');
+              }
+            } else {
+              const r = await toolManager.execute('browseWebsite', { url });
+              toolResults.push({ tool: 'browseWebsite', args: { url }, result: r });
+              toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
+              pieces.push(String(r?.summary || r?.content || ''));
+            }
           } catch { void 0 }
         }
         if (wantsSecurity) {
