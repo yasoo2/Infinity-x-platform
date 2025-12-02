@@ -343,12 +343,7 @@ export const useJoeChat = () => {
       consoleOrigRef.current.warn = c['warn'] || null;
       consoleOrigRef.current.error = c['error'] || null;
     }
-    if (c && consoleOrigRef.current.log) c['log'] = (...args) => {
-      try { dispatch({ type: 'ADD_WS_LOG', payload: { id: Date.now(), type: 'info', text: args.map(a=>typeof a==='string'?a:JSON.stringify(a)).join(' ') } }); } catch { void 0; }
-    };
-    if (c && consoleOrigRef.current.warn) c['warn'] = (...args) => {
-      try { dispatch({ type: 'ADD_WS_LOG', payload: { id: Date.now(), type: 'warning', text: args.map(a=>typeof a==='string'?a:JSON.stringify(a)).join(' ') } }); } catch { void 0; }
-    };
+    // Only intercept errors to avoid UI freezes from excessive logging
     if (c && consoleOrigRef.current.error) c['error'] = (...args) => {
       try {
         const text = args.map(a=>typeof a==='string'?a:JSON.stringify(a)).join(' ');
@@ -363,6 +358,7 @@ export const useJoeChat = () => {
           }
         }
       } catch { void 0; }
+      try { consoleOrigRef.current.error?.(...args); } catch { void 0; }
     };
     const onWindowError = (e) => {
       try { dispatch({ type: 'ADD_WS_LOG', payload: { id: Date.now(), type: 'error', text: String(e.message || e.error || 'Error') } }); } catch { void 0; }
@@ -377,8 +373,7 @@ export const useJoeChat = () => {
     window.addEventListener('auth:unauthorized', onAuthUnauthorized);
     window.addEventListener('auth:forbidden', onAuthForbidden);
     return () => {
-      if (c && consoleOrigRef.current.log) c['log'] = consoleOrigRef.current.log;
-      if (c && consoleOrigRef.current.warn) c['warn'] = consoleOrigRef.current.warn;
+      // Restore console.error only (we didn't override log/warn)
       if (c && consoleOrigRef.current.error) c['error'] = consoleOrigRef.current.error;
       window.removeEventListener('error', onWindowError);
       window.removeEventListener('unhandledrejection', onRejection);
