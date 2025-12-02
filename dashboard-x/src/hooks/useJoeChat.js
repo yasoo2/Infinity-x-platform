@@ -306,6 +306,8 @@ export const useJoeChat = () => {
   const syncRef = useRef(null);
   const syncAbortRef = useRef(null);
   const syncInProgressRef = useRef(false);
+  const syncRetryTimerRef = useRef(null);
+  const syncBackoffRef = useRef(1000);
   const saveTimerRef = useRef(null);
   const sioSendTimeoutRef = useRef(null);
   const activeModelRef = useRef(null);
@@ -532,9 +534,17 @@ export const useJoeChat = () => {
       const notFound = status === 404 || String(e?.details?.error || code || '').toUpperCase() === 'NOT_FOUND';
       if (e?.status !== 403 && !notFound) {
         console.warn('syncBackendSessions error:', e);
+        try { dispatch({ type: 'ADD_WS_LOG', payload: { id: Date.now(), type: 'error', text: '[NET] فشل مزامنة الجلسات: ' + (e?.message || 'Network Error') } }); } catch { /* noop */ }
+        try { if (syncRetryTimerRef.current) { clearTimeout(syncRetryTimerRef.current); syncRetryTimerRef.current = null; } } catch { /* noop */ }
+        const delay = Math.min(Math.max(Number(syncBackoffRef.current || 1000), 500), 10000);
+        syncRetryTimerRef.current = setTimeout(() => {
+          try { syncBackendSessions(); } catch { /* noop */ }
+        }, delay);
+        syncBackoffRef.current = Math.min(delay * 2, 10000);
       }
     } finally {
       syncInProgressRef.current = false;
+      try { if (!syncRetryTimerRef.current) { syncBackoffRef.current = 1000; } } catch { /* noop */ }
     }
   }, [state.conversations, state.currentConversationId, state.isProcessing, mapSessionToConversation]);
 
