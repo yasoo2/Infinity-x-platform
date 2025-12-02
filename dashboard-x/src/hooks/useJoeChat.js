@@ -1064,23 +1064,26 @@ export const useJoeChat = () => {
         }
         const lang = getLang();
       const conv = state.conversations[convId] || null;
-      const sidToUse = sid || conv?.sessionId || convId;
+      const sidToUse = conv?.sessionId || sid || null;
         const msg = { action: 'instruct', message: inputText, sessionId: sidToUse, lang };
         if (selectedModel) msg.model = selectedModel;
         ws.current.send(JSON.stringify(msg));
         try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
         sioSendTimeoutRef.current = setTimeout(async () => {
           try {
-            const ctx2 = { sessionId: sidToUse, lang };
+            const ctx2 = { sessionId: sidToUse || undefined, lang };
             if (selectedModel) ctx2.model = selectedModel;
             const { data } = await apiClient.post('/api/v1/joe/execute', { instruction: inputText, context: ctx2 });
             const text = String(data?.response || data?.message || '').trim();
             if (text) {
               dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
               try {
-                const r = await getChatMessages(sidToUse);
-                const exists = (r?.messages || []).some(m => String(m?.content || '') === text && m?.type !== 'user');
-                if (!exists) { await addChatMessage(sidToUse, { type: 'joe', content: text }); }
+                const isObjId = typeof sidToUse === 'string' && /^[a-f0-9]{24}$/i.test(sidToUse);
+                if (isObjId) {
+                  const r = await getChatMessages(sidToUse);
+                  const exists = (r?.messages || []).some(m => String(m?.content || '') === text && m?.type !== 'user');
+                  if (!exists) { await addChatMessage(sidToUse, { type: 'joe', content: text }); }
+                }
               } catch { /* noop */ }
             }
           } catch { /* noop */ } finally {
@@ -1103,20 +1106,23 @@ export const useJoeChat = () => {
         }
         const lang = getLang();
         const conv = state.conversations[convId] || null;
-        const sidToUse = sid || conv?.sessionId || convId;
+        const sidToUse = conv?.sessionId || sid || null;
         try {
           const { data } = await apiClient.post('/api/v1/joe/execute', {
             instruction: inputText,
-            context: (() => { const c = { sessionId: sidToUse, lang }; if (selectedModel) c.model = selectedModel; return c; })()
+            context: (() => { const c = { sessionId: sidToUse || undefined, lang }; if (selectedModel) c.model = selectedModel; return c; })()
           });
           const text = String(data?.response || data?.message || '').trim();
           if (text) {
             dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
             try {
-              const r = await getChatMessages(sidToUse);
-              const exists = (r?.messages || []).some(m => String(m?.content || '') === text && m?.type !== 'user');
-              if (!exists) {
-                await addChatMessage(sidToUse, { type: 'joe', content: text });
+              const isObjId = typeof sidToUse === 'string' && /^[a-f0-9]{24}$/i.test(sidToUse);
+              if (isObjId) {
+                const r = await getChatMessages(sidToUse);
+                const exists = (r?.messages || []).some(m => String(m?.content || '') === text && m?.type !== 'user');
+                if (!exists) {
+                  await addChatMessage(sidToUse, { type: 'joe', content: text });
+                }
               }
             } catch { /* ignore */ }
           }
