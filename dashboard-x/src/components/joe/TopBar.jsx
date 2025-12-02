@@ -358,8 +358,13 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
                 try { localStorage.setItem('aiSelectedModel', 'offline-local'); } catch { void 0; }
                 setRuntimeMode('offline');
                 try { window.dispatchEvent(new CustomEvent('joe:runtime', { detail: { mode: 'offline' } })); } catch { void 0; }
+                try { navigate('/dashboard/joe-screen'); } catch { /* noop */ }
+              } else {
+                try { navigate('/dashboard/joe'); } catch { /* noop */ }
               }
-            } catch { void 0 }
+            } catch {
+              try { navigate('/dashboard/joe'); } catch { /* noop */ }
+            }
           }}
           className={`p-1.5 px-2 h-7 inline-flex items-center justify-center rounded-lg transition-colors border ${runtimeMode==='offline' && offlineReady && runtimeStage==='done' ? 'bg-green-600 text-black hover:bg-green-700 border-green-500/50' : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border-yellow-600/40'}`}
           title={(function(){
