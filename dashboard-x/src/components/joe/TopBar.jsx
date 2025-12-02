@@ -65,6 +65,14 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
   });
   const [offlineReady, setOfflineReady] = React.useState(false);
   const [runtimeMode, setRuntimeMode] = React.useState('online');
+
+  React.useEffect(() => {
+    const onCloseAll = () => {
+      setUserMenuOpen(false);
+    };
+    window.addEventListener('joe:closeOverlays', onCloseAll);
+    return () => window.removeEventListener('joe:closeOverlays', onCloseAll);
+  }, []);
   
   React.useEffect(() => {
     const onLang = () => {
@@ -521,6 +529,15 @@ const AIMenuButton = ({ runtimeMode }) => {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  React.useEffect(() => {
+    const onCloseAll = () => {
+      setDetailId(null);
+      setMenuOpen(false);
+    };
+    window.addEventListener('joe:closeOverlays', onCloseAll);
+    return () => window.removeEventListener('joe:closeOverlays', onCloseAll);
   }, []);
   const buttonRef = React.useRef(null);
 

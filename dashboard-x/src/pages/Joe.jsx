@@ -432,7 +432,7 @@ const JoeContent = () => {
   }, [dragLeft, dragRight]);
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-brand-gradient bg-grid-dark text-white overflow-hidden">
+    <div className="h-screen w-screen flex flex-col bg-brand-gradient bg-grid-dark text-white overflow-hidden" onClick={() => { try { window.dispatchEvent(new CustomEvent('joe:closeOverlays')); } catch { /* ignore */ } }}>
       
         {/* Top Bar - Enhanced */}
       <TopBar 
