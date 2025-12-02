@@ -1,7 +1,7 @@
 import express from 'express'
 import searchTools from '../tools_refactored/search.tool.mjs'
 import browserTool from '../services/tools/browser.tool.mjs'
-import { getMode } from '../core/runtime-mode.mjs'
+ 
 
 const chatRouterFactory = ({ optionalAuth }) => {
   const router = express.Router()
@@ -11,7 +11,7 @@ const chatRouterFactory = ({ optionalAuth }) => {
     try {
       const prompt = String(req.body?.prompt || '').trim()
       if (!prompt) return res.status(400).json({ success: false, error: 'PROMPT_REQUIRED' })
-      const mode = getMode()
+      
       {
         const sr = await searchTools.searchWeb({ query: prompt })
         if (!sr.success || !sr.results?.length) return res.json({ success: true, text: 'لا توجد نتائج كافية.' })
