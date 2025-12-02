@@ -30,8 +30,9 @@ function init(dependencies) { _dependencies = dependencies || {}; }
 // =========================
 class JoeEventEmitter extends EventEmitter {
   constructor() { super(); this.setMaxListeners(100); }
-  emitProgress(userId, taskId, progress, message) { this.emit('progress', { type: 'progress', userId, taskId, progress, message, timestamp: new Date() }); }
+  emitProgress(userId, taskId, progress, message) { this.emit('progress', { type: 'progress', userId, taskId, progress, status: message, step: message, timestamp: new Date() }); }
   emitError(userId, error, context) { this.emit('error', { type: 'error', userId, error: error.message, stack: error.stack, context, timestamp: new Date() }); }
+  emitStream(userId, taskId, content) { this.emit('stream', { type: 'stream', userId, taskId, content, timestamp: new Date() }); }
 }
 const joeEvents = new JoeEventEmitter();
 
@@ -74,6 +75,7 @@ async function processMessage(userId, message, sessionId, { model = 'gpt-4o', la
     const { memoryManager } = _dependencies;
     if (!memoryManager) { throw new Error('MemoryManager not initialized'); }
     const startTime = Date.now();
+    try { joeEvents.emitProgress(userId, sessionId, 0, 'start'); } catch { void 0 }
     console.log(`
 🤖 JOE v9 "Gemini-Phoenix" [${model}] Processing: "${message.substring(0, 80)}..." for User: ${userId}`);
 
@@ -96,6 +98,7 @@ async function processMessage(userId, message, sessionId, { model = 'gpt-4o', la
     // 2. Dynamic Tool Discovery
     const availableTools = toolManager.getToolSchemas();
     console.log(`🛠️ Discovered ${availableTools.length} tools available for this request.`);
+    try { joeEvents.emitProgress(userId, sessionId, 5, 'tools_discovered'); } catch { void 0 }
 
     let finalContent = 'An error occurred.';
     const toolCalls = [];
@@ -138,7 +141,7 @@ async function processMessage(userId, message, sessionId, { model = 'gpt-4o', la
           const sig = availableTools2.map(t => `${t.function.name}: ${t.function.description}`).join('\n');
           const prompt = `Create JSON plan with key "steps" using available tools. Each step: {step, thought, tool, params}. Instruction: ${message}. Tools: \n${sig}`;
           const parts = [];
-          await llm.stream([{ role: 'user', content: prompt }], (p) => { parts.push(String(p||'')); }, { temperature: 0.2, maxTokens: 1024 });
+          await llm.stream([{ role: 'user', content: prompt }], (p) => { const s = String(p||''); parts.push(s); try { joeEvents.emitStream(userId, sessionId, s); } catch { void 0 } }, { temperature: 0.2, maxTokens: 1024 });
           planText = parts.join('');
         } catch { planText = ''; }
         let planObj = null;
@@ -152,6 +155,7 @@ async function processMessage(userId, message, sessionId, { model = 'gpt-4o', la
         }
         const steps = Array.isArray(planObj?.steps) ? planObj.steps : [];
         if (steps.length) {
+          try { joeEvents.emitProgress(userId, sessionId, 15, 'plan_ready'); } catch { void 0 }
           const execOne = async (st) => {
             const fnName = st?.tool || st?.name;
             const params = typeof st?.params === 'object' && st.params ? st.params : {};
@@ -160,6 +164,7 @@ async function processMessage(userId, message, sessionId, { model = 'gpt-4o', la
                 const r = await toolManager.execute(fnName, params);
                 toolResults.push({ tool: fnName, args: params, result: r });
                 toolCalls.push({ function: { name: fnName, arguments: params } });
+                try { joeEvents.emitProgress(userId, sessionId, 40, `tool:${fnName}`); } catch { void 0 }
               } catch { void 0 }
             }
           };
@@ -174,6 +179,7 @@ async function processMessage(userId, message, sessionId, { model = 'gpt-4o', la
             return `${n}: ${j}`;
           });
           finalContent = summaries.join('\n');
+          try { joeEvents.emitProgress(userId, sessionId, 80, 'synth'); } catch { void 0 }
         } else {
           const preview = String(message || '').trim();
           const lower = preview.toLowerCase();
@@ -199,7 +205,7 @@ async function processMessage(userId, message, sessionId, { model = 'gpt-4o', la
 ${transcript.slice(0, 8000)}` : `Summarize the following video transcript in English with key points, subheadings, and clear output:
 ${transcript.slice(0, 8000)}`;
                   const parts = [];
-                  await llm.stream([{ role: 'user', content: sumPrompt }], (p) => { parts.push(String(p||'')); }, { temperature: 0.2, maxTokens: 1024 });
+                  await llm.stream([{ role: 'user', content: sumPrompt }], (p) => { const s = String(p||''); parts.push(s); try { joeEvents.emitStream(userId, sessionId, s); } catch { void 0 } }, { temperature: 0.2, maxTokens: 1024 });
                   pieces.push(parts.join(''));
                 } catch { pieces.push(transcript.slice(0, 2000)); }
               } else {
@@ -264,6 +270,7 @@ ${transcript.slice(0, 8000)}`;
             } catch { void 0 }
           }
           finalContent = pieces.length ? pieces.filter(Boolean).join('\n\n') : 'وضع محلي جاهز. أرسل تعليمات أدق لاختيار الأدوات المثالية.';
+          try { joeEvents.emitProgress(userId, sessionId, 85, 'aggregate'); } catch { void 0 }
         }
     } else if (model.startsWith('gemini') && geminiClient) {
         // --- GEMINI EXECUTION PATH ---
@@ -279,6 +286,7 @@ ${transcript.slice(0, 8000)}`;
         usage = { total_tokens: result.response.usageMetadata.totalTokenCount };
 
         if (responseCalls.length > 0) {
+            try { joeEvents.emitProgress(userId, sessionId, 25, 'tools_execute'); } catch { void 0 }
             console.log(`🔧 Gemini Executing ${responseCalls.length} tool(s)...`);
             let toolMessages = [];
 
@@ -291,11 +299,13 @@ ${transcript.slice(0, 8000)}`;
             }
 
             console.log('🔄 Gemini Synthesizing tool results...');
+            try { joeEvents.emitProgress(userId, sessionId, 70, 'synthesize'); } catch { void 0 }
             const secondResult = await chat.sendMessage(JSON.stringify(toolMessages));
             finalContent = secondResult.response.text();
             usage.total_tokens += secondResult.response.usageMetadata.totalTokenCount;
         } else {
             finalContent = response.text();
+            try { joeEvents.emitProgress(userId, sessionId, 60, 'model_response'); } catch { void 0 }
             if (shouldAugment(message)) {
               try {
                 const disc = await toolManager.execute('discoverNpmPackages', { query: message, size: 3 });
@@ -305,6 +315,7 @@ ${transcript.slice(0, 8000)}`;
                   const second = await chat.sendMessage(message);
                   finalContent = second.response.text();
                   usage.total_tokens += second.response.usageMetadata?.totalTokenCount || 0;
+                  try { joeEvents.emitProgress(userId, sessionId, 75, 'augment'); } catch { void 0 }
                 }
               } catch { /* noop */ }
             }
@@ -329,11 +340,13 @@ ${transcript.slice(0, 8000)}`;
                 toolCalls.push(toolCall); // For logging
             }
             console.log('🔄 OpenAI Synthesizing tool results...');
+            try { joeEvents.emitProgress(userId, sessionId, 70, 'synthesize'); } catch { void 0 }
             const secondResponse = await openaiClient.chat.completions.create({ model, messages: [...messagesForOpenAI, ...toolMessages] });
             finalContent = secondResponse.choices[0].message.content;
             usage.total_tokens += secondResponse.usage.total_tokens;
         } else {
             finalContent = messageResponse.content;
+            try { joeEvents.emitProgress(userId, sessionId, 60, 'model_response'); } catch { void 0 }
             if (shouldAugment(message)) {
               try {
                 const disc = await toolManager.execute('discoverNpmPackages', { query: message, size: 3 });
@@ -355,6 +368,7 @@ ${transcript.slice(0, 8000)}`;
                     const synth = await openaiClient.chat.completions.create({ model, messages: [...messagesForOpenAI, ...toolMessages2] });
                     finalContent = synth.choices[0].message.content;
                     usage.total_tokens = (usage?.total_tokens || 0) + (synth?.usage?.total_tokens || 0);
+                    try { joeEvents.emitProgress(userId, sessionId, 75, 'augment'); } catch { void 0 }
                   } else {
                     finalContent = m2.content;
                   }
@@ -460,6 +474,8 @@ ${transcript.slice(0, 8000)}`;
       sessionId, service: `joe-advanced-v9-${model}`, duration, toolResults,
       tokens: usage?.total_tokens
     });
+
+    try { joeEvents.emitProgress(userId, sessionId, 100, 'complete'); } catch { void 0 }
 
     return {
         response: finalContent,

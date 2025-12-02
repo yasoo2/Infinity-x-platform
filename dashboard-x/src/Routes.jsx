@@ -1,9 +1,10 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import DashboardLayout from './components/DashboardLayout';
 import useAuth from './hooks/useAuth';
 import { useSessionToken } from './hooks/useSessionToken';
+import { getGuestToken } from './api/system';
 
 const Activity = React.lazy(() => import('./pages/Activity'));
 const Build = React.lazy(() => import('./pages/Build'));
@@ -23,12 +24,38 @@ const Users = React.lazy(() => import('./pages/Users'));
 
 // Helper component for protected routes
 const ProtectedRoute = ({ children, allowedRoles }) => {
-  const { isAuthenticated: hasToken } = useSessionToken();
+  const { token, saveToken, isAuthenticated: hasToken } = useSessionToken();
   const { user, isLoading } = useAuth();
+  const [guestTrying, setGuestTrying] = useState(false);
+  const [guestFailed, setGuestFailed] = useState(false);
 
-  // إذا لم يوجد توكن، نوجّه فوراً
+  useEffect(() => {
+    const run = async () => {
+      if (hasToken()) return;
+      if (guestTrying) return;
+      setGuestTrying(true);
+      try {
+        const res = await getGuestToken();
+        const t = res?.token || res?.data?.token;
+        if (t) {
+          saveToken(t);
+          setGuestFailed(false);
+        } else {
+          setGuestFailed(true);
+        }
+      } catch {
+        setGuestFailed(true);
+      } finally {
+        setGuestTrying(false);
+      }
+    };
+    run();
+  }, [hasToken, guestTrying, saveToken]);
+
   if (!hasToken()) {
-    return <Navigate to="/" replace />;
+    if (guestTrying) return <div>Loading...</div>;
+    if (!token && guestFailed) return <Navigate to="/" replace />;
+    return <div>Loading...</div>;
   }
 
   // عند تقييد الأدوار، ننتظر تحميل معلومات المستخدم
