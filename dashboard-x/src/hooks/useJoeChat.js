@@ -614,8 +614,29 @@ export const useJoeChat = () => {
           ? apiClient.defaults.baseURL
           : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
         const sanitizedHttp = String(httpBase2).replace(/\/+$/, '');
-        sioUrl = `${sanitizedHttp}/joe-agent`;
-        const socket = io(sioUrl, { auth: { token: sessionToken }, transports: ['websocket','polling'] });
+        let sioBase = sanitizedHttp;
+        try {
+          const u = new URL(sanitizedHttp);
+          const isLocal = (u.hostname === 'localhost' || u.hostname === '127.0.0.1');
+          const devPorts = new Set(['4173','5173','3000']);
+          if (isLocal && devPorts.has(u.port || '')) {
+            sioBase = `${u.protocol}//${u.hostname}:4000`;
+          }
+        } catch { /* noop */ }
+        sioUrl = `${sioBase}/joe-agent`;
+        const socket = io(sioUrl, {
+          auth: { token: sessionToken },
+          path: '/socket.io',
+          transports: ['polling','websocket'],
+          upgrade: true,
+          reconnection: true,
+          reconnectionAttempts: 10,
+          reconnectionDelay: 500,
+          reconnectionDelayMax: 4000,
+          timeout: 5000,
+          forceNew: true,
+          withCredentials: false,
+        });
         socket.on('connect', () => {
           reconnectAttempts.current = 0;
           isConnectingRef.current = false;
@@ -633,6 +654,9 @@ export const useJoeChat = () => {
         socket.on('connect_error', async (err) => {
           const msg = String(err?.message || 'connect_error');
           dispatch({ type: 'ADD_WS_LOG', payload: `[SIO] Connect error: ${msg}` });
+          if (/websocket error/i.test(msg)) {
+            try { socket.io.opts.transports = ['polling']; } catch { /* noop */ }
+          }
           if (/INVALID_TOKEN|NO_TOKEN/i.test(msg)) {
             try { localStorage.removeItem('sessionToken'); } catch { /* noop */ }
             try {
@@ -692,7 +716,15 @@ export const useJoeChat = () => {
         const httpBase = typeof apiClient?.defaults?.baseURL === 'string'
           ? apiClient.defaults.baseURL
           : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
-        const sanitizedHttp1 = String(httpBase).replace(/\/(api.*)?$/, '').replace(/\/+$/, '');
+        let sanitizedHttp1 = String(httpBase).replace(/\/(api.*)?$/, '').replace(/\/+$/, '');
+        try {
+          const u = new URL(sanitizedHttp1);
+          const isLocal = (u.hostname === 'localhost' || u.hostname === '127.0.0.1');
+          const devPorts = new Set(['4173','5173','3000']);
+          if (isLocal && devPorts.has(u.port || '')) {
+            sanitizedHttp1 = `${u.protocol}//${u.hostname}:4000`;
+          }
+        } catch { /* noop */ }
         const wsBase = sanitizedHttp1.replace(/^https/, 'wss').replace(/^http/, 'ws');
         wsUrl = `${wsBase}/ws/joe-agent?token=${sessionToken}`;
         console.warn('[Joe Agent] Connecting to WebSocket:', wsUrl.replace(/token=.*/, 'token=***'));
