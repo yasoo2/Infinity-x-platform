@@ -150,12 +150,8 @@ const chatReducer = (state, action) => {
         case 'SET_TRANSCRIPT':
             return { ...state, transcript: action.payload, input: action.payload };
 
-        case 'ADD_WS_LOG': {
-            const entry = action.payload;
-            const next = [...state.wsLog, entry];
-            const capped = next.length > 1000 ? next.slice(next.length - 1000) : next;
-            return { ...state, wsLog: capped };
-        }
+        case 'ADD_WS_LOG':
+            return { ...state, wsLog: [...state.wsLog, action.payload] };
 
         case 'ADD_PENDING_LOG': {
             const id = action.payload;
@@ -309,7 +305,7 @@ export const useJoeChat = () => {
   const reconnectCountdownInterval = useRef(null);
   const syncAbortRef = useRef(null);
   const syncInProgressRef = useRef(false);
-  const consoleOrigRef = useRef({ log: null, warn: null, error: null });
+  const saveTimerRef = useRef(null);
 
   const [state, dispatch] = useReducer(chatReducer, {
     conversations: {},
@@ -338,13 +334,18 @@ export const useJoeChat = () => {
 
   useEffect(() => {
     const c = globalThis && globalThis.console ? globalThis.console : null;
-    if (c && !consoleOrigRef.current.log) {
-      consoleOrigRef.current.log = c['log'] || null;
-      consoleOrigRef.current.warn = c['warn'] || null;
-      consoleOrigRef.current.error = c['error'] || null;
-    }
-    // Only intercept errors to avoid UI freezes from excessive logging
-    if (c && consoleOrigRef.current.error) c['error'] = (...args) => {
+    const origLog = c && c['log'] ? c['log'] : null;
+    const origWarn = c && c['warn'] ? c['warn'] : null;
+    const origError = c && c['error'] ? c['error'] : null;
+    if (c && origLog) c['log'] = (...args) => {
+      try { dispatch({ type: 'ADD_WS_LOG', payload: { id: Date.now(), type: 'info', text: args.map(a=>typeof a==='string'?a:JSON.stringify(a)).join(' ') } }); } catch { void 0; }
+      return args.length, undefined;
+    };
+    if (c && origWarn) c['warn'] = (...args) => {
+      try { dispatch({ type: 'ADD_WS_LOG', payload: { id: Date.now(), type: 'warning', text: args.map(a=>typeof a==='string'?a:JSON.stringify(a)).join(' ') } }); } catch { void 0; }
+      return args.length, undefined;
+    };
+    if (c && origError) c['error'] = (...args) => {
       try {
         const text = args.map(a=>typeof a==='string'?a:JSON.stringify(a)).join(' ');
         const isAbort = /(ERR_ABORTED|CanceledError|abort(ed)?)/i.test(text);
@@ -358,7 +359,7 @@ export const useJoeChat = () => {
           }
         }
       } catch { void 0; }
-      try { consoleOrigRef.current.error?.(...args); } catch { void 0; }
+      return args.length, undefined;
     };
     const onWindowError = (e) => {
       try { dispatch({ type: 'ADD_WS_LOG', payload: { id: Date.now(), type: 'error', text: String(e.message || e.error || 'Error') } }); } catch { void 0; }
@@ -373,14 +374,15 @@ export const useJoeChat = () => {
     window.addEventListener('auth:unauthorized', onAuthUnauthorized);
     window.addEventListener('auth:forbidden', onAuthForbidden);
     return () => {
-      // Restore console.error only (we didn't override log/warn)
-      if (c && consoleOrigRef.current.error) c['error'] = consoleOrigRef.current.error;
+      if (c && origLog) c['log'] = origLog;
+      if (c && origWarn) c['warn'] = origWarn;
+      if (c && origError) c['error'] = origError;
       window.removeEventListener('error', onWindowError);
       window.removeEventListener('unhandledrejection', onRejection);
       window.removeEventListener('auth:unauthorized', onAuthUnauthorized);
       window.removeEventListener('auth:forbidden', onAuthForbidden);
     };
-  }, []);
+  });
 
   // ... (useEffect for localStorage loading remains the same)
   const handleNewConversation = useCallback(async (selectNew = true) => {
@@ -463,21 +465,10 @@ export const useJoeChat = () => {
       const convs = { ...state.conversations };
       for (const sess of list) {
         if (!sess?.id) continue;
-        try {
-          const detail = await getChatSessionById(sess.id, { signal });
-          if (detail?.success && detail?.session) {
-            const mapped = mapSessionToConversation(detail.session);
-            convs[mapped.id] = mapped;
-          }
-        } catch (err) {
-          const status = err?.status ?? err?.response?.status;
-          const code = err?.code ?? err?.response?.data?.code;
-          const notFound = status === 404 || String(err?.details?.error || code || '').toUpperCase() === 'NOT_FOUND';
-          if (!notFound) {
-            console.warn('syncBackendSessions detail fetch error:', err);
-          }
-          // Skip missing sessions and continue syncing others
-          continue;
+        const detail = await getChatSessionById(sess.id, { signal });
+        if (detail?.success && detail?.session) {
+          const mapped = mapSessionToConversation(detail.session);
+          convs[mapped.id] = mapped;
         }
       }
       if (Object.keys(convs).length > 0) {
@@ -525,32 +516,31 @@ export const useJoeChat = () => {
     };
   }, [syncBackendSessions]);
 
-  // تم تعطيل هذا الـ useEffect لأنه قد يسبب تجميدًا للواجهة عند محاولة حفظ كميات كبيرة من البيانات
-  // useEffect(() => {
-  //   if (Object.keys(state.conversations).length > 0) {
-  //     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-  //     const payload = {
-  //       conversations: state.conversations,
-  //       currentConversationId: state.currentConversationId,
-  //     };
-  //     const count = Object.keys(payload.conversations).length;
-  //     const id = payload.currentConversationId;
-  //     saveTimerRef.current = setTimeout(() => {
-  //       try {
-  //         if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) {
-  //           console.warn('[useEffect] Saving to localStorage:', { conversationCount: count, currentId: id });
-  //         }
-  //         const nextStr = JSON.stringify(payload);
-  //         const prevStr = localStorage.getItem(JOE_CHAT_HISTORY);
-  //         if (prevStr !== nextStr) {
-  //           localStorage.setItem(JOE_CHAT_HISTORY, nextStr);
-  //         }
-  //       } catch (e) {
-  //         try { console.warn('Failed to save chat history:', e); } catch { void 0; }
-  //       }
-  //     }, 400);
-  //   }
-  // }, [state.conversations, state.currentConversationId]);
+  useEffect(() => {
+    if (Object.keys(state.conversations).length > 0) {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      const payload = {
+        conversations: state.conversations,
+        currentConversationId: state.currentConversationId,
+      };
+      const count = Object.keys(payload.conversations).length;
+      const id = payload.currentConversationId;
+      saveTimerRef.current = setTimeout(() => {
+        try {
+          if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) {
+            console.warn('[useEffect] Saving to localStorage:', { conversationCount: count, currentId: id });
+          }
+          const nextStr = JSON.stringify(payload);
+          const prevStr = localStorage.getItem(JOE_CHAT_HISTORY);
+          if (prevStr !== nextStr) {
+            localStorage.setItem(JOE_CHAT_HISTORY, nextStr);
+          }
+        } catch (e) {
+          try { console.warn('Failed to save chat history:', e); } catch { void 0; }
+        }
+      }, 400);
+    }
+  }, [state.conversations, state.currentConversationId]);
 
   // Abort any in-flight sync when this hook unmounts to avoid dangling requests
   useEffect(() => {
@@ -611,15 +601,14 @@ export const useJoeChat = () => {
         }
         let sioUrl;
         const isDevSio = typeof import.meta !== 'undefined' && import.meta.env?.MODE !== 'production';
-        const envApiBase = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL;
-        if (envApiBase) {
-          const base = String(envApiBase).replace(/\/$/, '');
+        if (isDevSio) {
+          sioUrl = 'http://localhost:4000/joe-agent';
+        } else if (import.meta.env.VITE_API_BASE_URL) {
+          const base = String(import.meta.env.VITE_API_BASE_URL).replace(/\/$/, '');
           sioUrl = `${base}/joe-agent`;
-        } else if (!isDevSio) {
+        } else {
           const origin = window.location.origin.replace(/\/$/, '');
           sioUrl = `${origin}/joe-agent`;
-        } else {
-          sioUrl = 'http://localhost:4000/joe-agent';
         }
         const socket = io(sioUrl, { auth: { token: sessionToken }, transports: ['websocket','polling'] });
         socket.on('connect', () => {
@@ -635,11 +624,6 @@ export const useJoeChat = () => {
           dispatch({ type: 'SET_WS_CONNECTED', payload: false });
           dispatch({ type: 'STOP_PROCESSING' });
           dispatch({ type: 'ADD_WS_LOG', payload: `[SIO] Disconnected: ${String(reason||'')}` });
-        });
-        socket.on('connect_error', (err) => {
-          dispatch({ type: 'SET_WS_CONNECTED', payload: false });
-          const msg = typeof err?.message === 'string' ? err.message : 'CONNECT_ERROR';
-          dispatch({ type: 'ADD_WS_LOG', payload: `[SIO] Connect error: ${msg}` });
         });
         socket.on('status', (d) => { dispatch({ type: 'ADD_WS_LOG', payload: `[SIO] ${JSON.stringify(d)}` }); });
         socket.on('stream', (d) => { if (typeof d?.content === 'string') { dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: d.content } }); } });
@@ -667,18 +651,16 @@ export const useJoeChat = () => {
         sioRef.current = socket;
         // Use VITE_WS_URL if defined, otherwise build from VITE_API_BASE_URL
         let wsUrl;
-        const envWsUrl = import.meta.env.VITE_WS_URL;
-
-        if (envWsUrl) {
-          // Use the explicit environment variable if it exists.
-          wsUrl = `${envWsUrl}/ws/joe-agent?token=${sessionToken}`;
-        } else if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) {
-          // In development and if no env var is set, fall back to localhost.
+        const isDev = typeof import.meta !== 'undefined' && import.meta.env?.MODE !== 'production';
+        if (isDev) {
           wsUrl = `ws://localhost:4000/ws/joe-agent?token=${sessionToken}`;
+        } else if (import.meta.env.VITE_WS_URL) {
+          const baseWsUrl = import.meta.env.VITE_WS_URL.replace(/\/ws.*$/, '');
+          wsUrl = `${baseWsUrl}/ws/joe-agent?token=${sessionToken}`;
         } else {
-          // In production, derive the URL from the window's location.
-          const origin = window.location.origin.replace(/^https/, 'wss').replace(/^http/, 'ws');
-          wsUrl = `${origin}/ws/joe-agent?token=${sessionToken}`;
+          const apiBase = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+          const wsBase = apiBase.replace(/^https/, 'wss').replace(/^http/, 'ws');
+          wsUrl = `${wsBase}/ws/joe-agent?token=${sessionToken}`;
         }
         console.warn('[Joe Agent] Connecting to WebSocket:', wsUrl.replace(/token=.*/, 'token=***'));
         ws.current = new WebSocket(wsUrl);
@@ -728,7 +710,7 @@ export const useJoeChat = () => {
           reconnectCountdownInterval.current = setInterval(() => {
             const remaining = Math.max(0, eta - Date.now());
             dispatch({ type: 'SET_RECONNECT_REMAINING', payload: remaining });
-          }, 1000);
+          }, 250);
           if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
           reconnectTimer.current = setTimeout(async () => {
             if (shouldResetToken) {
@@ -749,8 +731,8 @@ export const useJoeChat = () => {
         };
         
         ws.current.onmessage = async (event) => {
-          let data;
-          try { data = JSON.parse(event.data); } catch { data = {}; }
+          const data = JSON.parse(event.data);
+          dispatch({ type: 'ADD_WS_LOG', payload: `[WS] Received: ${event.data}` });
 
           const type = data.type || data.event || '';
           const isCompleteEvent = (
@@ -903,20 +885,18 @@ export const useJoeChat = () => {
     const trySend = (attempt = 0) => {
       if (sioRef.current && sioRef.current.connected) {
         const selectedModel = localStorage.getItem('aiSelectedModel') || 'gpt-4o';
-        const preferredModel = localStorage.getItem('aiPreferredModel') || selectedModel; // إضافة خيار النموذج المفضل
         const lang = getLang();
         const conv = state.conversations[convId] || null;
         const sidToUse = sid || conv?.sessionId || convId;
-        sioRef.current.emit('message', { action: 'instruct', message: inputText, sessionId: sidToUse, model: selectedModel, preferredModel, lang });
+        sioRef.current.emit('message', { action: 'instruct', message: inputText, sessionId: sidToUse, model: selectedModel, lang });
         return;
       }
       if (ws.current?.readyState === WebSocket.OPEN) {
         const selectedModel = localStorage.getItem('aiSelectedModel') || 'gpt-4o';
-        const preferredModel = localStorage.getItem('aiPreferredModel') || selectedModel; // إضافة خيار النموذج المفضل
         const lang = getLang();
       const conv = state.conversations[convId] || null;
       const sidToUse = sid || conv?.sessionId || convId;
-        ws.current.send(JSON.stringify({ action: 'instruct', message: inputText, sessionId: sidToUse, model: selectedModel, preferredModel, lang }));
+        ws.current.send(JSON.stringify({ action: 'instruct', message: inputText, sessionId: sidToUse, model: selectedModel, lang }));
         return;
       }
       if (attempt < 6) {

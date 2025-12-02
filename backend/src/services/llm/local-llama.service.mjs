@@ -1,6 +1,5 @@
 import path from 'path'
 import fs from 'fs'
-import os from 'os'
 
 class LocalLlamaService {
   constructor() {
@@ -28,10 +27,8 @@ class LocalLlamaService {
         return false
       }
       const { getLlama, LlamaChatSession } = await import('node-llama-cpp')
-      const gpu = process.env.LLAMA_METAL ? 'metal' : (process.platform === 'darwin' ? 'metal' : undefined)
-      const cores = Array.isArray(os.cpus()) ? os.cpus().length : 4
-      const defaultThreads = Math.max(1, Math.min(cores - 1, 8))
-      const threads = Number(process.env.LLAMA_THREADS || defaultThreads)
+      const gpu = process.env.LLAMA_METAL ? 'metal' : undefined
+      const threads = Number(process.env.LLAMA_THREADS || 0) || undefined
       const llama = await getLlama({ gpu, numThreads: threads })
       this.loadingStage = 'load_model'
       this.loadingPercent = 35
@@ -73,16 +70,12 @@ class LocalLlamaService {
     return Boolean(this.initialized && this.chat)
   }
 
-  async generateContent(prompt, options = {}) {
+  async generate(prompt, options = {}) {
     if (!this.isReady()) throw new Error('MODEL_NOT_INITIALIZED')
     const temp = options.temperature ?? 0.7
     const maxTokens = options.maxTokens ?? 512
     const text = await this.chat.prompt(String(prompt), { temperature: temp, maxTokens })
-    return {
-      content: String(text || ''),
-      usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }, // Placeholder for actual usage
-      model: 'llama',
-    }
+    return String(text || '')
   }
 
   async stream(messages, onToken, opts = {}) {
@@ -104,5 +97,4 @@ class LocalLlamaService {
   }
 }
 
-export { LocalLlamaService }
 export const localLlamaService = new LocalLlamaService()

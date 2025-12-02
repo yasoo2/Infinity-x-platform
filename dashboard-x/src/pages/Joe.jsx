@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { FiCloud, FiCpu, FiSettings } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import TopBar from '../components/joe/TopBar';
 import apiClient from '../api/client';
@@ -29,15 +30,12 @@ const JoeContent = () => {
   const [isBottomCollapsed, setIsBottomCollapsed] = useState(false);
   const [isStatusPanelOpen, setIsStatusPanelOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [panicMode, setPanicMode] = useState(false);
   const [panelStyles, setPanelStyles] = useState({ left: { color: '#1f2937', width: 1, radius: 0 }, right: { color: '#1f2937', width: 1, radius: 0 } });
   const toggleBottomPanel = () => setIsBottomPanelOpen(!isBottomPanelOpen);
   const [leftWidth, setLeftWidth] = useState(288);
   const [rightWidth, setRightWidth] = useState(320);
   const [dragLeft, setDragLeft] = useState(false);
   const [dragRight, setDragRight] = useState(false);
-  const [backendOk, setBackendOk] = useState(true);
-  const [runtimeStatus, setRuntimeStatus] = useState(null);
 
   useEffect(() => {
     const update = () => setIsMobile(window.innerWidth < 768);
@@ -47,34 +45,11 @@ const JoeContent = () => {
   }, []);
 
   useEffect(() => {
-    try { window.dispatchEvent(new CustomEvent('joe:closeOverlays')); } catch { /* ignore */ }
-  }, []);
-
-  useEffect(() => {
     const onLang = () => {
       try { setLang(localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'); } catch { void 0; }
     };
     window.addEventListener('joe:lang', onLang);
     return () => window.removeEventListener('joe:lang', onLang);
-  }, []);
-
-  useEffect(() => {
-    const resetDrag = () => {
-      try {
-        setDragLeft(false);
-        setDragRight(false);
-        document.body.style.userSelect = '';
-        document.body.style.cursor = '';
-      } catch { /* ignore */ }
-    };
-    window.addEventListener('blur', resetDrag);
-    window.addEventListener('focus', resetDrag);
-    window.addEventListener('visibilitychange', () => { if (document.hidden) resetDrag(); });
-    return () => {
-      window.removeEventListener('blur', resetDrag);
-      window.removeEventListener('focus', resetDrag);
-      window.removeEventListener('visibilitychange', () => { if (document.hidden) resetDrag(); });
-    };
   }, []);
 
   // تم استبدال وظيفة تبديل اللغة باختصار لوحة المفاتيح Ctrl/Cmd+L أدناه
@@ -148,13 +123,10 @@ const JoeContent = () => {
   const pupilRightRef = React.useRef(null);
   const [robotActive, setRobotActive] = useState(false);
   const [robotCorner, setRobotCorner] = useState('bl');
-  const clamp = (x, min, max) => Math.max(min, Math.min(max, x));
   const [robotScale, setRobotScale] = useState(() => {
     try {
       const v = parseFloat(localStorage.getItem('joeRobotScale'));
-      const c = clamp(Number.isFinite(v) && v > 0 ? v : 1, 0.75, 1.5);
-      if (v !== c) try { localStorage.setItem('joeRobotScale', String(c)); } catch { /* ignore */ }
-      return c;
+      return Number.isFinite(v) && v > 0 ? v : 1;
     } catch {
       return 1;
     }
@@ -167,24 +139,7 @@ const JoeContent = () => {
       return null;
     }
   });
-  const [robotSize, setRobotSize] = useState(() => {
-    const vw = window.innerWidth;
-    let base = { w: 120, h: 140 };
-    if (vw < 640) base = { w: 88, h: 104 };
-    else if (vw < 1024) base = { w: 104, h: 122 };
-    const scale = (() => {
-      try {
-        const v = parseFloat(localStorage.getItem('joeRobotScale'));
-        return Number.isFinite(v) && v > 0 ? v : 1;
-      } catch {
-        return 1;
-      }
-    })();
-    return {
-      w: Math.round(base.w * scale),
-      h: Math.round(base.h * scale),
-    };
-  });
+  const [robotSize, setRobotSize] = useState({ w: 120, h: 140 });
   const [dragState, setDragState] = useState(null);
   const wasDragging = React.useRef(false);
   const ROBOT_MARGIN = 16;
@@ -207,17 +162,16 @@ const JoeContent = () => {
     return () => window.removeEventListener('mousemove', onMouseMove);
   }, []);
 
-  const computeRobotSize = useCallback((scale) => {
+  const computeRobotSize = useCallback(() => {
     const vw = window.innerWidth;
     let base = { w: 120, h: 140 };
     if (vw < 640) base = { w: 88, h: 104 };
     else if (vw < 1024) base = { w: 104, h: 122 };
-    const s = clamp(scale, 0.75, 1.5);
     return {
-      w: Math.round(base.w * s),
-      h: Math.round(base.h * s),
+      w: Math.round(base.w * robotScale),
+      h: Math.round(base.h * robotScale),
     };
-  }, []);
+  }, [robotScale]);
 
   const getRectForCorner = useCallback((corner) => {
     const vw = window.innerWidth; const vh = window.innerHeight;
@@ -235,22 +189,20 @@ const JoeContent = () => {
   };
 
   const findBestCorner = useCallback(() => {
-    try {
-      const candidates = ['bl','br','tl','tr'];
-      const elements = Array.from(document.querySelectorAll('button,a,input,textarea,select,[role="dialog"],[data-joe-important="true"]'));
-      const vis = elements.filter(el => {
-        const s = getComputedStyle(el);
-        return s.visibility !== 'hidden' && s.display !== 'none' && s.pointerEvents !== 'none';
-      }).map(el => el.getBoundingClientRect());
-      let best = 'bl';
-      let bestScore = Number.POSITIVE_INFINITY;
-      for (const c of candidates) {
-        const r = getRectForCorner(c);
-        const score = vis.reduce((sum, vr) => sum + rectOverlapArea(r, vr), 0);
-        if (score < bestScore) { bestScore = score; best = c; }
-      }
-      setRobotCorner(best);
-    } catch { /* no-op */ }
+    const candidates = ['bl','br','tl','tr'];
+    const elements = Array.from(document.querySelectorAll('button,a,input,textarea,select,[role="dialog"],[data-joe-important="true"]'));
+    const vis = elements.filter(el => {
+      const s = getComputedStyle(el);
+      return s.visibility !== 'hidden' && s.display !== 'none' && s.pointerEvents !== 'none';
+    }).map(el => el.getBoundingClientRect());
+    let best = 'bl';
+    let bestScore = Number.POSITIVE_INFINITY;
+    for (const c of candidates) {
+      const r = getRectForCorner(c);
+      const score = vis.reduce((sum, vr) => sum + rectOverlapArea(r, vr), 0);
+      if (score < bestScore) { bestScore = score; best = c; }
+    }
+    setRobotCorner(best);
   }, [getRectForCorner]);
 
   const findBestCornerRef = React.useRef(findBestCorner);
@@ -303,27 +255,11 @@ const JoeContent = () => {
   };
 
   useEffect(() => {
-    const rafId = { current: 0 };
-    let lastRun = 0;
-    const minInterval = 150;
-    const scheduleFind = () => {
-      const now = Date.now();
-      if (now - lastRun < minInterval) return;
-      if (rafId.current) return;
-      rafId.current = requestAnimationFrame(() => {
-        rafId.current = 0;
-        lastRun = Date.now();
-        try { findBestCornerRef.current(); } catch { /* ignore */ }
-      });
-    };
-    const onResize = () => {
-      setRobotSize(computeRobotSize(robotScale));
-      scheduleFind();
-    };
-    setRobotSize(computeRobotSize(robotScale));
-    scheduleFind();
+    const onResize = () => { setRobotSize(computeRobotSize()); findBestCornerRef.current(); };
+    const onScroll = () => findBestCornerRef.current();
+    setRobotSize(computeRobotSize());
+    findBestCornerRef.current();
     window.addEventListener('resize', onResize);
-    const onScroll = () => scheduleFind();
     window.addEventListener('scroll', onScroll, { passive: true });
     const onOpenProviders = () => setRobotActive(false);
     window.addEventListener('joe:openProviders', onOpenProviders);
@@ -331,9 +267,9 @@ const JoeContent = () => {
       window.removeEventListener('resize', onResize);
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('joe:openProviders', onOpenProviders);
-      try { if (rafId.current) cancelAnimationFrame(rafId.current); } catch { /* ignore */ }
+      
     };
-  }, [computeRobotSize, robotScale]);
+  }, [computeRobotSize]);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -344,33 +280,11 @@ const JoeContent = () => {
         try { localStorage.setItem('lang', next); } catch { void 0; }
         setLang(next);
         try { window.dispatchEvent(new CustomEvent('joe:lang', { detail: { lang: next } })); } catch { void 0; }
-      } else if (e.key === 'Escape') {
-        setIsSidePanelOpen(false);
-        setIsRightPanelOpen(false);
-        setRobotActive(false);
-      } else if (((isMac ? e.metaKey : e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'x')) {
-        e.preventDefault();
-        setPanicMode(v => !v);
-        try { window.dispatchEvent(new CustomEvent('joe:closeOverlays')); } catch { /* ignore */ }
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [lang]);
-
-  useEffect(() => {
-    if (panicMode) {
-      setIsSidePanelOpen(false);
-      setIsRightPanelOpen(false);
-      setIsBottomPanelOpen(false);
-      setRobotActive(false);
-      setRobotCorner('br');
-      setRobotPos(null);
-      setRobotScale(1);
-      setRobotSize(computeRobotSize(1));
-      try { window.dispatchEvent(new CustomEvent('joe:closeOverlays')); } catch { /* ignore */ }
-    }
-  }, [panicMode]);
 
   useEffect(() => {
     try { localStorage.setItem('joeRobotScale', String(robotScale)); } catch { void 0; }
@@ -393,58 +307,12 @@ const JoeContent = () => {
   const toggleBorderSettings = () => navigate('/dashboard/users');
   const { user } = useAuth();
 
-
+ 
 
   const leftStyle = { borderRight: `${panelStyles.left.width}px solid ${panelStyles.left.color}`, borderRadius: panelStyles.left.radius };
   const rightStyle = { borderLeft: `${panelStyles.right.width}px solid ${panelStyles.right.color}`, borderRadius: panelStyles.right.radius };
   
   
-  useEffect(() => {
-    let cancelled = false;
-    let ctrl;
-    const check = async () => {
-      try { ctrl?.abort(); } catch { /* ignore */ }
-      try {
-        ctrl = new AbortController();
-        const h = await apiClient.get('/api/v1/health', { signal: ctrl.signal });
-        if (!cancelled) setBackendOk(Boolean(h?.data?.success && h?.data?.status === 'ok'));
-      } catch {
-        if (!cancelled) setBackendOk(false);
-      }
-      try {
-        ctrl = new AbortController();
-        const r = await apiClient.get('/api/v1/runtime-mode/status', { signal: ctrl.signal });
-        if (!cancelled) setRuntimeStatus(r?.data || null);
-      } catch {
-        if (!cancelled) setRuntimeStatus(null);
-      }
-    };
-    check();
-    const id = setInterval(check, 10000);
-    return () => { cancelled = true; try { ctrl?.abort(); } catch { /* ignore */ } clearInterval(id); };
-  }, []);
-
-  const statusAlert = (() => {
-    if (!backendOk) return { text: lang === 'ar' ? 'الخادم غير نشط — تحقق من التشغيل' : 'Backend inactive — start the server', cls: 'bg-red-600 text-white border border-red-500' };
-    if (runtimeStatus?.success && runtimeStatus.loading) {
-      const stage = String(runtimeStatus.stage || 'Loading');
-      const percent = Number(runtimeStatus.percent || 0);
-      const tAr = `جاري تحميل النموذج: ${stage} • ${percent}%`;
-      const tEn = `Loading model: ${stage} • ${percent}%`;
-      return { text: lang === 'ar' ? tAr : tEn, cls: 'bg-blue-600 text-white border border-blue-500' };
-    }
-    if (runtimeStatus?.success && !runtimeStatus.offlineReady && runtimeStatus.stage === 'missing_model') {
-      const tAr = 'النموذج المحلي غير موجود — اضبط LLAMA_MODEL_PATH';
-      const tEn = 'Local model missing — set LLAMA_MODEL_PATH';
-      return { text: lang === 'ar' ? tAr : tEn, cls: 'bg-yellow-600 text-black border border-yellow-500' };
-    }
-    if (runtimeStatus?.success && runtimeStatus.mode === 'offline' && runtimeStatus.offlineReady) {
-      const tAr = 'الوضع المحلي جاهز';
-      const tEn = 'Local mode ready';
-      return { text: lang === 'ar' ? tAr : tEn, cls: 'bg-green-600 text-black border border-green-500' };
-    }
-    return null;
-  })();
 
   useEffect(() => {
     const onMove = (e) => {
@@ -478,18 +346,7 @@ const JoeContent = () => {
   }, [dragLeft, dragRight]);
 
   return (
-    <div
-      className="h-screen w-screen flex flex-col bg-brand-gradient bg-grid-dark text-white overflow-hidden"
-      onClick={() => {
-        try { window.dispatchEvent(new CustomEvent('joe:closeOverlays')); } catch { /* ignore */ }
-        try {
-          setDragLeft(false);
-          setDragRight(false);
-          document.body.style.userSelect = '';
-          document.body.style.cursor = '';
-        } catch { /* ignore */ }
-      }}
-    >
+    <div className="h-screen w-screen flex flex-col bg-brand-gradient bg-grid-dark text-white overflow-hidden">
       
         {/* Top Bar - Enhanced */}
       <TopBar 
@@ -505,16 +362,8 @@ const JoeContent = () => {
         onToggleLogs={toggleBottomPanel}
         isLogsOpen={isBottomPanelOpen && !isBottomCollapsed}
       />
-      {statusAlert && (
-        <div className={`w-full ${statusAlert.cls}`}>
-          <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between">
-            <span className="text-sm font-semibold">{statusAlert.text}</span>
-            <button onClick={toggleStatusPanel} className="px-2 py-1 rounded bg-gray-900/20 border border-white/20 text-xs">
-              {lang === 'ar' ? 'تفاصيل' : 'Details'}
-            </button>
-          </div>
-        </div>
-      )}
+      <JoeHeaderControls />
+      
       
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
@@ -548,8 +397,8 @@ const JoeContent = () => {
 
           {/* Bottom Panel - Logs (Collapsible) */}
           {isBottomPanelOpen && (
-            <div className={`${isBottomCollapsed ? 'h-0' : 'h-[50vh]'} border-t border-gray-800 bg-gray-900 flex-shrink-0 overflow-hidden`
-            }>
+            <div className={`${isBottomCollapsed ? 'h-0' : 'h-48'} border-t border-gray-800 bg-gray-900 flex-shrink-0 overflow-hidden`}
+            >
               <BottomPanel 
                 logs={wsLog} 
                 collapsed={isBottomCollapsed}
@@ -660,13 +509,13 @@ const JoeContent = () => {
                     <button onClick={(e)=>{ e.stopPropagation(); setRobotCorner('br'); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'نقل: يمين-أسفل':'Move BR'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); setRobotCorner('tl'); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'نقل: يسار-أعلى':'Move TL'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); setRobotCorner('tr'); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'نقل: يمين-أعلى':'Move TR'}</button>
-                    <button onClick={(e)=>{ e.stopPropagation(); setRobotScale(0.85); setRobotSize(computeRobotSize(0.85)); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'حجم صغير':'Small'}</button>
-                    <button onClick={(e)=>{ e.stopPropagation(); setRobotScale(1.0); setRobotSize(computeRobotSize(1.0)); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'حجم متوسط':'Medium'}</button>
-                    <button onClick={(e)=>{ e.stopPropagation(); setRobotScale(1.25); setRobotSize(computeRobotSize(1.25)); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'حجم كبير':'Large'}</button>
+                    <button onClick={(e)=>{ e.stopPropagation(); setRobotScale(0.85); setRobotSize(computeRobotSize()); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'حجم صغير':'Small'}</button>
+                    <button onClick={(e)=>{ e.stopPropagation(); setRobotScale(1.0); setRobotSize(computeRobotSize()); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'حجم متوسط':'Medium'}</button>
+                    <button onClick={(e)=>{ e.stopPropagation(); setRobotScale(1.25); setRobotSize(computeRobotSize()); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'حجم كبير':'Large'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); toggleSidePanel(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'لوحة اليسار':'Left Panel'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); toggleRightPanel(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'لوحة اليمين':'Right Panel'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); toggleBottomPanel(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'سجلّ النظام':'Logs'}</button>
-                    <button onClick={(e)=>{ e.stopPropagation(); handleNewConversation(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'جلسة جديدة':'New Chat'}</button>
+                    <button onClick={(e)=>{ e.stopPropagation(); handleNewConversation(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text黑 text-xs">{lang==='ar'?'جلسة جديدة':'New Chat'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); if (currentConversationId) clearMessages(currentConversationId); }} className="px-2 py-1 rounded bg-gray-700 hover:bg-gray-600 text-white text-xs">{lang==='ar'?'مسح الرسائل':'Clear msgs'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); navigate('/dashboard/browser-viewer'); }} className="px-2 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white text-xs">{lang==='ar'?'عارض المتصفح':'Browser Viewer'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); navigate('/dashboard/security'); }} className="px-2 py-1 rounded bg-purple-600 hover:bg-purple-700 text-white text-xs">{lang==='ar'?'تقرير الأمان':'Security Report'}</button>
@@ -691,4 +540,76 @@ const Joe = () => (
 );
 
 export default Joe;
- 
+
+function JoeHeaderControls() {
+  const [lang, setLang] = React.useState(() => {
+    try { return localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'; } catch { return 'en'; }
+  });
+  const [runtimeMode, setRuntimeMode] = React.useState('online');
+  const [offlineReady, setOfflineReady] = React.useState(false);
+  const [loadingLocal, setLoadingLocal] = React.useState(false);
+  React.useEffect(() => {
+    const onLang = () => {
+      try { setLang(localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'); } catch { void 0; }
+    };
+    window.addEventListener('joe:lang', onLang);
+    return () => window.removeEventListener('joe:lang', onLang);
+  }, []);
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await apiClient.get('/api/v1/runtime-mode/status');
+        setRuntimeMode(String(data?.mode || 'online'));
+        setOfflineReady(Boolean(data?.offlineReady));
+      } catch { void 0 }
+    })();
+  }, []);
+  const handleUseLocal = React.useCallback(async () => {
+    try {
+      if (!offlineReady) {
+        setLoadingLocal(true);
+        await apiClient.post('/api/v1/runtime-mode/load');
+        setTimeout(async () => {
+          try {
+            const { data } = await apiClient.get('/api/v1/runtime-mode/status');
+            setOfflineReady(Boolean(data?.offlineReady));
+          } catch { void 0 }
+          setLoadingLocal(false);
+        }, 600);
+      }
+      await apiClient.post('/api/v1/runtime-mode/set', { mode: 'offline' });
+      try { localStorage.setItem('aiSelectedModel', 'offline-local'); } catch { void 0; }
+      setRuntimeMode('offline');
+    } catch { void 0 }
+  }, [offlineReady]);
+  const handleUseCloud = React.useCallback(async () => {
+    try {
+      await apiClient.post('/api/v1/runtime-mode/set', { mode: 'online' });
+      const model = (() => { try { return localStorage.getItem('aiSelectedModel') || 'gpt-4o'; } catch { return 'gpt-4o'; } })();
+      try { localStorage.setItem('aiSelectedModel', model); } catch { void 0; }
+      setRuntimeMode('online');
+    } catch { void 0 }
+  }, []);
+  const handleOpenProviders = React.useCallback(() => {
+    try { window.dispatchEvent(new CustomEvent('joe:openProviders')); } catch { void 0 }
+  }, []);
+  return (
+    <div className="px-3 py-1.5 border-b border-gray-800 bg-[#0b0f1a]">
+      <div className="flex items-center gap-1.5">
+        <button onClick={handleUseLocal} className={`px-2 py-1 rounded-md text-[11px] font-semibold inline-flex items-center gap-1 border ${offlineReady ? 'bg-green-600 text-black hover:bg-green-700 border-green-500/50' : 'bg-gray-700 text-white hover:bg-gray-600 border-gray-600'}`} title={offlineReady ? (lang==='ar'?'المحلي جاهز':'Local Ready') : (lang==='ar'?'تحميل المحلي':'Load Local')}>
+          <FiCpu size={12} />
+          <span>{lang==='ar'?'محلي':'Local'}</span>
+          {loadingLocal ? <span className="animate-pulse">…</span> : (<span className={`text-[10px] px-1 py-0.5 rounded border ${offlineReady ? 'bg-green-500/20 text-green-300 border-green-500/30' : 'bg-gray-500/20 text-gray-300 border-gray-500/30'}`}>{offlineReady ? (lang==='ar'?'جاهز':'Ready') : (lang==='ar'?'تحميل':'Load')}</span>)}
+        </button>
+        <button onClick={handleUseCloud} className={`px-2 py-1 rounded-md text-[11px] font-semibold inline-flex items-center gap-1 border ${runtimeMode==='online' ? 'bg-blue-600 text-white hover:bg-blue-700 border-blue-500/50' : 'bg-blue-700 text-white hover:bg-blue-600 border-blue-500/50'}`} title={lang==='ar'?'السحابي':'Cloud'}>
+          <FiCloud size={12} />
+          <span>{lang==='ar'?'سحابي':'Cloud'}</span>
+        </button>
+        <button onClick={handleOpenProviders} className="px-2 py-1 rounded-md text-[11px] font-semibold inline-flex items-center gap-1 bg-yellow-600 text-black hover:bg-yellow-700 border border-yellow-500/50" title={lang==='ar'?'مزودين الذكاء':'AI Providers'}>
+          <FiSettings size={12} />
+          <span>{lang==='ar'?'مزودين':'Providers'}</span>
+        </button>
+      </div>
+    </div>
+  );
+}

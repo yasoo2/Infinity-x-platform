@@ -37,27 +37,7 @@ const useAuth = () => {
         return true;
       }
     } catch {
-      try {
-        const raw = localStorage.getItem('useMockAuth');
-        const useMock = raw === 'true' || raw === null;
-        if (useMock) {
-          const token = `mock-${Date.now()}`;
-          localStorage.setItem('sessionToken', token);
-          const usr = { email: email, role: 'admin', id: `mock-${Math.random().toString(36).slice(2)}` };
-          setUser(usr);
-          setIsAuthenticated(true);
-          if (remember) {
-            try {
-              const identifier = usr.email || email || usr.id || '';
-              const mapRaw = localStorage.getItem('rememberedSessions');
-              const map = mapRaw ? JSON.parse(mapRaw) : {};
-              map[String(identifier).toLowerCase()] = token;
-              localStorage.setItem('rememberedSessions', JSON.stringify(map));
-            } catch { void 0; }
-          }
-          return true;
-        }
-      } catch { void 0; }
+      void 0;
     }
     return false;
   };

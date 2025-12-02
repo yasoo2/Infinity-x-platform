@@ -62,19 +62,6 @@ class DynamicToolOrchestrationTool {
                 required: ["instruction"]
             }
         };
-
-        this.smartSystemReview.metadata = {
-            name: "smartSystemReview",
-            description: "Runs a smart system review: environment, health, local model readiness, tool availability, security scans, and produces optimization recommendations.",
-            parameters: {
-                type: "object",
-                properties: {
-                    scope: { type: "string", description: "Scope of review: 'quick' or 'full'" },
-                    autoFix: { type: "boolean", description: "Apply safe fixes like lint/format automatically" },
-                    lang: { type: "string", description: "Report language: 'ar' or 'en'" }
-                }
-            }
-        };
     }
 
     async selfCorrectingExecution({ failureReport, contextFiles }) {
@@ -172,70 +159,6 @@ The self-correction mechanism has been activated. A detailed, multi-step plan ha
         } catch (error) {
             return { success: false, instruction, plan, error: error.message, results };
         }
-    }
-
-    async smartSystemReview({ scope = 'full', autoFix = false, lang = 'ar' } = {}) {
-        const tm = this.dependencies?.toolManager;
-        const start = Date.now();
-        const os = await import('os');
-        const { getConfig } = await import('../services/ai/runtime-config.mjs');
-        const { localLlamaService } = await import('../services/llm/local-llama.service.mjs');
-        const cfg = getConfig();
-        const toolsCount = Array.isArray(tm?.getToolSchemas?.()) ? tm.getToolSchemas().length : 0;
-        const envChecks = ['NODE_ENV','MONGO_URI','OPENAI_API_KEY','REDIS_URL','JWT_SECRET'];
-        const missingEnv = envChecks.filter(k => !process.env[k]);
-        const llama = {
-            ready: localLlamaService.isReady(),
-            stage: localLlamaService.loadingStage,
-            percent: localLlamaService.loadingPercent,
-            modelPathExists: !!localLlamaService.modelPath && require('fs').existsSync(localLlamaService.modelPath)
-        };
-        const health = {
-            uptime: process.uptime(),
-            loadavg: os.loadavg(),
-            memory: process.memoryUsage(),
-            mode: (await import('../core/runtime-mode.mjs')).getMode(),
-            ai: { provider: cfg.activeProvider, model: cfg.activeModel },
-            toolsCount
-        };
-        const securityAudit = await tm.execute('runSecurityAudit', { dirs: ['backend','dashboard-x'] }).catch(() => null);
-        const insecure = await tm.execute('scanInsecurePatterns', { globs: ['backend/**/*.mjs','dashboard-x/src/**/*.{js,jsx,ts,tsx}'] }).catch(() => null);
-        const secrets = await tm.execute('scanSecrets', { globs: ['**/*.{js,mjs,ts,tsx,env,json}'] }).catch(() => null);
-        let autoFixResult = null;
-        if (autoFix) {
-            try { autoFixResult = await tm.execute('autoFix', {}); } catch { autoFixResult = null; }
-        }
-        const recommendations = [];
-        if (!llama.ready && llama.stage === 'missing_model') {
-            recommendations.push(lang==='ar' ? 'أضف ملف النموذج إلى المسار backend/models/llama.gguf لتمكين الوضع المحلي.' : 'Place model file at backend/models/llama.gguf to enable offline mode.');
-        }
-        if (missingEnv.includes('JWT_SECRET')) {
-            recommendations.push(lang==='ar' ? 'اضبط متغير البيئة JWT_SECRET بقيمة آمنة.' : 'Set a secure JWT_SECRET environment variable.');
-        }
-        if (cfg.activeProvider === 'openai' && !process.env.OPENAI_API_KEY) {
-            recommendations.push(lang==='ar' ? 'أضف OPENAI_API_KEY لاستخدام مزود OpenAI.' : 'Provide OPENAI_API_KEY to use OpenAI provider.');
-        }
-        if (missingEnv.includes('REDIS_URL')) {
-            recommendations.push(lang==='ar' ? 'إعداد REDIS_URL يحسن أداء Socket.IO والمهام.' : 'Configure REDIS_URL to improve Socket.IO and tasks.');
-        }
-        if (insecure?.summary?.high) {
-            recommendations.push(lang==='ar' ? 'عالج الأنماط غير الآمنة ذات الأولوية العالية المكتشفة.' : 'Address high-severity insecure code patterns found.');
-        }
-        if (secrets?.summary?.critical) {
-            recommendations.push(lang==='ar' ? 'أزل أو أعد تدوير أي مفاتيح حساسة مكشوفة.' : 'Remove or rotate any exposed sensitive keys.');
-        }
-        const durationMs = Date.now() - start;
-        return {
-            success: true,
-            scope,
-            durationMs,
-            health,
-            llama,
-            env: { missing: missingEnv },
-            security: { audit: securityAudit, insecure, secrets },
-            autoFix: autoFixResult,
-            recommendations
-        };
     }
 }
 

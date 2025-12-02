@@ -2,21 +2,11 @@
 
   // Base URL normalization: prefer explicit env; otherwise use same-origin
   let resolvedBase;
-  let lsBase = null;
-  try { lsBase = localStorage.getItem('apiBaseUrl'); } catch { lsBase = null; }
-  const envBase = typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL);
-  const isLocal = (u) => { try { const h = new URL(String(u)).hostname; return h === 'localhost' || h === '127.0.0.1'; } catch { return /localhost|127\.0\.0\.1/.test(String(u)); } };
-  const isDev = typeof import.meta !== 'undefined' && !!import.meta.env?.DEV;
-  if (typeof window !== 'undefined' && isDev) {
-    resolvedBase = window.location.origin;
-  } else if (lsBase && String(lsBase).trim().length > 0) {
-    resolvedBase = lsBase;
+  const envBase = typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL;
+  if (typeof window !== 'undefined' && String(window.location.hostname).startsWith('localhost')) {
+    resolvedBase = 'http://localhost:4000';
   } else if (envBase && String(envBase).trim().length > 0) {
-    if (typeof window !== 'undefined' && !isLocal(window.location.origin) && isLocal(envBase)) {
-      resolvedBase = window.location.origin;
-    } else {
-      resolvedBase = envBase;
-    }
+    resolvedBase = envBase;
   } else if (typeof window !== 'undefined') {
     const origin = window.location.origin;
     resolvedBase = origin;
@@ -32,7 +22,7 @@
   // Axios instance
   const apiClient = axios.create({
     baseURL: BASE_URL,
-    timeout: 5000,
+    timeout: 15000, // 15s reasonable default
     headers: {
       Accept: 'application/json',
       // don't set Content-Type globally; axios sets it for JSON, and FormData needs boundary
@@ -64,11 +54,6 @@
       // Prevent accidental double slashes in URL
       if (config.url?.startsWith('/')) {
         config.url = config.url.replace(/^\/+/, '/');
-      }
-      const apiPrefix = '/api/v1';
-      if (typeof config.url === 'string' && config.url.startsWith(apiPrefix) && BASE_URL.endsWith(apiPrefix)) {
-        const trimmed = config.url.slice(apiPrefix.length);
-        config.url = trimmed.length ? trimmed : '/';
       }
       return config;
     },

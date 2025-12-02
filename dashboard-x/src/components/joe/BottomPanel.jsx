@@ -5,26 +5,16 @@ import { FiTerminal, FiCircle, FiChevronDown, FiChevronUp, FiCopy, FiTrash2 } fr
 const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddAllLogs, onClearLogs }) => {
   const [okKey, setOkKey] = React.useState(null);
   const [okKind, setOkKind] = React.useState('success');
-  const [autoScroll, setAutoScroll] = React.useState(true);
-  const [filter, setFilter] = React.useState('all');
-  const [search, setSearch] = React.useState('');
-  const [atBottom, setAtBottom] = React.useState(true);
   const okPulse = (key, kind = 'success') => { setOkKey(key); setOkKind(kind); setTimeout(() => { setOkKey(null); setOkKind('success'); }, 800); };
   const scrollRef = useRef(null);
 
   useEffect(() => {
-    if (!collapsed && scrollRef.current && autoScroll) {
+    if (!collapsed && scrollRef.current) {
       const el = scrollRef.current;
-      el.scrollTop = el.scrollHeight;
+      const atBottom = (el.scrollHeight - el.scrollTop - el.clientHeight) <= 80;
+      if (atBottom) el.scrollTop = el.scrollHeight;
     }
-  }, [logs, collapsed, autoScroll]);
-
-  const onScroll = React.useCallback(() => {
-    if (!scrollRef.current) return;
-    const el = scrollRef.current;
-    const diff = el.scrollHeight - el.scrollTop - el.clientHeight;
-    setAtBottom(diff <= 4);
-  }, []);
+  }, [logs, collapsed]);
 
   const getLogType = (log) => {
     const text = typeof log === 'string' ? log : (log?.text || '');
@@ -43,43 +33,6 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
     }
   };
 
-  const getLogBgClass = (type) => {
-    switch (type) {
-      case 'error': return 'bg-red-600/10 border border-red-600/30 hover:bg-red-600/20';
-      case 'success': return 'bg-green-600/10 border border-green-600/30 hover:bg-green-600/20';
-      case 'warning': return 'bg-yellow-500/10 border border-yellow-600/30 hover:bg-yellow-500/20';
-      case 'info': return 'bg-blue-600/10 border border-blue-600/30 hover:bg-blue-600/20';
-      default: return 'bg-gray-800/40 border border-gray-800 hover:bg-gray-800/60';
-    }
-  };
-
-  const filteredLogs = React.useMemo(() => {
-    const arrFull = Array.isArray(logs) ? logs : [];
-    const start = Math.max(0, arrFull.length - 300);
-    const arr = arrFull.slice(start);
-    const q = String(search || '').toLowerCase();
-    return arr.filter((log) => {
-      const text = typeof log === 'string' ? log : (log?.text || JSON.stringify(log));
-      if (q && !String(text).toLowerCase().includes(q)) return false;
-      const t = getLogType(log);
-      return filter === 'all' ? true : t === filter;
-    });
-  }, [logs, filter, search]);
-
-  const formatTime = (ms) => {
-    try { const d = new Date(ms); const hh = String(d.getHours()).padStart(2,'0'); const mm = String(d.getMinutes()).padStart(2,'0'); const ss = String(d.getSeconds()).padStart(2,'0'); return `${hh}:${mm}:${ss}`; } catch { return ''; }
-  };
-  const getLogTimestamp = (log) => {
-    if (log && typeof log === 'object') {
-      const v = log.timestamp ?? log.ts ?? log.time ?? log?.metadata?.timestamp;
-      if (v) {
-        const ms = typeof v === 'number' ? v : Date.parse(String(v));
-        if (Number.isFinite(ms)) return formatTime(ms);
-      }
-    }
-    return '';
-  };
-
   return (
     <div className="h-full flex flex-col bg-gray-950 p-5 border border-gray-800 rounded-t-xl">
       {/* Header */}
@@ -92,31 +45,10 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
             <span className="text-xs text-gray-400">Live</span>
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap justify-end">
-          <div className="text-xs text-gray-400 border border-gray-700 rounded px-2 py-0.5 bg-gray-800/60">
-            {filteredLogs.length} / {logs?.length || 0} messages
+        <div className="flex items-center gap-3">
+          <div className="text-xs text-gray-500 border border-gray-700 rounded px-2 py-0.5">
+            {logs?.length || 0} messages
           </div>
-          <div className="hidden md:flex items-center text-[11px] rounded-lg overflow-hidden border border-gray-700">
-            <button onClick={()=>setFilter('all')} className={`px-2 py-1 ${filter==='all'?'bg-yellow-600 text-black':'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}>الكل</button>
-            <button onClick={()=>setFilter('error')} className={`px-2 py-1 ${filter==='error'?'bg-red-600 text-white':'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}>أخطاء</button>
-            <button onClick={()=>setFilter('warning')} className={`px-2 py-1 ${filter==='warning'?'bg-yellow-500 text-black':'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}>تحذيرات</button>
-            <button onClick={()=>setFilter('success')} className={`px-2 py-1 ${filter==='success'?'bg-green-600 text:white':'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}>نجاح</button>
-            <button onClick={()=>setFilter('info')} className={`px-2 py-1 ${filter==='info'?'bg-blue-600 text:white':'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}>معلومات</button>
-          </div>
-          <input
-            value={search}
-            onChange={(e)=>setSearch(e.target.value)}
-            placeholder="بحث في اللوجز..."
-            className="px-2 py-1 text-[12px] bg-gray-800 border border-gray-700 rounded-md text-gray-200 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-yellow-500/50"
-            style={{ minWidth: 160 }}
-          />
-          <button
-            onClick={() => { setAutoScroll(v=>!v); okPulse('auto','toggle'); }}
-            className={`px-2 py-1 rounded border ${autoScroll?'border-green-500/50 bg-green-600 text-black':'border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700'} text-[11px]`}
-            title={autoScroll ? 'إيقاف التمرير التلقائي' : 'تشغيل التمرير التلقائي'}
-          >
-            {autoScroll ? 'Auto Scroll: On' : 'Auto Scroll: Off'}
-          </button>
           <button
             onClick={() => onClearLogs && onClearLogs()}
             className="px-2 py-1 rounded border border-red-600/40 bg-red-600 text-white text-xs hover:bg-red-700 flex items-center gap-1"
@@ -167,27 +99,23 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
       ) : (
         <div 
           ref={scrollRef} 
-          className="joe-logs-scroll flex-1 overflow-y-auto bg-gray-900 rounded-lg border border-gray-800 p-4 font-mono text-sm relative"
+          className="flex-1 overflow-y-auto bg-gray-900 rounded-lg border border-gray-800 p-4 font-mono text-sm"
           style={{ overscrollBehavior: 'contain', overflowAnchor: 'none' }}
-          onScroll={onScroll}
         >
-          {filteredLogs && filteredLogs.length > 0 ? (
+          {logs && logs.length > 0 ? (
             <div className="space-y-1.5">
-              {filteredLogs.map((log, index) => {
+              {logs.map((log, index) => {
                 const type = getLogType(log);
                 const color = getLogColor(type);
                 const text = typeof log === 'string' ? log : (log?.text || JSON.stringify(log));
-                const time = getLogTimestamp(log);
-                const bg = getLogBgClass(type);
                 return (
-                  <div key={log?.id ?? index} className={`flex items-start gap-3 px-2 py-1 rounded transition-colors ${bg}`}>
+                  <div key={log?.id ?? index} className="flex items-start gap-3 hover:bg-gray-800/50 px-2 py-1 rounded transition-colors border border-gray-800">
                     <span className="text-gray-600 text-xs mt-0.5 flex-shrink-0">
                       {String(index + 1).padStart(3, '0')}
                     </span>
                     <span className={`${color} flex-1 leading-relaxed`}>
                       {text}
                     </span>
-                    {time ? (<span className="text-[10px] text-gray-500 ml-2 mt-0.5">{time}</span>) : null}
                     <div className="ml-auto flex items-center gap-1">
                       <div className="relative inline-flex items-center">
                       <button
@@ -222,45 +150,8 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
               </div>
             </div>
           )}
-          {(!atBottom || !autoScroll) && filteredLogs && filteredLogs.length > 0 && (
-            <button
-              onClick={() => { setAutoScroll(true); if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; okPulse('toBottom'); }}
-              className="absolute bottom-2 right-2 px-2 py-1 rounded-md bg-yellow-600 text-black text-[11px] border border-yellow-500/50 shadow hover:bg-yellow-700"
-              title="الانتقال إلى الأسفل"
-            >
-              إلى الأسفل
-            </button>
-          )}
-          {filteredLogs && filteredLogs.length > 0 && (
-            <div className="absolute bottom-2 left-2 px-2 py-1 rounded-md bg-gray-800/70 text-gray-300 text-[10px] border border-gray-700/60 shadow-sm inline-flex items-center gap-2">
-              <span className="inline-flex items-center gap-1">
-                <span className="w-2 h-2 rounded bg-red-500" />
-                <span>خطأ</span>
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <span className="w-2 h-2 rounded bg-yellow-400" />
-                <span>تحذير</span>
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <span className="w-2 h-2 rounded bg-green-500" />
-                <span>نجاح</span>
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <span className="w-2 h-2 rounded bg-blue-500" />
-                <span>معلومات</span>
-              </span>
-            </div>
-          )}
         </div>
       )}
-
-      <style>{`
-        .joe-logs-scroll { scrollbar-width: thin; scrollbar-color: #444 #0b0f1a; }
-        .joe-logs-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
-        .joe-logs-scroll::-webkit-scrollbar-track { background: rgba(11,15,26,0.6); border-radius: 8px; }
-        .joe-logs-scroll::-webkit-scrollbar-thumb { background: rgba(68,68,68,0.9); border-radius: 8px; border: 2px solid rgba(17,24,39,0.9); }
-        .joe-logs-scroll::-webkit-scrollbar-thumb:hover { background: rgba(90,90,90,0.95); }
-      `}</style>
 
       {collapsed && (
         <div className="fixed z-40 select-none pointer-events-none" style={{ bottom: 'calc(var(--joe-input-h, 56px) + env(safe-area-inset-bottom, 0px) + 4px)', left: 'var(--joe-input-left, 16px)', width: 'var(--joe-input-width, 640px)', maxWidth: 'calc(100vw - 32px)' }}>
