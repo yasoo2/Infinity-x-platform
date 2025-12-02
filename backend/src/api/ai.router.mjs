@@ -48,8 +48,6 @@ const aiRouterFactory = ({ optionalAuth, db }) => {
     { id: 'perplexity', name: 'Perplexity', createUrl: 'https://www.perplexity.ai/settings', defaultModel: 'pplx-70b-online' },
     { id: 'stability', name: 'Stability AI', createUrl: 'https://platform.stability.ai/account/keys', defaultModel: 'stable-diffusion-xl' },
     { id: 'meta', name: 'Meta LLaMA (via providers)', createUrl: 'https://llama.meta.com/', defaultModel: 'llama-3-70b-instruct' },
-    { id: 'ollama', name: 'Ollama (Local)', createUrl: 'https://ollama.ai/', defaultModel: 'llama3:latest' },
-    { id: 'lmstudio', name: 'LM Studio (Local)', createUrl: 'https://lmstudio.ai/', defaultModel: 'llama-3-70b-instruct' },
     { id: 'ibm-watsonx', name: 'IBM watsonx', createUrl: 'https://cloud.ibm.com/watsonx', defaultModel: 'ibm/granite-20b-instruct' },
     { id: 'databricks-mosaic', name: 'Databricks Mosaic', createUrl: 'https://www.databricks.com/product/mosaic-ai', defaultModel: 'db/mpt-7b-instruct' },
     { id: 'snowflake-cortex', name: 'Snowflake Cortex', createUrl: 'https://www.snowflake.com/en/data-cloud/cortex/', defaultModel: 'snowflake/llm' },
