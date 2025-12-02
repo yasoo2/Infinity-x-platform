@@ -307,6 +307,7 @@ export const useJoeChat = () => {
   const syncAbortRef = useRef(null);
   const syncInProgressRef = useRef(false);
   const saveTimerRef = useRef(null);
+  const sioSendTimeoutRef = useRef(null);
 
   const [state, dispatch] = useReducer(chatReducer, {
     conversations: {},
@@ -959,6 +960,26 @@ export const useJoeChat = () => {
         const conv = state.conversations[convId] || null;
         const sidToUse = sid || conv?.sessionId || convId;
         sioRef.current.emit('message', { action: 'instruct', message: inputText, sessionId: sidToUse, model: selectedModel, lang });
+        try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
+        sioSendTimeoutRef.current = setTimeout(async () => {
+          try {
+            const { data } = await apiClient.post('/api/v1/joe/execute', { instruction: inputText, context: { sessionId: sidToUse, lang, model: selectedModel } });
+            const text = String(data?.response || data?.message || '').trim();
+            if (text) {
+              dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
+              try {
+                const r = await getChatMessages(sidToUse);
+                const exists = (r?.messages || []).some(m => String(m?.content || '') === text && m?.type !== 'user');
+                if (!exists) { await addChatMessage(sidToUse, { type: 'joe', content: text }); }
+              } catch { /* noop */ }
+            }
+          } catch { /* noop */ } finally {
+            dispatch({ type: 'STOP_PROCESSING' });
+            dispatch({ type: 'REMOVE_PENDING_LOGS' });
+            try { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } catch { /* noop */ }
+            if (syncRef.current) syncRef.current();
+          }
+        }, 8000);
         return;
       }
       if (ws.current?.readyState === WebSocket.OPEN) {
@@ -967,6 +988,26 @@ export const useJoeChat = () => {
       const conv = state.conversations[convId] || null;
       const sidToUse = sid || conv?.sessionId || convId;
         ws.current.send(JSON.stringify({ action: 'instruct', message: inputText, sessionId: sidToUse, model: selectedModel, lang }));
+        try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
+        sioSendTimeoutRef.current = setTimeout(async () => {
+          try {
+            const { data } = await apiClient.post('/api/v1/joe/execute', { instruction: inputText, context: { sessionId: sidToUse, lang, model: selectedModel } });
+            const text = String(data?.response || data?.message || '').trim();
+            if (text) {
+              dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
+              try {
+                const r = await getChatMessages(sidToUse);
+                const exists = (r?.messages || []).some(m => String(m?.content || '') === text && m?.type !== 'user');
+                if (!exists) { await addChatMessage(sidToUse, { type: 'joe', content: text }); }
+              } catch { /* noop */ }
+            }
+          } catch { /* noop */ } finally {
+            dispatch({ type: 'STOP_PROCESSING' });
+            dispatch({ type: 'REMOVE_PENDING_LOGS' });
+            try { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } catch { /* noop */ }
+            if (syncRef.current) syncRef.current();
+          }
+        }, 8000);
         return;
       }
       if (attempt < 12) {
