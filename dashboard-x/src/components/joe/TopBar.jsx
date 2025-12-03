@@ -595,6 +595,21 @@ const AIMenuButton = ({ runtimeMode }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [menuOpen]);
 
+  React.useEffect(() => {
+    const onOpenProviders = (e) => {
+      try {
+        const preferred = String(e?.detail?.provider || '').trim() || 'openai';
+        setMenuOpen(true);
+        setDetailId(preferred);
+      } catch {
+        setMenuOpen(true);
+        setDetailId('openai');
+      }
+    };
+    window.addEventListener('joe:openProviders', onOpenProviders);
+    return () => window.removeEventListener('joe:openProviders', onOpenProviders);
+  }, []);
+
   return (
     <div className="relative">
       <div className="relative inline-flex items-center" ref={buttonRef}>
