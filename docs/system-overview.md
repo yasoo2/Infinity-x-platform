@@ -1,38 +1,38 @@
-# Infinity-X Platform Overview and Quick Test Guide
+# نظرة شاملة على منصة Infinity-X ودليل الاختبار السريع
 
-This document summarizes the major services in the Infinity-X/JOE platform and outlines practical commands to validate each area during local exploration.
+يُلخّص هذا المستند أبرز خدمات منصة Infinity-X/JOE ويقدّم أوامر عملية للتحقق السريع أثناء الاستكشاف المحلي.
 
-## Repository Structure
-- **Backend (`backend/`)** – Node.js/Express core that hosts APIs, AI orchestration, and database integrations; entry point `backend/server.mjs` with CORS/security middleware and websocket subsystems.
-- **Dashboard (`dashboard-x/`)** – React + Vite SPA for the primary user experience (`dashboard-x/index.html` entry with `src/App.jsx` and `src/pages/Joe.jsx`).
-- **Public Site (`public-site/`)** – Static marketing/login site served as plain HTML/CSS/JS via `public-site/index.html`.
-- **Workers (`worker/`)** – Background executors for heavy jobs; default start script runs `worker-enhanced.mjs`.
-- **Cloudflare Worker (`cloudflare-worker/`)** – Edge worker utilities (e.g., CORS helper) used when fronting the backend.
-- **Docs/Infra (`docs/`, `infra/`)** – Deployment references and infrastructure helpers.
+## هيكل المستودع
+- **الواجهة الخلفية (`backend/`)**: تطبيق Node.js/Express يستضيف واجهات REST والـ WebSocket، ويحتوي على تنسيقات الأمان، وتنفيذ منظّم للذكاء الاصطناعي، وتكاملات قاعدة البيانات. نقطة الدخول `backend/server.mjs`.
+- **لوحة التحكم (`dashboard-x/`)**: تطبيق React + Vite بنواة في `dashboard-x/src/App.jsx` وصفحة رئيسية `src/pages/Joe.jsx`.
+- **الموقع العام (`public-site/`)**: ملفات ثابتة (HTML/CSS/JS) في `public-site/index.html` والمجلدات التابعة.
+- **العامل الخلفي (`worker/`)**: مهام مجدولة/ثقيلة تُشغَّل عبر `worker-enhanced.mjs` مع سكربتات `npm start` و`npm run dev`.
+- **عامل Cloudflare (`cloudflare-worker/`)**: وظائف حافة (Edge) مثل معالجة CORS عند نشر البوابة الأمامية.
+- **المستندات والبنية التحتية (`docs/`, `infra/`)**: مراجع للنشر وأدوات مساعدة.
 
-## Backend Notes and Checks
-- Install dependencies once with `cd backend && npm install` (required for Jest, linting, and runtime scripts).
-- Core server boot: `npm start` uses `server.mjs`, which initializes Mongo connections, super-admin seeding, planners, schedulers, and websocket servers.
-- Security middleware includes Helmet, rate limiting, XSS/mongo sanitizers, and custom CORS whitelist logic.
-- Quick health commands:
-  - `npm run lint` – ESLint across backend code (ignores the refactor-excluded code-review service).
-  - `npm test` or scoped variants (`npm run test:unit`, `npm run test:integration`) – Jest suites when environment (e.g., Mongo) is available.
-  - `npm run demo` – Runs example interaction from `examples/demo.js` after dependencies exist.
+## ملاحظات واختبارات الواجهة الخلفية
+- تثبيت الاعتمادات: `cd backend && npm install` (مطلوب قبل أي lint أو Jest).
+- التشغيل: `npm start` يستخدم `server.mjs` لتهيئة اتصال Mongo، إنشاء المشرف الأعلى، تشغيل الـ schedulers، وتهيئة خوادم WebSocket.
+- الحماية: Helmet، تحديد المعدّل، فلاتر XSS/حقن Mongo، ولائحة CORS ديناميكية تُطبع عند الإقلاع.
+- أوامر التحقق السريعة:
+  - `npm run lint`: تفقد ESLint لكود الواجهة الخلفية (باستثناء خدمة code-review المستبعدة من إعادة الهيكلة).
+  - `npm test`: يشغّل Jest عندما تتوفر البيئة (مثلاً Mongo). للمدى الأصغر: `npm run test:unit` أو `npm run test:integration`.
+  - `npm run demo`: يشغّل مثال التفاعل في `examples/demo.js` بعد تثبيت الاعتمادات.
 
-## Dashboard-X (React SPA)
-- Install with `cd dashboard-x && pnpm install` (package manager pinned to `pnpm@10.20.0`).
-- Development server: `pnpm dev` (Vite), preview with `pnpm preview`, production build via `pnpm build`.
-- Linting: `pnpm lint` to check `src/**/*.{js,jsx,ts,tsx}`.
+## لوحة التحكم (Dashboard-X)
+- تثبيت الاعتمادات: `cd dashboard-x && pnpm install` (الإصدار المثبّت `pnpm@10.20.0`).
+- أوامر التطوير: `pnpm dev` للتشغيل المحلي (Vite)، `pnpm preview` للمعاينة، و`pnpm build` لإنتاج الحزمة.
+- التدقيق: `pnpm lint` لفحص `src/**/*.{js,jsx,ts,tsx}`.
 
-## Public Site
-- Static files in `public-site/index.html`, `assets/`, and `login/`; no build pipeline required.
-- Placeholder npm script `npm start` simply echoes that this is a marketing site—serve via any static file server (e.g., `npx http-server public-site -p 8080`).
+## الموقع العام
+- ملفات ثابتة فقط؛ يمكن خدمتها بأداة بسيطة مثل `npx http-server public-site -p 8080`.
+- سكربت `npm start` هنا مجرد رسالة توضيحية لكونه موقعاً تسويقياً ثابتاً.
 
-## Worker Service
-- Install dependencies in `worker/` if running jobs locally: `cd worker && npm install`.
-- Start the enhanced worker with `npm start` (runs `worker-enhanced.mjs`); use `npm run dev` for watch mode.
+## خدمة العامل
+- تثبيت الاعتمادات عند الحاجة: `cd worker && npm install`.
+- التشغيل: `npm start` يشغّل `worker-enhanced.mjs`، بينما `npm run dev` يفعّل وضع المراقبة (watch).
 
-## Testing Tips
-- Prefer running linters first to validate code style without external services.
-- For tests needing MongoDB/Redis, configure `.env` in `backend/` (see `env.example`) before running Jest suites.
-- When exploring CORS or preflight behavior, backend logs the computed whitelist on startup for visibility.
+## نصائح الاختبار
+- ابدأ بالـ lint للتأكد من صحة الأسلوب دون الحاجة لخدمات خارجية.
+- اختبارات تحتاج MongoDB/Redis يجب أن تُضبط عبر `.env` في `backend/` (انظر `env.example`).
+- عند اختبار سلوك CORS أو preflight، تُظهر سجلات الواجهة الخلفية قائمة السماح المحسوبة عند الإقلاع لسهولة التحقق.
