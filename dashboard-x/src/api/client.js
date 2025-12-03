@@ -161,6 +161,10 @@
       const status = error.response?.status;
 
       if (status === 401) {
+        const cfg = error.config || {};
+        if (cfg._noRedirect401) {
+          return Promise.reject(normalizeError(error));
+        }
         localStorage.removeItem('sessionToken');
         window.dispatchEvent(new CustomEvent('auth:unauthorized'));
         if (!isRedirecting) {

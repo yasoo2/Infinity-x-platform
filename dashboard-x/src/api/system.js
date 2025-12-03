@@ -132,10 +132,10 @@ export const getAIProviders = (opts) =>
     call(() => apiClient.get(v1('/ai/providers'), { signal: opts?.signal, timeout: 20000 }));
 
 export const validateAIKey = (provider, apiKey, opts) =>
-    call(() => apiClient.post(v1('/ai/validate'), { provider, apiKey }, { signal: opts?.signal, timeout: 45000 }));
+    call(() => apiClient.post(v1('/ai/validate'), { provider, apiKey }, { signal: opts?.signal, timeout: 45000, _noRedirect401: true }));
 
 export const activateAIProvider = (provider, opts) =>
-    call(() => apiClient.post(v1('/ai/activate'), { provider }, { signal: opts?.signal, timeout: 30000 }));
+    call(() => apiClient.post(v1('/ai/activate'), { provider }, { signal: opts?.signal, timeout: 30000, _noRedirect401: true }));
 
 export const getChatSessions = (opts) =>
   call(() => apiClient.get(chatHistory('/sessions'), { signal: opts?.signal }));
