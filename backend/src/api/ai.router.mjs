@@ -105,6 +105,16 @@ const aiRouterFactory = ({ optionalAuth }) => {
     }
   })
 
+  router.get('/engine/status', (req, res) => {
+    try {
+      const cfg = getConfig()
+      const mode = cfg.activeProvider === 'openai' ? 'openai' : (cfg.activeProvider === 'gemini' ? 'gemini' : 'unknown')
+      res.json({ ok: true, mode, provider: cfg.activeProvider, model: cfg.activeModel })
+    } catch (e) {
+      res.status(500).json({ ok: false, error: 'ENGINE_STATUS_FAILED', message: e?.message })
+    }
+  })
+
   return router
 }
 

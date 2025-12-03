@@ -14,7 +14,11 @@ export function setActive(provider, model) {
 }
 
 export function setKey(provider, key) {
-  aiConfig.keys[provider] = key || null;
+  aiConfig.keys[provider] = key || null
+  if (key && !aiConfig.activeProvider) {
+    aiConfig.activeProvider = provider
+    aiConfig.activeModel = provider === 'openai' ? 'gpt-4o-mini' : (provider === 'gemini' ? 'gemini-1.5-pro-latest' : null)
+  }
 }
 
 export function getConfig() {
