@@ -20,6 +20,7 @@ class RealTimeCollaborationSystem {
 
   async initialize(httpServer) {
     this.io = new Server(httpServer, {
+      path: '/socket.io',
       cors: { origin: '*' },
       transports: ['websocket', 'polling']
     });
