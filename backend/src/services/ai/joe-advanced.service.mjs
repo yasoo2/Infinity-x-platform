@@ -348,7 +348,8 @@ ${transcript.slice(0, 8000)}`;
 
     } else if (openaiClient) {
         try {
-          const response = await openaiClient.chat.completions.create({ model, messages: messagesForOpenAI, tools: availableTools, tool_choice: 'auto' });
+          const modelId = model || 'gpt-4o';
+          const response = await openaiClient.chat.completions.create({ model: modelId, messages: messagesForOpenAI, tools: availableTools, tool_choice: 'auto' });
           const messageResponse = response.choices[0].message;
           usage = response.usage;
 
