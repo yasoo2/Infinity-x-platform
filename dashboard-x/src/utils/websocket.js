@@ -55,8 +55,17 @@ export const connectWebSocket = (onMessage, onOpen, onClose) => {
       }
     }
   } catch { /* noop */ }
-  const sanitizedHttp = String(httpBase).replace(/\/(api.*)?$/, '').replace(/\/+$/, '');
-  const baseWsUrl = sanitizedHttp.replace(/^https/, 'wss').replace(/^http/, 'ws');
+  let baseWsUrl = '';
+  try {
+    const urlObj = new URL(String(httpBase));
+    const proto = urlObj.protocol === 'https:' ? 'wss' : 'ws';
+    baseWsUrl = `${proto}://${urlObj.host}`;
+  } catch {
+    const origin = (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
+    const urlObj = new URL(String(origin));
+    const proto = urlObj.protocol === 'https:' ? 'wss' : 'ws';
+    baseWsUrl = `${proto}://${urlObj.host}`;
+  }
 
   const scheduleReconnect = () => {
     failedAttempts++;
@@ -135,8 +144,9 @@ export const connectWebSocket = (onMessage, onOpen, onClose) => {
       await ensureToken();
       try { raceStart = typeof performance !== 'undefined' ? performance.now() : Date.now(); } catch { raceStart = Date.now(); }
       if (!isDev) {
-        // Prefer native WebSocket in production to avoid proxy/path issues
+        // Prefer native WebSocket first in production; if it fails, concurrently try Socket.IO
         tryNative();
+        trySocketIO().catch(() => { /* ignore */ });
       } else {
         if (wsFailures >= 2 && ioFailures === 0) {
           trySocketIO().catch(() => { tryNative(); });
