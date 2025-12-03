@@ -72,7 +72,7 @@ const RightPanel = ({ isProcessing, plan, forceStatus = false, wsConnected = fal
         setRuntime(r.data);
       } catch { void 0; }
       try {
-        const e = await apiClient.get('/api/v1/engine/status', { signal });
+        const e = await apiClient.get('/api/v1/ai/engine/status', { signal });
         setEngine(e.data);
       } catch { void 0; }
       // Removed providers fetch: state not used in panel
