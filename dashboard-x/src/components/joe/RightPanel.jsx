@@ -187,7 +187,7 @@ const PreferenceToggle = () => {
       }
       if (!locked) window.dispatchEvent(new CustomEvent('joe:reconnect'));
     } catch { /* noop */ }
-  }, [pref]);
+  }, [pref, locked]);
   const btnBase = 'px-2 py-1 text-xs rounded border transition-colors';
   const activeWs = pref === 'ws';
   const activeSio = pref === 'sio';
