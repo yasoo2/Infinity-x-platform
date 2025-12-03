@@ -565,11 +565,7 @@ const AIMenuButton = ({ runtimeMode }) => {
       setActive({ provider: id, model: null });
       try { localStorage.removeItem('aiSelectedModel'); } catch { void 0; }
       setActivationError(e => ({ ...e, [id]: '' }));
-      try {
-        const mode = 'online';
-        await apiClient.post('/api/v1/runtime-mode/set', { mode });
-        try { window.dispatchEvent(new CustomEvent('joe:runtime', { detail: { mode } })); } catch { void 0; }
-      } catch (err2) { void err2; }
+      // Do not touch runtime mode or broadcast global events to avoid WS reconnection
     } catch (err) {
       const details = err?.details;
       const msg = (details && (details.message || details.error)) || err?.message || 'فشل تفعيل المزود';
