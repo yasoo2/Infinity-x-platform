@@ -637,37 +637,7 @@ const AIMenuButton = ({ runtimeMode }) => {
                 >
                   <div className="w-full flex items-center justify-between">
                     <span className="inline-flex items-center gap-2">
-                      {(() => {
-                        const domain = (() => { try { return new URL(p.siteUrl).hostname; } catch { return ''; } })();
-                        const faviconUrl = domain ? `https://www.google.com/s2/favicons?sz=64&domain=${domain}` : '';
-                        if (!logoError[p.id] && p.logo) {
-                          return (
-                            <img
-                              src={p.logo}
-                              alt={p.name}
-                              className={`w-5 h-5 rounded-full ${isActive ? 'ring-2 ring-green-500/50' : 'ring-1 ring-yellow-600/30'} transition-transform group-hover:scale-105`}
-                              referrerPolicy="no-referrer"
-                              crossOrigin="anonymous"
-                              loading="lazy"
-                              onError={() => setLogoError(e => ({ ...e, [p.id]: true }))}
-                            />
-                          );
-                        }
-                        if (!logoError[`${p.id}:favicon`] && faviconUrl) {
-                          return (
-                            <img
-                              src={faviconUrl}
-                              alt={p.name}
-                              className={`w-5 h-5 rounded-full ${isActive ? 'ring-2 ring-green-500/50' : 'ring-1 ring-yellow-600/30'} transition-transform group-hover:scale-105`}
-                              referrerPolicy="no-referrer"
-                              crossOrigin="anonymous"
-                              loading="lazy"
-                              onError={() => setLogoError(e => ({ ...e, [`${p.id}:favicon`]: true }))}
-                            />
-                          );
-                        }
-                        return (<span className="w-5 h-5 rounded-full grid place-items-center text-[12px]" style={{ background: '#111', color: p.color }}>{p.icon || '🤖'}</span>);
-                      })()}
+                      <span className="w-5 h-5 rounded-full grid place-items-center text-[12px]" style={{ background: '#111', color: p.color }}>{p.icon || '🤖'}</span>
                       <span className="flex flex-col items-start leading-tight">
                         <span className="flex items-center gap-2">
                           <span className="text-sm font-semibold">{p.name}</span>
@@ -694,17 +664,7 @@ const AIMenuButton = ({ runtimeMode }) => {
                           const p = providers.find(x => x.id === detailId) || {};
                           return (
                             <>
-                      {(() => {
-                        const domain = (() => { try { return new URL(p.siteUrl).hostname; } catch { return ''; } })();
-                        const faviconUrl = domain ? `https://www.google.com/s2/favicons?sz=64&domain=${domain}` : '';
-                        if (!logoError[p.id] && p.logo) {
-                          return (<img src={p.logo} alt={p.name} className="w-5 h-5 rounded" referrerPolicy="no-referrer" crossOrigin="anonymous" loading="lazy" onError={() => setLogoError(e => ({ ...e, [p.id]: true }))} />);
-                        }
-                        if (!logoError[`${p.id}:favicon`] && faviconUrl) {
-                          return (<img src={faviconUrl} alt={p.name} className="w-5 h-5 rounded" referrerPolicy="no-referrer" crossOrigin="anonymous" loading="lazy" onError={() => setLogoError(e => ({ ...e, [`${p.id}:favicon`]: true }))} />);
-                        }
-                        return (<span className="text-lg" style={{ color: p.color }}>{p.icon || '🤖'}</span>);
-                      })()}
+                      <span className="text-lg" style={{ color: p.color }}>{p.icon || '🤖'}</span>
                       <span className="font-semibold">{p.name}</span>
                     </>
                           );

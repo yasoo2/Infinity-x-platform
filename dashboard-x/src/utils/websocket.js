@@ -135,7 +135,8 @@ export const connectWebSocket = (onMessage, onOpen, onClose) => {
       await ensureToken();
       try { raceStart = typeof performance !== 'undefined' ? performance.now() : Date.now(); } catch { raceStart = Date.now(); }
       if (!isDev) {
-        trySocketIO().catch(() => { tryNative(); });
+        // Prefer native WebSocket in production to avoid proxy/path issues
+        tryNative();
       } else {
         if (wsFailures >= 2 && ioFailures === 0) {
           trySocketIO().catch(() => { tryNative(); });
