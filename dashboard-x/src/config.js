@@ -5,6 +5,8 @@
   const getApiConfig = () => {
     const overrideApi = import.meta.env.VITE_API_BASE_URL;
     const overrideWs = import.meta.env.VITE_WS_BASE_URL;
+    const overridePref = import.meta.env.VITE_CONN_PREF;
+    const overrideUseWs = import.meta.env.VITE_USE_WS;
     const host = typeof window !== 'undefined' ? window.location.hostname : '';
     const isDev = !!(import.meta?.env?.DEV);
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -17,6 +19,7 @@
     return {
       apiBaseUrl: isDev ? `${origin}/api/v1` : apiBase,
       wsBaseUrl: wsOrigin,
+      connPref: (() => { const p = String(overridePref||'').toLowerCase(); if (p==='ws'||p==='sio') return p; if (String(overrideUseWs||'').toLowerCase()==='true') return 'ws'; return 'auto'; })(),
     };
   };
 

@@ -173,9 +173,11 @@ RightPanel.propTypes = {
 };
 
 const PreferenceToggle = () => {
-  const [pref, setPref] = useState(() => {
-    try { return localStorage.getItem('joeUseWS') === 'true' ? 'ws' : 'sio'; } catch { return 'sio'; }
-  });
+  const envPref = (typeof import.meta !== 'undefined' ? (import.meta.env?.VITE_CONN_PREF) : undefined);
+  const envUseWs = (typeof import.meta !== 'undefined' ? (import.meta.env?.VITE_USE_WS) : undefined);
+  const locked = (() => { const p = String(envPref||'').toLowerCase(); if (p==='ws'||p==='sio') return true; if (String(envUseWs||'').toLowerCase()==='true') return true; return false; })();
+  const initial = (() => { const p = String(envPref||'').toLowerCase(); if (p==='ws') return 'ws'; if (p==='sio') return 'sio'; if (String(envUseWs||'').toLowerCase()==='true') return 'ws'; try { return localStorage.getItem('joeUseWS') === 'true' ? 'ws' : 'sio'; } catch { return 'sio'; } })();
+  const [pref, setPref] = useState(initial);
   useEffect(() => {
     try {
       if (pref === 'ws') {
@@ -183,7 +185,7 @@ const PreferenceToggle = () => {
       } else {
         localStorage.removeItem('joeUseWS');
       }
-      window.dispatchEvent(new CustomEvent('joe:reconnect'));
+      if (!locked) window.dispatchEvent(new CustomEvent('joe:reconnect'));
     } catch { /* noop */ }
   }, [pref]);
   const btnBase = 'px-2 py-1 text-xs rounded border transition-colors';
@@ -195,11 +197,13 @@ const PreferenceToggle = () => {
         type="button"
         onClick={() => setPref('sio')}
         className={`${btnBase} ${activeSio ? 'bg-gray-700 border-gray-600 text-white' : 'bg-gray-900 border-gray-700 text-gray-300 hover:bg-gray-800'}`}
+        disabled={locked}
       >Socket.IO</button>
       <button
         type="button"
         onClick={() => setPref('ws')}
         className={`${btnBase} ${activeWs ? 'bg-gray-700 border-gray-600 text-white' : 'bg-gray-900 border-gray-700 text-gray-300 hover:bg-gray-800'}`}
+        disabled={locked}
       >WebSocket</button>
     </div>
   );

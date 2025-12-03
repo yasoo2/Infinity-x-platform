@@ -781,7 +781,15 @@ export const useJoeChat = () => {
           try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
         });
         sioRef.current = socket;
-        const useWs = (() => { try { return localStorage.getItem('joeUseWS') === 'true'; } catch { return false; } })();
+        const envPref = (typeof import.meta !== 'undefined' ? (import.meta.env?.VITE_CONN_PREF) : undefined);
+        const envUseWs = (typeof import.meta !== 'undefined' ? (import.meta.env?.VITE_USE_WS) : undefined);
+        const useWs = (() => {
+          const p = String(envPref||'').toLowerCase();
+          if (p === 'ws') return true;
+          if (p === 'sio') return false;
+          if (String(envUseWs||'').toLowerCase() === 'true') return true;
+          try { return localStorage.getItem('joeUseWS') === 'true'; } catch { return false; }
+        })();
         if (!useWs) {
           return;
         }
