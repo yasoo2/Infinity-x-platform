@@ -854,6 +854,12 @@ export const useJoeChat = () => {
           const code = e?.code;
           const reason = e?.reason || '';
           dispatch({ type: 'ADD_WS_LOG', payload: `[WS] Connection closed (code=${code} reason=${reason}). Reconnecting...` });
+          try {
+            const shouldDisableWs = (code === 1006) || /policy violation|origin not allowed|invalid token|malformed|signature/i.test(String(reason||''));
+            if (shouldDisableWs) {
+              localStorage.removeItem('joeUseWS');
+            }
+          } catch { /* noop */ }
           const shouldResetToken = code === 1008 || /invalid token|malformed|signature/i.test(reason);
           if (shouldResetToken) {
             try { localStorage.removeItem('sessionToken'); } catch { void 0; }
