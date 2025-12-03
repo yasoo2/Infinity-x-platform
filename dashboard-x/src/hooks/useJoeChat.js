@@ -775,22 +775,56 @@ export const useJoeChat = () => {
           return;
         }
         let wsUrl;
-        const httpBase = typeof apiClient?.defaults?.baseURL === 'string'
+        const baseCandidate = typeof apiClient?.defaults?.baseURL === 'string'
           ? apiClient.defaults.baseURL
           : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
-        let sanitizedHttp1 = String(httpBase).replace(/\/(api.*)?$/, '').replace(/\/+$/, '');
+        let wsBase;
         try {
-          const u = new URL(sanitizedHttp1);
+          const u = new URL(String(baseCandidate).replace(/\/(api.*)?$/, '').replace(/\/+$/, ''));
           const isLocal = (u.hostname === 'localhost' || u.hostname === '127.0.0.1');
           const devPorts = new Set(['4173','5173','3000']);
+          let host = u.host;
           if (isLocal && devPorts.has(u.port || '')) {
-            sanitizedHttp1 = `${u.protocol}//${u.hostname}:4000`;
+            host = `${u.hostname}:4000`;
           } else if (u.hostname === 'www.xelitesolutions.com' || u.hostname === 'xelitesolutions.com') {
-            sanitizedHttp1 = `${u.protocol}//api.xelitesolutions.com`;
+            host = 'api.xelitesolutions.com';
           }
-        } catch { /* noop */ }
-        const wsBase = sanitizedHttp1.replace(/^https/, 'wss').replace(/^http/, 'ws');
+          const proto = u.protocol === 'https:' ? 'wss' : 'ws';
+          wsBase = `${proto}://${host}`;
+        } catch {
+          let origin = (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
+          try {
+            const u2 = new URL(String(origin));
+            let host2 = u2.host;
+            if (u2.hostname === 'www.xelitesolutions.com' || u2.hostname === 'xelitesolutions.com') {
+              host2 = 'api.xelitesolutions.com';
+            }
+            const proto2 = u2.protocol === 'https:' ? 'wss' : 'ws';
+            wsBase = `${proto2}://${host2}`;
+          } catch {
+            wsBase = 'ws://localhost:4000';
+          }
+        }
         wsUrl = `${wsBase}/ws/joe-agent?token=${sessionToken}`;
+        let isValidWs = false;
+        try {
+          const u3 = new URL(wsUrl);
+          isValidWs = (u3.protocol === 'ws:' || u3.protocol === 'wss:') && !!u3.host;
+        } catch { isValidWs = false; }
+        if (!isValidWs) {
+          const hostFallback = (() => {
+            try {
+              const h = typeof window !== 'undefined' ? window.location.hostname : '';
+              return h && !(/localhost|127\.0\.0\.1/.test(h)) ? 'api.xelitesolutions.com' : 'localhost:4000';
+            } catch {
+              return 'localhost:4000';
+            }
+          })();
+          const protoFallback = (() => {
+            try { return (typeof window !== 'undefined' && window.location.protocol === 'https:') ? 'wss' : 'ws'; } catch { return 'ws'; }
+          })();
+          wsUrl = `${protoFallback}://${hostFallback}/ws/joe-agent?token=${sessionToken}`;
+        }
         console.warn('[Joe Agent] Connecting to WebSocket:', wsUrl.replace(/token=.*/, 'token=***'));
         ws.current = new WebSocket(wsUrl);
         const connectionTimeout = setTimeout(() => {
