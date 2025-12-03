@@ -97,7 +97,18 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   // Auto-scroll فقط إذا كان المستخدم في الأسفل بالفعل؛ واستخدم ضبط مباشر للتمرير لتقليل الاهتزاز
   useEffect(() => {
     scrollToBottomIfNeeded();
-  }, [messages.length, lastContent, currentConversation]);
+  }, [messages.length, lastContent]);
+
+  // عند تبديل المحادثة، انتقل دائماً إلى آخر رسالة
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      setShowScrollButton(false);
+    });
+  }, [currentConversation]);
 
   useEffect(() => {
     if (messages.length > prevMsgCountRef.current) {

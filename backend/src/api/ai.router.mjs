@@ -52,10 +52,19 @@ const aiRouterFactory = ({ optionalAuth }) => {
             setKey('openai', apiKey)
             return res.json({ success: true, provider: 'openai', models: ['gpt-4o', 'gpt-4o-mini'] })
           } catch (e2) {
-            const m = e2?.message || e?.message || ''
+            const m = String(e2?.message || e?.message || '')
+            const status = Number(e2?.status || e2?.response?.status || e?.status || e?.response?.status || 0)
             const insufficient = /insufficient permissions|missing scopes|scope/i.test(m)
             if (insufficient) {
               return res.status(401).json({ success: false, error: 'INSUFFICIENT_SCOPES', code: 'INSUFFICIENT_SCOPES', message: 'The API key lacks required scope (model.request). Create a non-restricted key or adjust organization/project roles.' })
+            }
+            const rateLimited = status === 429 || /rate limit|too many requests/i.test(m)
+            if (rateLimited) {
+              return res.status(429).json({ success: false, error: 'RATE_LIMITED', code: 'RATE_LIMITED', message: m || 'RATE_LIMITED' })
+            }
+            const upstreamDown = (status >= 500 && status < 600) || /bad gateway|gateway|timeout|timed out|fetch failed|ECONNRESET|ENOTFOUND|EAI_AGAIN/i.test(m)
+            if (upstreamDown) {
+              return res.status(502).json({ success: false, error: 'UPSTREAM_UNAVAILABLE', code: 'UPSTREAM_UNAVAILABLE', message: m || 'OPENAI_UNAVAILABLE' })
             }
             return res.status(400).json({ success: false, error: 'OPENAI_VERIFY_FAILED', code: 'OPENAI_VERIFY_FAILED', message: m || 'OPENAI_VERIFY_FAILED' })
           }
@@ -73,10 +82,19 @@ const aiRouterFactory = ({ optionalAuth }) => {
           setKey('gemini', apiKey)
           return res.json({ success: true, provider: 'gemini', models: ['gemini-1.5-pro-latest'] })
         } catch (e) {
-          const m = e?.message || ''
+          const m = String(e?.message || '')
+          const status = Number(e?.status || e?.response?.status || 0)
           const insufficient = /insufficient permissions|missing scopes|scope/i.test(m)
           if (insufficient) {
             return res.status(401).json({ success: false, error: 'INSUFFICIENT_SCOPES', code: 'INSUFFICIENT_SCOPES', message: 'The API key lacks required scope. Ensure the key allows model requests and your role has sufficient permissions.' })
+          }
+          const rateLimited = status === 429 || /rate limit|too many requests/i.test(m)
+          if (rateLimited) {
+            return res.status(429).json({ success: false, error: 'RATE_LIMITED', code: 'RATE_LIMITED', message: m || 'RATE_LIMITED' })
+          }
+          const upstreamDown = (status >= 500 && status < 600) || /bad gateway|gateway|timeout|timed out|fetch failed|ECONNRESET|ENOTFOUND|EAI_AGAIN/i.test(m)
+          if (upstreamDown) {
+            return res.status(502).json({ success: false, error: 'UPSTREAM_UNAVAILABLE', code: 'UPSTREAM_UNAVAILABLE', message: m || 'GEMINI_UNAVAILABLE' })
           }
           return res.status(400).json({ success: false, error: 'GEMINI_VERIFY_FAILED', code: 'GEMINI_VERIFY_FAILED', message: m || 'GEMINI_VERIFY_FAILED' })
         }
