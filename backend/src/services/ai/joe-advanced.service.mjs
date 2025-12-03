@@ -66,12 +66,23 @@ const joeEvents = new JoeEventEmitter();
  * @param {Array<Object>} openAITools - The array of OpenAI tool schemas.
  * @returns {Array<Object>} The array of Gemini function declarations.
  */
+function sanitizeJsonSchemaForGemini(schema) {
+  if (Array.isArray(schema)) return schema.map(sanitizeJsonSchemaForGemini);
+  if (!schema || typeof schema !== 'object') return schema;
+  const out = {};
+  for (const [key, value] of Object.entries(schema)) {
+    if (key === 'additionalProperties' || key === 'optional') continue;
+    out[key] = sanitizeJsonSchemaForGemini(value);
+  }
+  return out;
+}
+
 function adaptToolsForGemini(openAITools) {
-    return openAITools.map(tool => ({
-        name: tool.function.name,
-        description: tool.function.description,
-        parameters: tool.function.parameters
-    }));
+  return openAITools.map(tool => ({
+    name: tool.function.name,
+    description: tool.function.description,
+    parameters: sanitizeJsonSchemaForGemini(tool.function.parameters)
+  }));
 }
 
 function shouldAugment(msg) {
