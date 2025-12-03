@@ -993,9 +993,21 @@ export const useJoeChat = () => {
         connect();
       }
     };
+    const onReconnect = () => {
+      try { ws.current?.close(); } catch { void 0; }
+      try {
+        if (sioRef.current && sioRef.current.connected) {
+          try { sioRef.current.disconnect(); } catch { /* noop */ }
+        }
+      } catch { /* noop */ }
+      reconnectAttempts.current = 0;
+      connect();
+    };
     window.addEventListener('online', onOnline);
+    window.addEventListener('joe:reconnect', onReconnect);
     return () => {
       window.removeEventListener('online', onOnline);
+      window.removeEventListener('joe:reconnect', onReconnect);
       if (reconnectTimer.current) {
         clearTimeout(reconnectTimer.current);
         reconnectTimer.current = null;

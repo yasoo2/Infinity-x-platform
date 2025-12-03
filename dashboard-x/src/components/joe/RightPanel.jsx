@@ -112,6 +112,10 @@ const RightPanel = ({ isProcessing, plan, forceStatus = false, wsConnected = fal
                 <h4 className="font-semibold text-white">WebSocket</h4>
               </div>
               <p className="text-sm text-gray-400">{wsConnected ? 'Connection active' : 'Disconnected'}</p>
+              <div className="mt-3">
+                <div className="text-xs text-gray-400 mb-1">Preferred connection</div>
+                <PreferenceToggle />
+              </div>
             </div>
 
             <div className="p-4 bg-gray-800/80 rounded-lg border border-gray-700">
@@ -166,6 +170,39 @@ RightPanel.propTypes = {
   plan: PropTypes.array,
   forceStatus: PropTypes.bool,
   wsConnected: PropTypes.bool,
+};
+
+const PreferenceToggle = () => {
+  const [pref, setPref] = useState(() => {
+    try { return localStorage.getItem('joeUseWS') === 'true' ? 'ws' : 'sio'; } catch { return 'sio'; }
+  });
+  useEffect(() => {
+    try {
+      if (pref === 'ws') {
+        localStorage.setItem('joeUseWS', 'true');
+      } else {
+        localStorage.removeItem('joeUseWS');
+      }
+      window.dispatchEvent(new CustomEvent('joe:reconnect'));
+    } catch { /* noop */ }
+  }, [pref]);
+  const btnBase = 'px-2 py-1 text-xs rounded border transition-colors';
+  const activeWs = pref === 'ws';
+  const activeSio = pref === 'sio';
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={() => setPref('sio')}
+        className={`${btnBase} ${activeSio ? 'bg-gray-700 border-gray-600 text-white' : 'bg-gray-900 border-gray-700 text-gray-300 hover:bg-gray-800'}`}
+      >Socket.IO</button>
+      <button
+        type="button"
+        onClick={() => setPref('ws')}
+        className={`${btnBase} ${activeWs ? 'bg-gray-700 border-gray-600 text-white' : 'bg-gray-900 border-gray-700 text-gray-300 hover:bg-gray-800'}`}
+      >WebSocket</button>
+    </div>
+  );
 };
 
 export default RightPanel;
