@@ -684,6 +684,17 @@ export const useJoeChat = () => {
           dispatch({ type: 'SET_WS_CONNECTED', payload: false });
           dispatch({ type: 'STOP_PROCESSING' });
           dispatch({ type: 'ADD_WS_LOG', payload: `[SIO] Disconnected: ${String(reason||'')}` });
+          try {
+            const msg = String(reason || '').toLowerCase();
+            if (/transport error/i.test(msg)) {
+              try { socket.io.opts.transports = ['websocket']; socket.connect(); } catch { /* noop */ }
+              try {
+                const h = window.location.hostname;
+                const isProd = h && !(/localhost|127\.0\.0\.1/.test(h));
+                if (isProd) { localStorage.setItem('joeUseWS', 'true'); window.dispatchEvent(new CustomEvent('joe:reconnect')); }
+              } catch { /* noop */ }
+            }
+          } catch { /* noop */ }
         });
         socket.on('connect_error', async (err) => {
           const msg = String(err?.message || 'connect_error');
