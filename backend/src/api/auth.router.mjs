@@ -56,6 +56,47 @@ const authRouterFactory = ({ db }) => {
         }
     });
 
+    /**
+     * @route POST /api/v1/auth/login
+     * @description Logs in a user.
+     * @access Public
+     */
+    router.post('/login', async (req, res) => {
+        try {
+            const { email, password } = req.body;
+
+            if (!email || !password) {
+                return res.status(400).json({ success: false, error: 'Email and password are required.' });
+            }
+
+            const user = await User.findOne({ email: email.toLowerCase() });
+            if (!user) {
+                return res.status(401).json({ success: false, error: 'Invalid credentials.' });
+            }
+
+            const isMatch = await bcrypt.compare(password, user.password);
+            if (!isMatch) {
+                return res.status(401).json({ success: false, error: 'Invalid credentials.' });
+            }
+
+            const token = generateToken(user);
+
+            res.json({
+                success: true,
+                token,
+                user: {
+                    id: user._id,
+                    email: user.email,
+                    role: user.role,
+                },
+            });
+
+        } catch (error) {
+            console.error('❌ Login endpoint error:', error);
+            res.status(500).json({ success: false, error: 'An internal server error occurred.' });
+        }
+    });
+
 
 
     return router;

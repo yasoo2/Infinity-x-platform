@@ -9,6 +9,7 @@ import Build from './pages/Build';
 import Command from './pages/Command';
 import Joe from './pages/Joe';
 import Home from './pages/Home';
+import LoginPage from './pages/Login';
 import MonitoringPage from './pages/MonitoringPage';
 import NotFound from './pages/NotFound';
 import Overview from './pages/Overview';
@@ -31,7 +32,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   if (!isAuthenticated) {
     // Redirect to the external login page/card
     // Assuming the external login is handled by the root domain or a specific path
-    return <Navigate to="/" replace />; 
+    return <Navigate to="/login" replace />;
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
@@ -47,6 +48,7 @@ const AppRoutes = () => {
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<Home />} />
+        <Route path="/login" element={<LoginPage />} />
 
         {/* Protected Routes (Requires Authentication) */}
         <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>

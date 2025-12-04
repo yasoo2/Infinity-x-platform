@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ROLES } from '../pages/constants';
+import { login as apiLogin } from '../api/auth';
 
 // Placeholder for a real authentication hook
 const useAuth = () => {
@@ -25,25 +26,19 @@ const useAuth = () => {
   }, []);
 
   const login = async (email, password) => {
-    // Placeholder for API call to /api/v1/auth/login
-    // On success:
-    // localStorage.setItem('sessionToken', response.token);
-    // setUser(response.user);
-    // setIsAuthenticated(true);
-    // return true;
-    
-    // For now, we simulate success for the super admin
-    if (email === 'info.auraaluxury@gmail.com' && password === 'younes2025') {
-        localStorage.setItem('sessionToken', 'simulated-super-admin-token');
-        setUser({
-            email: 'info.auraaluxury@gmail.com',
-            role: ROLES.SUPER_ADMIN,
-            id: 'super-admin-id-123'
-        });
+    try {
+      const { success, token, user } = await apiLogin(email, password);
+      if (success) {
+        localStorage.setItem('sessionToken', token);
+        setUser(user);
         setIsAuthenticated(true);
         return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Login failed:', error);
+      return false;
     }
-    return false;
   };
 
   // const logout = () => { // Removed as per user request
