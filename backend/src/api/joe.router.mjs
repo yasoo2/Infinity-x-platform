@@ -18,6 +18,7 @@ const joeRouterFactory = ({ requireRole, optionalAuth, db }) => {
       const mongoDb = await db();
       const { commandText, lang, voice } = req.body;
       const sessionToken = req.session.token;
+      const userId = req.user?._id || null;
 
       if (!commandText) {
         return res.status(400).json({ error: 'MISSING_FIELDS', message: 'commandText is required' });
@@ -27,7 +28,7 @@ const joeRouterFactory = ({ requireRole, optionalAuth, db }) => {
       const result = await mongoDb.collection('joe_commands').insertOne({
         createdAt: now,
         sessionToken, // Link to the session
-        userId: req.user._id, // Link to the user
+        userId, // Link to the user (nullable for guests)
         lang: lang || 'en',
         voice: !!voice,
         commandText,
@@ -38,7 +39,7 @@ const joeRouterFactory = ({ requireRole, optionalAuth, db }) => {
         ts: now,
         action: 'RECEIVED_COMMAND',
         detail: commandText,
-        userId: req.user._id
+        userId
       });
 
       res.status(202).json({
