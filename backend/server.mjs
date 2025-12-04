@@ -201,58 +201,59 @@ async function setupDependencies() {
         await setupSuperAdmin(() => Promise.resolve(db));
         planningSystem = new PlanningSystem(db);
         schedulingSystem = new SchedulingSystem(db);
+
+        const sandboxManager = await new SandboxManager().initializeConnections();
+        const memoryManager = new MemoryManager();
+        // Local LLaMA removed from Joe system
+
+        const dependencies = {
+            db,
+            sandboxManager,
+            memoryManager,
+            eventBus,
+            planningSystem,
+            schedulingSystem,
+            requireRole: requireRole(db),
+            optionalAuth: optionalAuth(db),
+            liveStreamingService,
+            JWT_SECRET: process.env.JWT_SECRET || 'a-very-weak-secret-for-dev',
+        };
+
+        await toolManager.initialize(dependencies);
+        dependencies.toolManager = toolManager;
+        await collaborationSystem.initialize(server);
+        dependencies.io = collaborationSystem.io;
+        dependencies.collaborationSystem = collaborationSystem;
+        const discoveryTools = (typeof toolDiscoveryFactory === 'function') ? toolDiscoveryFactory(dependencies) : toolDiscoveryFactory;
+        const integrationTools = (typeof toolIntegrationFactory === 'function') ? toolIntegrationFactory(dependencies) : toolIntegrationFactory;
+        const pipIntegrationTools = (typeof toolPipIntegrationFactory === 'function') ? toolPipIntegrationFactory({ ...dependencies, toolManager }) : toolPipIntegrationFactory;
+        const bulkSeederTools = (typeof toolBulkSeederFactory === 'function') ? toolBulkSeederFactory({ ...dependencies, toolManager }) : toolBulkSeederFactory;
+        const diagnosticsTools = (typeof toolDiagnosticsFactory === 'function') ? toolDiagnosticsFactory(dependencies) : toolDiagnosticsFactory;
+        const searchTools = (typeof toolSearchFactory === 'function') ? toolSearchFactory(dependencies) : toolSearchFactory;
+        const refactorTools = (typeof toolRefactorFactory === 'function') ? toolRefactorFactory(dependencies) : toolRefactorFactory;
+        const autoFixTools = (typeof toolAutoFixFactory === 'function') ? toolAutoFixFactory(dependencies) : toolAutoFixFactory;
+        const systemConnectorTools = (typeof toolSystemConnectorsFactory === 'function') ? toolSystemConnectorsFactory(dependencies) : toolSystemConnectorsFactory;
+        toolManager._registerModule(discoveryTools);
+        toolManager._registerModule(integrationTools);
+        toolManager._registerModule(pipIntegrationTools);
+        toolManager._registerModule(bulkSeederTools);
+        toolManager._registerModule(diagnosticsTools);
+        toolManager._registerModule(searchTools);
+        toolManager._registerModule(refactorTools);
+        toolManager._registerModule(autoFixTools);
+        toolManager._registerModule(systemConnectorTools);
+        const joeAgentServer = new JoeAgentWebSocketServer(server, dependencies);
+        dependencies.joeAgentServer = joeAgentServer;
+        const browserWSServer = new BrowserWebSocketServer(server);
+        dependencies.browserWSServer = browserWSServer;
+        const liveStreamWSServer = new LiveStreamWebSocketServer(server);
+        dependencies.liveStreamWSServer = liveStreamWSServer;
+
+        return dependencies;
     } catch (error) {
-        console.error('Could not connect to MongoDB. Continuing without database connection.', error);
-        db = null;
+        console.error('❌ Could not initialize dependencies. Aborting startup.', error);
+        throw error;
     }
-    const sandboxManager = await new SandboxManager().initializeConnections();
-    const memoryManager = new MemoryManager();
-    // Local LLaMA removed from Joe system
-    
-    const dependencies = {
-        db,
-        sandboxManager,
-        memoryManager,
-        eventBus,
-        planningSystem,
-        schedulingSystem,
-        requireRole: requireRole(db),
-        optionalAuth: optionalAuth(db),
-        liveStreamingService,
-        JWT_SECRET: process.env.JWT_SECRET || 'a-very-weak-secret-for-dev',
-    };
-
-    await toolManager.initialize(dependencies);
-    dependencies.toolManager = toolManager;
-    await collaborationSystem.initialize(server);
-    dependencies.io = collaborationSystem.io;
-    dependencies.collaborationSystem = collaborationSystem;
-    const discoveryTools = (typeof toolDiscoveryFactory === 'function') ? toolDiscoveryFactory(dependencies) : toolDiscoveryFactory;
-    const integrationTools = (typeof toolIntegrationFactory === 'function') ? toolIntegrationFactory(dependencies) : toolIntegrationFactory;
-    const pipIntegrationTools = (typeof toolPipIntegrationFactory === 'function') ? toolPipIntegrationFactory({ ...dependencies, toolManager }) : toolPipIntegrationFactory;
-    const bulkSeederTools = (typeof toolBulkSeederFactory === 'function') ? toolBulkSeederFactory({ ...dependencies, toolManager }) : toolBulkSeederFactory;
-    const diagnosticsTools = (typeof toolDiagnosticsFactory === 'function') ? toolDiagnosticsFactory(dependencies) : toolDiagnosticsFactory;
-    const searchTools = (typeof toolSearchFactory === 'function') ? toolSearchFactory(dependencies) : toolSearchFactory;
-    const refactorTools = (typeof toolRefactorFactory === 'function') ? toolRefactorFactory(dependencies) : toolRefactorFactory;
-    const autoFixTools = (typeof toolAutoFixFactory === 'function') ? toolAutoFixFactory(dependencies) : toolAutoFixFactory;
-    const systemConnectorTools = (typeof toolSystemConnectorsFactory === 'function') ? toolSystemConnectorsFactory(dependencies) : toolSystemConnectorsFactory;
-    toolManager._registerModule(discoveryTools);
-    toolManager._registerModule(integrationTools);
-    toolManager._registerModule(pipIntegrationTools);
-    toolManager._registerModule(bulkSeederTools);
-    toolManager._registerModule(diagnosticsTools);
-    toolManager._registerModule(searchTools);
-    toolManager._registerModule(refactorTools);
-    toolManager._registerModule(autoFixTools);
-    toolManager._registerModule(systemConnectorTools);
-    const joeAgentServer = new JoeAgentWebSocketServer(server, dependencies);
-    dependencies.joeAgentServer = joeAgentServer;
-    const browserWSServer = new BrowserWebSocketServer(server);
-    dependencies.browserWSServer = browserWSServer;
-    const liveStreamWSServer = new LiveStreamWebSocketServer(server);
-    dependencies.liveStreamWSServer = liveStreamWSServer;
-
-    return dependencies;
 }
 
 async function applyRoutes(dependencies) {
@@ -329,6 +330,9 @@ async function gracefulShutdown(signal) {
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-startServer();
+if (process.env.NODE_ENV !== 'test') {
+    startServer();
+}
 
+export { setupDependencies, startServer };
 export default app;
