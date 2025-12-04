@@ -135,4 +135,15 @@ describe('server startup', () => {
     expect(failingInitializer).toHaveBeenCalledTimes(1);
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
+
+  it('preserves the original startup error if the exit handler throws', async () => {
+    const failingInitializer = jest.fn().mockRejectedValue(new Error('boot failure'));
+    const exitSpy = jest.fn(() => {
+      throw new Error('exit failed');
+    });
+
+    await expect(startServer({ dependencyInitializer: failingInitializer, exit: exitSpy })).rejects.toThrow('boot failure');
+
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
 });

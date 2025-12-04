@@ -323,7 +323,11 @@ async function startServer({ dependencyInitializer = setupDependencies, exit = p
 
   } catch (error) {
     console.error('❌ Fatal: Failed to start server:', error);
-    exit(1);
+    try {
+      await Promise.resolve(exit(1));
+    } catch (exitError) {
+      console.error('⚠️ Exit handler failed:', exitError);
+    }
     throw error;
   }
 }
