@@ -167,26 +167,7 @@ async function processMessage(userId, message, sessionId, { model = null, lang }
     }
 
     if (model === '__disabled__') {
-        const availableTools2 = toolManager.getToolSchemas();
-        const llm = _dependencies.localLlamaService;
-        let planText = '';
-        try {
-          const sig = availableTools2.map(t => `${t.function.name}: ${t.function.description}`).join('\n');
-          const prompt = `Create JSON plan with key "steps" using available tools. Each step: {step, thought, tool, params}. Instruction: ${message}. Tools: \n${sig}`;
-          const parts = [];
-          await llm.stream([{ role: 'user', content: prompt }], (p) => { parts.push(String(p||'')); }, { temperature: 0.2, maxTokens: 1024 });
-          planText = parts.join('');
-        } catch { planText = ''; }
-        let planObj = null;
-        try { planObj = JSON.parse(planText); } catch {
-          try {
-            const s = String(planText || '');
-            const i = s.indexOf('{');
-            const j = s.lastIndexOf('}');
-            if (i >= 0 && j > i) { planObj = JSON.parse(s.slice(i, j + 1)); }
-          } catch { planObj = null; }
-        }
-        const steps = Array.isArray(planObj?.steps) ? planObj.steps : [];
+        const steps = [];
         if (steps.length) {
           const execOne = async (st) => {
             const fnName = st?.tool || st?.name;
@@ -500,29 +481,7 @@ ${transcript.slice(0, 8000)}`;
                 if (good.length) {
                   finalContent = good.join('\n\n');
                 } else {
-                  try {
-                    const llm = _dependencies.localLlamaService;
-                    if (!llm?.isReady?.()) {
-                      try { llm.startInitialize(); } catch (e9) { void e9; }
-                      const startTs = Date.now();
-                      while (Date.now() - startTs < 12000) {
-                        if (llm.isReady()) break;
-                        if (llm.loadingStage === 'missing_model' || llm.loadingStage === 'error') break;
-                        await new Promise(res => setTimeout(res, 300));
-                      }
-                    }
-                    if (llm?.isReady?.()) {
-                      const llmMessages = [systemPrompt, ...conversationHistory.map(item => item.command).reverse(), userMessage];
-                      const parts = [];
-                      await llm.stream(llmMessages, (p) => { parts.push(String(p || '')); }, { temperature: 0.4, maxTokens: 1024 });
-                      finalContent = parts.join('');
-                    } else {
-                      finalContent = targetLang === 'ar' ? 'يرجى تفعيل مزود الذكاء من زر مزودين.' : 'Please activate an AI provider from the Providers menu.';
-                    }
-                } catch (e10) {
-                  void e10;
-                  finalContent = targetLang === 'ar' ? 'تعذّر استخدام المزود الحالي، يرجى التحقق من المفتاح أو تفعيل مزود آخر.' : 'Provider unavailable; please check the key or activate another provider.';
-                }
+                  finalContent = targetLang === 'ar' ? 'يرجى تفعيل مزود الذكاء (OpenAI أو Gemini) من مزودين.' : 'Please activate an AI provider (OpenAI or Gemini) from Providers.';
               }
             }
           }
@@ -597,29 +556,7 @@ ${transcript.slice(0, 8000)}`;
             if (good.length) {
               finalContent = good.join('\n\n');
             } else {
-              try {
-                const llm = _dependencies.localLlamaService;
-                if (!llm?.isReady?.()) {
-                  try { llm.startInitialize(); } catch (e17) { void e17; }
-                  const startTs = Date.now();
-                  while (Date.now() - startTs < 12000) {
-                    if (llm.isReady()) break;
-                    if (llm.loadingStage === 'missing_model' || llm.loadingStage === 'error') break;
-                    await new Promise(res => setTimeout(res, 300));
-                  }
-                }
-                if (llm?.isReady?.()) {
-                  const llmMessages = [systemPrompt, ...conversationHistory.map(item => item.command).reverse(), userMessage];
-                  const parts = [];
-                  await llm.stream(llmMessages, (p) => { parts.push(String(p || '')); }, { temperature: 0.4, maxTokens: 1024 });
-                  finalContent = parts.join('');
-                } else {
-                  finalContent = targetLang === 'ar' ? 'النموذج المحلي غير جاهز حالياً.' : 'Local model is not ready.';
-                }
-              } catch (e18) {
-                void e18;
-                finalContent = targetLang === 'ar' ? 'تعذّر استخدام النموذج المحلي حالياً.' : 'Unable to use local model temporarily.';
-              }
+              finalContent = targetLang === 'ar' ? 'يرجى تفعيل مزود الذكاء (OpenAI أو Gemini) من مزودين.' : 'Please activate an AI provider (OpenAI or Gemini) from Providers.';
             }
           }
           }
@@ -709,28 +646,7 @@ ${transcript.slice(0, 8000)}`;
         if (pieces.length) {
           finalContent = pieces.filter(Boolean).join('\n\n');
         } else {
-          try {
-            const llm = _dependencies.localLlamaService;
-            if (!llm?.isReady?.()) {
-              try { llm.startInitialize(); } catch { /* noop */ }
-              const startTs = Date.now();
-              while (Date.now() - startTs < 12000) { // wait up to 12s
-                if (llm.isReady()) break;
-                if (llm.loadingStage === 'missing_model' || llm.loadingStage === 'error') break;
-                await new Promise(res => setTimeout(res, 300));
-              }
-            }
-            if (llm?.isReady?.()) {
-              const llmMessages = [systemPrompt, ...conversationHistory.map(item => item.command).reverse(), userMessage];
-              const parts = [];
-              await llm.stream(llmMessages, (p) => { parts.push(String(p || '')); }, { temperature: 0.4, maxTokens: 1024 });
-              finalContent = parts.join('');
-            } else {
-              finalContent = targetLang === 'ar' ? 'يرجى تفعيل مزود الذكاء من زر مزودين.' : 'Please activate an AI provider from the Providers menu.';
-            }
-          } catch {
-            finalContent = targetLang === 'ar' ? 'تعذّر استخدام المزود الحالي، يرجى التحقق من المفتاح أو تفعيل مزود آخر.' : 'Provider unavailable; please check the key or activate another provider.';
-          }
+          finalContent = targetLang === 'ar' ? 'يرجى تفعيل مزود الذكاء (OpenAI أو Gemini) من مزودين.' : 'Please activate an AI provider (OpenAI or Gemini) from Providers.';
         }
     }
 
