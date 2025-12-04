@@ -48,9 +48,7 @@ export async function connectDB() {
 
     return dbInstance;
   } catch (error) {
-    console.error('❌ Failed to connect to MongoDB:', error.message);
-    // Do not exit the process, allow the app to run without DB if possible, 
-    // but log the error clearly.
-    // process.exit(1); 
+    console.error('❌ Failed to connect to MongoDB:', error);
+    throw error;
   }
 }
