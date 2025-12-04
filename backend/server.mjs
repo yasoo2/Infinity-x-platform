@@ -222,6 +222,9 @@ async function setupDependencies() {
         await toolManager.initialize(dependencies);
         dependencies.toolManager = toolManager;
         await collaborationSystem.initialize(server);
+        if (!collaborationSystem.io) {
+            throw new Error('Socket.IO failed to initialize');
+        }
         dependencies.io = collaborationSystem.io;
         dependencies.collaborationSystem = collaborationSystem;
         const discoveryTools = (typeof toolDiscoveryFactory === 'function') ? toolDiscoveryFactory(dependencies) : toolDiscoveryFactory;

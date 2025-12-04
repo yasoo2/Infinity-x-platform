@@ -4,8 +4,8 @@ import { jest } from '@jest/globals';
 
 process.env.NODE_ENV = 'test';
 
-const mockInitMongo = jest.fn().mockResolvedValue('db');
-const mockConnectDB = jest.fn().mockRejectedValue(new Error('connection failed'));
+const mockInitMongo = jest.fn();
+const mockConnectDB = jest.fn();
 
 jest.unstable_mockModule('../src/core/database.mjs', () => ({
   initMongo: mockInitMongo,
@@ -119,11 +119,29 @@ jest.unstable_mockModule('../src/services/liveStreamWebSocket.mjs', () => ({
 
 const { setupDependencies, startServer } = await import('../server.mjs');
 
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockInitMongo.mockResolvedValue('db');
+  mockConnectDB.mockRejectedValue(new Error('connection failed'));
+});
+
 describe('server startup', () => {
   it('fails fast when Mongo connection cannot be established', async () => {
     await expect(setupDependencies()).rejects.toThrow('connection failed');
     expect(mockConnectDB).toHaveBeenCalledTimes(1);
     expect(mockInitMongo).toHaveBeenCalledTimes(1);
+  });
+
+  it('throws when Socket.IO fails to initialize', async () => {
+    const { collaborationSystem } = await import('../src/systems/collaboration.service.mjs');
+
+    mockConnectDB.mockResolvedValueOnce('db');
+    collaborationSystem.io = null;
+    collaborationSystem.initialize.mockResolvedValue(undefined);
+
+    await expect(setupDependencies()).rejects.toThrow('Socket.IO failed to initialize');
+
+    collaborationSystem.io = {};
   });
 
   it('exits the process when startup fails', async () => {
