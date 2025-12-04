@@ -222,6 +222,9 @@ async function setupDependencies() {
         await toolManager.initialize(dependencies);
         dependencies.toolManager = toolManager;
         await collaborationSystem.initialize(server);
+        if (!collaborationSystem.io) {
+            throw new Error('Socket.IO failed to initialize');
+        }
         dependencies.io = collaborationSystem.io;
         dependencies.collaborationSystem = collaborationSystem;
         const discoveryTools = (typeof toolDiscoveryFactory === 'function') ? toolDiscoveryFactory(dependencies) : toolDiscoveryFactory;
@@ -323,12 +326,7 @@ async function startServer({ dependencyInitializer = setupDependencies, exit = p
 
   } catch (error) {
     console.error('❌ Fatal: Failed to start server:', error);
-    try {
-      await Promise.resolve(exit(1));
-    } catch (exitError) {
-      console.error('⚠️ Exit handler failed:', exitError);
-    }
-    throw error;
+    exit(1);
   }
 }
 
