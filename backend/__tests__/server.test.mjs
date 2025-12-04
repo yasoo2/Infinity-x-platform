@@ -117,12 +117,22 @@ jest.unstable_mockModule('../src/services/liveStreamWebSocket.mjs', () => ({
   default: class LiveStreamWebSocketServer {},
 }));
 
-const { setupDependencies } = await import('../server.mjs');
+const { setupDependencies, startServer } = await import('../server.mjs');
 
 describe('server startup', () => {
   it('fails fast when Mongo connection cannot be established', async () => {
     await expect(setupDependencies()).rejects.toThrow('connection failed');
     expect(mockConnectDB).toHaveBeenCalledTimes(1);
     expect(mockInitMongo).toHaveBeenCalledTimes(1);
+  });
+
+  it('exits the process when startup fails', async () => {
+    const failingInitializer = jest.fn().mockRejectedValue(new Error('boot failure'));
+    const exitSpy = jest.fn();
+
+    await startServer({ dependencyInitializer: failingInitializer, exit: exitSpy });
+
+    expect(failingInitializer).toHaveBeenCalledTimes(1);
+    expect(exitSpy).toHaveBeenCalledWith(1);
   });
 });

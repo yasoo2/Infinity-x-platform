@@ -279,10 +279,18 @@ async function applyRoutes(dependencies) {
   }
 }
 
-async function startServer() {
+/**
+ * Bootstraps the application server.
+ *
+ * @param {Object} [options]
+ * @param {Function} [options.dependencyInitializer=setupDependencies] Allows tests to inject a failing initializer.
+ * @param {Function} [options.exit=process.exit] Optional exit handler for testability.
+ * @returns {Promise<unknown>} resolved dependency container when startup succeeds.
+ */
+async function startServer({ dependencyInitializer = setupDependencies, exit = process.exit } = {}) {
   try {
     console.log('🔄 Starting server setup...');
-    const dependencies = await setupDependencies();
+    const dependencies = await dependencyInitializer();
     setupAuth(dependencies.db);
     await applyRoutes(dependencies);
 
@@ -311,9 +319,11 @@ async function startServer() {
       }
     });
 
+    return dependencies;
+
   } catch (error) {
     console.error('❌ Fatal: Failed to start server:', error);
-    process.exit(1);
+    exit(1);
   }
 }
 
