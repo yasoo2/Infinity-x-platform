@@ -8,7 +8,7 @@ const sandboxToolFactory = (dependencies) => {
   const { sandboxManager } = dependencies;
 
   if (!sandboxManager) {
-    throw new Error('SandboxManager dependency is missing for sandboxTool.');
+    return {}
   }
 
   const executeInSandbox = async ({ code, context }) => {

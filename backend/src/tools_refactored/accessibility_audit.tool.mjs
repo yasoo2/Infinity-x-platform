@@ -20,6 +20,18 @@ class AccessibilityAuditTool {
         required: ["url"]
       }
     }
+    this.compareAccessibilityReports.metadata = {
+      name: "compareAccessibilityReports",
+      description: "Compares two accessibility audit reports and summarizes regressions and improvements.",
+      parameters: {
+        type: "object",
+        properties: {
+          before: { type: "object", description: "Previous report object." },
+          after: { type: "object", description: "New report object." }
+        },
+        required: ["before","after"]
+      }
+    }
   }
 
   async auditAccessibility({ url, timeout = 15000, limitPerCategory = 50 }) {
@@ -181,6 +193,30 @@ class AccessibilityAuditTool {
     } finally {
       if (browser) await browser.close()
     }
+  }
+
+  async compareAccessibilityReports({ before, after }) {
+    function count(r){
+      const x = r?.issues || {}
+      return {
+        missingAltImages: (x.missingAltImages || []).length,
+        inputsWithoutLabels: (x.inputsWithoutLabels || []).length,
+        lowContrastText: (x.lowContrastText || []).length,
+        keyboardIssues: (x.keyboardIssues || []).length,
+        docMiss: Number(Boolean(x.document?.missingLang)) + Number(Boolean(x.document?.missingTitle)) + Number(Boolean(!(x.document?.landmarks||{}).nav || !(x.document?.landmarks||{}).main || !(x.document?.landmarks||{}).footer))
+      }
+    }
+    const b = count(before)
+    const a = count(after)
+    const diff = {
+      missingAltImages: a.missingAltImages - b.missingAltImages,
+      inputsWithoutLabels: a.inputsWithoutLabels - b.inputsWithoutLabels,
+      lowContrastText: a.lowContrastText - b.lowContrastText,
+      keyboardIssues: a.keyboardIssues - b.keyboardIssues,
+      documentIssues: a.docMiss - b.docMiss
+    }
+    const summary = Object.entries(diff).map(([k,v]) => `${k}: ${v>0? 'regressed +'+v : v<0? 'improved '+v : 'no change'}`).join('; ')
+    return { success: true, diff, summary }
   }
 }
 
