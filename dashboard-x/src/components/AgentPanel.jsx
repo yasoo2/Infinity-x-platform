@@ -1,5 +1,9 @@
-  import React, { useEffect, useRef, useState, useCallback } from 'react';
-  import { Play, Copy, Trash2, Loader2, Wifi, WifiOff, RefreshCcw } from 'lucide-react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import PropTypes from 'prop-types';
+import { Play, Copy, Trash2, Loader2, Wifi, WifiOff, RefreshCcw } from 'lucide-react';
+import { useSessionToken } from '../hooks/useSessionToken';
+import apiClient from '../api/client';
+import { connectWebSocket, disconnectWebSocket } from '../utils/websocket';
 
   // افتراض أن هذه الدوال موجودة في ملفات utils/websocket.ts و utils/api.ts
   // ويجب أن تكون متوافقة مع التوقيعات التالية:
@@ -11,40 +15,13 @@
    * @param {() => void} onClose - دالة تُستدعى عند إغلاق الاتصال.
    * @returns {WebSocket | null} مثيل WebSocket المتصل.
    */
-  const connectWebSocket = (onMessage, onOpen, onClose) => {
-    // يجب عليك تعديل هذا الجزء ليتناسب مع طريقة اتصالك بـ WebSocket
-    // مثال:
-    // تم تصحيح المسار ليتطابق مع مسار خادم Joe Agent
-    const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://api.xelitesolutions.com';
-    const wsBase = apiBase.replace(/^http/, 'ws');
-    const wsUrl = `${wsBase}/ws/joe-agent`; // لا حاجة لتوكين هنا
-    const ws = new WebSocket(wsUrl);
-    ws.onopen = onOpen;
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        onMessage(data);
-      } catch (e) {
-        onMessage(event.data); // في حال كانت الرسالة نصًا خامًا
-      }
-    };
-    ws.onclose = onClose;
-    ws.onerror = (error) => {
-      console.error('WebSocket Error:', error);
-      onClose(); // استدعاء onClose عند حدوث خطأ أيضًا
-    };
-    return ws;
-  };
+  // استخدام وحدة WebSocket الموحدة
 
   /**
    * يقطع اتصال WebSocket.
    * @param {WebSocket | null} ws - مثيل WebSocket لقطعه.
    */
-  const disconnectWebSocket = (ws) => {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.close();
-    }
-  };
+  // قطع الاتصال عبر الوحدة الموحدة
 
   /**
    * يرسل طلب API.
@@ -52,16 +29,7 @@
    * @param {RequestInit} options - خيارات طلب Fetch.
    * @returns {Promise<any>} استجابة API.
    */
-  const apiRequest = async (url, options) => {
-    // يجب عليك تعديل هذا الجزء ليتناسب مع طريقة طلبك لـ API
-    // مثال:
-    const response = await fetch(url, options);
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: response.statusText }));
-      throw new Error(errorData.message || 'فشل طلب API');
-    }
-    return response.json();
-  };
+  // استخدام عميل API الموحد
 
 
   /**
@@ -75,7 +43,7 @@
    * }} props
    */
   const AgentPanel = ({
-    apiPath = '/joe/chat-advanced',
+    apiPath = '/api/v1/joe-chat-advanced',
     defaultCode = '// اكتب تعليماتك أو كودك هنا ثم نفّذ',
     autoReconnect = true,
     persistOutput = true,
@@ -87,6 +55,8 @@
     const [error, setError] = useState(null);
     const [wsConnected, setWsConnected] = useState(false);
     const [wsAttempt, setWsAttempt] = useState(0);
+    useSessionToken();
+    const sessionRef = useRef(`session_${Date.now()}`);
 
     const outputRef = useRef(null);
     const wsRef = useRef(null); // لتخزين مثيل WebSocket
@@ -111,9 +81,7 @@
 
     // توصيل WebSocket مع إعادة اتصال اختيارية
     const connectWS = useCallback(() => {
-      // إغلاق أي اتصال سابق قبل إنشاء اتصال جديد
       disconnectWebSocket(wsRef.current);
-
       const ws = connectWebSocket(
         (message) => {
           // رسائل WebSocket قد تكون نصًا خامًا أو JSON
@@ -126,11 +94,11 @@
         () => {
           setWsConnected(true);
           setWsAttempt(0); // إعادة تعيين محاولات الاتصال عند النجاح
-          console.log('WebSocket connected');
+          console.warn('WebSocket connected');
         },
         () => {
           setWsConnected(false);
-          console.log('WebSocket disconnected');
+          console.warn('WebSocket disconnected');
           // إعادة الاتصال التلقائي
           if (autoReconnect) {
             const delay = Math.min(10000, 1000 * (wsAttempt + 1)); // زيادة تدريجية في التأخير
@@ -150,23 +118,18 @@
     }, [connectWS]); // إعادة الاتصال عند تغيير connectWS (بسبب wsAttempt)
 
     // تنفيذ الطلب إلى الـAPI
-    const executeCode = async (payload) => {
+    const executeCode = useCallback(async (payload) => {
       setLoading(true);
       setError(null);
       try {
-        const result = await apiRequest(apiPath, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...requestHeaders,
-          },
-          body: JSON.stringify({ code: payload }),
+        const url = apiPath.startsWith('http') ? apiPath : apiPath;
+        const { data: result } = await apiClient.post(url, { message: String(payload), sessionId: sessionRef.current }, {
+          headers: { ...requestHeaders },
         });
-        // في حال API يعيد output لحظياً
-        if (result?.output) {
-          setOutput((prev) => (prev ? prev + '\n' : '') + String(result.output));
-        } else if (!result?.streaming) { // إذا لم يكن هناك بث ولم يكن هناك إخراج فوري
-          setOutput((prev) => (prev ? prev + '\n' : '') + 'لا يوجد إخراج مباشر من API');
+        if (result?.response) {
+          setOutput((prev) => (prev ? prev + '\n' : '') + String(result.response));
+        } else {
+          setOutput((prev) => (prev ? prev + '\n' : '') + 'تم التنفيذ بدون ردّ نصي');
         }
       } catch (err) {
         const msg = err?.message || 'حدث خطأ أثناء التنفيذ';
@@ -174,7 +137,7 @@
       } finally {
         setLoading(false);
       }
-    };
+    }, [apiPath, requestHeaders]);
 
     // اختصار تنفيذ: Ctrl/Cmd + Enter
     useEffect(() => {
@@ -293,3 +256,11 @@
   };
 
   export default AgentPanel;
+
+  AgentPanel.propTypes = {
+    apiPath: PropTypes.string,
+    defaultCode: PropTypes.string,
+    autoReconnect: PropTypes.bool,
+    persistOutput: PropTypes.bool,
+    requestHeaders: PropTypes.object,
+  };

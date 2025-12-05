@@ -1,9 +1,12 @@
 import { OpenAI } from 'openai';
 
-const client = new OpenAI();
+const client = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
 
 async function reviewCode({ code, language, review_type = 'best_practices' }) {
     try {
+        if (!client) {
+            return { success: false, error: 'AI is disabled.' };
+        }
         const prompt = `You are an expert AI Code Reviewer. Your task is to perform a detailed review of the provided ${language} code snippet based on the review type: ${review_type}.
 
 Code to review:

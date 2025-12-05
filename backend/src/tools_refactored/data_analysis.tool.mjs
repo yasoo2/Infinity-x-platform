@@ -65,6 +65,7 @@ class DataAnalysisTool {
     }
 
     async createVisualization({ filePath, visualizationType, dataColumns, outputFilePath }) {
+        void filePath;
         // In a real scenario, this would use a charting library (e.g., Chart.js, D3.js)
         // or a dedicated service to generate the image.
         

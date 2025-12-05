@@ -1,4 +1,4 @@
-import { chromium } from 'playwright';
+import puppeteer from 'puppeteer';
 
 class BrowserController {
   constructor() {
@@ -14,8 +14,7 @@ class BrowserController {
     }
 
     try {
-      // Launch browser with Playwright
-      this.browser = await chromium.launch({
+      this.browser = await puppeteer.launch({
         headless: true,
         args: [
           '--no-sandbox',
@@ -24,20 +23,14 @@ class BrowserController {
           '--disable-accelerated-2d-canvas',
           '--no-first-run',
           '--no-zygote',
-          '--disable-gpu',
-          '--single-process',
-          '--disable-web-security'
+          '--disable-gpu'
         ]
       });
 
-      // Create a new context
-      this.context = await this.browser.newContext({
-        viewport: { width: 1280, height: 720 },
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-      });
-
-      // Create a new page
+      this.context = await this.browser.createIncognitoBrowserContext();
       this.page = await this.context.newPage();
+      await this.page.setViewport({ width: 1280, height: 720 });
+      await this.page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
       
       this.isInitialized = true;
       console.log('✅ Browser initialized successfully with Playwright');
@@ -53,14 +46,12 @@ class BrowserController {
     }
 
     try {
-      // Ensure URL has protocol
       if (!url.startsWith('http://') && !url.startsWith('https://')) {
         url = 'https://' + url;
       }
-
-      await this.page.goto(url, { 
-        waitUntil: 'networkidle', 
-        timeout: 30000 
+      await this.page.goto(url, {
+        waitUntil: 'domcontentloaded',
+        timeout: 15000
       });
       
       return { success: true, url: this.page.url() };
@@ -76,11 +67,7 @@ class BrowserController {
     }
 
     try {
-      const screenshot = await this.page.screenshot({
-        type: 'jpeg',
-        quality: 80,
-        fullPage: false
-      });
+      const screenshot = await this.page.screenshot({ type: 'jpeg', quality: 80, fullPage: false });
       
       return screenshot.toString('base64');
     } catch (error) {
@@ -125,9 +112,7 @@ class BrowserController {
     }
 
     try {
-      await this.page.evaluate((delta) => {
-        window.scrollBy(0, delta);
-      }, deltaY);
+      await this.page.evaluate((dy) => { window.scrollBy(0, dy); }, deltaY);
       
       // Wait for scroll to complete
       await this.page.waitForTimeout(300);

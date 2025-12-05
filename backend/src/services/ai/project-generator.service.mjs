@@ -8,7 +8,7 @@
  */
 
 import { EventEmitter } from 'events';
-import { MongoClient, ObjectId } from 'mongodb';
+import { MongoClient } from 'mongodb';
 import { Octokit } from '@octokit/rest';
 import { improveCode, generateWebsite, generateWebApp, generateEcommerce } from '../lib/geminiEngine.mjs';
 import { deployToCloudflare } from '../lib/cloudflareDeployer.mjs';
@@ -577,7 +577,7 @@ export class AdvancedWorkerManager extends EventEmitter {
         // التحقق من وجود المشروع
         try {
             await fs.access(projectPath);
-        } catch (error) {
+        } catch {
             throw new Error(`Project not found: ${job.projectId}`);
         }
         

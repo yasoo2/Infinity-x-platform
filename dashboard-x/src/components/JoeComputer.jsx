@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PropTypes from 'prop-types';
 import Draggable from 'react-draggable';
 
 const JoeComputer = ({ onClose }) => {
@@ -94,7 +95,7 @@ const JoeComputer = ({ onClose }) => {
             onKeyPress={(e) => {
               if (e.key === 'Enter') setUrl(inputUrl);
             }}
-            placeholder="Note: Many sites won't load due to security."
+            placeholder="Note: Many sites won\'t load due to security."
             style={{
               flex: 1,
               backgroundColor: '#1a1a2e',
@@ -143,3 +144,7 @@ const JoeComputer = ({ onClose }) => {
 };
 
 export default JoeComputer;
+
+JoeComputer.propTypes = {
+  onClose: PropTypes.func.isRequired,
+};

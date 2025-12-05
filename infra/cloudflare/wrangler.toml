@@ -1,0 +1,23 @@
+name = "xelite-cors-worker"
+main = "cors-worker.js"
+compatibility_date = "2025-11-30"
+account_id = "80af03c7b20784079322d7643741c6ae"
+
+# Default allowed origins (can be overridden by environment)
+[vars]
+ALLOWED_ORIGINS = "https://xelitesolutions.com,https://www.xelitesolutions.com,https://admin.xelitesolutions.com,https://api.xelitesolutions.com"
+UPSTREAM_BASE = "https://infinity-x-platform.onrender.com"
+
+# Route the worker to handle API requests and preflight at the edge
+routes = [
+  { pattern = "api.xelitesolutions.com/*", zone_id = "fcbe7d1dcf6f1fa967c2b365a1459027" }
+]
+
+workers_dev = false
+preview_urls = false
+
+# Attempt direct custom domain mapping
+custom_domains = ["api.xelitesolutions.com"]
+
+[observability]
+enabled = true

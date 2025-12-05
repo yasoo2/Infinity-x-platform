@@ -1,7 +1,5 @@
 import { useState } from 'react';
-import axios from 'axios';
-
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://admin.xelitesolutions.com';
+import apiClient from '../api/client';
 
 export default function StoreIntegration() {
   const [activeTab, setActiveTab] = useState('connect');
@@ -28,7 +26,7 @@ export default function StoreIntegration() {
       setError('');
       setConnectionResult(null);
 
-      const response = await axios.post(`${API_BASE}/api/store/connect-store`, {
+      const response = await apiClient.post('/api/store/connect-store', {
         storeType,
         storeUrl,
         apiToken
@@ -51,7 +49,7 @@ export default function StoreIntegration() {
       setError('');
       setRecommendations(null);
 
-      const response = await axios.post(`${API_BASE}/api/store/improve-store`, {
+      const response = await apiClient.post('/api/store/improve-store', {
         storeType,
         storeUrl,
         apiToken,
@@ -75,7 +73,7 @@ export default function StoreIntegration() {
       setError('');
       setProductDescriptions(null);
 
-      const response = await axios.post(`${API_BASE}/api/store/generate-product-descriptions`, {
+      const response = await apiClient.post('/api/store/generate-product-descriptions', {
         storeType,
         storeUrl,
         apiToken

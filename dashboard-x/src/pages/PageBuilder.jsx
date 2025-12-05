@@ -1,7 +1,5 @@
 import { useState } from 'react';
-import axios from 'axios';
-
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://admin.xelitesolutions.com';
+import apiClient from '../api/client';
 
 export default function PageBuilder() {
   const [projectType, setProjectType] = useState('page');
@@ -35,7 +33,7 @@ export default function PageBuilder() {
         .map(f => f.trim())
         .filter(f => f);
 
-      const response = await axios.post(`${API_BASE}/api/page-builder/preview`, {
+      const response = await apiClient.post('/api/page-builder/preview', {
         projectType,
         description,
         style,
@@ -70,7 +68,7 @@ export default function PageBuilder() {
         .map(f => f.trim())
         .filter(f => f);
 
-      const response = await axios.post(`${API_BASE}/api/page-builder/create`, {
+      const response = await apiClient.post('/api/page-builder/create', {
         projectType,
         description,
         style,

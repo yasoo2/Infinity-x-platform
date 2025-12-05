@@ -5,22 +5,22 @@ import { Star } from 'lucide-react';
 
 const testimonialsData = [
   {
-    quote: 'Infinity-X transformed our vision into a reality. Their expertise in AI and software development is unmatched. The final product exceeded all our expectations.',
-    author: 'John Doe',
-    title: 'CEO, Tech Innovators',
-    avatar: '/assets/images/avatar1.jpg',
+    quote: "Infinity-X transformed our vision into a reality. Their expertise in AI and software development is unmatched. The final product exceeded all our expectations.",
+    author: "John Doe",
+    title: "CEO, Tech Innovators",
+    avatar: "/assets/images/dashboard-preview.jpg",
   },
   {
-    quote: 'The team at Infinity-X is not just a vendor, but a true partner. Their commitment to quality and their agile process made the development cycle smooth and efficient.',
-    author: 'Jane Smith',
-    title: 'CTO, Future Solutions',
-    avatar: '/assets/images/avatar2.jpg',
+    quote: "The team at Infinity-X is not just a vendor, but a true partner. Their commitment to quality and their agile process made the development cycle smooth and efficient.",
+    author: "Jane Smith",
+    title: "CTO, Future Solutions",
+    avatar: "/assets/images/hero-bg.jpg",
   },
   {
-    quote: 'We needed a complex data engineering solution, and Infinity-X delivered. Their insights and technical skills have been invaluable to our business.',
-    author: 'Samuel Green',
-    title: 'Head of Data, Analytics Corp',
-    avatar: '/assets/images/avatar3.jpg',
+    quote: "We needed a complex data engineering solution, and Infinity-X delivered. Their insights and technical skills have been invaluable to our business.",
+    author: "Samuel Green",
+    title: "Head of Data, Analytics Corp",
+    avatar: "/assets/images/dashboard-preview.jpg",
   },
 ];
 
@@ -58,7 +58,7 @@ const Testimonials = () => {
                 <div className="flex mb-4">
                     {[...Array(5)].map((_, i) => <Star key={i} className="text-yellow-400 fill-current"/>)}
                 </div>
-              <p className="text-gray-300 flex-grow"><em>"{testimonial.quote}"</em></p>
+              <p className="text-gray-300 flex-grow"><em>{testimonial.quote}</em></p>
               <div className="mt-6 flex items-center">
                 <img src={testimonial.avatar} alt={testimonial.author} className="w-12 h-12 rounded-full object-cover border-2 border-blue-400" />
                 <div className="ml-4">
@@ -75,4 +75,3 @@ const Testimonials = () => {
 };
 
 export default Testimonials;
-

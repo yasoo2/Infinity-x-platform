@@ -66,6 +66,7 @@ class APIIntegrationTool {
     }
 
     async analyzeAPIDocumentation({ documentationSource, targetFunction }) {
+        void documentationSource;
         // Placeholder for a service that scrapes and analyzes documentation
         return {
             success: true,

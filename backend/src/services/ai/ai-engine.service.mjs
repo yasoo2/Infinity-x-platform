@@ -14,6 +14,7 @@ class AIEngineService {
             openai: this.initOpenAI(),
             gemini: this.initGemini(),
             grok: this.initGrok(),
+            llama: this.initLocalLlama(), // إضافة النظام المحلي
         };
         console.log(`✅ AIEngineService Initialized with model: ${this.currentModel}`);
     }
@@ -97,6 +98,61 @@ class AIEngineService {
     }
 
     /**
+     * Initialize Local Llama client
+     */
+    initLocalLlama() {
+        try {
+            const isEnabled = process.env.LOCAL_LLAMA_ENABLED === 'true';
+            if (!isEnabled) {
+                console.warn('⚠️ Local Llama is disabled by environment variable.');
+                return null;
+            }
+            console.warn('⚠️ Local Llama will be lazily initialized on first use.');
+            return null;
+        } catch (error) {
+            console.error('❌ Failed to initialize Local Llama:', error.message);
+            return null;
+        }
+    }
+
+    /**
+     * Smart Routing Logic: Decides which model to use based on task and user preference
+     * @param {string} prompt - User prompt
+     * @param {object} options - Options including preferredModel
+     */
+    getSmartModel(prompt, options = {}) {
+        const availableModels = Object.keys(this.models).filter(m => this.models[m] !== null);
+        const preferredModel = options.preferredModel || this.currentModel;
+
+        // 1. User Preference Check (Joe AI / الموردين)
+        if (preferredModel === 'llama' && this.models.llama) {
+            return 'llama';
+        }
+        // If user prefers a cloud model and it's available
+        if (['openai', 'gemini', 'grok'].includes(preferredModel) && this.models[preferredModel]) {
+            return preferredModel;
+        }
+
+        // 2. Fallback Logic (Prioritize Llama for cost/privacy if available)
+        if (this.models.llama && availableModels.length > 1) {
+            // Simple tasks or tasks not requiring the latest knowledge can use Llama
+            if (prompt.length < 500 && !prompt.toLowerCase().includes('latest news')) {
+                return 'llama';
+            }
+        }
+
+        // 3. Default to the strongest available cloud model
+        if (this.models.openai) return 'openai';
+        if (this.models.gemini) return 'gemini';
+        if (this.models.grok) return 'grok';
+
+        // 4. Final Fallback
+        if (this.models.llama) return 'llama';
+
+        throw new Error('No AI model is available or initialized.');
+    }
+
+    /**
      * Get current model
      */
     getCurrentModel() {
@@ -112,16 +168,20 @@ class AIEngineService {
      * @param {object} options - Additional options
      */
     async generateContent(prompt, options = {}) {
+        const modelToUse = this.getSmartModel(prompt, options);
         try {
-            if (this.currentModel === 'openai') {
+            if (modelToUse === 'openai') {
                 return await this.generateWithOpenAI(prompt, options);
-            } else if (this.currentModel === 'gemini') {
+            } else if (modelToUse === 'gemini') {
                 return await this.generateWithGemini(prompt, options);
-            } else if (this.currentModel === 'grok') {
+            } else if (modelToUse === 'grok') {
                 return await this.generateWithGrok(prompt, options);
+            } else if (modelToUse === 'llama') {
+                return await this.generateWithLocalLlama(prompt, options);
             }
+            throw new Error(`Model ${modelToUse} is not supported in generateContent.`);
         } catch (error) {
-            console.error(`❌ Error generating content with ${this.currentModel}:`, error.message);
+            console.error(`❌ Error generating content with ${modelToUse}:`, error.message);
             throw error;
         }
     }
@@ -134,7 +194,7 @@ class AIEngineService {
             throw new Error('OpenAI is not initialized.');
         }
         const response = await this.models.openai.chat.completions.create({
-            model: options.model || 'gpt-4.1-mini',
+            model: options.model || 'gpt-4o-mini',
             messages: [{ role: 'user', content: prompt }],
             temperature: options.temperature || 0.7,
             max_tokens: options.maxTokens || 2000,
@@ -150,6 +210,7 @@ class AIEngineService {
      * Generate content using Gemini
      */
     async generateWithGemini(prompt, options = {}) {
+        void options;
         if (!this.models.gemini) {
             throw new Error('Gemini is not initialized.');
         }
@@ -166,6 +227,7 @@ class AIEngineService {
      * Generate content using Grok
      */
     async generateWithGrok(prompt, options = {}) {
+        void options;
         if (!this.models.grok) {
             throw new Error('Grok is not initialized.');
         }
@@ -175,6 +237,32 @@ class AIEngineService {
             model: 'grok',
             content: `[Grok Response] ${prompt.substring(0, 100)}...`,
             note: 'Grok integration requires additional setup',
+        };
+    }
+
+    /**
+     * Generate content using Local Llama
+     */
+    async generateWithLocalLlama(prompt, options = {}) {
+        let llamaClient = this.models.llama;
+        if (!llamaClient) {
+            try {
+                const isEnabled = process.env.LOCAL_LLAMA_ENABLED === 'true';
+                if (!isEnabled) throw new Error('Local Llama disabled.');
+                const mod = await import('../llm/local-llama.service.mjs');
+                const Svc = mod?.LocalLlamaService || null;
+                if (!Svc) throw new Error('Local Llama module missing.');
+                llamaClient = new Svc();
+                this.models.llama = llamaClient;
+            } catch (e) {
+                throw new Error(e?.message || 'Local Llama initialization failed.');
+            }
+        }
+        const response = await llamaClient.generateContent(prompt, options);
+        return {
+            model: 'llama',
+            content: response.content,
+            usage: response.usage,
         };
     }
 
@@ -210,6 +298,7 @@ class AIEngineService {
                 name,
                 initialized: client !== null,
                 status: client ? 'ready' : 'not-configured',
+                type: ['openai', 'gemini', 'grok'].includes(name) ? 'cloud' : 'local',
             })),
         };
     }

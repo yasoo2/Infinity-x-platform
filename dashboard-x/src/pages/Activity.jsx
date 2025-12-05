@@ -24,7 +24,6 @@ export default function Activity() {
       const data = await getActivityStream();
       setEvents(data.events || []);
     } catch (err) {
-      console.error("Failed to fetch activity stream:", err);
       setError(err.message || "An unknown error occurred.");
     } finally {
       setLoading(false);
@@ -41,7 +40,6 @@ export default function Activity() {
     let intervalId;
     if (isAutoRefreshing) {
       intervalId = setInterval(() => {
-        console.log("Auto-refreshing activity stream...");
         fetchActivity();
       }, AUTO_REFRESH_INTERVAL);
     }

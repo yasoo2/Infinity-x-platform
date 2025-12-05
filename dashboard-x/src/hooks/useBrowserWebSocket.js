@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import apiClient from '../api/client';
 
 const useBrowserWebSocket = () => {
   const [screenshot, setScreenshot] = useState(null);
@@ -9,54 +10,71 @@ const useBrowserWebSocket = () => {
 
   useEffect(() => {
     const connect = () => {
-      const sessionToken = localStorage.getItem('sessionToken');
-      if (!sessionToken) return;
+      let sessionToken = null;
+      try { sessionToken = localStorage.getItem('sessionToken'); } catch { sessionToken = null; }
 
-      // بناء URL الـ WebSocket باستخدام المسار الصحيح /ws/browser
-      const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://api.xelitesolutions.com';
-      const wsBase = apiBase.replace(/^http/, 'ws');
-      const wsUrl = `${wsBase}/ws/browser?token=${sessionToken}`;
-
-      wsRef.current = new WebSocket(wsUrl);
-
-      wsRef.current.onopen = () => {
-        setIsConnected(true);
-        console.log('[Browser WS] Connection established');
+      const base = (typeof apiClient?.defaults?.baseURL === 'string' ? apiClient.defaults.baseURL : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000'));
+      const wsBase = String(base).replace(/^https/, 'wss').replace(/^http/, 'ws');
+      const ensureToken = async () => {
+        if (sessionToken) return sessionToken;
+        try {
+          const { data } = await apiClient.post('/api/v1/auth/guest-token');
+          if (data?.ok && data?.token) {
+            try { localStorage.setItem('sessionToken', data.token); } catch { /* noop */ }
+            sessionToken = data.token;
+            return sessionToken;
+          }
+        } catch { /* noop */ }
+        return null;
       };
 
-      wsRef.current.onclose = () => {
-        setIsConnected(false);
-        console.log('[Browser WS] Connection closed. Reconnecting in 3s...');
-        setTimeout(connect, 3000);
-      };
+      (async () => {
+        const token = await ensureToken();
+        if (!token) return;
+        const wsUrl = `${wsBase}/ws/browser?token=${token}`;
+        try { console.warn('[Browser WS] Connecting:', wsUrl); } catch { /* noop */ }
 
-      wsRef.current.onerror = (err) => {
-        console.error('[Browser WS] Error:', err);
-      };
+        wsRef.current = new WebSocket(wsUrl);
 
-      wsRef.current.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        switch (data.type) {
-          case 'screenshot':
-            setScreenshot(data.payload.screenshot);
-            setPageInfo(data.payload.pageInfo);
-            setIsLoading(false);
-            break;
-          case 'navigate_result':
-          case 'click_result':
-          case 'type_result':
-          case 'scroll_result':
-          case 'press_key_result':
-            // لا حاجة لعمل شيء هنا، سيتم تحديث الشاشة عبر 'screenshot'
-            break;
-          case 'error':
-            console.error('[Browser WS] Server Error:', data.message);
-            setIsLoading(false);
-            break;
-          default:
-            break;
-        }
-      };
+        wsRef.current.onopen = () => {
+          setIsConnected(true);
+        };
+
+        wsRef.current.onclose = (ev) => {
+          setIsConnected(false);
+          try { console.warn('[Browser WS] Closed:', { code: ev?.code, reason: ev?.reason }); } catch { /* noop */ }
+          setTimeout(connect, 3000);
+        };
+
+        wsRef.current.onerror = (err) => {
+          try { console.error('[Browser WS] Error:', err); } catch { /* noop */ }
+        };
+
+        wsRef.current.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            switch (data.type) {
+              case 'screenshot':
+                setScreenshot(data.payload.screenshot);
+                setPageInfo(data.payload.pageInfo);
+                setIsLoading(false);
+                break;
+              case 'navigate_result':
+              case 'click_result':
+              case 'type_result':
+              case 'scroll_result':
+              case 'press_key_result':
+                break;
+              case 'error':
+                try { console.error('[Browser WS] Server Error:', data.message); } catch { /* noop */ }
+                setIsLoading(false);
+                break;
+              default:
+                break;
+            }
+          } catch { /* noop */ }
+        };
+      })();
     };
 
     connect();

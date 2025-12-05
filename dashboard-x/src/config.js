@@ -1,16 +1,25 @@
   import React, { useState, useEffect, useReducer, useCallback } from 'react';
-  import { Store, ShoppingCart, TrendingUp, AlertCircle, CheckCircle, Loader, RefreshCw, BarChart3, Package, Search, Filter, Download, Upload, Zap, Activity, Globe, Lock, Key, Server, Database, Eye, EyeOff, Sparkles, Target, Rocket, Settings } from 'lucide-react';
+  import { Store, TrendingUp, AlertCircle, CheckCircle, Loader, BarChart3, Package, Search, Download, Zap, Activity, Globe, Lock, Key, Server, Database, Eye, EyeOff, Sparkles, Target, Rocket, Settings } from 'lucide-react';
 
   // API Configuration - متوافق مع نظامك
   const getApiConfig = () => {
-    const isDevelopment = import.meta.env.MODE !== 'production';
+    const overrideApi = import.meta.env.VITE_API_BASE_URL;
+    const overrideWs = import.meta.env.VITE_WS_BASE_URL;
+    const overridePref = import.meta.env.VITE_CONN_PREF;
+    const overrideUseWs = import.meta.env.VITE_USE_WS;
+    const host = typeof window !== 'undefined' ? window.location.hostname : '';
+    const isDev = !!(import.meta?.env?.DEV);
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const normOverride = String(overrideApi || '').replace(/\/+$/, '');
+    const overrideHasV1 = /\/api\/v1$/i.test(normOverride);
+    const apiBase = (host === 'localhost' || host === '127.0.0.1')
+      ? 'http://localhost:4000/api/v1'
+      : (overrideApi ? (overrideHasV1 ? normOverride : `${normOverride}/api/v1`) : `${origin}/api/v1`);
+    const wsOrigin = (host === 'localhost' || host === '127.0.0.1') ? 'ws://localhost:4000' : (overrideWs || origin.replace(/^https/, 'wss').replace(/^http/, 'ws'));
     return {
-      apiBaseUrl: isDevelopment 
-        ? 'http://localhost:4000/api/v1'
-        : 'https://api.xelitesolutions.com/api/v1',
-      wsBaseUrl: isDevelopment
-        ? 'ws://localhost:4000'
-        : 'wss://api.xelitesolutions.com'
+      apiBaseUrl: isDev ? `${origin}/api/v1` : apiBase,
+      wsBaseUrl: wsOrigin,
+      connPref: (() => { const p = String(overridePref||'').toLowerCase(); if (p==='ws'||p==='sio') return p; if (String(overrideUseWs||'').toLowerCase()==='true') return 'ws'; return 'auto'; })(),
     };
   };
 
@@ -203,7 +212,7 @@
       if (state.customEndpoints) {
         try {
           JSON.parse(state.customEndpoints);
-        } catch (e) {
+        } catch {
           errors.customEndpoints = 'JSON غير صالح';
         }
       }

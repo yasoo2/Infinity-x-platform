@@ -49,3 +49,6 @@ temp/
 *.key
 *.p12
 *.pfx
+
+# Local AI models (do not commit)
+backend/models/*.gguf

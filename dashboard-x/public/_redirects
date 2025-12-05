@@ -1,3 +1,2 @@
-# SPA fallback - all routes go to React app
-# Using Cloudflare Pages compatible format
-/*    /index.html    200
+/*    /index.html   200
+

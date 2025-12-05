@@ -1,5 +1,5 @@
 
-import React, { useRef, Suspense } from 'react';
+import React, { useRef, Suspense, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Sphere, MeshDistortMaterial } from '@react-three/drei';
 
@@ -14,7 +14,6 @@ const AnimatedSphere = () => {
     <Sphere ref={ref} args={[1, 100, 200]} scale={1.2}>
       <MeshDistortMaterial
         color="#8A2BE2"
-        attach="material"
         distort={0.5}
         speed={2}
         roughness={0.1}
@@ -29,8 +28,19 @@ const Hero3D = () => {
       <Canvas>
         <Suspense fallback={null}>
           <OrbitControls enableZoom={false} />
-          <ambientLight intensity={0.5} />
-          <directionalLight position={[3, 5, 2]} />
+          {(() => {
+            const ALight = () => {
+              const ref = useRef();
+              useEffect(() => { if (ref.current) ref.current.intensity = 0.5; }, []);
+              return (<ambientLight ref={ref} />);
+            };
+            const DirLight = () => {
+              const ref = useRef();
+              useEffect(() => { if (ref.current) { ref.current.position.set(3, 5, 2); ref.current.intensity = 1; } }, []);
+              return (<directionalLight ref={ref} />);
+            };
+            return (<><ALight /><DirLight /></>);
+          })()}
           <AnimatedSphere />
         </Suspense>
       </Canvas>

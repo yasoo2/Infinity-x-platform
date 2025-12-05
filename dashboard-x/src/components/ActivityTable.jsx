@@ -1,4 +1,5 @@
   import React from 'react';
+  import PropTypes from 'prop-types';
   import { formatDistanceToNow } from 'date-fns';
   // لو احتجت لغة معينة: import { enUS, ar } from 'date-fns/locale';
 
@@ -90,3 +91,11 @@
       </div>
     );
   }
+
+  ActivityTable.propTypes = {
+    events: PropTypes.array,
+    locale: PropTypes.any,
+    timeFormatter: PropTypes.func,
+    emptyText: PropTypes.string,
+    className: PropTypes.string,
+  };

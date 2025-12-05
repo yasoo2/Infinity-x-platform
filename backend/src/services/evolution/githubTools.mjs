@@ -60,6 +60,7 @@ getFileContent.metadata = {
 // --- Mock Implementations (for structure, not yet functional) ---
 
 const createCommit = async ({ owner, repo, message, files }) => {
+    void owner; void repo;
     console.warn("\n[GithubTools] WARNING: createCommit is a simplified placeholder. It does not perform a real Git commit.\n");
     const commitDetails = {
         message,
@@ -72,6 +73,7 @@ const createCommit = async ({ owner, repo, message, files }) => {
 };
 
 const createPullRequest = async ({ owner, repo, title, head, base }) => {
+    void owner; void repo;
     console.warn("\n[GithubTools] WARNING: createPullRequest is a simplified placeholder. It does not perform a real Git operation.\n");
     const mockPR = {
         title, head, base,

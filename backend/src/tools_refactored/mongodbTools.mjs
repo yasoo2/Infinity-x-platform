@@ -289,7 +289,6 @@ class MongoDBTools {
     try {
       await this.ensureConnection();
       
-      const collection = this.db.collection(collectionName);
       const stats = await this.db.command({ collStats: collectionName });
 
       console.log(`✅ Got stats for ${collectionName}`);

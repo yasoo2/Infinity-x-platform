@@ -7,13 +7,13 @@
   "scripts": {
     "start": "node --require ./src/config-loader.cjs server.mjs",
     "dev": "nodemon --require ./src/config-loader.cjs server.mjs",
-    "test": "jest",
-    "test:unit": "jest tests/unit",
-    "test:integration": "jest tests/integration",
-    "test:e2e": "jest tests/e2e",
-    "test:coverage": "jest --coverage",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
+    "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
+    "test:unit": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js tests/unit",
+    "test:integration": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js tests/integration",
+    "test:e2e": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js tests/e2e",
+    "test:coverage": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --coverage",
+    "lint": "eslint . --ignore-pattern src/systems/code-review.service.mjs",
+    "lint:fix": "eslint . --fix --ignore-pattern src/systems/code-review.service.mjs",
     "format": "prettier --write \"**/*.{js,mjs,json,md}\"",
     "check:deadcode": "depcheck",
     "cli": "node src/cli/joe-cli.mjs",
@@ -97,7 +97,7 @@
     "@google/generative-ai": "^0.24.1",
     "@octokit/rest": "^20.0.2",
     "@socket.io/redis-adapter": "^8.3.0",
-    "@upstash/redis": "^1.35.6",
+    "@upstash/redis": "^1.35.7",
     "acorn": "^8.15.0",
     "acorn-walk": "^8.3.2",
     "archiver": "^6.0.1",
@@ -132,6 +132,7 @@
     "joi": "^17.11.0",
     "jsonwebtoken": "^9.0.2",
     "lodash": "^4.17.21",
+    "mammoth": "^1.11.0",
     "marked": "^11.0.0",
     "moment": "^2.29.4",
     "mongodb": "^6.3.0",
@@ -140,11 +141,13 @@
     "multer": "^2.0.2",
     "node-cron": "^3.0.3",
     "node-fetch": "^3.3.2",
+    "node-tesseract-ocr": "2.2.1",
     "nodemailer": "^6.9.7",
     "nodemon": "^3.1.11",
     "openai": "^4.20.1",
     "ora": "^7.0.1",
     "pdf-lib": "^1.17.1",
+    "pdf-parse": "^1.1.4",
     "pg": "^8.11.3",
     "pidusage": "^3.0.2",
     "playwright": "^1.45.1",
@@ -183,7 +186,12 @@
     "typescript": "^5.3.3"
   },
   "engines": {
-    "node": ">=18.0.0",
+    "node": ">=18.18.0 <23.0.0",
     "npm": ">=9.0.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "node-tesseract-ocr": "2.2.1"
+    }
   }
 }

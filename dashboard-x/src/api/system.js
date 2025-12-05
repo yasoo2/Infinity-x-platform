@@ -1,10 +1,9 @@
-  import apiClient from './client';
+import apiClient from './client';
 
-  // Base path helpers
   const v1 = (p) => `/api/v1${p}`;
   const joe = (p) => v1(`/joe${p}`);
   const admin = (p) => v1(`/admin${p}`);
-  const system = (p) => v1(`/system${p}`);
+  const chatHistory = (p) => v1(`/chat-history${p}`);
 
   // Unified call wrapper to normalize errors and support AbortSignal
   /**
@@ -26,7 +25,8 @@
         'حدث خطأ أثناء الاتصال بالخادم';
       const status = err?.status ?? err?.response?.status;
       const details = err?.details ?? err?.response?.data;
-      const normalized = { status, message, details };
+      const code = err?.code ?? err?.response?.data?.code;
+      const normalized = { status, code, message, details };
       // Re-throw normalized error to upper layers (UI/toasts)
       throw normalized;
     }
@@ -36,14 +36,14 @@
    * Get system status and health metrics
    * @param {{ signal?: AbortSignal }=} opts
    */
-  export const getSystemStatus = (opts) =>
-    call(() => apiClient.get(system('/metrics'), { signal: opts?.signal }));
+export const getSystemStatus = (opts) =>
+  call(() => apiClient.get(v1('/health'), { signal: opts?.signal }));
 
   /**
    * Get activity/events stream (polling JSON). For SSE, use EventSource instead.
    * @param {{ page?: number, pageSize?: number, since?: string, signal?: AbortSignal }=} params
    */
-  export const getActivityStream = (params) =>
+export const getActivityStream = (params) =>
     call(() =>
       apiClient.get(joe('/activity-stream'), {
         params: {
@@ -60,14 +60,14 @@
    * @param {{ sessionToken?: string, lang?: string, voice?: string, commandText: string }} payload
    * @param {{ signal?: AbortSignal }=} opts
    */
-  export const sendCommand = (payload, opts) =>
+export const sendCommand = (payload, opts) =>
     call(() => apiClient.post(joe('/command'), payload, { signal: opts?.signal }));
 
   /**
    * Get admin users list
    * @param {{ page?: number, pageSize?: number, query?: string, signal?: AbortSignal }=} params
    */
-  export const getAdminUsers = (params) =>
+export const getAdminUsers = (params) =>
     call(() =>
       apiClient.get(admin('/users'), {
         params: {
@@ -80,10 +80,32 @@
     );
 
   /**
+   * Create admin/user
+   * @param {{ email: string, password: string, phone?: string, role?: 'user'|'admin'|'super_admin' }} payload
+   */
+export const createAdminUser = (payload) =>
+    call(() => apiClient.post(admin('/users'), payload));
+
+  /**
+   * Update admin/user by id
+   * @param {string} id
+   * @param {{ email?: string, password?: string, phone?: string|null, role?: 'user'|'admin'|'super_admin' }} payload
+   */
+export const updateAdminUser = (id, payload) =>
+    call(() => apiClient.put(admin(`/users/${id}`), payload));
+
+  /**
+   * Delete admin/user by id
+   * @param {string} id
+   */
+export const deleteAdminUser = (id) =>
+    call(() => apiClient.delete(admin(`/users/${id}`)));
+
+  /**
    * Get Joe suggestions
    * @param {{ limit?: number, signal?: AbortSignal }=} params
    */
-  export const getJoeSuggestions = (params) =>
+export const getJoeSuggestions = (params) =>
     call(() =>
       apiClient.get(joe('/suggestions'), {
         params: { limit: params?.limit },
@@ -96,11 +118,52 @@
    * @param {{ suggestionId: string, decision: 'approve' | 'reject', reason?: string }} payload
    * @param {{ signal?: AbortSignal }=} opts
    */
-  export const submitSuggestionDecision = (payload, opts) =>
+export const submitSuggestionDecision = (payload, opts) =>
     call(() => apiClient.post(joe('/suggestions/decision'), payload, { signal: opts?.signal }));
 
   // Optional: helper for cancellable calls
-  export const withAbort = () => {
+export const withAbort = () => {
     const controller = new AbortController();
     return { controller, signal: controller.signal };
   };
+
+  // AI Providers Management
+export const getAIProviders = (opts) =>
+    call(() => apiClient.get(v1('/ai/providers'), { signal: opts?.signal, timeout: 20000 }));
+
+export const validateAIKey = (provider, apiKey, opts) =>
+    call(() => apiClient.post(v1('/ai/validate'), { provider, apiKey }, { signal: opts?.signal, timeout: 45000, _noRedirect401: true }));
+
+export const activateAIProvider = (provider, opts) =>
+    call(() => apiClient.post(v1('/ai/activate'), { provider }, { signal: opts?.signal, timeout: 30000, _noRedirect401: true }));
+
+export const getChatSessions = (opts) =>
+  call(() => apiClient.get(chatHistory('/sessions'), { signal: opts?.signal }));
+
+export const getChatSessionById = (id, opts) =>
+  call(() => apiClient.get(chatHistory(`/sessions/${id}`), { signal: opts?.signal }));
+
+export const deleteChatSession = (id, opts) =>
+  call(() => apiClient.delete(chatHistory(`/sessions/${id}`), { signal: opts?.signal }));
+
+export const getUserContext = (params) =>
+  call(() => apiClient.get(chatHistory('/user-context'), { params: { limit: params?.limit }, signal: params?.signal }));
+
+// Guest token issuance
+export const getGuestToken = (opts) =>
+  call(() => apiClient.post(v1('/auth/guest-token'), undefined, { signal: opts?.signal }));
+
+export const createChatSession = (title, opts) =>
+  call(() => apiClient.post(chatHistory('/sessions'), { title }, { signal: opts?.signal }));
+
+export const updateChatSession = (id, patch, opts) =>
+  call(() => apiClient.put(chatHistory(`/sessions/${id}`), patch, { signal: opts?.signal }));
+
+export const getChatMessages = (id, opts) =>
+  call(() => apiClient.get(chatHistory(`/sessions/${id}/messages`), { signal: opts?.signal }));
+
+export const addChatMessage = (id, payload, opts) =>
+  call(() => apiClient.post(chatHistory(`/sessions/${id}/messages`), payload, { signal: opts?.signal }));
+
+export const deleteChatMessage = (id, messageId, opts) =>
+  call(() => apiClient.delete(chatHistory(`/sessions/${id}/messages/${messageId}`), { signal: opts?.signal }));

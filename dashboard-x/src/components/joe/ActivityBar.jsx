@@ -1,14 +1,17 @@
 
 import React from 'react';
+import PropTypes from 'prop-types';
+import { useNavigate } from 'react-router-dom';
 import { FiHome, FiMessageSquare, FiTool, FiBriefcase, FiClipboard, FiSettings } from 'react-icons/fi';
 
-const ActivityBar = ({ onChatClick, isSidePanelOpen }) => {
+const ActivityBar = ({ onChatClick, isSidePanelOpen, onToggleRight, onToggleBottom }) => {
+  const navigate = useNavigate();
   const icons = [
-    { icon: <FiHome />, label: 'Home', action: () => {}, active: false },
+    { icon: <FiHome />, label: 'Home', action: () => navigate('/dashboard/overview'), active: false },
     { icon: <FiMessageSquare />, label: 'Chats', action: onChatClick, active: isSidePanelOpen },
-    { icon: <FiTool />, label: 'Tools', action: () => {}, active: false },
+    { icon: <FiTool />, label: 'Tools', action: onToggleRight, active: false },
     { icon: <FiBriefcase />, label: 'Jobs', action: () => {}, active: false },
-    { icon: <FiClipboard />, label: 'Logs', action: () => {}, active: false },
+    { icon: <FiClipboard />, label: 'Logs', action: onToggleBottom, active: false },
     // Settings icon will likely be at the bottom in many UIs
   ];
 
@@ -22,8 +25,8 @@ const ActivityBar = ({ onChatClick, isSidePanelOpen }) => {
             onClick={item.action}
             className={`p-2 rounded-lg transition-colors duration-200 ${
               item.active
-                ? 'text-white bg-cyan-600/50' 
-                : 'text-gray-400 hover:text-cyan-400 hover:bg-gray-700/50'
+                ? 'text-black bg-yellow-600/60' 
+                : 'text-gray-400 hover:text-yellow-400 hover:bg-gray-700/50'
             }`}
           >
             {React.cloneElement(item.icon, { size: 24 })}
@@ -31,7 +34,7 @@ const ActivityBar = ({ onChatClick, isSidePanelOpen }) => {
         ))}
       </div>
       <div className="mt-auto">
-         <button title="Settings" className="text-gray-400 hover:text-cyan-400 p-2">
+         <button title="Settings" className="text-gray-400 hover:text-yellow-400 p-2">
             <FiSettings size={24} />
          </button>
       </div>
@@ -40,3 +43,10 @@ const ActivityBar = ({ onChatClick, isSidePanelOpen }) => {
 };
 
 export default ActivityBar;
+
+ActivityBar.propTypes = {
+  onChatClick: PropTypes.func.isRequired,
+  isSidePanelOpen: PropTypes.bool.isRequired,
+  onToggleRight: PropTypes.func.isRequired,
+  onToggleBottom: PropTypes.func.isRequired,
+};

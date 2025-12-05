@@ -1,0 +1,9 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+branch="$(git rev-parse --abbrev-ref HEAD)"
+remote="origin"
+
+if [ -n "$branch" ]; then
+  git push "$remote" "$branch"
+fi

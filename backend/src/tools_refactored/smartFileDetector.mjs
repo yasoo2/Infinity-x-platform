@@ -151,6 +151,7 @@ function quickPatternMatch(userRequest) {
  * AI-powered file detection using Gemini
  */
 async function aiDetectFiles(userRequest, repoStructure) {
+  void repoStructure;
   const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
 
   const prompt = `You are a smart file detector for a web application codebase.

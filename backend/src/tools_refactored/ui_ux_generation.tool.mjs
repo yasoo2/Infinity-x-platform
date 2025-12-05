@@ -1,10 +1,5 @@
-import { fileURLToPath } from 'url';
-import path from 'path';
 import fs from 'fs/promises';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const PROJECT_ROOT = path.join(__dirname, '..', '..', '..');
 
 /**
  * 🎨 UI/UXGenerationTool - Enables JOE to generate responsive frontend code (HTML/CSS/JS) from text descriptions or visual input.
@@ -117,6 +112,7 @@ class UIUXGenerationTool {
             const tailwindCard = isDarkMode ? 'bg-gray-800' : 'bg-white';
             const tailwindText = isDarkMode ? 'text-white' : 'text-gray-900';
             const tailwindPrimary = lowerDescription.includes('blue') ? 'bg-blue-600 hover:bg-blue-700' : lowerDescription.includes('red') ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700';
+            void tailwindBg; void tailwindText; void tailwindPrimary; void tailwindCard;
 
             generatedCode = `
 import React from 'react';

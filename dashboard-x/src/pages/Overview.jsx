@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getSystemStatus } from '../api/system';
 import CardStat from '../components/CardStat';
 
@@ -7,15 +7,28 @@ export default function Overview() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [rtOnline, setRtOnline] = useState(false);
+  const [rtMs, setRtMs] = useState(null);
+  const [rtTransport, setRtTransport] = useState('');
+  const lastAbortRef = useRef(null);
 
   const fetchStatus = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await getSystemStatus();
+      if (lastAbortRef.current) {
+        try { lastAbortRef.current.abort(); } catch { /* ignore */ }
+      }
+      const controller = new AbortController();
+      lastAbortRef.current = controller;
+      const data = await getSystemStatus({ signal: controller.signal });
       setStatus(data);
       setLastUpdated(new Date());
     } catch (err) {
+      const m = String(err?.message || '');
+      if (/canceled|abort(ed)?/i.test(m)) {
+        return;
+      }
       setError(err.message);
     } finally {
       setLoading(false);
@@ -24,6 +37,32 @@ export default function Overview() {
 
   useEffect(() => {
     fetchStatus();
+    try {
+      const ms = Number(localStorage.getItem('wsLastConnectMs') || '');
+      const tp = localStorage.getItem('wsLastTransport') || '';
+      if (Number.isFinite(ms) && ms > 0) setRtMs(ms);
+      if (tp) setRtTransport(tp);
+    } catch { void 0; }
+    const onWsConnected = (e) => {
+      try {
+        const ms = Number(e?.detail?.elapsedMs || 0);
+        const tp = String(e?.detail?.transport || '');
+        setRtMs(ms);
+        setRtTransport(tp);
+        setRtOnline(true);
+      } catch { void 0; }
+    };
+    const onWsDisconnected = () => { setRtOnline(false); };
+    const onSystemRefresh = () => { fetchStatus(); };
+    window.addEventListener('ws:connected', onWsConnected);
+    window.addEventListener('ws:disconnected', onWsDisconnected);
+    window.addEventListener('system:refresh', onSystemRefresh);
+    return () => {
+      window.removeEventListener('ws:connected', onWsConnected);
+      window.removeEventListener('ws:disconnected', onWsDisconnected);
+      window.removeEventListener('system:refresh', onSystemRefresh);
+      try { lastAbortRef.current?.abort(); } catch { /* ignore */ }
+    };
   }, []);
 
   if (loading && !status) {
@@ -98,11 +137,20 @@ export default function Overview() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <CardStat
+          title="Realtime Link"
+          value={rtMs != null ? `${rtMs} ms${rtTransport ? ` (${rtTransport})` : ''}` : '—'}
+          status={rtOnline}
+          icon="📡"
+        />
+        <CardStat
           title="JOEngine"
           value="AI System"
           status={status?.joeOnline !== false}
           icon="🤖"
         />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <CardStat
           title="Factory"
           value="Execution Layer"

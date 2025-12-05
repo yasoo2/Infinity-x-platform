@@ -1,39 +1,171 @@
+import apiClient from '../api/client';
 // dashboard-x/src/utils/websocket.js
-import config from '../config.js';
 
 let ws = null;
+let ioSocket = null;
 let reconnectInterval = null;
+let failedAttempts = 0;
+let token = '';
+let connectTimeout = null;
+let isConnected = false;
+let wsFailures = 0;
+let ioFailures = 0;
+let raceStart = 0;
+
+const decodeExp = (t) => {
+  try {
+    const p = t.split('.')[1];
+    if (!p) return null;
+    const s = atob(p.replace(/-/g, '+').replace(/_/g, '/'));
+    const o = JSON.parse(s);
+    return o?.exp || null;
+  } catch {
+    return null;
+  }
+};
+
+const ensureToken = async () => {
+  try {
+    let cur = localStorage.getItem('sessionToken') || '';
+    const exp = cur ? decodeExp(cur) : null;
+    if (!cur || (exp && Date.now() >= exp * 1000)) {
+      const { data } = await apiClient.post('/api/v1/auth/guest-token');
+      if (data?.ok && data?.token) {
+        cur = data.token;
+        localStorage.setItem('sessionToken', cur);
+      }
+    }
+    token = cur;
+  } catch {
+    token = localStorage.getItem('sessionToken') || '';
+  }
+  return token;
+};
 
 export const connectWebSocket = (onMessage, onOpen, onClose) => {
-  const token = localStorage.getItem('sessionToken');
-  const wsUrl = `${config.wsBaseUrl}/ws/browser`;
+  const isDev = typeof import.meta !== 'undefined' && import.meta.env?.MODE !== 'production';
+  let httpBase = typeof apiClient?.defaults?.baseURL === 'string'
+    ? apiClient.defaults.baseURL
+    : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
+  try {
+    if (typeof window !== 'undefined') {
+      const h = window.location.hostname;
+      if (h === 'www.xelitesolutions.com' || h === 'xelitesolutions.com') {
+        httpBase = 'https://api.xelitesolutions.com';
+      }
+    }
+  } catch { /* noop */ }
+  let baseWsUrl = '';
+  try {
+    const urlObj = new URL(String(httpBase));
+    const proto = urlObj.protocol === 'https:' ? 'wss' : 'ws';
+    baseWsUrl = `${proto}://${urlObj.host}`;
+  } catch {
+    const origin = (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
+    const urlObj = new URL(String(origin));
+    const proto = urlObj.protocol === 'https:' ? 'wss' : 'ws';
+    baseWsUrl = `${proto}://${urlObj.host}`;
+  }
 
-  ws = new WebSocket(wsUrl);
-
-  ws.onopen = () => {
-    console.log('✅ WebSocket connected');
-    if (onOpen) onOpen();
-  };
-
-  ws.onmessage = (event) => {
-    if (onMessage) onMessage(JSON.parse(event.data));
-  };
-
-  ws.onclose = () => {
-    console.warn('❌ WebSocket disconnected');
-    if (onClose) onClose();
-
-    // إعادة الاتصال تلقائيًا بعد 5 ثواني
+  const scheduleReconnect = () => {
+    failedAttempts++;
     clearTimeout(reconnectInterval);
-    reconnectInterval = setTimeout(() => {
-      console.log('🔄 Reconnecting WebSocket...');
-      connectWebSocket(onMessage, onOpen, onClose);
-    }, 5000);
+    const base = Math.min(8000, 500 * failedAttempts);
+    const jitter = Math.floor(Math.random() * 300);
+    const delay = base + jitter;
+    reconnectInterval = setTimeout(() => { startRace(); }, delay);
   };
 
-  ws.onerror = (error) => {
-    console.error('WebSocket error:', error);
+  const tryNative = async () => {
+    await ensureToken();
+    const wsUrl = `${baseWsUrl}/ws/joe-agent${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+    ws = new WebSocket(wsUrl);
+    ws.onopen = () => {
+      failedAttempts = 0;
+      if (!isConnected) {
+        isConnected = true;
+        clearTimeout(connectTimeout);
+        if (ioSocket) { try { ioSocket.close(); } catch { void 0; } ioSocket = null; }
+        try {
+          const end = typeof performance !== 'undefined' ? performance.now() : Date.now();
+          const ms = Math.max(0, Math.round(end - raceStart));
+          localStorage.setItem('wsLastConnectMs', String(ms));
+          localStorage.setItem('wsLastTransport', 'websocket');
+          window.dispatchEvent(new CustomEvent('ws:connected', { detail: { elapsedMs: ms, transport: 'websocket' } }));
+        } catch { void 0; }
+        if (onOpen) onOpen();
+      }
+    };
+    ws.onmessage = (event) => {
+      if (onMessage) onMessage(JSON.parse(event.data));
+    };
+    ws.onclose = (evt) => {
+      try { console.warn(`[WS] Connection closed (code=${evt?.code} reason=${evt?.reason || ''}). Reconnecting...`); } catch { void 0; }
+      if (onClose) onClose();
+      isConnected = false;
+      wsFailures++;
+      try { window.dispatchEvent(new CustomEvent('ws:disconnected')); } catch { void 0; }
+      scheduleReconnect();
+    };
+    ws.onerror = () => { failedAttempts++; };
   };
+
+  const trySocketIO = async () => {
+    const httpBase = baseWsUrl.replace(/^ws/, 'http').replace(/^wss/, 'https');
+    const { io } = await import('socket.io-client');
+    await ensureToken();
+    ioSocket = io(`${httpBase}/joe-agent`, { path: '/socket.io', auth: { token }, transports: ['polling','websocket'], upgrade: true, reconnection: true, reconnectionDelay: 500, reconnectionDelayMax: 4000, timeout: 3000, forceNew: true });
+    ioSocket.on('connect', () => {
+      failedAttempts = 0;
+      if (!isConnected) {
+        isConnected = true;
+        clearTimeout(connectTimeout);
+        if (ws) { try { ws.close(); } catch { void 0; } ws = null; }
+        try {
+          const end = typeof performance !== 'undefined' ? performance.now() : Date.now();
+          const ms = Math.max(0, Math.round(end - raceStart));
+          localStorage.setItem('wsLastConnectMs', String(ms));
+          localStorage.setItem('wsLastTransport', 'socket.io');
+          window.dispatchEvent(new CustomEvent('ws:connected', { detail: { elapsedMs: ms, transport: 'socket.io' } }));
+        } catch { void 0; }
+        if (onOpen) onOpen();
+      }
+    });
+    ioSocket.on('status', (d) => { if (onMessage) onMessage({ type: 'status', message: d?.message }); });
+    ioSocket.on('response', (d) => { if (onMessage) onMessage({ type: 'response', response: d?.response, toolsUsed: d?.toolsUsed, sessionId: d?.sessionId }); });
+    ioSocket.on('disconnect', () => { if (onClose) onClose(); isConnected = false; ioFailures++; try { window.dispatchEvent(new CustomEvent('ws:disconnected')); } catch { void 0; } scheduleReconnect(); });
+    ioSocket.on('error', () => { failedAttempts++; ioFailures++; });
+  };
+
+  const startRace = async () => {
+    try {
+      isConnected = false;
+      clearTimeout(connectTimeout);
+      await ensureToken();
+      try { raceStart = typeof performance !== 'undefined' ? performance.now() : Date.now(); } catch { raceStart = Date.now(); }
+      if (!isDev) {
+        // Prefer native WebSocket first in production; if it fails, concurrently try Socket.IO
+        tryNative();
+        trySocketIO().catch(() => { /* ignore */ });
+      } else {
+        if (wsFailures >= 2 && ioFailures === 0) {
+          trySocketIO().catch(() => { tryNative(); });
+        } else {
+          tryNative();
+          trySocketIO().catch(() => { void 0; });
+        }
+      }
+      connectTimeout = setTimeout(() => {
+        if (!isConnected) {
+          try { if (ws) ws.close(); } catch { void 0; }
+          try { if (ioSocket) ioSocket.close(); } catch { void 0; }
+          scheduleReconnect();
+        }
+      }, 3500);
+    } catch { void 0; }
+  };
+
+  startRace();
 
   return ws;
 };
@@ -43,5 +175,9 @@ export const disconnectWebSocket = () => {
   if (ws) {
     ws.close();
     ws = null;
+  }
+  if (ioSocket) {
+    try { ioSocket.close(); } catch { /* ignore */ }
+    ioSocket = null;
   }
 };

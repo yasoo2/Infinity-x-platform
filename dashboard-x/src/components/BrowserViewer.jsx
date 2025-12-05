@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import apiClient from '../api/client'; // Make sure this path is correct
+import PropTypes from 'prop-types';
 import { Loader2, X, MousePointer2, Keyboard, Globe } from 'lucide-react';
-
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://admin.xelitesolutions.com';
+import useBrowserWebSocket from '../hooks/useBrowserWebSocket';
 
 /**
  * Interactive browser viewer that allows full user control.
@@ -13,14 +12,26 @@ const API_BASE = import.meta.env.VITE_API_BASE || 'https://admin.xelitesolutions
  *   language: 'ar' | 'en' // To change the language
  * }} props
  */
-export default function BrowserViewer({ sessionId, onClose, language = 'ar' }) {
-  const [screenshot, setScreenshot] = useState(null);
+export default function BrowserViewer({ sessionId: _sessionId, onClose, language = 'ar' }) {
+  const {
+    screenshot,
+    pageInfo,
+    isConnected,
+    
+    click,
+    type,
+    scroll,
+    pressKey,
+    getScreenshot,
+    startStreaming,
+    stopStreaming
+  } = useBrowserWebSocket();
+
   const [url, setUrl] = useState('');
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isUserControlled, setIsUserControlled] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const isUserControlledRef = useRef(false);
   const [error, setError] = useState(null);
-  const intervalRef = useRef(null);
   const canvasRef = useRef(null);
   const browserScreenRef = useRef(null);
 
@@ -69,49 +80,19 @@ export default function BrowserViewer({ sessionId, onClose, language = 'ar' }) {
 
   const t = texts[language];
 
-  const sendBrowserEvent = useCallback(async (eventType, payload) => {
-    if (!sessionId || !isUserControlled) return;
-    try {
-      await apiClient.post(`${API_BASE}/api/browser/event`, {
-        sessionId,
-        eventType,
-        payload,
-      });
-    } catch (err) {
-      console.error(`Failed to send browser event (${eventType}):`, err);
-      setError(`${t.errorPrefix}: ${err.response?.data?.message || err.message || 'Unknown error'}`);
-    }
-  }, [sessionId, isUserControlled, t.errorPrefix]);
-
-  const fetchScreenshot = useCallback(async () => {
-    if (!sessionId) return;
-    try {
-      const response = await apiClient.post(`${API_BASE}/api/browser/screenshot`, {
-        sessionId
-      });
-      if (response.data.ok) {
-        setScreenshot(response.data.screenshot);
-        setUrl(response.data.url);
-        setMousePos(response.data.mousePosition || { x: 0, y: 0 });
-        setError(null);
-      } else {
-        setError(response.data.message || t.failedFetchScreenshot);
-      }
-    } catch (err) {
-      console.error('BrowserViewer: Screenshot fetch error:', err);
-      setError(`${t.errorPrefix}: ${t.failedFetchScreenshot}`);
-    }
-  }, [sessionId, t.errorPrefix, t.failedFetchScreenshot]);
+  useEffect(() => {
+    startStreaming();
+    getScreenshot();
+    return () => {
+      stopStreaming();
+    };
+  }, [startStreaming, stopStreaming, getScreenshot]);
 
   useEffect(() => {
-    fetchScreenshot();
-    intervalRef.current = setInterval(fetchScreenshot, 200);
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, [fetchScreenshot]);
+    if (pageInfo?.url) {
+      setUrl(pageInfo.url);
+    }
+  }, [pageInfo?.url]);
 
   useEffect(() => {
     if (!canvasRef.current || !screenshot) return;
@@ -143,78 +124,63 @@ export default function BrowserViewer({ sessionId, onClose, language = 'ar' }) {
         ctx.stroke();
       }
     };
-    img.src = screenshot;
+    img.src = `data:image/jpeg;base64,${screenshot}`;
   }, [screenshot, mousePos]);
 
-  const toggleControl = useCallback(async () => {
-    setIsLoading(true);
+  const toggleControl = useCallback(() => {
     setError(null);
-    try {
-      const response = await apiClient.post(`${API_BASE}/api/browser/toggle-control`, {
-        sessionId,
-        userControlled: !isUserControlled
-      });
-      if (response.data.ok) {
-        setIsUserControlled(response.data.isUserControlled);
-      } else {
-        setError(response.data.message || t.failedToggleControl);
-      }
-    } catch (err) {
-      console.error('BrowserViewer: Toggle control error:', err);
-      setError(`${t.errorPrefix}: ${t.failedToggleControl}`);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [sessionId, isUserControlled, t.errorPrefix, t.failedToggleControl]);
+    setIsUserControlled(v => !v);
+  }, []);
 
-  const handleClose = useCallback(async () => {
+  const handleClose = useCallback(() => {
     setError(null);
-    try {
-      await apiClient.post(`${API_BASE}/api/browser/close`, { sessionId });
-    } catch (err) {
-      console.error('BrowserViewer: Close error:', err);
-      setError(`${t.errorPrefix}: ${t.failedCloseSession}`);
-    }
+    stopStreaming();
     onClose();
-  }, [sessionId, onClose, t.errorPrefix, t.failedCloseSession]);
+  }, [stopStreaming, onClose]);
 
   const handleMouseMove = useCallback((e) => {
     if (!isUserControlled || !canvasRef.current || !screenshot) return;
     const rect = canvasRef.current.getBoundingClientRect();
     const img = new Image();
-    img.src = screenshot;
+    img.src = `data:image/jpeg;base64,${screenshot}`;
     const scaleX = img.width / rect.width;
     const scaleY = img.height / rect.height;
     const x = (e.clientX - rect.left) * scaleX;
     const y = (e.clientY - rect.top) * scaleY;
     setMousePos({ x, y });
-    sendBrowserEvent('mousemove', { x, y });
-  }, [isUserControlled, sendBrowserEvent, screenshot]);
+  }, [isUserControlled, screenshot]);
 
   const handleClick = useCallback((e) => {
     if (!isUserControlled || !canvasRef.current || !screenshot) return;
     const rect = canvasRef.current.getBoundingClientRect();
     const img = new Image();
-    img.src = screenshot;
+    img.src = `data:image/jpeg;base64,${screenshot}`;
     const scaleX = img.width / rect.width;
     const scaleY = img.height / rect.height;
     const x = (e.clientX - rect.left) * scaleX;
     const y = (e.clientY - rect.top) * scaleY;
-    sendBrowserEvent('click', { x, y, button: e.button });
-  }, [isUserControlled, sendBrowserEvent, screenshot]);
+    if (isUserControlled) {
+      click(x, y);
+    }
+  }, [isUserControlled, click, screenshot]);
 
   const handleScroll = useCallback((e) => {
     if (!isUserControlled) return;
-    sendBrowserEvent('scroll', { deltaY: e.deltaY });
-  }, [isUserControlled, sendBrowserEvent]);
+    scroll(e.deltaY);
+  }, [isUserControlled, scroll]);
 
   const handleKeyDown = useCallback((e) => {
-    if (!isUserControlled) return;
-    sendBrowserEvent('keydown', { key: e.key, code: e.code, ctrlKey: e.ctrlKey, shiftKey: e.shiftKey, altKey: e.altKey, metaKey: e.metaKey });
+    if (!isUserControlledRef.current) return;
     e.preventDefault();
-  }, [isUserControlled, sendBrowserEvent]);
+    if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      type(e.key);
+    } else {
+      pressKey(e.key);
+    }
+  }, [type, pressKey]);
 
   useEffect(() => {
+    isUserControlledRef.current = isUserControlled;
     const canvas = canvasRef.current;
     if (canvas && isUserControlled) {
       canvas.addEventListener('mousemove', handleMouseMove);
@@ -246,12 +212,12 @@ export default function BrowserViewer({ sessionId, onClose, language = 'ar' }) {
         <div className="flex items-center gap-3">
           <button
             onClick={toggleControl}
-            disabled={isLoading}
-            className={`px-5 py-2 rounded-full font-semibold transition-all duration-300 flex items-center gap-2 ${isUserControlled ? 'bg-green-600 hover:bg-green-700 text-white shadow-md' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md'} ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}>
-            {isLoading && <Loader2 className="h-5 w-5 animate-spin" />}
+            disabled={!isConnected}
+            className={`px-5 py-2 rounded-full font-semibold transition-all duration-300 flex items-center gap-2 ${isUserControlled ? 'bg-green-600 hover:bg-green-700 text-white shadow-md' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md'} ${!isConnected ? 'opacity-70 cursor-not-allowed' : ''}`}>
+            <MousePointer2 className="h-5 w-5" />
             {isUserControlled ? t.youControl : t.joeControls}
           </button>
-          <button onClick={handleClose} className="text-gray-400 hover:text-white text-3xl px-2 leading-none transition-colors duration-200" title={t.closeViewer}>
+          <button onClick={handleClose} className="text-red-500 hover:text-red-400 text-3xl px-2 leading-none transition-colors duration-200" title={t.closeViewer}>
             <X className="w-7 h-7" />
           </button>
         </div>
@@ -299,3 +265,9 @@ export default function BrowserViewer({ sessionId, onClose, language = 'ar' }) {
     </div>
   );
 }
+
+BrowserViewer.propTypes = {
+  sessionId: PropTypes.string.isRequired,
+  onClose: PropTypes.func.isRequired,
+  language: PropTypes.oneOf(['ar', 'en']),
+};

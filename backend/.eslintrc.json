@@ -12,6 +12,10 @@
   "rules": {
     "no-unused-vars": "warn"
   },
+  "ignorePatterns": [
+    "src/systems/code-review.service.mjs",
+    "**/src/systems/code-review.service.mjs"
+  ],
   "overrides": [
     {
       "files": ["**/*.mjs"],

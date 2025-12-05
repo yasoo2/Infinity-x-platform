@@ -1,0 +1,11 @@
+name = "xelite-cors-worker"
+main = "src/worker.js"
+compatibility_date = "2025-11-30"
+workers_dev = false
+
+routes = [
+  { pattern = "api.xelitesolutions.com/*", zone_name = "xelitesolutions.com" }
+]
+
+[observability]
+enabled = true

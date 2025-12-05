@@ -1,7 +1,6 @@
 import jwt from 'jsonwebtoken';
 import User from '../database/models/User.mjs';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+import config from '../config.mjs';
 
 /**
  * Authenticate token middleware
@@ -16,7 +15,7 @@ export const authenticateToken = async (req, res, next) => {
       return res.status(401).json({ ok: false, error: 'No token provided' });
     }
 
-    jwt.verify(token, JWT_SECRET, async (err, decoded) => {
+    jwt.verify(token, config.JWT_SECRET, async (err, decoded) => {
       if (err) {
         // Check for token expiration
         if (err.name === 'TokenExpiredError') {
@@ -51,8 +50,11 @@ export const authenticateToken = async (req, res, next) => {
         return res.status(403).json({ ok: false, error: 'Invalid token' });
       }
 
-      // Fetch user from database
-      const user = await User.findById(decoded.userId);
+      // Fetch user from database; fallback to token claims if not found
+      let user = await User.findById(decoded.userId);
+      if (!user && decoded && decoded.userId) {
+        user = { _id: decoded.userId, role: decoded.role || 'user', email: decoded.email };
+      }
       if (!user) {
         return res.status(404).json({ ok: false, error: 'User not found' });
       }
@@ -97,25 +99,36 @@ export const requireAdmin = (req, res, next) => {
  * Generate JWT token
  */
 export const generateToken = (user) => {
-  // تم زيادة مدة الصلاحية إلى 365 يومًا (سنة) لتقليل فشل WebSocket بسبب انتهاء الصلاحية
-  return jwt.sign({ userId: user._id, role: user.role }, JWT_SECRET, { expiresIn: '365d' });
+  return jwt.sign({ userId: user._id, role: user.role }, config.JWT_SECRET, { expiresIn: '365d' });
 };
 
 // This function is not used in the file, but it was in the original app.mjs
 // I'm adding it here to keep the auth logic together.
 export const setupAuth = (db) => {
+    void db;
     // In a real app, you might use the db to configure passport strategies
     console.log('Auth setup complete.');
 };
 
 export const requireRole = (db) => (role) => (req, res, next) => {
-    if (!req.user || req.user.role !== role) {
+    void db;
+    const required = String(role).toLowerCase();
+    const actual = String(req?.user?.role || '').toLowerCase();
+    const level = { super_admin: 3, admin: 2, user: 1, joe_brain: 2, guest: 1 };
+    const requiredLevel = level[required] ?? 99;
+    const actualLevel = level[actual] ?? 0;
+    if (!req.user || actualLevel < requiredLevel) {
+        // If no user, and the required role is 'user', this is a guest user, so let them pass
+        if (!req.user && required === 'user') {
+            return next();
+        }
         return res.status(403).json({ error: 'ACCESS_DENIED', message: `Role '${role}' required.` });
     }
     next();
 };
 
 export const optionalAuth = (db) => async (req, res, next) => {
+    void db;
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
@@ -124,12 +137,15 @@ export const optionalAuth = (db) => async (req, res, next) => {
     }
 
     try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        const user = await User.findById(decoded.userId);
-        if (user) {
-            req.user = user; // Attach user if found
+        const decoded = jwt.verify(token, config.JWT_SECRET);
+        let user = await User.findById(decoded.userId);
+        if (!user && decoded && decoded.userId) {
+            user = { _id: decoded.userId, role: decoded.role || 'user', email: decoded.email };
         }
-    } catch (error) {
+        if (user) {
+            req.user = user;
+        }
+    } catch {
         // Invalid token, just proceed without auth
     }
     next();

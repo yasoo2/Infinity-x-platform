@@ -1,6 +1,7 @@
 import { formatDistanceToNow } from 'date-fns';
+import PropTypes from 'prop-types';
 
-export default function UsersTable({ users }) {
+export default function UsersTable({ users, onEdit, onDelete }) {
   const formatTime = (timestamp) => {
     if (!timestamp) return 'Never';
     try {
@@ -50,6 +51,9 @@ export default function UsersTable({ users }) {
               <th className="px-6 py-3 text-left text-xs font-medium text-textDim uppercase tracking-wider">
                 Active Since
               </th>
+              {(onEdit || onDelete) && (
+                <th className="px-6 py-3 text-right text-xs font-medium text-textDim uppercase tracking-wider">Actions</th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-textDim/10">
@@ -70,8 +74,20 @@ export default function UsersTable({ users }) {
                   {formatTime(user.lastLoginAt)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-textDim">
-                  {formatTime(user.activeSessionSince)}
+                  {formatTime(user.activeSessionSince || user.createdAt)}
                 </td>
+                {(onEdit || onDelete) && (
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                    <div className="flex items-center gap-2 justify-end">
+                      {onEdit && (
+                        <button onClick={() => onEdit(user)} className="px-3 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white text-xs">Edit</button>
+                      )}
+                      {onDelete && (
+                        <button onClick={() => onDelete(user)} className="px-3 py-1 rounded bg-red-600 hover:bg-red-700 text-white text-xs">Delete</button>
+                      )}
+                    </div>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -80,3 +96,9 @@ export default function UsersTable({ users }) {
     </div>
   );
 }
+
+UsersTable.propTypes = {
+  users: PropTypes.array.isRequired,
+  onEdit: PropTypes.func,
+  onDelete: PropTypes.func,
+};

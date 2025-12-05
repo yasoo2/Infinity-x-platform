@@ -4,8 +4,7 @@
  */
 
 import dotenv from 'dotenv';
-import { MongoClient, ObjectId } from 'mongodb';
-import Redis from 'ioredis';
+import { MongoClient } from 'mongodb';
 import { buildWebsite, buildWebApp, buildEcommerce } from './lib/projectGenerator.mjs';
 import { deployToCloudflare } from './lib/cloudflareDeployer.mjs';
 
@@ -13,7 +12,7 @@ dotenv.config();
 
 const DB_NAME = process.env.DB_NAME || 'future_system';
 const mongoClient = new MongoClient(process.env.MONGO_URI || 'mongodb://localhost:27017');
-const redis = process.env.REDIS_URL ? new Redis(process.env.REDIS_URL) : null;
+// Redis integration can be enabled when needed
 
 function sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
@@ -61,7 +60,7 @@ async function handleFactoryJob(db, job) {
     switch (job.projectType.toLowerCase()) {
       case 'website':
       case 'landing-page':
-      case 'portfolio':
+      case 'portfolio': {
         await db.collection('factory_jobs').updateOne(
           { _id: job._id },
           { $set: { progress: 30, currentStep: 'Generating website code...' } }
@@ -72,10 +71,10 @@ async function handleFactoryJob(db, job) {
           style: job.style || 'modern'
         });
         break;
-        
+      }
       case 'webapp':
       case 'app':
-      case 'application':
+      case 'application': {
         await db.collection('factory_jobs').updateOne(
           { _id: job._id },
           { $set: { progress: 30, currentStep: 'Generating web app code...' } }
@@ -86,10 +85,10 @@ async function handleFactoryJob(db, job) {
           features: job.features || []
         });
         break;
-        
+      }
       case 'ecommerce':
       case 'store':
-      case 'shop':
+      case 'shop': {
         await db.collection('factory_jobs').updateOne(
           { _id: job._id },
           { $set: { progress: 30, currentStep: 'Generating e-commerce store...' } }
@@ -100,9 +99,10 @@ async function handleFactoryJob(db, job) {
           products: job.products || []
         });
         break;
-        
-      default:
+      }
+      default: {
         throw new Error(`Unknown project type: ${job.projectType}`);
+      }
     }
     
     // حفظ معلومات المشروع

@@ -41,7 +41,7 @@ async function ingestFile({ fileName, fileContent, userId, sessionId }) {
         await fs.writeFile(filePath, Buffer.from(fileContent, 'base64'));
 
         // 2. Create a summary of the event for the AI's memory
-        const summary = `A file named \"${fileName}\" has been uploaded by the user. It is stored with reference ID ${storedFileName}. Its contents are now available for analysis, review, or processing.`;
+        const summary = `A file named "${fileName}" has been uploaded by the user. It is stored with reference ID ${storedFileName}. Its contents are now available for analysis, review, or processing.`;
 
         // 3. Save this event as a special interaction in the AI's memory
         await memoryManager.saveInteraction(userId, `[System Event: File Upload - ${fileName}]`, summary, {
@@ -58,7 +58,7 @@ async function ingestFile({ fileName, fileContent, userId, sessionId }) {
 
         return {
             success: true,
-            message: `File \"${fileName}\" has been ingested and is now part of the conversation context.`,
+            message: `File "${fileName}" has been ingested and is now part of the conversation context.`,
             fileName: fileName,
             fileId: storedFileName
         };

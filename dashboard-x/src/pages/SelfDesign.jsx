@@ -1,5 +1,5 @@
-import { useState, useCallback, useReducer, useEffect } from 'react';
-import axios from 'axios';
+import { useState, useCallback, useReducer } from 'react';
+import apiClient from '../api/client';
 import {
   RefreshCw,
   Rocket,
@@ -18,7 +18,6 @@ import {
   Terminal,
 } from 'lucide-react';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://admin.xelitesolutions.com';
 
 // Reducer for the self-design process state
 const selfDesignReducer = (state, action) => {
@@ -126,7 +125,7 @@ export default function SelfDesign() {
         githubRepo,
       };
 
-      const response = await axios.post(`${API_BASE}/api/self-design/initiate-autonomous-design`, payload);
+      const response = await apiClient.post('/api/self-design/initiate-autonomous-design', payload);
 
       if (response.data.ok) {
         addLog('✅ تم توليد الكود الأولي بنجاح!', 'success');

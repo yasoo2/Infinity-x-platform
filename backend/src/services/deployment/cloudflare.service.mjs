@@ -148,7 +148,7 @@ export class CloudflareDeployer {
       // 🔍 التحقق من تثبيت Wrangler
       try {
         await execAsync('npx wrangler --version');
-      } catch (error) {
+      } catch {
         console.log('📦 تثبيت Wrangler...');
         await execAsync('npm install -g wrangler');
       }
@@ -345,7 +345,7 @@ export class CloudflareDeployer {
       const project = await this.getProject(deploymentName);
       console.log('✅ المشروع موجود بالفعل');
       return project;
-    } catch (error) {
+    } catch {
       // إنشاء مشروع جديد
       console.log('🏗️ إنشاء مشروع جديد...');
       return await this.createProject(deploymentName, options);
@@ -387,6 +387,7 @@ export class CloudflareDeployer {
    * 📁 تحضير الملفات للنشر
    */
   async prepareFiles(projectPath, options = {}) {
+    void options;
     const files = await this.readDirectoryRecursive(projectPath);
     
     // 🔍 تصفية الملفات
@@ -439,6 +440,7 @@ export class CloudflareDeployer {
    * 🗜️ إنشاء أرشيف ZIP
    */
   async createZipArchive(files, basePath) {
+    void basePath;
     return new Promise((resolve, reject) => {
       const chunks = [];
       const archive = archiver('zip', {

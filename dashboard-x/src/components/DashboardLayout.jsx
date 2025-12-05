@@ -1,7 +1,6 @@
 // DashboardLayout.tsx
 import { Outlet } from 'react-router-dom';
 import { useState } from 'react';
-// import Navbar from './Navbar'; // Removed as per user request
 import JoeScreen from './JoeScreen';
 
 export default function DashboardLayout() {
@@ -9,9 +8,10 @@ export default function DashboardLayout() {
   const [isProcessing, setIsProcessing] = useState(false); // تم تغيير القيمة الافتراضية
   const [progress, setProgress] = useState(0); // تم تغيير القيمة الافتراضية
   const [wsLog, setWsLog] = useState([]); // تم تحديد النوع
+  
 
   const handleTakeover = () => {
-    console.log('User has taken over the Joe screen.');
+    console.warn('User has taken over the Joe screen.');
     // هنا يمكنك إضافة منطق للتحكم في Joe
   };
 
@@ -23,7 +23,7 @@ export default function DashboardLayout() {
     setIsProcessing(true);
     setProgress(0);
     setWsLog(prev => [...prev, `Sending command: ${data.commandText}`]);
-    console.log('Command submitted from JoeScreen:', data);
+    console.warn('Command submitted from JoeScreen:', data);
 
     // محاكاة لعملية إرسال الأمر والاستجابة
     for (let i = 0; i <= 100; i += 10) {
@@ -38,12 +38,15 @@ export default function DashboardLayout() {
     setProgress(100);
   };
 
+  
+
   return (
     <div className="min-h-screen bg-bgDark">
       {/* Navbar removed as per user request to eliminate the top header. */}
       <main className="max-w-full mx-auto p-0 h-screen">
         <Outlet />
       </main>
+      
       {isJoeScreenOpen && (
         <JoeScreen
           isProcessing={isProcessing}

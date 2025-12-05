@@ -34,7 +34,7 @@ class SystemInteractionTool {
                         conn.end();
                         return resolve({ success: false, message: `SSH execution error: ${err.message}` });
                     }
-                    stream.on('close', (code, signal) => {
+                    stream.on('close', (code) => {
                         conn.end();
                         resolve({ success: true, output: output.trim(), exitCode: code });
                     }).on('data', (data) => {

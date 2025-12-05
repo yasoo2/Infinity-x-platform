@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import PropTypes from 'prop-types';
 import { X, RefreshCw, ArrowLeft, ArrowRight, Maximize2, Minimize2, Monitor, Cpu, Activity, AlertCircle } from 'lucide-react';
 import useBrowserWebSocket from '../hooks/useBrowserWebSocket'; // افترض وجود هذا الـ Hook
 
@@ -33,7 +34,7 @@ const FullScreenBrowser = ({ onClose }) => {
       setInputUrl(pageInfo.url);
       setUrl(pageInfo.url); // تحديث URL الحالي المعروض
     }
-  }, [pageInfo?.url]);
+  }, [pageInfo?.url, inputUrl]);
 
   // رسم لقطة الشاشة على Canvas
   useEffect(() => {
@@ -48,7 +49,7 @@ const FullScreenBrowser = ({ onClose }) => {
         canvas.height = img.height;
         ctx.drawImage(img, 0, 0);
       };
-      img.src = screenshot;
+      img.src = `data:image/jpeg;base64,${screenshot}`;
     }
   }, [screenshot]);
 
@@ -119,6 +120,14 @@ const FullScreenBrowser = ({ onClose }) => {
     }
   };
 
+  const close = () => {
+    if (typeof onClose === 'function') {
+      try { onClose(); } catch { /* noop */ }
+    } else {
+      try { window.history.back(); } catch { /* noop */ }
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex flex-col">
       {/* شريط الأدوات العلوي */}
@@ -126,8 +135,8 @@ const FullScreenBrowser = ({ onClose }) => {
         {/* أزرار التحكم */}
         <div className="flex items-center gap-2">
           <button
-            onClick={onClose}
-            className="p-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-all duration-200 hover:scale-110"
+            onClick={close}
+            className="btn-ghost p-2 rounded-lg text-red-400 hover:text-white hover:bg-red-500/30 transition-all duration-200 hover:scale-110"
             title="Close Browser"
           >
             <X size={20} />
@@ -135,7 +144,7 @@ const FullScreenBrowser = ({ onClose }) => {
           
           <button
             onClick={goBack}
-            className="p-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 transition-all duration-200 hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-ghost p-2 rounded-lg text-blue-400 transition-all duration-200 hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed"
             title="Go Back"
             // disabled={!canGoBack} // افتراض وجود هذه الحالة في الـ hook
           >
@@ -144,7 +153,7 @@ const FullScreenBrowser = ({ onClose }) => {
 
           <button
             onClick={goForward}
-            className="p-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 transition-all duration-200 hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-ghost p-2 rounded-lg text-blue-400 transition-all duration-200 hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed"
             title="Go Forward"
             // disabled={!canGoForward} // افتراض وجود هذه الحالة في الـ hook
           >
@@ -153,7 +162,7 @@ const FullScreenBrowser = ({ onClose }) => {
 
           <button
             onClick={reload}
-            className="p-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 transition-all duration-200 hover:scale-110"
+            className="btn-ghost p-2 rounded-lg text-blue-400 transition-all duration-200 hover:scale-110"
             title="Refresh Page"
             disabled={isNavigating || isLoading}
           >
@@ -174,7 +183,7 @@ const FullScreenBrowser = ({ onClose }) => {
           />
           <button
             onClick={handleNavigate}
-            className="px-6 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-medium transition-all duration-200 hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-primary px-6 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={isNavigating || isLoading}
           >
             Go
@@ -198,9 +207,7 @@ const FullScreenBrowser = ({ onClose }) => {
           <button
             onClick={() => setIsControlMode(!isControlMode)}
             className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105 shadow-lg ${
-              isControlMode
-                ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white'
-                : 'bg-gray-700/50 hover:bg-gray-700 text-gray-300'
+              isControlMode ? 'btn-primary' : 'btn-ghost'
             }`}
             title={isControlMode ? 'Disable Interactive Control' : 'Enable Interactive Control'}
           >
@@ -209,7 +216,7 @@ const FullScreenBrowser = ({ onClose }) => {
 
           <button
             onClick={toggleFullScreen}
-            className="p-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 transition-all duration-200 hover:scale-110"
+            className="btn-ghost p-2 rounded-lg text-blue-400 transition-all duration-200 hover:scale-110"
             title={isFullScreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
           >
             {isFullScreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
@@ -273,7 +280,7 @@ const FullScreenBrowser = ({ onClose }) => {
         <div className="flex items-center gap-4 text-sm text-gray-300">
           <div className="flex items-center gap-2">
             <Cpu size={14} className="text-purple-400" />
-            <span>JOE's Browser</span>
+            <span>JOE&apos;s Browser</span>
           </div>
           <div className="text-gray-500">|</div>
           <span className="text-gray-400 truncate max-w-xs">{pageInfo?.url || url}</span>
@@ -289,6 +296,10 @@ const FullScreenBrowser = ({ onClose }) => {
       </div>
     </div>
   );
+};
+
+FullScreenBrowser.propTypes = {
+  onClose: PropTypes.func,
 };
 
 export default FullScreenBrowser;

@@ -1,5 +1,7 @@
-import React from 'react';
-import { FiZap, FiTool, FiCheckCircle, FiActivity, FiCpu } from 'react-icons/fi';
+import React, { useEffect, useState } from 'react';
+import PropTypes from 'prop-types';
+import { FiZap, FiTool, FiCheckCircle, FiActivity } from 'react-icons/fi';
+import apiClient from '../../api/client';
 
 const PlanStep = ({ step, index }) => {
   const Icon = step.type === 'thought' ? FiZap : FiTool;
@@ -28,13 +30,61 @@ const PlanStep = ({ step, index }) => {
   );
 };
 
-const RightPanel = ({ isProcessing, plan }) => {
-  const showPlan = isProcessing && plan && plan.length > 0;
+PlanStep.propTypes = {
+  step: PropTypes.shape({
+    type: PropTypes.string,
+    content: PropTypes.any,
+    details: PropTypes.any,
+  }).isRequired,
+  index: PropTypes.number.isRequired,
+};
+
+const RightPanel = ({ isProcessing, plan, forceStatus = false, wsConnected = false }) => {
+  const showPlan = !forceStatus && isProcessing && plan && plan.length > 0;
+  const [health, setHealth] = useState(null);
+  const [runtime, setRuntime] = useState(null);
+  const [engine, setEngine] = useState(null);
+  const formatUptime = (s) => {
+    if (!s && s !== 0) return '';
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = Math.floor(s % 60);
+    if (h > 0) return `${h}h ${m}m`;
+    if (m > 0) return `${m}m ${sec}s`;
+    return `${sec}s`;
+  };
+
+  useEffect(() => {
+    const ac = new AbortController();
+    const { signal } = ac;
+    const fetchAll = async () => {
+      try {
+        const h = await apiClient.get('/api/v1/health', { signal });
+        setHealth(h.data);
+      } catch {
+        try {
+          const p = await apiClient.get('/api/v1/joe/ping', { signal });
+          setHealth({ success: true, status: 'ok', uptime: 0, ping: p.data });
+        } catch { void 0; }
+      }
+      try {
+        const r = await apiClient.get('/api/v1/runtime-mode/status', { signal });
+        setRuntime(r.data);
+      } catch { void 0; }
+      try {
+        const e = await apiClient.get('/api/v1/ai/engine/status', { signal });
+        setEngine(e.data);
+      } catch { void 0; }
+      // Removed providers fetch: state not used in panel
+    };
+    fetchAll();
+    return () => ac.abort();
+  }, []);
 
   return (
-    <div className="h-full flex flex-col bg-gray-900 p-5">
+    <div className="h-full flex flex-col bg-gradient-to-br from-gray-900 to-gray-950 p-5 border border-gray-800 rounded-xl ring-1 ring-yellow-600/10">
       {/* Header */}
-      <div className="mb-5">
+      <div className="mb-5 border-b border-gray-700 pb-3">
         <div className="flex items-center gap-3 mb-2">
           {showPlan ? <FiZap className="text-blue-500" size={24} /> : <FiActivity className="text-green-500" size={24} />}
           <h2 className="text-xl font-bold text-white">
@@ -56,37 +106,49 @@ const RightPanel = ({ isProcessing, plan }) => {
           </div>
         ) : (
           <div className="space-y-3">
-            {/* System Status Cards */}
-            <div className="p-4 bg-gray-800 rounded-lg border border-gray-700">
+            <div className="p-4 bg-gray-800/80 rounded-lg border border-gray-700">
               <div className="flex items-center gap-3 mb-2">
-                <FiCheckCircle className="text-green-500" size={20} />
+                <FiCheckCircle className={wsConnected ? 'text-green-500' : 'text-red-500'} size={20} />
                 <h4 className="font-semibold text-white">WebSocket</h4>
               </div>
-              <p className="text-sm text-gray-400">Connection stable and active</p>
+              <p className="text-sm text-gray-400">{wsConnected ? 'Connection active' : 'Disconnected'}</p>
+              <div className="mt-3">
+                <div className="text-xs text-gray-400 mb-1">Preferred connection</div>
+                <PreferenceToggle />
+              </div>
             </div>
 
-            <div className="p-4 bg-gray-800 rounded-lg border border-gray-700">
+            <div className="p-4 bg-gray-800/80 rounded-lg border border-gray-700">
               <div className="flex items-center gap-3 mb-2">
-                <FiCheckCircle className="text-green-500" size={20} />
+                <FiCheckCircle className={(health?.success && health?.status === 'ok') ? 'text-green-500' : 'text-red-500'} size={20} />
                 <h4 className="font-semibold text-white">API Backend</h4>
               </div>
-              <p className="text-sm text-gray-400">All services operational</p>
+              <p className="text-sm text-gray-400">{(health?.success && health?.status === 'ok') ? 'All services operational' : 'Service unavailable'}</p>
+              <div className="mt-2 text-xs text-gray-500">
+                <div>DB: {health?.db || 'unknown'}</div>
+                <div>Uptime: {formatUptime(health?.uptime)}</div>
+              </div>
             </div>
 
-            <div className="p-4 bg-gray-800 rounded-lg border border-gray-700">
+            <div className="p-4 bg-gray-800/80 rounded-lg border border-gray-700">
               <div className="flex items-center gap-3 mb-2">
-                <FiCpu className="text-blue-500" size={20} />
+                <FiActivity className="text-blue-500" size={20} />
                 <h4 className="font-semibold text-white">AI Engine</h4>
               </div>
-              <p className="text-sm text-gray-400">Gemini 2.5 Flash • Ready</p>
+              <p className="text-sm text-gray-400">
+                {engine?.ok ? (engine.mode === 'openai' ? 'OpenAI • نشط' : 'غير معروف') : 'غير معروف'}
+              </p>
+              {runtime?.success && runtime.loading && (
+                <div className="mt-2 text-xs text-blue-400">تحميل: {runtime.stage || 'Starting'} • {runtime.percent || 0}%</div>
+              )}
             </div>
 
-            <div className="p-4 bg-gray-800 rounded-lg border border-gray-700">
+            <div className="p-4 bg-gray-800/80 rounded-lg border border-gray-700">
               <div className="flex items-center gap-3 mb-2">
                 <FiTool className="text-purple-500" size={20} />
                 <h4 className="font-semibold text-white">Tools Available</h4>
               </div>
-              <p className="text-sm text-gray-400">82 tools and functions loaded</p>
+              <p className="text-sm text-gray-400">{typeof health?.toolsCount === 'number' ? `${health.toolsCount} tools loaded` : 'Detecting...'}</p>
             </div>
 
             {/* Waiting State */}
@@ -99,6 +161,50 @@ const RightPanel = ({ isProcessing, plan }) => {
           </div>
         )}
       </div>
+    </div>
+  );
+};
+
+RightPanel.propTypes = {
+  isProcessing: PropTypes.bool.isRequired,
+  plan: PropTypes.array,
+  forceStatus: PropTypes.bool,
+  wsConnected: PropTypes.bool,
+};
+
+const PreferenceToggle = () => {
+  const envPref = (typeof import.meta !== 'undefined' ? (import.meta.env?.VITE_CONN_PREF) : undefined);
+  const envUseWs = (typeof import.meta !== 'undefined' ? (import.meta.env?.VITE_USE_WS) : undefined);
+  const locked = (() => { const p = String(envPref||'').toLowerCase(); if (p==='ws'||p==='sio') return true; if (String(envUseWs||'').toLowerCase()==='true') return true; return false; })();
+  const initial = (() => { const p = String(envPref||'').toLowerCase(); if (p==='ws') return 'ws'; if (p==='sio') return 'sio'; if (String(envUseWs||'').toLowerCase()==='true') return 'ws'; try { return localStorage.getItem('joeUseWS') === 'true' ? 'ws' : 'sio'; } catch { return 'sio'; } })();
+  const [pref, setPref] = useState(initial);
+  useEffect(() => {
+    try {
+      if (pref === 'ws') {
+        localStorage.setItem('joeUseWS', 'true');
+      } else {
+        localStorage.removeItem('joeUseWS');
+      }
+      if (!locked) window.dispatchEvent(new CustomEvent('joe:reconnect'));
+    } catch { /* noop */ }
+  }, [pref, locked]);
+  const btnBase = 'px-2 py-1 text-xs rounded border transition-colors';
+  const activeWs = pref === 'ws';
+  const activeSio = pref === 'sio';
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={() => setPref('sio')}
+        className={`${btnBase} ${activeSio ? 'bg-gray-700 border-gray-600 text-white' : 'bg-gray-900 border-gray-700 text-gray-300 hover:bg-gray-800'}`}
+        disabled={locked}
+      >Socket.IO</button>
+      <button
+        type="button"
+        onClick={() => setPref('ws')}
+        className={`${btnBase} ${activeWs ? 'bg-gray-700 border-gray-600 text-white' : 'bg-gray-900 border-gray-700 text-gray-300 hover:bg-gray-800'}`}
+        disabled={locked}
+      >WebSocket</button>
     </div>
   );
 };

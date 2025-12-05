@@ -1,9 +1,11 @@
 import express from 'express';
+import toolManager from '../services/tools/tool-manager.service.mjs';
 import { ObjectId } from 'mongodb';
 
 // Renamed to factory and set as default export for consistency with the new architecture
-const joeRouterFactory = ({ requireRole, db }) => {
+const joeRouterFactory = ({ requireRole, optionalAuth, db }) => {
   const router = express.Router();
+  if (optionalAuth) router.use(optionalAuth);
 
   // GET /api/v1/joe/ping
   router.get('/ping', (req, res) => {
@@ -16,6 +18,7 @@ const joeRouterFactory = ({ requireRole, db }) => {
       const mongoDb = await db();
       const { commandText, lang, voice } = req.body;
       const sessionToken = req.session.token;
+      const userId = req.user?._id || null;
 
       if (!commandText) {
         return res.status(400).json({ error: 'MISSING_FIELDS', message: 'commandText is required' });
@@ -25,7 +28,7 @@ const joeRouterFactory = ({ requireRole, db }) => {
       const result = await mongoDb.collection('joe_commands').insertOne({
         createdAt: now,
         sessionToken, // Link to the session
-        userId: req.user._id, // Link to the user
+        userId, // Link to the user (nullable for guests)
         lang: lang || 'en',
         voice: !!voice,
         commandText,
@@ -36,7 +39,7 @@ const joeRouterFactory = ({ requireRole, db }) => {
         ts: now,
         action: 'RECEIVED_COMMAND',
         detail: commandText,
-        userId: req.user._id
+        userId
       });
 
       res.status(202).json({
@@ -81,6 +84,23 @@ const joeRouterFactory = ({ requireRole, db }) => {
     } catch (err) {
       console.error('❌ /api/joe/suggestions error', err);
       res.status(500).json({ error: 'SERVER_ERROR', message: err.message });
+    }
+  });
+
+  // POST /api/v1/joe/execute - Analyze instruction and auto-run relevant tools
+  router.post('/execute', async (req, res) => {
+    try {
+      const { instruction, context } = req.body || {};
+      if (!instruction) {
+        return res.status(400).json({ success: false, error: 'MISSING_INSTRUCTION' });
+      }
+      const out = await toolManager.execute('autoPlanAndExecute', { instruction, context });
+      const response = out?.response || out?.output || out?.summary || out?.message || '';
+      const toolsUsed = Array.isArray(out?.toolsUsed) ? out.toolsUsed : (Array.isArray(out?.toolCalls) ? out.toolCalls.map(tc => tc.function?.name).filter(Boolean) : []);
+      return res.json({ ...out, response, toolsUsed });
+    } catch (err) {
+      console.error('❌ /api/joe/execute error', err);
+      return res.status(500).json({ success: false, error: 'SERVER_ERROR', message: err.message });
     }
   });
 

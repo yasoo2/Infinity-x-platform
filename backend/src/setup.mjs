@@ -1,13 +1,12 @@
 #!/usr/bin/env node
 // backend/src/setup.js - سكريبت التثبيت التلقائي لـ Joe
 
-import { exec } from 'child_process';
-import { promisify } from 'util';
+// Removed unused exec/promisify imports
 import fs from 'fs/promises';
 import path from 'path';
 import { getDB } from './db.mjs';
 
-const execAsync = promisify(exec);
+// execAsync removed (unused)
 
 console.log('🚀 Starting Joe Advanced System Setup...');
 
@@ -77,7 +76,7 @@ class JoeSetup {
         if (missingVars.length > 0) {
             console.log('⚠️ Missing environment variables:', missingVars);
             console.log('📝 Creating .env.example file...');
-            await this.createEnvExample(missingVars);
+            await this.createEnvExample();
         }
 
         // التحقق من Node.js version
@@ -421,25 +420,59 @@ module.exports = {
         
         // ملف Nginx للإنتاج
         const nginxConfig = `
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    '' close;
+}
+
 server {
     listen 80;
     server_name admin.xelitesolutions.com;
-    
+
+    set $backend_upstream http://localhost:10000;
+
     location / {
-        proxy_pass http://localhost:10000;
+        proxy_pass $backend_upstream;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
+        proxy_set_header Connection $connection_upgrade;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_cache_bypass $http_upgrade;
     }
-    
+
     # توجيه جميع مسارات WebSocket إلى الخادم الخلفي
     location ~ ^/ws/(joe-agent|browser|live-stream) {
-        proxy_pass http://localhost:10000;
+        proxy_pass $backend_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+    }
+
+    # Socket.IO (collaboration) WebSocket upgrade handling
+    location /socket.io/ {
+        proxy_pass $backend_upstream/socket.io/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+        proxy_buffering off;
+    }
+
+    # Socket.IO (collaboration) WebSocket upgrade handling
+    location /socket.io/ {
+        proxy_pass http://localhost:10000/socket.io/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -450,6 +483,7 @@ server {
     }
 }
 `;
+
 
         await fs.writeFile(path.join(process.cwd(), 'nginx.conf'), nginxConfig.trim());
         
@@ -470,7 +504,7 @@ server {
             try {
                 await import(dep);
                 console.log(`✅ ${dep} is installed`);
-            } catch (error) {
+            } catch {
                 missingDeps.push(dep);
                 console.log(`❌ ${dep} is missing`);
             }
@@ -553,7 +587,7 @@ server {
         return services;
     }
 
-    createEnvExample(missingVars) {
+    createEnvExample() {
         const envExample = `
 # Joe AI System Environment Variables
 

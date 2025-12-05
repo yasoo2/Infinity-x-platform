@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import PropTypes from 'prop-types';
 
 export default function VoiceInput({ onTranscript, disabled }) {
   const [isListening, setIsListening] = useState(false);
@@ -86,3 +87,8 @@ export default function VoiceInput({ onTranscript, disabled }) {
     </button>
   );
 }
+
+VoiceInput.propTypes = {
+  onTranscript: PropTypes.func.isRequired,
+  disabled: PropTypes.bool,
+};

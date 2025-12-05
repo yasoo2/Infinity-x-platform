@@ -4,10 +4,18 @@
  */
 
 import OpenAI from 'openai';
+// Local LLaMA removed from Joe system
 import fs from 'fs/promises';
 import { codeReviewSystem } from './code-review.service.mjs';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+let openai = null;
+try {
+  if (process.env.OPENAI_API_KEY) {
+    openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+} catch {
+  openai = null;
+}
 
 class SelfHealingSystem {
 
@@ -47,19 +55,21 @@ class SelfHealingSystem {
     Respond with JSON: {"rootCause": "...", "impact": "...", "fileName": "...", "lineNumber": ..., "confidence": 0.9}
     `;
     try {
-        const response = await openai.chat.completions.create({
-            model: 'gpt-4o',
-            messages: [
-                { role: 'system', content: 'You are an expert error analysis AI.' },
-                { role: 'user', content: prompt }
-            ],
-            response_format: { type: 'json_object' }
-        });
-        return JSON.parse(response.choices[0].message.content);
+        if (openai) {
+            const response = await openai.chat.completions.create({
+                model: 'gpt-4o',
+                messages: [
+                    { role: 'system', content: 'You are an expert error analysis AI.' },
+                    { role: 'user', content: prompt }
+                ],
+                response_format: { type: 'json_object' }
+            });
+            return JSON.parse(response.choices[0].message.content);
+        }
     } catch(e) {
-        console.error("Error during analysis:", e);
-        return { rootCause: 'Analysis failed', impact: 'Unknown' };
+        console.error('OpenAI analysis failed:', e);
     }
+    return { rootCause: 'Analysis failed', impact: 'Unknown' };
   }
 
   async generateSolutions(error, analysis) {
@@ -71,15 +81,22 @@ class SelfHealingSystem {
 
     Respond with JSON: {"solutions": [{"description": "...", "codeFix": "...", "confidence": 0.85, "type": "code_patch" | "config_change" | "restart"}]}
     `;
-     const response = await openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages: [
-            { role: 'system', content: 'You are an expert software engineer specialized in debugging and fixing errors.' },
-            { role: 'user', content: prompt }
-        ],
-        response_format: { type: 'json_object' }
-    });
-    return JSON.parse(response.choices[0].message.content).solutions || [];
+    try {
+        if (openai) {
+            const response = await openai.chat.completions.create({
+                model: 'gpt-4o',
+                messages: [
+                    { role: 'system', content: 'You are an expert software engineer specialized in debugging and fixing errors.' },
+                    { role: 'user', content: prompt }
+                ],
+                response_format: { type: 'json_object' }
+            });
+            return JSON.parse(response.choices[0].message.content).solutions || [];
+        }
+    } catch(e) {
+        console.error('OpenAI generateSolutions failed:', e);
+    }
+    return [];
   }
 
   selectBestSolution(solutions) {

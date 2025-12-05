@@ -9,7 +9,7 @@ import { createClient } from 'redis';
 import OpenAI from 'openai';
 import { getDB } from '../services/db.mjs'; // Assuming db service
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
 
 class RealTimeCollaborationSystem {
   constructor() {
@@ -20,15 +20,21 @@ class RealTimeCollaborationSystem {
 
   async initialize(httpServer) {
     this.io = new Server(httpServer, {
+      path: '/socket.io',
       cors: { origin: '*' },
       transports: ['websocket', 'polling']
     });
 
-    const pubClient = createClient({ url: process.env.REDIS_URL });
+    const pubClient = createClient({ url: process.env.REDIS_URL || 'redis://localhost:6379' });
     const subClient = pubClient.duplicate();
 
-    await Promise.all([pubClient.connect(), subClient.connect()]);
-    this.io.adapter(createAdapter(pubClient, subClient));
+    try {
+      await Promise.all([pubClient.connect(), subClient.connect()]);
+      this.io.adapter(createAdapter(pubClient, subClient));
+      console.log('✅ Socket.IO Redis Adapter connected.');
+    } catch (error) {
+      console.warn('⚠️ Could not connect Socket.IO to Redis. Falling back to in-memory adapter.', error.message);
+    }
 
     this.setupEventHandlers();
     console.log('✅ Real-time Collaboration System initialized');
@@ -102,6 +108,10 @@ class RealTimeCollaborationSystem {
       if (!room) return;
 
       const prompt = `You are a pair programming assistant. Based on the current code and the user request, provide a helpful response, suggestion, or code block.\n\nCurrent Code:\n${room.code}\n\nUser Request: ${data.request}`;
+      if (!openai) {
+          this.io.to(userInfo.roomId).emit('ai_response', { response: 'AI assistance is disabled.' });
+          return;
+      }
       const response = await openai.chat.completions.create({
           model: 'gpt-4o',
           messages: [{ role: 'system', content: 'You are a helpful pair programming assistant.' }, { role: 'user', content: prompt }]

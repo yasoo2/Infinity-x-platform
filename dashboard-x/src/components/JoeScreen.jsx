@@ -1,18 +1,29 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Draggable from 'react-draggable';
 import { ResizableBox } from 'react-resizable';
-import { Terminal, Code, Cpu, Globe, Monitor, ChevronDown, ChevronUp, RefreshCw, MousePointer, Maximize2 } from 'lucide-react';
+import { Terminal, Cpu, Globe, Monitor, ChevronDown, ChevronUp, RefreshCw, MousePointer, Maximize2, Search, Copy } from 'lucide-react';
+import PropTypes from 'prop-types';
 import useBrowserWebSocket from '../hooks/useBrowserWebSocket';
 import FullScreenBrowser from './FullScreenBrowser';
+import SearchPanel from './SearchPanel';
+import apiClient from '../api/client';
 
 const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
   const [isTakeoverActive, setIsTakeoverActive] = useState(false);
   const [activeTab, setActiveTab] = useState('browser'); // 'terminal' or 'browser'
-  const [browserUrl, setBrowserUrl] = useState('https://xelitesolutions.com');
+  const [browserUrl, setBrowserUrl] = useState('https://www.xelitesolutions.com');
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [inputText, setInputText] = useState('');
+  
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [boxSize, setBoxSize] = useState({ width: 700, height: 500 });
+  const [isLogCollapsed, setIsLogCollapsed] = useState(true);
   const imageRef = useRef(null);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState('');
+  const [showSearchPanel, setShowSearchPanel] = useState(false);
 
   const {
     screenshot,
@@ -53,6 +64,36 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
     }
   };
 
+  const runSearch = async () => {
+    const q = String(searchQuery || '').trim();
+    if (!q) return;
+    try {
+      setSearchLoading(true);
+      setSearchError('');
+      const { data } = await apiClient.post('/api/v1/web/search', { query: q, images: true });
+      if (data?.success) {
+        setSearchResults(data.results || []);
+        setShowSearchPanel(true);
+      } else {
+        setSearchError(data?.error || 'فشل البحث');
+        setShowSearchPanel(true);
+      }
+    } catch (e) {
+      setSearchError(e?.response?.data?.error || e?.message || 'خطأ غير متوقع');
+      setShowSearchPanel(true);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const openFromSearch = (url) => {
+    if (url) {
+      setBrowserUrl(url);
+      setShowSearchPanel(false);
+      navigate(url);
+    }
+  };
+
   const handleImageClick = (e) => {
     if (!isTakeoverActive || !imageRef.current) return;
 
@@ -70,14 +111,12 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
     
     if (e.key === 'Enter') {
       pressKey('Enter');
-      setInputText('');
     } else if (e.key === 'Backspace') {
       pressKey('Backspace');
     } else if (e.key === 'Tab') {
       pressKey('Tab');
     } else if (e.key.length === 1) {
       type(e.key);
-      setInputText(prev => prev + e.key);
     }
   };
 
@@ -100,6 +139,20 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
     scrollToBottom();
   }, [log]);
 
+  useEffect(() => {
+    const computeSize = () => {
+      const vw = typeof window !== 'undefined' ? window.innerWidth : 1024;
+      const vh = typeof window !== 'undefined' ? window.innerHeight : 768;
+      const width = Math.min(700, Math.max(320, vw - 32));
+      const height = Math.min(500, Math.max(240, vh - 120));
+      setBoxSize({ width, height });
+    };
+    computeSize();
+    const onResize = () => computeSize();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   const getStatusIcon = () => {
     if (isProcessing || isLoading) return <Cpu className="w-4 h-4 text-purple-400 animate-pulse" />;
     if (!isConnected) return <Monitor className="w-4 h-4 text-red-400" />;
@@ -118,21 +171,21 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
       {isFullScreen && (
         <FullScreenBrowser onClose={() => setIsFullScreen(false)} />
       )}
-      <Draggable handle=".handle">
+      <Draggable handle=".handle" bounds="body">
         <ResizableBox
-        width={700}
-        height={isCollapsed ? 50 : 500}
-        minConstraints={[500, 50]}
-        maxConstraints={[1200, 900]}
-        className="absolute bottom-4 right-4 z-50"
-      >
+          width={boxSize.width}
+          height={isCollapsed ? 50 : boxSize.height}
+          minConstraints={[Math.min(500, Math.max(300, (typeof window!=='undefined'?window.innerWidth:800)-120)), 50]}
+          maxConstraints={[Math.max(600, (typeof window!=='undefined'?window.innerWidth:800)-40), Math.max(400, (typeof window!=='undefined'?window.innerHeight:600)-120)]}
+          className="absolute bottom-4 right-4 z-50"
+        >
         <div className="w-full h-full flex flex-col bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border-2 border-purple-500/30 rounded-xl shadow-2xl shadow-purple-900/50 overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between p-3 bg-gradient-to-r from-gray-800/90 to-gray-900/90 border-b-2 border-purple-500/30 flex-shrink-0">
             <div className="flex items-center gap-3 handle cursor-move">
               {getStatusIcon()}
               <span className="text-sm font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-                JOE's Computer
+                JOE&apos;s Computer
               </span>
               <div className="flex items-center gap-1 ml-4 text-gray-400">
                 <Monitor className="w-3 h-3" />
@@ -152,7 +205,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
               </button>
               <button
                 onClick={onClose}
-                className="text-gray-400 hover:text-red-500 transition-colors"
+                className="text-red-500 hover:text-red-400 transition-colors"
                 title="Close"
               >
                 ×
@@ -191,7 +244,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
               {/* Content Area */}
               <div className="flex-1 overflow-hidden">
                 {activeTab === 'browser' ? (
-                  <div className="h-full flex flex-col bg-gray-900">
+                  <div className="h-full flex flex-col bg-gray-900" tabIndex={0} onKeyDown={handleKeyDown}>
                     {/* Browser Address Bar */}
                     <div className="flex items-center gap-2 p-2 bg-gray-800 border-b border-gray-700">
                       <Globe className="w-4 h-4 text-purple-400" />
@@ -207,14 +260,32 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
                       <button
                         onClick={handleNavigate}
                         disabled={!isConnected || isLoading}
-                        className="bg-purple-500 hover:bg-purple-600 text-white text-xs px-3 py-1.5 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="bg-yellow-600 hover:bg-yellow-700 text-black text-xs px-3 py-1.5 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Go
+                      </button>
+                      <div className="w-px h-5 bg-gray-700 mx-2" />
+                      <Search className="w-4 h-4 text-blue-400" />
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && runSearch()}
+                        className="w-48 bg-gray-900 text-gray-300 text-xs px-3 py-1.5 rounded border border-gray-700 focus:border-blue-500 focus:outline-none"
+                        placeholder="بحث..."
+                        disabled={isLoading}
+                      />
+                      <button
+                        onClick={runSearch}
+                        disabled={isLoading}
+                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        بحث
                       </button>
                       <button
                         onClick={getScreenshot}
                         disabled={!isConnected}
-                        className="bg-blue-500 hover:bg-blue-600 text-white text-xs p-1.5 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="bg-yellow-500 hover:bg-yellow-600 text-black text-xs p-1.5 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         title="Refresh Screenshot"
                       >
                         <RefreshCw className="w-3 h-3" />
@@ -231,6 +302,15 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
 
                     {/* Browser Content Area - Real Screenshot */}
                     <div className="flex-1 bg-white overflow-auto relative">
+                      {showSearchPanel && (
+                        <SearchPanel
+                          results={searchResults}
+                          loading={searchLoading}
+                          error={searchError}
+                          onClose={() => setShowSearchPanel(false)}
+                          onOpen={openFromSearch}
+                        />
+                      )}
                       {screenshot ? (
                         <div className="relative w-full h-full">
                           <img
@@ -277,39 +357,100 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
                     )}
                   </div>
                 ) : (
-                  <div className="h-full p-3 overflow-y-auto text-xs font-mono bg-black/40 backdrop-blur-sm">
-                    {isTakeoverActive && (
-                      <div className="absolute inset-0 bg-black/70 flex items-center justify-center text-white text-lg font-bold z-10 backdrop-blur-sm">
-                        <div className="text-center">
-                          <Monitor className="w-12 h-12 mx-auto mb-2 text-purple-400 animate-pulse" />
-                          <p>User Control Active</p>
-                          <button
-                            onClick={handleRelease}
-                            className="mt-4 bg-red-500 hover:bg-red-600 text-white text-sm px-4 py-2 rounded transition-all duration-200"
-                          >
-                            Release Control
-                          </button>
-                        </div>
+                  <div className="h-full flex flex-col bg-black/40 backdrop-blur-sm">
+                    <div className="flex items-center justify-between px-2 py-1 bg-gray-800/60 border-b border-gray-700/50 text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-300">Logs</span>
+                        <button
+                          onClick={() => {
+                            const last = log[log.length - 1];
+                            const value = last ? (typeof last === 'string' ? last : (last.text ?? JSON.stringify(last))) : '';
+                            try { navigator.clipboard.writeText(String(value)); } catch { /* noop */ }
+                          }}
+                          className="px-2 py-0.5 rounded border border-gray-700 bg-gray-900 text-gray-200 hover:bg-gray-700 flex items-center gap-1"
+                          title="نسخ آخر لوج"
+                        >
+                          <Copy className="w-3 h-3" />
+                          <span>Copy Last</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            const text = (log || []).map((entry) => {
+                              if (typeof entry === 'string') return entry;
+                              if (entry && typeof entry === 'object') return entry.text || JSON.stringify(entry);
+                              return '';
+                            }).join('\n');
+                            try { navigator.clipboard.writeText(text); } catch { /* noop */ }
+                          }}
+                          className="px-2 py-0.5 rounded border border-gray-700 bg-gray-900 text-gray-200 hover:bg-gray-700 flex items-center gap-1"
+                          title="نسخ جميع اللوجز"
+                        >
+                          <Copy className="w-3 h-3" />
+                          <span>Copy All</span>
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => setIsLogCollapsed((v) => !v)}
+                        className="text-gray-400 hover:text-white transition-colors"
+                        title={isLogCollapsed ? 'Expand' : 'Collapse'}
+                      >
+                        {isLogCollapsed ? (
+                          <ChevronUp className="w-4 h-4" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                    {isLogCollapsed ? (
+                      <div className="px-3 py-2 text-xs text-gray-500">Collapsed</div>
+                    ) : (
+                      <div className="flex-1 p-3 overflow-y-auto text-xs font-mono relative">
+                        {isTakeoverActive && (
+                          <div className="absolute inset-0 bg-black/70 flex items-center justify-center text-white text-lg font-bold z-10">
+                            <div className="text-center">
+                              <Monitor className="w-12 h-12 mx-auto mb-2 text-purple-400 animate-pulse" />
+                              <p>User Control Active</p>
+                              <button
+                                onClick={handleRelease}
+                                className="mt-4 bg-red-500 hover:bg-red-600 text-white text-sm px-4 py-2 rounded transition-all duration-200"
+                              >
+                                Release Control
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        {log.map((entry, index) => {
+                          const isObj = typeof entry === 'object' && entry !== null;
+                          const text = isObj ? (entry.text ?? JSON.stringify(entry)) : String(entry);
+                          return (
+                            <div
+                              key={entry.id || index}
+                              className={`flex gap-2 mb-1 items-start ${
+                                entry.type === 'system'
+                                  ? 'text-gray-400'
+                                  : entry.type === 'error'
+                                  ? 'text-red-400'
+                                  : 'text-blue-300'
+                              }`}
+                            >
+                              <span className="text-purple-400">
+                                [{new Date(entry.id || Date.now()).toLocaleTimeString()}]
+                              </span>
+                              <span className="flex-1 break-words">{text}</span>
+                              <button
+                                onClick={() => { try { navigator.clipboard.writeText(text); } catch { /* noop */ } }}
+                                className="ml-auto px-2 py-0.5 rounded border border-gray-700 bg-gray-900 text-gray-200 hover:bg-gray-700 flex items-center gap-1"
+                                title="نسخ هذا اللوج"
+                              >
+                                <Copy className="w-3 h-3" />
+                                <span>Copy</span>
+                              </button>
+                            </div>
+                          );
+                        })}
+                        <div ref={logEndRef} />
                       </div>
                     )}
-                    {log.map((entry, index) => (
-                      <div
-                        key={entry.id || index}
-                        className={`flex gap-2 mb-1 ${
-                          entry.type === 'system'
-                            ? 'text-gray-400'
-                            : entry.type === 'error'
-                            ? 'text-red-400'
-                            : 'text-blue-300'
-                        }`}
-                      >
-                        <span className="text-purple-400">
-                          [{new Date(entry.id || Date.now()).toLocaleTimeString()}]
-                        </span>
-                        <span>{entry.text}</span>
-                      </div>
-                    ))}
-                    <div ref={logEndRef} />
                   </div>
                 )}
               </div>
@@ -358,3 +499,11 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
 };
 
 export default JoeScreen;
+
+JoeScreen.propTypes = {
+  isProcessing: PropTypes.bool.isRequired,
+  progress: PropTypes.number.isRequired,
+  wsLog: PropTypes.array.isRequired,
+  onTakeover: PropTypes.func.isRequired,
+  onClose: PropTypes.func.isRequired,
+};

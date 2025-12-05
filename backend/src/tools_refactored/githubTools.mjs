@@ -124,11 +124,12 @@ class GitHubTools {
   }
 
   async cloneRepo(repoName, branch = 'main') {
-    if (!this.token) return { success: false, error: "GitHub token is not configured." };
     try {
       await execAsync(`rm -rf ${this.workDir}`);
       await fs.mkdir(this.workDir, { recursive: true });
-      const repoUrl = `https://${this.token}@github.com/${this.username}/${repoName}.git`;
+      const authedUrl = this.token ? `https://${this.token}@github.com/${this.username}/${repoName}.git` : null;
+      const publicUrl = `https://github.com/${this.username}/${repoName}.git`;
+      const repoUrl = authedUrl || publicUrl;
       await execAsync(`cd ${this.workDir} && git clone -b ${branch} ${repoUrl} ${repoName}`, { maxBuffer: 10 * 1024 * 1024 });
       return { success: true, path: path.join(this.workDir, repoName), message: "Repository cloned successfully" };
     } catch (error) {

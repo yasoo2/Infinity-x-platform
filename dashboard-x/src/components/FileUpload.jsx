@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { Upload, X, FileText, Image, File } from 'lucide-react';
+import PropTypes from 'prop-types';
+import { Upload, FileText, Image, File } from 'lucide-react';
+import apiClient from '../api/client';
 
 export default function FileUpload({ onFileAnalyzed }) {
   const [isDragging, setIsDragging] = useState(false);
@@ -42,12 +44,7 @@ export default function FileUpload({ onFileAnalyzed }) {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('https://admin.xelitesolutions.com/api/file/upload', {
-        method: 'POST',
-        body: formData
-      });
-
-      const data = await response.json();
+      const { data } = await apiClient.post('/api/file/upload', formData);
 
       if (data.ok) {
         onFileAnalyzed({
@@ -60,7 +57,7 @@ export default function FileUpload({ onFileAnalyzed }) {
         alert('خطأ في رفع الملف: ' + data.error);
       }
     } catch (error) {
-      console.error('Upload error:', error);
+      console.warn('Upload error:', error);
       alert('فشل رفع الملف');
     } finally {
       setUploading(false);
@@ -126,3 +123,7 @@ export default function FileUpload({ onFileAnalyzed }) {
     </div>
   );
 }
+
+FileUpload.propTypes = {
+  onFileAnalyzed: PropTypes.func.isRequired,
+};

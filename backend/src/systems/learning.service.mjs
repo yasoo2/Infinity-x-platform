@@ -5,11 +5,10 @@
  */
 
 import OpenAI from 'openai';
+import crypto from 'crypto';
 import { getDB } from '../services/db.mjs'; // Assuming db.mjs is in services
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
 
 class ContinuousLearningSystem {
   constructor() {
@@ -21,6 +20,7 @@ class ContinuousLearningSystem {
     const db = await getDB();
     // 1. Record the interaction
     const record = await this.recordInteraction(interaction, db);
+    void record;
 
     // 2. Analyze the outcome
     const analysis = await this.analyzeOutcome(interaction, db);
@@ -60,6 +60,7 @@ class ContinuousLearningSystem {
   }
 
   async analyzeOutcome(interaction, db) {
+    void db;
     return {
       successRate: interaction.success ? 100 : 0,
       efficiency: interaction.executionTime,
@@ -71,7 +72,6 @@ class ContinuousLearningSystem {
   }
 
   async extractPatterns(analysis) {
-    const patterns = [];
     const prompt = `
     Analyze the following data and extract meaningful patterns for system improvement:
     ${JSON.stringify(analysis, null, 2)}
@@ -86,6 +86,9 @@ class ContinuousLearningSystem {
     `;
 
     try {
+        if (!openai) {
+            return [];
+        }
         const response = await openai.chat.completions.create({
             model: 'gpt-4o',
             messages: [

@@ -1,4 +1,4 @@
-import fs from 'fs/promises';
+// Removed unused fs import
 
 /**
  * 🧠 DynamicToolOrchestrationTool - The ultimate tool for JOE's autonomy, enabling self-correction and dynamic tool generation.
@@ -49,6 +49,32 @@ class DynamicToolOrchestrationTool {
                 required: ["codeDescription", "inputData"]
             }
         };
+
+        this.autoPlanAndExecute.metadata = {
+            name: "autoPlanAndExecute",
+            description: "Analyzes natural language instructions, selects the most relevant built-in tools, executes them automatically, and returns a full, structured result.",
+            parameters: {
+                type: "object",
+                properties: {
+                    instruction: { type: "string", description: "User instruction in natural language (can be Arabic/English)." },
+                    context: { type: "object", description: "Optional context like file paths or session info." }
+                },
+                required: ["instruction"]
+            }
+        };
+
+        this.smartSystemReview.metadata = {
+            name: "smartSystemReview",
+            description: "Runs a smart system review: environment, health, local model readiness, tool availability, security scans, and produces optimization recommendations.",
+            parameters: {
+                type: "object",
+                properties: {
+                    scope: { type: "string", description: "Scope of review: 'quick' or 'full'" },
+                    autoFix: { type: "boolean", description: "Apply safe fixes like lint/format automatically" },
+                    lang: { type: "string", description: "Report language: 'ar' or 'en'" }
+                }
+            }
+        };
     }
 
     async selfCorrectingExecution({ failureReport, contextFiles }) {
@@ -81,24 +107,126 @@ The self-correction mechanism has been activated. A detailed, multi-step plan ha
         // This is the fully autonomous, template-based temporary tool generator. It uses a library
 // of pre-written, highly parameterized functions to fulfill the request without LLM generation.
         
-        const tempToolCode = `
-// Generated code for: ${codeDescription}
-function generatedTool(input) {
-    // ... actual generated code ...
-    // Use a rule-based approach to fulfill common requests
-    if (codeDescription.toLowerCase().includes('sha256')) {
-        // Placeholder for a local crypto library call
-        return \`SHA256 hash of \${input} is: \${Math.random().toString(36).substring(2, 15)}\`;
-    } else if (codeDescription.toLowerCase().includes('sort')) {
-        return \`Sorted input: \${input.split(',').sort().join(',')}\`;
-    }
-    return \`Processed \${input} using generated tool for: \${codeDescription}\`;
-}
-`;
+        // Removed unused tempToolCode
         return {
             success: true,
             message: "Temporary tool generated and executed successfully.",
             result: `Autonomous output for input '${inputData}': Processed ${inputData} using generated tool for: ${codeDescription}`
+        };
+    }
+
+    async autoPlanAndExecute({ instruction, context }) {
+        const text = String(instruction || '').toLowerCase();
+        const tm = this.dependencies?.toolManager;
+        const results = [];
+        const plan = [];
+
+        const has = (...keys) => keys.some(k => text.includes(k));
+        const push = (step, out) => { plan.push(step); if (out) results.push(out); };
+
+        try {
+            // Knowledge queries
+            if (has('اسأل','سؤال','استعلام','query','search','knowledge','معرفة')) {
+                const q = context?.query || instruction;
+                const r = await tm.execute('queryKnowledgeBase', { query: q, limit: 8 });
+                push('Run queryKnowledgeBase', { tool: 'queryKnowledgeBase', output: r });
+            }
+
+            // Security audit
+            if (has('أمن','security','audit','ثغرات','vulnerability')) {
+                const r = await tm.execute('runSecurityAudit', {});
+                push('Run runSecurityAudit', { tool: 'runSecurityAudit', output: r });
+            }
+
+            // Document ingestion from inline content
+            if (has('أدخل','ingest','أضف للمعرفة','knowledge base','ملخص','summary')) {
+                const content = context?.content || (has('نص','text') ? instruction : undefined);
+                if (content) {
+                    const r = await tm.execute('ingestDocument', { documentTitle: context?.title || 'Untitled', summaryGoal: context?.summaryGoal || '', content });
+                    push('Run ingestDocument (inline)', { tool: 'ingestDocument', output: r });
+                }
+            }
+
+            // Document extraction (PDF/DOCX/IMAGE/HTML/TEXT)
+            if (has('pdf','doc','docx','صورة','image','html','ملف','file','ocr')) {
+                const fp = context?.filePath;
+                if (fp) {
+                    const ext = fp.split('.').pop().toLowerCase();
+                    let format = 'TEXT';
+                    if (ext === 'pdf') format = 'PDF';
+                    else if (ext === 'docx' || ext === 'doc') format = 'WORD';
+                    else if (['png','jpg','jpeg','webp'].includes(ext)) format = 'IMAGE';
+                    else if (['html','htm'].includes(ext)) format = 'HTML';
+                    const ex = await tm.execute('extractTextFromDocument', { filePath: fp, format });
+                    push('Run extractTextFromDocument', { tool: 'extractTextFromDocument', output: ex });
+                    if (ex?.success && ex?.extractedText) {
+                        const ing = await tm.execute('ingestDocument', { documentTitle: context?.title || fp, summaryGoal: context?.summaryGoal || '', content: ex.extractedText, filePath: fp });
+                        push('Run ingestDocument (from extraction)', { tool: 'ingestDocument', output: ing });
+                    }
+                } else {
+                    push('Skipped extractTextFromDocument (missing filePath)', { warning: 'filePath not provided' });
+                }
+            }
+
+            return { success: true, instruction, plan, results };
+        } catch (error) {
+            return { success: false, instruction, plan, error: error.message, results };
+        }
+    }
+
+    async smartSystemReview({ scope = 'full', autoFix = false, lang = 'ar' } = {}) {
+        const tm = this.dependencies?.toolManager;
+        const start = Date.now();
+        const os = await import('os');
+        const { getConfig } = await import('../services/ai/runtime-config.mjs');
+        const cfg = getConfig();
+        const toolsCount = Array.isArray(tm?.getToolSchemas?.()) ? tm.getToolSchemas().length : 0;
+        const envChecks = ['NODE_ENV','MONGO_URI','OPENAI_API_KEY','REDIS_URL','JWT_SECRET'];
+        const missingEnv = envChecks.filter(k => !process.env[k]);
+        const llama = { ready: false, stage: 'disabled', percent: 0, modelPathExists: false };
+        const health = {
+            uptime: process.uptime(),
+            loadavg: os.loadavg(),
+            memory: process.memoryUsage(),
+            mode: (await import('../core/runtime-mode.mjs')).getMode(),
+            ai: { provider: cfg.activeProvider, model: cfg.activeModel },
+            toolsCount
+        };
+        const securityAudit = await tm.execute('runSecurityAudit', { dirs: ['backend','dashboard-x'] }).catch(() => null);
+        const insecure = await tm.execute('scanInsecurePatterns', { globs: ['backend/**/*.mjs','dashboard-x/src/**/*.{js,jsx,ts,tsx}'] }).catch(() => null);
+        const secrets = await tm.execute('scanSecrets', { globs: ['**/*.{js,mjs,ts,tsx,env,json}'] }).catch(() => null);
+        let autoFixResult = null;
+        if (autoFix) {
+            try { autoFixResult = await tm.execute('autoFix', {}); } catch { autoFixResult = null; }
+        }
+        const recommendations = [];
+        // Local model disabled by design
+        if (missingEnv.includes('JWT_SECRET')) {
+            recommendations.push(lang==='ar' ? 'اضبط متغير البيئة JWT_SECRET بقيمة آمنة.' : 'Set a secure JWT_SECRET environment variable.');
+        }
+        if (cfg.activeProvider === 'openai' && !process.env.OPENAI_API_KEY) {
+            recommendations.push(lang==='ar' ? 'أضف OPENAI_API_KEY لاستخدام مزود OpenAI.' : 'Provide OPENAI_API_KEY to use OpenAI provider.');
+        }
+        if (missingEnv.includes('REDIS_URL')) {
+            recommendations.push(lang==='ar' ? 'إعداد REDIS_URL يحسن أداء Socket.IO والمهام.' : 'Configure REDIS_URL to improve Socket.IO and tasks.');
+        }
+        if (insecure?.summary?.high) {
+            recommendations.push(lang==='ar' ? 'عالج الأنماط غير الآمنة ذات الأولوية العالية المكتشفة.' : 'Address high-severity insecure code patterns found.');
+        }
+        if (secrets?.summary?.critical) {
+            recommendations.push(lang==='ar' ? 'أزل أو أعد تدوير أي مفاتيح حساسة مكشوفة.' : 'Remove or rotate any exposed sensitive keys.');
+        }
+        const durationMs = Date.now() - start;
+        return {
+            success: true,
+            scope,
+            durationMs,
+            health,
+            llama,
+            env: { missing: missingEnv },
+            security: { audit: securityAudit, insecure, secrets },
+            autoFix: autoFixResult,
+            recommendations
         };
     }
 }

@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { Send, Maximize2, Minimize2, RefreshCw, Home, ChevronLeft, ChevronRight, Zap } from 'lucide-react';
-import axios from 'axios';
+import { Send, Maximize2, Minimize2, ChevronRight, Zap } from 'lucide-react';
+import apiClient from '../api/client';
 
 export default function EnhancedBrowserControl() {
   const [url, setUrl] = useState('https://www.google.com');
@@ -11,12 +11,11 @@ export default function EnhancedBrowserControl() {
   const [history, setHistory] = useState([]);
   const inputRef = useRef(null);
 
-  const API_BASE = import.meta.env.VITE_API_URL;
 
   const handleNavigate = async (targetUrl = url) => {
     try {
       setIsLoading(true);
-      const response = await axios.post(`${API_BASE}/api/browser/navigate`, {
+      const response = await apiClient.post('/api/browser/navigate', {
         url: targetUrl
       });
 
@@ -41,7 +40,7 @@ export default function EnhancedBrowserControl() {
       setHistory([...history, command]);
       addOutput(`> ${command}`, 'command');
 
-      const response = await axios.post(`${API_BASE}/api/browser/execute`, {
+      const response = await apiClient.post('/api/browser/execute', {
         command: command
       });
 

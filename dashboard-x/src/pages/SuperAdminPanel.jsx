@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useReducer } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Users, Shield, Trash2, Edit2, Plus, Lock, Unlock, Eye, EyeOff, Search, Filter,
-  Loader2, XCircle, CheckCircle, Info, UserCheck, UserX
+  Loader2, XCircle, UserCheck
 } from 'lucide-react';
-import axios from 'axios';
+import apiClient from '../api/client';
 import toast, { Toaster } from 'react-hot-toast'; // Import react-hot-toast
 
 /**
@@ -33,6 +34,7 @@ const initialFormState = {
  * SuperAdminPanel - لوحة تحكم Super Admin المتقدمة
  */
 const SuperAdminPanel = () => {
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -59,12 +61,8 @@ const SuperAdminPanel = () => {
     try {
       setLoading(true);
       setError('');
-      const response = await axios.get('/api/v1/admin/users', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('sessionToken')}`
-        }
-      });
-      setUsers(response.data.users || []);
+      const response = await apiClient.get('/api/v1/admin/users');
+      setUsers(response.data?.users || []);
     } catch (err) {
       setError('فشل في تحميل المستخدمين: ' + (err.response?.data?.message || err.message));
       toast.error('فشل في تحميل المستخدمين');
@@ -100,12 +98,8 @@ const SuperAdminPanel = () => {
     if (!validateFormData()) return;
 
     try {
-      const response = await axios.post('/api/v1/admin/users', formData, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('sessionToken')}`
-        }
-      });
-      setUsers([...users, response.data.user]);
+      const response = await apiClient.post('/api/v1/admin/users', formData);
+      setUsers([...users, response.data?.user]);
       dispatch({ type: 'RESET_FORM' });
       setShowUserModal(false);
       toast.success('تم إضافة المستخدم بنجاح!');
@@ -121,12 +115,8 @@ const SuperAdminPanel = () => {
     if (!validateFormData()) return;
 
     try {
-      const response = await axios.put(`/api/v1/admin/users/${selectedUser._id}`, formData, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('sessionToken')}`
-        }
-      });
-      setUsers(users.map(u => u._id === selectedUser._id ? response.data.user : u));
+      const response = await apiClient.put(`/api/v1/admin/users/${selectedUser._id}`, formData);
+      setUsers(users.map(u => u._id === selectedUser._id ? response.data?.user : u));
       setShowUserModal(false);
       setSelectedUser(null);
       dispatch({ type: 'RESET_FORM' });
@@ -148,14 +138,7 @@ const SuperAdminPanel = () => {
       return;
     }
     try {
-      await axios.put(`/api/v1/admin/users/${selectedUser._id}/password`,
-        { password: newPassword },
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('sessionToken')}`
-          }
-        }
-      );
+      await apiClient.put(`/api/v1/admin/users/${selectedUser._id}/password`, { password: newPassword });
       setShowPasswordModal(false);
       setNewPassword('');
       toast.success('تم تغيير كلمة المرور بنجاح!');
@@ -175,15 +158,8 @@ const SuperAdminPanel = () => {
     if (!window.confirm(confirmMessage)) return;
 
     try {
-      const response = await axios.put(`/api/v1/admin/users/${userId}/role`,
-        { role: newRole },
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('sessionToken')}`
-          }
-        }
-      );
-      setUsers(users.map(u => u._id === userId ? response.data.user : u));
+      const response = await apiClient.put(`/api/v1/admin/users/${userId}/role`, { role: newRole });
+      setUsers(users.map(u => u._id === userId ? response.data?.user : u));
       toast.success(newRole === 'super_admin' ? 'تم منح صلاحيات Super Admin بنجاح!' : 'تم سحب صلاحيات Super Admin بنجاح!');
     } catch (err) {
       toast.error('فشل في تغيير الصلاحيات: ' + (err.response?.data?.message || err.message));
@@ -195,11 +171,7 @@ const SuperAdminPanel = () => {
   const handleDeleteUser = async (userId) => {
     if (!window.confirm('هل أنت متأكد تمامًا من حذف هذا المستخدم؟ لا يمكن التراجع عن هذا الإجراء!')) return;
     try {
-      await axios.delete(`/api/v1/admin/users/${userId}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('sessionToken')}`
-        }
-      });
+      await apiClient.delete(`/api/v1/admin/users/${userId}`);
       setUsers(users.filter(u => u._id !== userId));
       toast.success('تم حذف المستخدم بنجاح!');
     } catch (err) {
@@ -244,13 +216,21 @@ const SuperAdminPanel = () => {
               <Shield className="w-10 h-10 text-cyan-400" />
               <h1 className="text-4xl font-extrabold text-white">لوحة تحكم Super Admin</h1>
             </div>
-            <button
-              onClick={openAddUserModal}
-              className="flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white px-6 py-3 rounded-lg font-bold shadow-lg transition-all transform hover:scale-105"
-            >
-              <Plus className="w-5 h-5" />
-              إضافة مستخدم جديد
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={openAddUserModal}
+                className="flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white px-6 py-3 rounded-lg font-bold shadow-lg transition-all transform hover:scale-105"
+              >
+                <Plus className="w-5 h-5" />
+                إضافة مستخدم جديد
+              </button>
+              <button
+                onClick={() => navigate('/dashboard/joe')}
+                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-5 py-3 rounded-lg font-bold shadow-lg transition-all"
+              >
+                إغلاق
+              </button>
+            </div>
           </div>
           <p className="text-gray-400 text-lg">إدارة شاملة للمستخدمين، الصلاحيات، والأدوار في نظامك.</p>
         </div>
