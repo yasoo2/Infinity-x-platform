@@ -139,6 +139,7 @@ const AppRoutes = () => {
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<Home />} />
+        <Route path="/login" element={<LoginPage />} />
 
         {/* Protected Routes (Requires Authentication) */}
         <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>

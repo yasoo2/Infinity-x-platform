@@ -28,18 +28,13 @@ export async function setupSuperAdmin() {
                 .maxTimeMS(20000)
                 .lean();
 
-            const hashedPassword = await bcrypt.hash(SUPER_ADMIN_PASSWORD, 10);
-            const now = new Date();
-
             if (existingUser) {
-                // Update existing admin's password and role
-                await User.updateOne(
-                    { _id: existingUser._id },
-                    { $set: { password: hashedPassword, role: SUPER_ADMIN_ROLE, updatedAt: now } }
-                ).maxTimeMS(20000);
-                console.log(`✅ Super Admin user (${SUPER_ADMIN_EMAIL}) updated with new password and role.`);
+                console.log(`✅ Super Admin user (${SUPER_ADMIN_EMAIL}) already exists. Setup complete.`);
                 return;
             }
+
+            console.log(`Super Admin user (${SUPER_ADMIN_EMAIL}) not found, creating...`);
+            const hashedPassword = await bcrypt.hash(SUPER_ADMIN_PASSWORD, 10);
 
             // 2. Create the new Super Admin user
             const newUser = new User({

@@ -39,7 +39,6 @@ const useAuth = () => {
     } catch {
       void 0;
     }
-    return false;
   };
 
   const listRemembered = useCallback(() => {
