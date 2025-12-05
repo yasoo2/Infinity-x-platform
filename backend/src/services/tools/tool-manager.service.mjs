@@ -27,6 +27,7 @@ class ToolManager {
     async initialize(dependencies) {
         if (this._isInitialized) return;
         console.log('🔄 Initializing ToolManager with dependencies...');
+        const deps = { ...(dependencies || {}), toolManager: this };
 
         const toolFilesV2 = await fs.readdir(TOOLS_DIR_V2);
         const toolFilesV1 = await fs.readdir(TOOLS_DIR_V1);
@@ -51,11 +52,11 @@ class ToolManager {
 
                     if (toolExports.default && isClass(toolExports.default)) {
                         // It's a class, instantiate it
-                        const toolInstance = new toolExports.default(dependencies);
+                        const toolInstance = new toolExports.default(deps);
                         toolModule = this._extractToolsFromInstance(toolInstance);
                     } else if (toolExports.default && typeof toolExports.default === 'function') {
                         // It's a factory function, call it
-                        toolModule = toolExports.default(dependencies);
+                        toolModule = toolExports.default(deps);
                     } else if (toolExports.default && typeof toolExports.default === 'object' && toolExports.default !== null) {
                         // It's a static tool module
                         toolModule = toolExports.default;
