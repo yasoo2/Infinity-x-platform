@@ -638,9 +638,12 @@ export const useJoeChat = () => {
           return;
         }
         let sioUrl;
-        const httpBase2 = typeof apiClient?.defaults?.baseURL === 'string'
-          ? apiClient.defaults.baseURL
-          : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
+        const envApi = (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL || import.meta.env?.VITE_EXPLICIT_API_BASE)) || '';
+        const httpBase2 = (String(envApi).trim().length > 0)
+          ? envApi
+          : (typeof apiClient?.defaults?.baseURL === 'string'
+              ? apiClient.defaults.baseURL
+              : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000'));
         const sanitizedHttp = String(httpBase2).replace(/\/+$/, '');
         let sioBase = sanitizedHttp;
         try {
@@ -811,9 +814,15 @@ export const useJoeChat = () => {
           return;
         }
         let wsUrl;
-        const baseCandidate = typeof apiClient?.defaults?.baseURL === 'string'
-          ? apiClient.defaults.baseURL
-          : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
+        const envWs = (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_WS_BASE_URL || import.meta.env?.VITE_WS_URL)) || '';
+        const envApi2 = (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL || import.meta.env?.VITE_EXPLICIT_API_BASE)) || '';
+        const baseCandidate = (String(envWs).trim().length > 0)
+          ? envWs
+          : ((String(envApi2).trim().length > 0)
+              ? envApi2
+              : (typeof apiClient?.defaults?.baseURL === 'string'
+                  ? apiClient.defaults.baseURL
+                  : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000')));
         let wsBase;
         try {
           const u = new URL(String(baseCandidate).replace(/\/(api.*)?$/, '').replace(/\/+$/, ''));

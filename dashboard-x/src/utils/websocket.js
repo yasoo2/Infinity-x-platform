@@ -44,11 +44,18 @@ const ensureToken = async () => {
 
 export const connectWebSocket = (onMessage, onOpen, onClose) => {
   const isDev = typeof import.meta !== 'undefined' && import.meta.env?.MODE !== 'production';
+  const envWs = (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_WS_BASE_URL || import.meta.env?.VITE_WS_URL)) || '';
+  const envApi = (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL || import.meta.env?.VITE_EXPLICIT_API_BASE)) || '';
   let httpBase = typeof apiClient?.defaults?.baseURL === 'string'
     ? apiClient.defaults.baseURL
     : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
   try {
-    if (typeof window !== 'undefined') {
+    if (String(envApi).trim().length > 0) {
+      httpBase = envApi;
+    }
+  } catch { /* noop */ }
+  try {
+    if (!envApi && typeof window !== 'undefined') {
       const h = window.location.hostname;
       if (h === 'www.xelitesolutions.com' || h === 'xelitesolutions.com') {
         httpBase = 'https://api.xelitesolutions.com';
@@ -57,9 +64,11 @@ export const connectWebSocket = (onMessage, onOpen, onClose) => {
   } catch { /* noop */ }
   let baseWsUrl = '';
   try {
-    const urlObj = new URL(String(httpBase));
+    const baseCandidate = String(envWs).trim().length > 0 ? String(envWs).trim() : String(httpBase);
+    const urlObj = new URL(baseCandidate);
+    const host = urlObj.host;
     const proto = urlObj.protocol === 'https:' ? 'wss' : 'ws';
-    baseWsUrl = `${proto}://${urlObj.host}`;
+    baseWsUrl = `${proto}://${host}`;
   } catch {
     const origin = (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
     const urlObj = new URL(String(origin));

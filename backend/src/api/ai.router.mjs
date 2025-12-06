@@ -3,7 +3,7 @@ import OpenAI from 'openai'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { getConfig, setKey, setActive } from '../services/ai/runtime-config.mjs'
 
-const aiRouterFactory = ({ optionalAuth }) => {
+const aiRouterFactory = ({ optionalAuth, db }) => {
   const router = express.Router()
   if (optionalAuth) router.use(optionalAuth)
 
@@ -29,6 +29,7 @@ const aiRouterFactory = ({ optionalAuth }) => {
     try {
       const provider = String(req.body?.provider || '').trim()
       const apiKey = String(req.body?.apiKey || '').trim()
+      const scope = String(req.body?.scope || '').trim() || 'user' // 'user' | 'global'
       if (!provider || !apiKey) {
         return res.status(400).json({ success: false, error: 'MISSING_FIELDS' })
       }
@@ -41,6 +42,16 @@ const aiRouterFactory = ({ optionalAuth }) => {
           const ok = !!ping?.id
           if (!ok) return res.status(400).json({ success: false, error: 'OPENAI_VERIFY_FAILED', code: 'OPENAI_VERIFY_FAILED' })
           setKey('openai', apiKey)
+          try {
+            const userId = req.user?._id?.toString?.() || req.user?.id || null
+            if (scope === 'user' && db && userId) {
+              await db.collection('ai_user_config').updateOne(
+                { userId },
+                { $set: { userId, keys: { openai: apiKey }, updatedAt: new Date() } },
+                { upsert: true }
+              )
+            }
+          } catch { /* noop */ }
           return res.json({ success: true, provider: 'openai', models: ['gpt-4o', 'gpt-4o-mini'] })
         } catch (e) {
           // Fallback: attempt with gpt-4o
@@ -50,6 +61,16 @@ const aiRouterFactory = ({ optionalAuth }) => {
             const ok2 = !!ping2?.id
             if (!ok2) throw e
             setKey('openai', apiKey)
+            try {
+              const userId = req.user?._id?.toString?.() || req.user?.id || null
+              if (scope === 'user' && db && userId) {
+                await db.collection('ai_user_config').updateOne(
+                  { userId },
+                  { $set: { userId, keys: { openai: apiKey }, updatedAt: new Date() } },
+                  { upsert: true }
+                )
+              }
+            } catch { /* noop */ }
             return res.json({ success: true, provider: 'openai', models: ['gpt-4o', 'gpt-4o-mini'] })
           } catch (e2) {
             const m = String(e2?.message || e?.message || '')
@@ -80,6 +101,16 @@ const aiRouterFactory = ({ optionalAuth }) => {
           const ok = !!resp
           if (!ok) return res.status(400).json({ success: false, error: 'GEMINI_VERIFY_FAILED', code: 'GEMINI_VERIFY_FAILED' })
           setKey('gemini', apiKey)
+          try {
+            const userId = req.user?._id?.toString?.() || req.user?.id || null
+            if (scope === 'user' && db && userId) {
+              await db.collection('ai_user_config').updateOne(
+                { userId },
+                { $set: { userId, keys: { gemini: apiKey }, updatedAt: new Date() } },
+                { upsert: true }
+              )
+            }
+          } catch { /* noop */ }
           return res.json({ success: true, provider: 'gemini', models: ['gemini-1.5-pro-latest'] })
         } catch (e) {
           const m = String(e?.message || '')
@@ -106,16 +137,27 @@ const aiRouterFactory = ({ optionalAuth }) => {
     }
   })
 
-  router.post('/activate', (req, res) => {
+  router.post('/activate', async (req, res) => {
     try {
       const provider = String(req.body?.provider || '').trim()
       const model = String(req.body?.model || '').trim()
+      const scope = String(req.body?.scope || '').trim() || 'user'
       const cfg = getConfig()
       const hasKey = provider === 'openai' ? !!cfg.keys.openai : (provider === 'gemini' ? !!cfg.keys.gemini : false)
       if (!provider) return res.status(400).json({ success: false, error: 'MISSING_PROVIDER' })
       if (!hasKey) return res.status(400).json({ success: false, error: 'MISSING_KEY' })
       const defaultModel = provider === 'openai' ? 'gpt-4o' : (provider === 'gemini' ? 'gemini-1.5-pro-latest' : null)
       setActive(provider, model || defaultModel)
+      try {
+        const userId = req.user?._id?.toString?.() || req.user?.id || null
+        if (scope === 'user' && db && userId) {
+          await db.collection('ai_user_config').updateOne(
+            { userId },
+            { $set: { userId, activeProvider: provider, activeModel: (model || defaultModel), updatedAt: new Date() } },
+            { upsert: true }
+          )
+        }
+      } catch { /* noop */ }
       const next = getConfig()
       return res.json({ success: true, activeProvider: next.activeProvider, activeModel: next.activeModel })
     } catch (e) {
