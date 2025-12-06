@@ -659,13 +659,15 @@ export const useJoeChat = () => {
           sioBase = `${u.protocol}//${host}`;
         } catch { /* noop */ }
         sioUrl = `${sioBase}/joe-agent`;
+        let pathPref = '/socket.io/';
+        try { const saved = localStorage.getItem('joeSioPath'); if (saved === '/socket.io' || saved === '/socket.io/') { pathPref = saved; } } catch { /* noop */ }
         const isDevLocal = (() => {
           try { const u = new URL(sioBase); return (u.hostname === 'localhost' || u.hostname === '127.0.0.1') && ['4173','5173','3000'].includes(u.port || ''); } catch { return false; }
         })();
         const initialTransports = ['polling','websocket'];
         const socket = io(sioUrl, {
           auth: { token: sessionToken },
-          path: '/socket.io/',
+          path: pathPref,
           transports: initialTransports,
           upgrade: true,
           reconnection: true,
@@ -692,7 +694,14 @@ export const useJoeChat = () => {
           try {
             const msg = String(reason || '').toLowerCase();
             if (/transport error/i.test(msg)) {
-              try { socket.io.opts.transports = ['websocket']; socket.connect(); } catch { /* noop */ }
+              try {
+                const cur = String(socket.io.opts.path || '/socket.io/');
+                const next = cur === '/socket.io/' ? '/socket.io' : '/socket.io/';
+                socket.io.opts.path = next;
+                try { localStorage.setItem('joeSioPath', next); } catch { /* noop */ }
+                socket.io.opts.transports = ['websocket'];
+                socket.connect();
+              } catch { /* noop */ }
             }
           } catch { /* noop */ }
         });
@@ -703,7 +712,14 @@ export const useJoeChat = () => {
             return;
           }
           if (/xhr poll error|transport error/i.test(msg)) {
-            try { socket.io.opts.transports = ['websocket']; socket.connect(); } catch { /* noop */ }
+            try {
+              const cur = String(socket.io.opts.path || '/socket.io/');
+              const next = cur === '/socket.io/' ? '/socket.io' : '/socket.io/';
+              socket.io.opts.path = next;
+              try { localStorage.setItem('joeSioPath', next); } catch { /* noop */ }
+              socket.io.opts.transports = ['websocket'];
+              socket.connect();
+            } catch { /* noop */ }
             return;
           }
           dispatch({ type: 'ADD_WS_LOG', payload: `[SIO] Connect error: ${msg}` });
