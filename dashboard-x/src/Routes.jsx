@@ -11,6 +11,7 @@ const Build = React.lazy(() => import('./pages/Build'));
 const Command = React.lazy(() => import('./pages/Command'));
 const Joe = React.lazy(() => import('./pages/Joe'));
 const Home = React.lazy(() => import('./pages/Home'));
+const LoginPage = React.lazy(() => import('./pages/Login'));
 const MonitoringPage = React.lazy(() => import('./pages/MonitoringPage'));
 const NotFound = React.lazy(() => import('./pages/NotFound'));
 const Overview = React.lazy(() => import('./pages/Overview'));
