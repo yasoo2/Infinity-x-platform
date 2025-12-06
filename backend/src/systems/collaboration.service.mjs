@@ -23,7 +23,11 @@ class RealTimeCollaborationSystem {
     this.io = new Server(httpServer, {
       path: '/socket.io/',
       cors: { origin: '*' },
-      transports: ['websocket', 'polling']
+      transports: ['websocket', 'polling'],
+      pingInterval: 25000,
+      pingTimeout: 60000,
+      allowEIO3: true,
+      maxHttpBufferSize: 10e6
     });
 
     const wantsRedis = shouldUseRedis();
