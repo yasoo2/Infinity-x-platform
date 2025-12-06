@@ -662,11 +662,10 @@ export const useJoeChat = () => {
         const isDevLocal = (() => {
           try { const u = new URL(sioBase); return (u.hostname === 'localhost' || u.hostname === '127.0.0.1') && ['4173','5173','3000'].includes(u.port || ''); } catch { return false; }
         })();
-        const isProdHost = (() => { try { const u = new URL(sioBase); return /xelitesolutions\.com$/.test(u.hostname); } catch { return false; } })();
-        const initialTransports = isProdHost ? ['websocket'] : (isDevLocal ? ['polling','websocket'] : ['polling','websocket']);
+        const initialTransports = ['polling','websocket'];
         const socket = io(sioUrl, {
           auth: { token: sessionToken },
-          path: '/socket.io',
+          path: '/socket.io/',
           transports: initialTransports,
           upgrade: true,
           reconnection: true,
