@@ -54,6 +54,7 @@ class JoeEventEmitter extends EventEmitter {
   constructor() { super(); this.setMaxListeners(100); }
   emitProgress(userId, taskId, progress, message) { this.emit('progress', { type: 'progress', userId, taskId, progress, message, timestamp: new Date() }); }
   emitError(userId, error, context) { this.emit('error', { type: 'error', userId, error: error.message, stack: error.stack, context, timestamp: new Date() }); }
+  emitToolUsed(userId, taskId, tool, details) { this.emit('tool_used', { type: 'tool_used', userId, taskId, tool, details, timestamp: new Date() }); }
 }
 const joeEvents = new JoeEventEmitter();
 
@@ -91,6 +92,15 @@ function orderByRanking(names) {
     const scoreMap = new Map(ranking.map(r => [r.name, r.score]));
     return [...names].sort((a, b) => (scoreMap.get(b) || 0) - (scoreMap.get(a) || 0));
   } catch { return names; }
+}
+
+async function executeTool(userId, sessionId, name, args) {
+  try { joeEvents.emitToolUsed(userId, sessionId, name, { stage: 'start', args }); } catch { /* noop */ }
+  const startedAt = Date.now();
+  const result = await toolManager.execute(name, args);
+  const ms = Date.now() - startedAt;
+  try { joeEvents.emitToolUsed(userId, sessionId, name, { stage: 'end', args, ms, summary: (typeof result === 'object' ? (result.summary || result.message || '') : '') }); } catch { /* noop */ }
+  return result;
 }
 
 function shouldAugment(msg) {
@@ -277,7 +287,7 @@ async function processMessage(userId, message, sessionId, { model = null, lang }
           if (videoUrlMatch) {
             const url = videoUrlMatch[0];
             try {
-              const vr = await toolManager.execute('analyzeVideoFromUrl', { url, targetLanguage: targetLang });
+              const vr = await executeTool(userId, sessionId, 'analyzeVideoFromUrl', { url, targetLanguage: targetLang });
               toolResults.push({ tool: 'analyzeVideoFromUrl', args: { url, targetLanguage: targetLang }, result: vr });
               toolCalls.push({ function: { name: 'analyzeVideoFromUrl', arguments: { url, targetLanguage: targetLang } } });
               const transcript = String(vr?.transcript || '').trim();
@@ -299,7 +309,7 @@ ${transcript.slice(0, 8000)}`;
             try {
                 const url = (preview.match(/https?:\/\/[^\s]+/i) || [])[0];
                 try { joeEvents.emitProgress(userId, sessionId, 30, 'browseWebsite'); } catch { /* noop */ }
-                const r = await toolManager.execute('browseWebsite', { url });
+                const r = await executeTool(userId, sessionId, 'browseWebsite', { url });
                 toolResults.push({ tool: 'browseWebsite', args: { url }, result: r });
                 toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
                 pieces.push(String(r?.summary || r?.content || ''));
@@ -309,9 +319,9 @@ ${transcript.slice(0, 8000)}`;
           if (wantsSecurity) {
             try {
               try { joeEvents.emitProgress(userId, sessionId, 30, 'Security audit'); } catch { /* noop */ }
-              const a = await toolManager.execute('runSecurityAudit', {});
-              const s = await toolManager.execute('scanSecrets', {});
-              const i = await toolManager.execute('scanInsecurePatterns', {});
+              const a = await executeTool(userId, sessionId, 'runSecurityAudit', {});
+              const s = await executeTool(userId, sessionId, 'scanSecrets', {});
+              const i = await executeTool(userId, sessionId, 'scanInsecurePatterns', {});
               toolResults.push({ tool: 'runSecurityAudit', args: {}, result: a });
               toolResults.push({ tool: 'scanSecrets', args: {}, result: s });
               toolResults.push({ tool: 'scanInsecurePatterns', args: {}, result: i });
@@ -326,7 +336,7 @@ ${transcript.slice(0, 8000)}`;
             try {
               const title = preview.slice(0, 60);
               try { joeEvents.emitProgress(userId, sessionId, 30, 'ingestDocument'); } catch { /* noop */ }
-              const r = await toolManager.execute('ingestDocument', { documentTitle: title, content: preview });
+              const r = await executeTool(userId, sessionId, 'ingestDocument', { documentTitle: title, content: preview });
               toolResults.push({ tool: 'ingestDocument', args: { documentTitle: title }, result: r });
               toolCalls.push({ function: { name: 'ingestDocument', arguments: { documentTitle: title } } });
               pieces.push(String(r?.summary || r?.message || ''));
@@ -336,7 +346,7 @@ ${transcript.slice(0, 8000)}`;
           if (wantsQuery) {
             try {
               try { joeEvents.emitProgress(userId, sessionId, 30, 'queryKnowledgeBase'); } catch { /* noop */ }
-              const r = await toolManager.execute('queryKnowledgeBase', { query: preview });
+              const r = await executeTool(userId, sessionId, 'queryKnowledgeBase', { query: preview });
               toolResults.push({ tool: 'queryKnowledgeBase', args: { query: preview }, result: r });
               toolCalls.push({ function: { name: 'queryKnowledgeBase', arguments: { query: preview } } });
               const items = (r?.results || []).slice(0, 3).map(x => `- ${x.title} (score: ${x.score?.toFixed?.(2) || x.score})`).join('\n');
@@ -347,7 +357,7 @@ ${transcript.slice(0, 8000)}`;
           if (wantsFormat) {
             try {
               try { joeEvents.emitProgress(userId, sessionId, 30, 'formatPrettier'); } catch { /* noop */ }
-              const r = await toolManager.execute('formatPrettier', {});
+              const r = await executeTool(userId, sessionId, 'formatPrettier', {});
               toolResults.push({ tool: 'formatPrettier', args: {}, result: r });
               toolCalls.push({ function: { name: 'formatPrettier', arguments: {} } });
               pieces.push('Formatting applied.');
@@ -357,7 +367,7 @@ ${transcript.slice(0, 8000)}`;
           if (wantsLint) {
             try {
               try { joeEvents.emitProgress(userId, sessionId, 30, 'runLint'); } catch { /* noop */ }
-              const r = await toolManager.execute('runLint', {});
+              const r = await executeTool(userId, sessionId, 'runLint', {});
               toolResults.push({ tool: 'runLint', args: {}, result: r });
               toolCalls.push({ function: { name: 'runLint', arguments: {} } });
               pieces.push('Lint analysis completed.');
@@ -385,7 +395,7 @@ ${transcript.slice(0, 8000)}`;
 
             for (const call of responseCalls) {
                 console.log(`⚡ ${call.name}(${JSON.stringify(call.args).substring(0, 60)}...)`);
-                const result = await toolManager.execute(call.name, call.args);
+                const result = await executeTool(userId, sessionId, call.name, call.args);
                 toolResults.push({ tool: call.name, args: call.args, result });
                 toolMessages.push({ functionResponse: { name: call.name, response: { content: JSON.stringify(result) } } });
                 toolCalls.push({function: {name: call.name, arguments: call.args}}); // For logging
@@ -425,7 +435,7 @@ ${transcript.slice(0, 8000)}`;
                   const functionName = toolCall.function.name;
                   const args = JSON.parse(toolCall.function.arguments);
                   console.log(`⚡ ${functionName}(${JSON.stringify(args).substring(0, 60)}...)`);
-                  const result = await toolManager.execute(functionName, args);
+                  const result = await executeTool(userId, sessionId, functionName, args);
                   toolResults.push({ tool: functionName, args, result });
                   toolMessages.push({ role: 'tool', tool_call_id: toolCall.id, content: JSON.stringify(result) });
                   toolCalls.push(toolCall);
@@ -481,7 +491,7 @@ ${transcript.slice(0, 8000)}`;
               if (responseCalls.length > 0) {
                 let toolMessages = [];
                 for (const call of responseCalls) {
-                  const r = await toolManager.execute(call.name, call.args);
+                  const r = await executeTool(userId, sessionId, call.name, call.args);
                   toolResults.push({ tool: call.name, args: call.args, result: r });
                   toolMessages.push({ functionResponse: { name: call.name, response: { content: JSON.stringify(r) } } });
                   toolCalls.push({ function: { name: call.name, arguments: call.args } });
@@ -506,7 +516,7 @@ ${transcript.slice(0, 8000)}`;
               if (hasUrl) {
                 try {
                   const url = (preview.match(/https?:\/\/[^\s]+/i) || [])[0];
-                  const r = await toolManager.execute('browseWebsite', { url });
+                  const r = await executeTool(userId, sessionId, 'browseWebsite', { url });
                   toolResults.push({ tool: 'browseWebsite', args: { url }, result: r });
                   toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
                   pieces.push(String(r?.summary || r?.content || ''));
@@ -516,9 +526,9 @@ ${transcript.slice(0, 8000)}`;
                 try {
                   const ordered = orderByRanking(['runSecurityAudit','scanSecrets','scanInsecurePatterns']);
                   const [t1,t2,t3] = ordered;
-                  const a = await toolManager.execute(t1, {});
-                  const s = await toolManager.execute(t2, {});
-                  const i = await toolManager.execute(t3, {});
+                  const a = await executeTool(userId, sessionId, t1, {});
+                  const s = await executeTool(userId, sessionId, t2, {});
+                  const i = await executeTool(userId, sessionId, t3, {});
                   toolResults.push({ tool: 'runSecurityAudit', args: {}, result: a });
                   toolResults.push({ tool: 'scanSecrets', args: {}, result: s });
                   toolResults.push({ tool: 'scanInsecurePatterns', args: {}, result: i });
@@ -531,7 +541,7 @@ ${transcript.slice(0, 8000)}`;
               if (wantsIngest) {
                 try {
                   const title = preview.slice(0, 60);
-                  const r = await toolManager.execute('ingestDocument', { documentTitle: title, content: preview });
+                  const r = await executeTool(userId, sessionId, 'ingestDocument', { documentTitle: title, content: preview });
                   toolResults.push({ tool: 'ingestDocument', args: { documentTitle: title }, result: r });
                   toolCalls.push({ function: { name: 'ingestDocument', arguments: { documentTitle: title } } });
                   pieces.push(String(r?.summary || r?.message || ''));
@@ -539,7 +549,7 @@ ${transcript.slice(0, 8000)}`;
               }
               if (wantsQuery) {
                 try {
-                  const r = await toolManager.execute('queryKnowledgeBase', { query: preview });
+                  const r = await executeTool(userId, sessionId, 'queryKnowledgeBase', { query: preview });
                   toolResults.push({ tool: 'queryKnowledgeBase', args: { query: preview }, result: r });
                   toolCalls.push({ function: { name: 'queryKnowledgeBase', arguments: { query: preview } } });
                   const items = (r?.results || []).slice(0, 3).map(x => `- ${x.title} (score: ${x.score?.toFixed?.(2) || x.score})`).join('\n');
@@ -548,7 +558,7 @@ ${transcript.slice(0, 8000)}`;
               }
               if (wantsFormat) {
                 try {
-                  const r = await toolManager.execute('formatPrettier', {});
+                  const r = await executeTool(userId, sessionId, 'formatPrettier', {});
                   toolResults.push({ tool: 'formatPrettier', args: {}, result: r });
                   toolCalls.push({ function: { name: 'formatPrettier', arguments: {} } });
                   pieces.push('Formatting applied.');
@@ -556,7 +566,7 @@ ${transcript.slice(0, 8000)}`;
               }
               if (wantsLint) {
                 try {
-                  const r = await toolManager.execute('runLint', {});
+                  const r = await executeTool(userId, sessionId, 'runLint', {});
                   toolResults.push({ tool: 'runLint', args: {}, result: r });
                   toolCalls.push({ function: { name: 'runLint', arguments: {} } });
                   pieces.push('Lint analysis completed.');
@@ -584,7 +594,7 @@ ${transcript.slice(0, 8000)}`;
             if (hasUrl) {
               try {
                 const url = (preview.match(/https?:\/\/[^\s]+/i) || [])[0];
-                const r = await toolManager.execute('browseWebsite', { url });
+                const r = await executeTool(userId, sessionId, 'browseWebsite', { url });
                 toolResults.push({ tool: 'browseWebsite', args: { url }, result: r });
                 toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
                 pieces.push(String(r?.summary || r?.content || ''));
@@ -594,9 +604,9 @@ ${transcript.slice(0, 8000)}`;
               try {
                 const ordered = orderByRanking(['runSecurityAudit','scanSecrets','scanInsecurePatterns']);
                 const [t1,t2,t3] = ordered;
-                const a = await toolManager.execute(t1, {});
-                const s = await toolManager.execute(t2, {});
-                const i = await toolManager.execute(t3, {});
+                const a = await executeTool(userId, sessionId, t1, {});
+                const s = await executeTool(userId, sessionId, t2, {});
+                const i = await executeTool(userId, sessionId, t3, {});
                 toolResults.push({ tool: 'runSecurityAudit', args: {}, result: a });
                 toolResults.push({ tool: 'scanSecrets', args: {}, result: s });
                 toolResults.push({ tool: 'scanInsecurePatterns', args: {}, result: i });
@@ -609,7 +619,7 @@ ${transcript.slice(0, 8000)}`;
             if (wantsIngest) {
               try {
                 const title = preview.slice(0, 60);
-                const r = await toolManager.execute('ingestDocument', { documentTitle: title, content: preview });
+                const r = await executeTool(userId, sessionId, 'ingestDocument', { documentTitle: title, content: preview });
                 toolResults.push({ tool: 'ingestDocument', args: { documentTitle: title }, result: r });
                 toolCalls.push({ function: { name: 'ingestDocument', arguments: { documentTitle: title } } });
                 pieces.push(String(r?.summary || r?.message || ''));
@@ -617,7 +627,7 @@ ${transcript.slice(0, 8000)}`;
             }
             if (wantsQuery) {
               try {
-                const r = await toolManager.execute('queryKnowledgeBase', { query: preview });
+                const r = await executeTool(userId, sessionId, 'queryKnowledgeBase', { query: preview });
                 toolResults.push({ tool: 'queryKnowledgeBase', args: { query: preview }, result: r });
                 toolCalls.push({ function: { name: 'queryKnowledgeBase', arguments: { query: preview } } });
                 const items = (r?.results || []).slice(0, 3).map(x => `- ${x.title} (score: ${x.score?.toFixed?.(2) || x.score})`).join('\n');
@@ -626,7 +636,7 @@ ${transcript.slice(0, 8000)}`;
             }
             if (wantsFormat) {
               try {
-                const r = await toolManager.execute('formatPrettier', {});
+                const r = await executeTool(userId, sessionId, 'formatPrettier', {});
                 toolResults.push({ tool: 'formatPrettier', args: {}, result: r });
                 toolCalls.push({ function: { name: 'formatPrettier', arguments: {} } });
                 pieces.push('Formatting applied.');
@@ -634,7 +644,7 @@ ${transcript.slice(0, 8000)}`;
             }
             if (wantsLint) {
               try {
-                const r = await toolManager.execute('runLint', {});
+                const r = await executeTool(userId, sessionId, 'runLint', {});
                 toolResults.push({ tool: 'runLint', args: {}, result: r });
                 toolCalls.push({ function: { name: 'runLint', arguments: {} } });
                 pieces.push('Lint analysis completed.');

@@ -748,6 +748,11 @@ export const useJoeChat = () => {
           }
         });
         socket.on('status', (d) => { dispatch({ type: 'ADD_WS_LOG', payload: `[SIO] ${JSON.stringify(d)}` }); });
+        socket.on('tool_used', (d) => {
+          const name = (d?.tool?.function?.name) || d?.tool?.name || d?.tool || '';
+          const details = d?.details || null;
+          if (name) dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'tool_used', content: name, details } });
+        });
         socket.on('stream', (d) => { if (typeof d?.content === 'string') { dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: d.content } }); } });
         socket.on('progress', (d) => { const p = Number(d?.progress || d?.pct || 0); const step = d?.step || d?.status || ''; dispatch({ type: 'SET_PROGRESS', payload: { progress: p, step } }); });
         socket.on('response', (d) => {
@@ -762,6 +767,14 @@ export const useJoeChat = () => {
               }
             } catch { dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } }); }
           }
+          try {
+            const tools = Array.isArray(d?.toolsUsed) ? d.toolsUsed : [];
+            for (const t of tools) {
+              const name = (t?.function?.name) || t?.name || t?.tool || '';
+              const details = t?.function?.arguments || t?.arguments || t?.args || null;
+              if (name) dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'tool_used', content: name, details } });
+            }
+          } catch { /* noop */ }
           dispatch({ type: 'STOP_PROCESSING' });
           dispatch({ type: 'REMOVE_PENDING_LOGS' });
           try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
@@ -970,6 +983,14 @@ export const useJoeChat = () => {
                 }
               } catch { void 0; }
             }
+            try {
+              const tools = Array.isArray(data?.toolsUsed) ? data.toolsUsed : [];
+              for (const t of tools) {
+                const name = (t?.function?.name) || t?.name || t?.tool || '';
+                const details = t?.function?.arguments || t?.arguments || t?.args || null;
+                if (name) dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'tool_used', content: name, details } });
+              }
+            } catch { /* noop */ }
             try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
             dispatch({ type: 'STOP_PROCESSING' });
             dispatch({ type: 'REMOVE_PENDING_LOGS' });

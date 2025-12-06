@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AdvancedMonitoringPanel from '../components/AdvancedMonitoringPanel';
 import EnhancedBrowserControl from '../components/EnhancedBrowserControl';
 import { BarChart3, Monitor, Gauge, Trash2, RotateCcw } from 'lucide-react';
@@ -6,6 +6,9 @@ import { BarChart3, Monitor, Gauge, Trash2, RotateCcw } from 'lucide-react';
 export default function MonitoringPage() {
   const [activeTab, setActiveTab] = useState('monitoring');
   const [adminMsg, setAdminMsg] = useState('');
+  const [stats, setStats] = useState(null);
+  const [loadingStats, setLoadingStats] = useState(false);
+  const [statsError, setStatsError] = useState('');
 
   const tabs = [
     { id: 'monitoring', label: '📊 المراقبة', icon: BarChart3 },
@@ -32,6 +35,24 @@ export default function MonitoringPage() {
       setAdminMsg(e?.response?.data?.message || e?.message || 'حدث خطأ عند إعادة تعيين القواطع');
     }
   };
+
+  const fetchStats = async () => {
+    try {
+      setLoadingStats(true);
+      setStatsError('');
+      const { data } = await (await import('../api/client')).default.get('/api/v1/joe/stats');
+      if (data?.success) setStats(data);
+      else setStatsError('فشل تحميل الإحصائيات');
+    } catch (e) {
+      setStatsError(e?.response?.data?.message || e?.message || 'خطأ عند تحميل الإحصائيات');
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'joe') fetchStats();
+  }, [activeTab]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
@@ -84,14 +105,72 @@ export default function MonitoringPage() {
               <div className="flex items-center gap-2">
                 <button onClick={handlePurgeCache} className="px-3 py-1.5 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-sm inline-flex items-center gap-1"><Trash2 className="w-4 h-4"/> مسح الكاش</button>
                 <button onClick={handleResetCircuits} className="px-3 py-1.5 rounded bg-purple-600 hover:bg-purple-700 text-white text-sm inline-flex items-center gap-1"><RotateCcw className="w-4 h-4"/> إعادة تعيين القواطع</button>
+                <button onClick={fetchStats} className="px-3 py-1.5 rounded bg-cyan-600 hover:bg-cyan-700 text-white text-sm">تحديث البيانات</button>
                 {adminMsg && (
                   <span className="text-xs text-cyan-300 ml-2">{adminMsg}</span>
                 )}
               </div>
               <div className="bg-cyan-500/20 border border-cyan-500 text-cyan-200 px-4 py-3 rounded-lg">
-                <p className="text-sm">لوحة جـو المبسطة تعرض أفضل الأدوات أداءً والقواطع المفتوحة.</p>
+                <p className="text-sm">لوحة جـو تعرض أفضل الأدوات أداءً والقواطع المفتوحة مع إحصائيات مباشرة.</p>
               </div>
-              <iframe title="JOE Monitor" src="/api/v1/joe/monitor" className="w-full h-[600px] rounded-lg border border-slate-700 bg-slate-900" />
+              <div className="rounded-lg border border-slate-700 bg-slate-900 p-4">
+                {loadingStats && (
+                  <div className="text-sm text-gray-300">جاري التحميل...</div>
+                )}
+                {statsError && (
+                  <div className="text-sm text-red-400">{statsError}</div>
+                )}
+                {stats && (
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap gap-4 text-sm text-gray-300">
+                      <div>عدد الأدوات: <span className="text-white font-semibold">{stats.toolsCount}</span></div>
+                      <div>مخططات الوظائف: <span className="text-white font-semibold">{stats.schemasCount}</span></div>
+                      <div>حجم الكاش: <span className="text-white font-semibold">{stats.cacheSize}</span></div>
+                    </div>
+                    <div>
+                      <h3 className="text-cyan-300 font-bold mb-2">القواطع المفتوحة</h3>
+                      {(stats.openCircuits?.length ? (
+                        <ul className="list-disc list-inside text-sm text-gray-300">
+                          {stats.openCircuits.map((n) => (
+                            <li key={n} className="text-yellow-300">{n}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div className="text-sm text-gray-400">لا توجد قواطع مفتوحة.</div>
+                      ))}
+                    </div>
+                    <div>
+                      <h3 className="text-cyan-300 font-bold mb-2">أفضل الأدوات أداءً</h3>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full text-sm">
+                          <thead>
+                            <tr className="text-gray-400">
+                              <th className="px-3 py-2 text-left">الاسم</th>
+                              <th className="px-3 py-2 text-left">نجاح</th>
+                              <th className="px-3 py-2 text-left">فشل</th>
+                              <th className="px-3 py-2 text-left">متوسط الزمن (ms)</th>
+                              <th className="px-3 py-2 text-left">آخر زمن (ms)</th>
+                              <th className="px-3 py-2 text-left">النتيجة</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(stats.ranking || []).slice(0, 25).map((r) => (
+                              <tr key={r.name} className="border-t border-slate-700 text-gray-200">
+                                <td className="px-3 py-2 font-mono">{r.name}</td>
+                                <td className="px-3 py-2">{r.success}</td>
+                                <td className="px-3 py-2">{r.failure}</td>
+                                <td className="px-3 py-2">{r.avgMs}</td>
+                                <td className="px-3 py-2">{r.lastMs}</td>
+                                <td className="px-3 py-2 font-semibold">{r.score}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

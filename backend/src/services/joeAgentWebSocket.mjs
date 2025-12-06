@@ -337,6 +337,17 @@ export class JoeAgentWebSocketServer {
       }
     });
 
+    joeAdvanced.events.on('tool_used', (toolData) => {
+      this.wss.clients.forEach(client => {
+        if (client.sessionId === toolData.taskId && client.readyState === client.OPEN) {
+          client.send(JSON.stringify(toolData));
+        }
+      });
+      if (this.nsp) {
+        try { this.nsp.to(toolData.taskId).emit('tool_used', toolData); } catch { void 0 }
+      }
+    });
+
     joeAdvanced.events.on('error', (errorData) => {
         this.wss.clients.forEach(client => {
             // Find the right session to send the error to.
