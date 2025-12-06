@@ -660,7 +660,7 @@ export const useJoeChat = () => {
         const isDevLocal = (() => {
           try { const u = new URL(sioBase); return (u.hostname === 'localhost' || u.hostname === '127.0.0.1') && ['4173','5173','3000'].includes(u.port || ''); } catch { return false; }
         })();
-        const initialTransports = isDevLocal ? ['websocket','polling'] : ['websocket','polling'];
+        const initialTransports = isDevLocal ? ['polling','websocket'] : ['polling','websocket'];
         const socket = io(sioUrl, {
           auth: { token: sessionToken },
           path: '/socket.io',
@@ -670,7 +670,7 @@ export const useJoeChat = () => {
           reconnectionAttempts: 10,
           reconnectionDelay: 500,
           reconnectionDelayMax: 4000,
-          timeout: 5000,
+          timeout: 8000,
           forceNew: true,
           withCredentials: false,
         });

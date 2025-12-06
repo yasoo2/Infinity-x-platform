@@ -7,6 +7,18 @@ import { Redis } from '@upstash/redis';
 
 let redis = null;
 
+export function shouldUseRedis() {
+  try {
+    const disabled = String(process.env.DISABLE_REDIS || '').toLowerCase() === 'true';
+    if (disabled) return false;
+    const hasUpstash = !!process.env.UPSTASH_REDIS_REST_URL && !!process.env.UPSTASH_REDIS_REST_TOKEN;
+    const hasStandard = !!process.env.REDIS_URL;
+    return hasUpstash || hasStandard;
+  } catch {
+    return false;
+  }
+}
+
 export function getUpstashRedis() {
   if (!redis && process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
     try {

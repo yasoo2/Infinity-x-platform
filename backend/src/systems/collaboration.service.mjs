@@ -8,6 +8,7 @@ import { createAdapter } from '@socket.io/redis-adapter';
 import { createClient } from 'redis';
 import OpenAI from 'openai';
 import { getDB } from '../services/db.mjs'; // Assuming db service
+import { shouldUseRedis } from '../utils/upstashRedis.mjs';
 
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
 
@@ -25,15 +26,19 @@ class RealTimeCollaborationSystem {
       transports: ['websocket', 'polling']
     });
 
-    const pubClient = createClient({ url: process.env.REDIS_URL || 'redis://localhost:6379' });
-    const subClient = pubClient.duplicate();
-
-    try {
-      await Promise.all([pubClient.connect(), subClient.connect()]);
-      this.io.adapter(createAdapter(pubClient, subClient));
-      console.log('✅ Socket.IO Redis Adapter connected.');
-    } catch (error) {
-      console.warn('⚠️ Could not connect Socket.IO to Redis. Falling back to in-memory adapter.', error.message);
+    const wantsRedis = shouldUseRedis();
+    if (wantsRedis && process.env.REDIS_URL) {
+      const pubClient = createClient({ url: process.env.REDIS_URL });
+      const subClient = pubClient.duplicate();
+      try {
+        await Promise.all([pubClient.connect(), subClient.connect()]);
+        this.io.adapter(createAdapter(pubClient, subClient));
+        console.log('✅ Socket.IO Redis Adapter connected.');
+      } catch (error) {
+        console.warn('⚠️ Could not connect Socket.IO to Redis. Falling back to in-memory adapter.', error.message);
+      }
+    } else {
+      console.log('ℹ️ Redis disabled or not configured. Using in-memory Socket.IO adapter.');
     }
 
     this.setupEventHandlers();

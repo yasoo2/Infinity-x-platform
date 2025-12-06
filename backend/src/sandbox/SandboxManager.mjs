@@ -12,7 +12,7 @@ import os from 'os';
 import { v4 as uuidv4 } from 'uuid';
 import Docker from 'dockerode';
 import { cacheManager } from '../utils/cacheManager.mjs';
-import { testRedisConnection } from '../utils/upstashRedis.mjs';
+import { testRedisConnection, shouldUseRedis } from '../utils/upstashRedis.mjs';
 import eventBus from '../core/event-bus.mjs';
 
 class SandboxManager {
@@ -26,6 +26,12 @@ class SandboxManager {
   }
 
   async initializeConnections() {
+    const wantsRedis = shouldUseRedis();
+    if (!wantsRedis) {
+      this.isRedisConnected = false;
+      console.log('ℹ️ Redis disabled or not configured. Using in-memory cache.');
+      return this;
+    }
     try {
       const test = await testRedisConnection();
       this.isRedisConnected = Boolean(test?.ok);

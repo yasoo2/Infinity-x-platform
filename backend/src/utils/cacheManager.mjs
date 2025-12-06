@@ -1,4 +1,4 @@
-import { getUpstashRedis } from './upstashRedis.mjs';
+import { getUpstashRedis, shouldUseRedis } from './upstashRedis.mjs';
 
 const memoryStore = new Map();
 const now = () => Date.now();
@@ -30,8 +30,9 @@ function memDel(key) {
 
 class CacheManager {
   constructor() {
-    this.redis = getUpstashRedis();
-    this.enabled = this.redis !== null;
+    const wantsRedis = shouldUseRedis();
+    this.redis = wantsRedis ? getUpstashRedis() : null;
+    this.enabled = !!this.redis;
   }
 
   /**
