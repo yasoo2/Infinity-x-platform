@@ -7,19 +7,39 @@ const aiRouterFactory = ({ optionalAuth, db }) => {
   const router = express.Router()
   if (optionalAuth) router.use(optionalAuth)
 
-  router.get('/providers', (req, res) => {
+  router.get('/providers', async (req, res) => {
     try {
       const cfg = getConfig()
+      const userId = req.user?._id?.toString?.() || req.user?.id || null
+      let userCfg = null
+      try {
+        if (db && userId) {
+          userCfg = await db.collection('ai_user_config').findOne({ userId })
+        }
+      } catch { /* noop */ }
+      const merged = {
+        activeProvider: userCfg?.activeProvider || cfg.activeProvider,
+        activeModel: userCfg?.activeModel || cfg.activeModel,
+        keys: {
+          openai: (userCfg?.keys?.openai) || cfg.keys.openai,
+          gemini: (userCfg?.keys?.gemini) || cfg.keys.gemini,
+          anthropic: (userCfg?.keys?.anthropic) || cfg.keys?.anthropic,
+          mistral: (userCfg?.keys?.mistral) || cfg.keys?.mistral,
+          cohere: (userCfg?.keys?.cohere) || cfg.keys?.cohere,
+          grok: (userCfg?.keys?.grok) || cfg.keys?.grok,
+          openrouter: (userCfg?.keys?.openrouter) || cfg.keys?.openrouter,
+        }
+      }
       const providers = [
-        { id: 'openai', name: 'OpenAI', defaultModel: 'gpt-4o', active: cfg.activeProvider === 'openai', hasKey: !!cfg.keys.openai },
-        { id: 'gemini', name: 'Google Gemini', defaultModel: 'gemini-1.5-pro-latest', active: cfg.activeProvider === 'gemini', hasKey: !!cfg.keys.gemini },
-        { id: 'anthropic', name: 'Anthropic Claude', defaultModel: 'claude-3-5-sonnet-latest', active: cfg.activeProvider === 'anthropic', hasKey: !!cfg.keys?.anthropic },
-        { id: 'mistral', name: 'Mistral AI', defaultModel: 'mistral-large-latest', active: cfg.activeProvider === 'mistral', hasKey: !!cfg.keys?.mistral },
-        { id: 'cohere', name: 'Cohere', defaultModel: 'command-r-plus', active: cfg.activeProvider === 'cohere', hasKey: !!cfg.keys?.cohere },
-        { id: 'groq', name: 'Groq', defaultModel: 'llama3-70b-8192', active: cfg.activeProvider === 'groq', hasKey: !!cfg.keys?.grok },
-        { id: 'openrouter', name: 'OpenRouter', defaultModel: 'openrouter/auto', active: cfg.activeProvider === 'openrouter', hasKey: !!cfg.keys?.openrouter },
+        { id: 'openai', name: 'OpenAI', defaultModel: 'gpt-4o', active: merged.activeProvider === 'openai', hasKey: !!merged.keys.openai },
+        { id: 'gemini', name: 'Google Gemini', defaultModel: 'gemini-1.5-pro-latest', active: merged.activeProvider === 'gemini', hasKey: !!merged.keys.gemini },
+        { id: 'anthropic', name: 'Anthropic Claude', defaultModel: 'claude-3-5-sonnet-latest', active: merged.activeProvider === 'anthropic', hasKey: !!merged.keys.anthropic },
+        { id: 'mistral', name: 'Mistral AI', defaultModel: 'mistral-large-latest', active: merged.activeProvider === 'mistral', hasKey: !!merged.keys.mistral },
+        { id: 'cohere', name: 'Cohere', defaultModel: 'command-r-plus', active: merged.activeProvider === 'cohere', hasKey: !!merged.keys.cohere },
+        { id: 'groq', name: 'Groq', defaultModel: 'llama3-70b-8192', active: merged.activeProvider === 'groq', hasKey: !!merged.keys.grok },
+        { id: 'openrouter', name: 'OpenRouter', defaultModel: 'openrouter/auto', active: merged.activeProvider === 'openrouter', hasKey: !!merged.keys.openrouter },
       ]
-      res.json({ success: true, providers, activeProvider: cfg.activeProvider, activeModel: cfg.activeModel })
+      res.json({ success: true, providers, activeProvider: merged.activeProvider, activeModel: merged.activeModel })
     } catch (e) {
       res.status(500).json({ success: false, message: e?.message || 'FAILED_PROVIDERS' })
     }
@@ -165,11 +185,20 @@ const aiRouterFactory = ({ optionalAuth, db }) => {
     }
   })
 
-  router.get('/engine/status', (req, res) => {
+  router.get('/engine/status', async (req, res) => {
     try {
       const cfg = getConfig()
-      const mode = cfg.activeProvider === 'openai' ? 'openai' : (cfg.activeProvider === 'gemini' ? 'gemini' : 'unknown')
-      res.json({ ok: true, mode, provider: cfg.activeProvider, model: cfg.activeModel })
+      const userId = req.user?._id?.toString?.() || req.user?.id || null
+      let userCfg = null
+      try {
+        if (db && userId) {
+          userCfg = await db.collection('ai_user_config').findOne({ userId })
+        }
+      } catch { /* noop */ }
+      const provider = userCfg?.activeProvider || cfg.activeProvider
+      const model = userCfg?.activeModel || cfg.activeModel
+      const mode = provider === 'openai' ? 'openai' : (provider === 'gemini' ? 'gemini' : 'unknown')
+      res.json({ ok: true, mode, provider, model })
     } catch (e) {
       res.status(500).json({ ok: false, error: 'ENGINE_STATUS_FAILED', message: e?.message })
     }
