@@ -90,6 +90,53 @@ function shouldAugment(msg) {
   return /(install|npm|package|library|module)/.test(s);
 }
 
+function wantsSelfDescribe(msg) {
+  const s = String(msg || '').toLowerCase();
+  return (
+    /(شو|شنو|ايش)\s*(بتقدر|تقدر)\s*(تعمل)/.test(s) ||
+    /(وظائفك|قدراتك|ملخص\s*عن\s*النظام|شو\s*الادوات|ما\s*هي\s*ادواتك)/.test(s) ||
+    /(what\s*can\s*you\s*do|your\s*capabilities|system\s*summary|tools\s*you\s*control|functions)/.test(s)
+  );
+}
+
+function formatSystemSummary(lang, schemas) {
+  const count = Array.isArray(schemas) ? schemas.length : 0;
+  const names = (schemas || []).map(t => String(t?.function?.name || '').trim()).filter(Boolean);
+  const descs = (schemas || []).map(t => ({ n: String(t?.function?.name || '').trim(), d: String(t?.function?.description || '').trim() })).filter(x => x.n);
+  const top = descs.slice(0, 10).map(x => `- ${x.n}: ${x.d}`);
+  const responsibilitiesAr = [
+    'إنتاج وسائط ورسوم متحركة بسيطة ونشرها محليًا',
+    'التصفح والتحليل للمواقع والروابط',
+    'تدقيق الأمان والبحث عن الأسرار والأنماط غير الآمنة',
+    'إدخال المعرفة والاستعلام عنها',
+    'تنسيق الشيفرة وفحصها',
+    'عمليات GitHub ومزامنة الجلسات'
+  ];
+  const responsibilitiesEn = [
+    'Produce simple media/cartoons and publish locally',
+    'Browse and analyze websites/links',
+    'Run security audits, secret scanning, insecure pattern checks',
+    'Ingest and query knowledge',
+    'Format and lint code',
+    'GitHub operations and session sync'
+  ];
+  const header = lang === 'ar' ? 'ملخص النظام' : 'System Summary';
+  const toolCountLine = lang === 'ar' ? `عدد الأدوات/الوظائف: ${count}` : `Tools/Functions count: ${count}`;
+  const capabilitiesTitle = lang === 'ar' ? 'أبرز القدرات:' : 'Key Capabilities:';
+  const toolsTitle = lang === 'ar' ? 'أهم الأدوات:' : 'Top Tools:';
+  const responsibilities = lang === 'ar' ? responsibilitiesAr : responsibilitiesEn;
+  const parts = [
+    `🎨 ${header}`,
+    `🔢 ${toolCountLine}`,
+    `⚙️ ${capabilitiesTitle}`,
+    responsibilities.map(r => `- ${r}`).join('\n'),
+    `🛠️ ${toolsTitle}`,
+    top.join('\n') || (lang === 'ar' ? '- لا توجد أوصاف متاحة.' : '- No descriptions available.')
+  ];
+  const out = parts.filter(Boolean).join('\n');
+  return out;
+}
+
 
 // =========================
 // 🚀 Main Processing Function
@@ -158,6 +205,18 @@ async function processMessage(userId, message, sessionId, { model = null, lang }
       geminiClient = new GoogleGenerativeAI(effectiveKeys.gemini);
     }
 
+    const previewMsg = String(message || '');
+    let handled = false;
+    if (wantsSelfDescribe(previewMsg)) {
+      try {
+        finalContent = formatSystemSummary(targetLang, availableTools);
+        handled = true;
+      } catch {
+        finalContent = targetLang === 'ar' ? 'فشل توليد ملخص النظام.' : 'Failed to generate system summary.';
+        handled = true;
+      }
+    }
+
     if (!model) {
       model = (userCfg?.activeModel) || cfg.activeModel || null;
       if (!model) {
@@ -166,7 +225,7 @@ async function processMessage(userId, message, sessionId, { model = null, lang }
       }
     }
 
-    if (model === '__disabled__') {
+    if (!handled && model === '__disabled__') {
         const steps = [];
         if (steps.length) {
           const execOne = async (st) => {
@@ -282,7 +341,7 @@ ${transcript.slice(0, 8000)}`;
           }
           finalContent = pieces.length ? pieces.filter(Boolean).join('\n\n') : 'وضع محلي جاهز. أرسل تعليمات أدق لاختيار الأدوات المثالية.';
         }
-    } else if (model.startsWith('gemini') && geminiClient) {
+    } else if (!handled && model.startsWith('gemini') && geminiClient) {
         // --- GEMINI EXECUTION PATH ---
         const geminiModel = geminiClient.getGenerativeModel({
             model: model,
@@ -327,7 +386,7 @@ ${transcript.slice(0, 8000)}`;
             }
         }
 
-    } else if (openaiClient) {
+    } else if (!handled && openaiClient) {
         try {
           const modelId = model || 'gpt-4o';
           const response = await openaiClient.chat.completions.create({ model: modelId, messages: messagesForOpenAI, tools: availableTools, tool_choice: 'auto' });
@@ -561,7 +620,7 @@ ${transcript.slice(0, 8000)}`;
           }
           }
         }
-    } else {
+    } else if (!handled) {
         const preview = String(message || '').trim();
         const lower = preview.toLowerCase();
         const hasUrl = /https?:\/\/[^\s]+/i.test(preview);
@@ -654,13 +713,14 @@ ${transcript.slice(0, 8000)}`;
     console.log(`✅ Processing complete in ${duration}ms.`);
 
     // 6. Save the complete interaction to memory
-    await memoryManager.saveInteraction(userId, message, finalContent, {
+    const prefixed = (() => { const t = String(finalContent || ''); return t.startsWith('joe ') ? t : ('joe ' + t); })();
+    await memoryManager.saveInteraction(userId, message, prefixed, {
       sessionId, service: `joe-advanced-v9-${model}`, duration, toolResults,
       tokens: usage?.total_tokens
     });
 
     return {
-        response: finalContent,
+        response: prefixed,
         toolsUsed: toolCalls.map(tc => tc.function.name),
     };
 }
