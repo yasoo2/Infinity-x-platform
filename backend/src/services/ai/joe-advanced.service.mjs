@@ -101,7 +101,6 @@ function wantsSelfDescribe(msg) {
 
 function formatSystemSummary(lang, schemas) {
   const count = Array.isArray(schemas) ? schemas.length : 0;
-  const names = (schemas || []).map(t => String(t?.function?.name || '').trim()).filter(Boolean);
   const descs = (schemas || []).map(t => ({ n: String(t?.function?.name || '').trim(), d: String(t?.function?.description || '').trim() })).filter(x => x.n);
   const top = descs.slice(0, 10).map(x => `- ${x.n}: ${x.d}`);
   const responsibilitiesAr = [

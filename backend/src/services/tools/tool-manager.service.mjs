@@ -126,7 +126,16 @@ class ToolManager {
     }
 
     getToolSchemas() {
-        return this.toolSchemas;
+        const seen = new Set();
+        const unique = [];
+        for (const t of this.toolSchemas) {
+            const name = t?.function?.name || '';
+            if (!name) continue;
+            if (seen.has(name)) continue;
+            seen.add(name);
+            unique.push(t);
+        }
+        return unique;
     }
 }
 
