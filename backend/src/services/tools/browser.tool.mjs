@@ -163,9 +163,73 @@ function detectLang(str) {
   return hasArabic ? 'ar' : 'en';
 }
 
+function splitSentences(str, lang) {
+  const s = String(str || '').trim();
+  if (!s) return [];
+  const re = lang === 'ar' ? /[.!؟…]+\s+/ : /[.!?]+\s+/;
+  return s.split(re).map(x => x.trim()).filter(x => x.length > 1);
+}
+
+function tokenize(str, lang) {
+  const s = String(str || '').toLowerCase();
+  const re = lang === 'ar' ? /[\u0600-\u06FF]+/g : /[a-z]+/g;
+  return s.match(re) || [];
+}
+
+function getStopwords(lang) {
+  if (lang === 'ar') return ['و','في','على','من','الى','إلى','عن','مع','أن','إن','كان','كانت','هو','هي','هذا','هذه','ذلك','الى','لكن','او','أو'];
+  return ['the','a','an','and','or','to','of','in','on','for','with','is','are','was','were','be','been','it','that','this','but'];
+}
+
+function getLexicon(lang) {
+  if (lang === 'ar') {
+    return {
+      pos: ['جيد','رائع','ممتاز','جميل','احب','أحب','سعيد','نجاح','تفوق','ايجابي','إيجابي','مبهج','مفرح'],
+      neg: ['سيء','رديء','كريه','اكره','أكره','حزين','فشل','خسارة','سلبي','غاضب','مشكلة','كارثي','ضعيف']
+    };
+  }
+  return {
+    pos: ['good','great','excellent','amazing','love','like','happy','success','win','positive','nice','pleasant'],
+    neg: ['bad','terrible','awful','hate','sad','fail','loss','negative','angry','problem','poor']
+  };
+}
+
+function computeSentiment(str, lang) {
+  const tokens = tokenize(str, lang);
+  if (!tokens.length) return { score: 0, positive: 0, negative: 0 };
+  const { pos, neg } = getLexicon(lang);
+  let p = 0, n = 0;
+  for (const t of tokens) {
+    if (pos.includes(t)) p += 1;
+    if (neg.includes(t)) n += 1;
+  }
+  const denom = Math.max(tokens.length, 1);
+  const score = Math.max(-1, Math.min(1, (p - n) / denom));
+  return { score: Number(score.toFixed(3)), positive: p, negative: n };
+}
+
+function extractKeywords(str, lang, topN = 12) {
+  const stop = new Set(getStopwords(lang));
+  const tokens = tokenize(str, lang).filter(t => !stop.has(t));
+  const freq = new Map();
+  for (const t of tokens) freq.set(t, (freq.get(t) || 0) + 1);
+  const arr = Array.from(freq.entries()).sort((a,b) => b[1]-a[1]).slice(0, topN);
+  return arr.map(([term,count]) => ({ term, count }));
+}
+
+function makeScenes(sentences, size = 5, maxScenes = 30) {
+  const scenes = [];
+  if (!Array.isArray(sentences) || !sentences.length) return scenes;
+  for (let i = 0; i < sentences.length && scenes.length < maxScenes; i += size) {
+    const chunk = sentences.slice(i, i + size);
+    scenes.push({ index: scenes.length, startSentence: i, endSentence: Math.min(i + size - 1, sentences.length - 1), text: chunk.join(' ') });
+  }
+  return scenes;
+}
+
 export default (dependencies) => {
   void dependencies;
-  async function analyzeVideoFromUrl({ url, targetLanguage }) {
+  async function analyzeVideoFromUrl({ url, targetLanguage, sceneSize = 5, maxScenes = 30 }) {
     try {
       const u = String(url || '').trim();
       if (!u) return { success: false, error: 'URL_REQUIRED' };
@@ -188,15 +252,20 @@ export default (dependencies) => {
         source = 'unknown';
       }
       const lang = String(targetLanguage || detectLang(transcript)).toLowerCase();
-      return { success: true, source, title, transcript, language: lang };
+      const sentences = splitSentences(transcript, lang);
+      const scenes = makeScenes(sentences, Number(sceneSize) || 5, Number(maxScenes) || 30);
+      const kw = extractKeywords(transcript, lang);
+      const overallSentiment = computeSentiment(transcript, lang);
+      const scenesDetailed = scenes.map(s => ({ ...s, sentiment: computeSentiment(s.text, lang) }));
+      return { success: true, source, title, transcript, language: lang, sentencesCount: sentences.length, keywords: kw, sentiment: overallSentiment, scenes: scenesDetailed };
     } catch (e) {
       return { success: false, error: e?.message || String(e) };
     }
   }
   analyzeVideoFromUrl.metadata = {
     name: 'analyzeVideoFromUrl',
-    description: 'Extract transcript and metadata from a video URL (YouTube supported).',
-    parameters: { type: 'object', properties: { url: { type: 'string' }, targetLanguage: { type: 'string' } }, required: ['url'] }
+    description: 'Analyze video URL to extract transcript, scenes, keywords, and sentiment.',
+    parameters: { type: 'object', properties: { url: { type: 'string' }, targetLanguage: { type: 'string' }, sceneSize: { type: 'integer' }, maxScenes: { type: 'integer' } }, required: ['url'] }
   };
 
   return { browseWebsite, screenshotWebsite, analyzeVideoFromUrl };

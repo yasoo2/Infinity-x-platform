@@ -34,10 +34,14 @@ class MemoryManager extends EventEmitter {
     }
 
     _getDB() {
-        if (!this.db) {
-            this.db = getDB();
+        try {
+            if (!this.db) {
+                this.db = getDB();
+            }
+            return this.db;
+        } catch {
+            return null;
         }
-        return this.db;
     }
 
     startAutoCleanup() {
@@ -80,33 +84,26 @@ class MemoryManager extends EventEmitter {
     }
 
     async saveInteraction(userId, command, result, metadata = {}) {
+        const db = this._getDB();
+        const interaction = {
+            userId,
+            command,
+            result,
+            metadata: {
+                timestamp: new Date(),
+                ...metadata
+            },
+        };
         try {
-            const db = this._getDB();
-            const interaction = {
-                userId,
-                command,
-                result,
-                metadata: {
-                    timestamp: new Date(),
-                    ...metadata
-                },
-            };
-
-            await db.collection('joe_interactions').insertOne(interaction);
-            
-            this.addToShortTermMemory(userId, interaction);
-            this.addToConversationMemory(userId, interaction);
-            // New: Check for LTM opportunities
-            this.checkForLTM(userId, interaction);
-
-            this.emit('interaction:saved', { userId, sessionId: interaction.metadata.sessionId, interaction });
-
-            return { success: true, interactionId: interaction._id };
-
-        } catch (error) {
-            console.error('❌ Save interaction error:', error);
-            return { success: false, error: error.message };
-        }
+            if (db) {
+                await db.collection('joe_interactions').insertOne(interaction);
+            }
+        } catch { /* ignore DB write failure */ }
+        this.addToShortTermMemory(userId, interaction);
+        this.addToConversationMemory(userId, interaction);
+        try { this.checkForLTM(userId, interaction); } catch { /* noop */ }
+        try { this.emit('interaction:saved', { userId, sessionId: interaction.metadata.sessionId, interaction }); } catch { /* noop */ }
+        return { success: true, inMemoryOnly: !db };
     }
 
     // --- Long-Term Memory (LTM) Methods ---
@@ -189,19 +186,20 @@ class MemoryManager extends EventEmitter {
             return cachedConversation.slice(-limit);
         }
 
+        const db = this._getDB();
+        if (!db) {
+            return this.conversations.get(userId) || [];
+        }
         try {
-            const db = this._getDB();
             const interactions = await db.collection('joe_interactions')
                 .find({ userId })
                 .sort({ 'metadata.timestamp': -1 })
                 .limit(limit)
                 .toArray();
-            
             this.conversations.set(userId, interactions.slice().reverse());
             return interactions;
-        } catch (error) {
-            console.error('❌ Get conversation context error:', error);
-            return [];
+        } catch {
+            return this.conversations.get(userId) || [];
         }
     }
 

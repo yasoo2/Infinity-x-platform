@@ -22,6 +22,9 @@ class ToolManager {
         this.tools = new Map();
         this.toolSchemas = [];
         this._isInitialized = false;
+        this.cache = new Map();
+        this.stats = new Map();
+        this.circuit = new Map();
     }
 
     async initialize(dependencies) {
@@ -116,14 +119,62 @@ class ToolManager {
         return true;
     }
 
+    _cacheKey(toolName, args) {
+        try { return `${toolName}:${JSON.stringify(args || {})}`; } catch { return `${toolName}:__` }
+    }
+
     async execute(toolName, args) {
         if (!this._isInitialized) throw new Error('ToolManager not initialized.');
         const tool = this.tools.get(toolName);
         if (!tool) throw new Error(`Tool "${toolName}" not found.`);
-        
+        const now = Date.now();
+        const c = this.circuit.get(toolName) || { fails: 0, openedUntil: 0 };
+        if (c.openedUntil && now < c.openedUntil) throw new Error('CIRCUIT_OPEN');
+        const useCache = args && (args.cache === true || typeof args.cacheKey === 'string');
+        const ck = useCache ? (args.cacheKey || this._cacheKey(toolName, args)) : null;
+        if (ck && this.cache.has(ck)) {
+            const item = this.cache.get(ck);
+            if (item && typeof item === 'object' && item.expiresAt) {
+                if (Date.now() < item.expiresAt) return item.value;
+                this.cache.delete(ck);
+            } else {
+                return item;
+            }
+        }
+        const start = Date.now();
         console.log(`-⚡ Executing tool: ${toolName}`);
-        return tool(args);
+        try {
+            const out = await tool(args);
+            const dur = Date.now() - start;
+            const s = this.stats.get(toolName) || { success: 0, failure: 0, avgMs: 0 };
+            const total = s.success + s.failure;
+            s.success += 1;
+            s.avgMs = Math.round(((s.avgMs * total) + dur) / (total + 1));
+            s.lastMs = dur;
+            this.stats.set(toolName, s);
+            this.circuit.set(toolName, { fails: 0, openedUntil: 0 });
+            if (ck) {
+                const ttl = Number(args.cacheTtlMs || 0);
+                if (ttl > 0) {
+                    this.cache.set(ck, { value: out, expiresAt: Date.now() + ttl });
+                } else {
+                    this.cache.set(ck, out);
+                }
+            }
+            return out;
+        } catch (e) {
+            const s = this.stats.get(toolName) || { success: 0, failure: 0, avgMs: 0 };
+            s.failure += 1;
+            this.stats.set(toolName, s);
+            c.fails += 1;
+            if (c.fails >= 3) c.openedUntil = Date.now() + 30000;
+            this.circuit.set(toolName, c);
+            throw e;
+        }
     }
+
+    purgeCache() { this.cache.clear(); }
+    resetCircuits() { this.circuit.clear(); }
 
     getToolSchemas() {
         const seen = new Set();
@@ -136,6 +187,37 @@ class ToolManager {
             unique.push(t);
         }
         return unique;
+    }
+
+    getStatsSnapshot() {
+        const now = Date.now();
+        const stats = Array.from(this.stats.entries()).map(([name, s]) => ({ name, success: s.success || 0, failure: s.failure || 0, avgMs: s.avgMs || 0, lastMs: s.lastMs || 0 }));
+        const circuits = Array.from(this.circuit.entries()).map(([name, c]) => ({ name, open: !!(c.openedUntil && c.openedUntil > now), fails: c.fails || 0, openedUntil: c.openedUntil || 0 }));
+        const openCircuits = circuits.filter(c => c.open).map(c => c.name);
+        stats.sort((a, b) => (b.avgMs || 0) - (a.avgMs || 0));
+        const ranking = this.getToolRanking();
+        return {
+            toolsCount: this.tools.size,
+            schemasCount: this.toolSchemas.length,
+            cacheSize: this.cache.size,
+            stats,
+            circuits,
+            openCircuits,
+            ranking
+        };
+    }
+
+    getToolRanking() {
+        const arr = Array.from(this.stats.entries()).map(([name, s]) => ({ name, success: s.success || 0, failure: s.failure || 0, avgMs: s.avgMs || 0, lastMs: s.lastMs || 0 }));
+        if (!arr.length) return [];
+        const maxAvg = Math.max(...arr.map(x => x.avgMs || 0)) || 1;
+        return arr.map(x => {
+            const total = (x.success + x.failure) || 1;
+            const succRate = x.success / total; // 0..1
+            const speedScore = 1 - Math.min((x.avgMs || 0) / maxAvg, 1); // 0..1
+            const score = Math.round((succRate * 0.7 + speedScore * 0.3) * 100);
+            return { ...x, score };
+        }).sort((a, b) => (b.score - a.score));
     }
 }
 

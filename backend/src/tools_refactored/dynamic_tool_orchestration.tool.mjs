@@ -120,6 +120,16 @@ The self-correction mechanism has been activated. A detailed, multi-step plan ha
         const tm = this.dependencies?.toolManager;
         const results = [];
         const plan = [];
+        const wantsSummary = /(شو|شنو|ايش)\s*(بتقدر|تقدر)\s*(تعمل)|وظائفك|قدراتك|ملخص\s*عن\s*النظام|شو\s*الادوات|ما\s*هي\s*ادواتك|what\s*can\s*you\s*do|your\s*capabilities|system\s*summary|tools\s*you\s*control|functions/.test(text);
+        if (wantsSummary) {
+            const schemas = tm.getToolSchemas();
+            const descs = (schemas || []).map(t => ({ n: String(t?.function?.name || '').trim(), d: String(t?.function?.description || '').trim() })).filter(x => x.n);
+            const top = descs.slice(0, 10).map(x => `- ${x.n}: ${x.d}`).join('\n') || '- لا توجد أوصاف متاحة.';
+            const count = Array.isArray(schemas) ? schemas.length : 0;
+            const responsibilities = ['إنتاج وسائط ونشر محلي','تصفح وتحليل الروابط','تدقيق أمني وفحص أسرار','إدخال واستعلام المعرفة','تنسيق وفحص الشيفرة','عمليات GitHub ومزامنة'];
+            const response = [`🎨 ملخص النظام`,`🔢 عدد الأدوات/الوظائف: ${count}`,`⚙️ أبرز القدرات:`,responsibilities.map(r=>`- ${r}`).join('\n'),`🛠️ أهم الأدوات:`,top].filter(Boolean).join('\n');
+            return { success: true, instruction, response, toolsUsed: [] };
+        }
 
         const has = (...keys) => keys.some(k => text.includes(k));
         const push = (step, out) => { plan.push(step); if (out) results.push(out); };
@@ -288,10 +298,23 @@ The self-correction mechanism has been activated. A detailed, multi-step plan ha
                 }
             }
 
-            return { success: true, instruction, plan, results };
+            const toolsUsed = results.map(r => r?.tool).filter(Boolean);
+            const response = [
+                'تم تنفيذ الخطة التالية:',
+                ...plan.map((p, i) => `${i+1}. ${p}`)
+            ].join('\n');
+            return { success: true, instruction, plan, results, response, toolsUsed };
         } catch (error) {
             return { success: false, instruction, plan, error: error.message, results };
         }
+    }
+
+    getCandidateOrder(names) {
+        try {
+            const ranking = this.dependencies?.toolManager?.getToolRanking?.() || [];
+            const scoreMap = new Map(ranking.map(r => [r.name, r.score]));
+            return [...names].sort((a, b) => (scoreMap.get(b) || 0) - (scoreMap.get(a) || 0));
+        } catch { return names; }
     }
 
     async smartSystemReview({ scope = 'full', autoFix = false, lang = 'ar' } = {}) {

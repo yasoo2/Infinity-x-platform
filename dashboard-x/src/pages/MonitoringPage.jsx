@@ -1,15 +1,37 @@
 import React, { useState } from 'react';
 import AdvancedMonitoringPanel from '../components/AdvancedMonitoringPanel';
 import EnhancedBrowserControl from '../components/EnhancedBrowserControl';
-import { BarChart3, Monitor } from 'lucide-react';
+import { BarChart3, Monitor, Gauge, Trash2, RotateCcw } from 'lucide-react';
 
 export default function MonitoringPage() {
   const [activeTab, setActiveTab] = useState('monitoring');
+  const [adminMsg, setAdminMsg] = useState('');
 
   const tabs = [
     { id: 'monitoring', label: '📊 المراقبة', icon: BarChart3 },
-    { id: 'browser', label: '🌐 التحكم بالمتصفح', icon: Monitor }
+    { id: 'browser', label: '🌐 التحكم بالمتصفح', icon: Monitor },
+    { id: 'joe', label: '🧠 لوحة جـو', icon: Gauge }
   ];
+
+  const handlePurgeCache = async () => {
+    try {
+      setAdminMsg('');
+      const { data } = await (await import('../api/client')).default.post('/api/v1/joe/tools/cache/purge');
+      setAdminMsg(data?.success ? 'تم مسح الكاش بنجاح' : 'فشل مسح الكاش');
+    } catch (e) {
+      setAdminMsg(e?.response?.data?.message || e?.message || 'حدث خطأ عند مسح الكاش');
+    }
+  };
+
+  const handleResetCircuits = async () => {
+    try {
+      setAdminMsg('');
+      const { data } = await (await import('../api/client')).default.post('/api/v1/joe/tools/circuits/reset');
+      setAdminMsg(data?.success ? 'تم إعادة تعيين القواطع' : 'فشل إعادة تعيين القواطع');
+    } catch (e) {
+      setAdminMsg(e?.response?.data?.message || e?.message || 'حدث خطأ عند إعادة تعيين القواطع');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
@@ -55,6 +77,21 @@ export default function MonitoringPage() {
                 </p>
               </div>
               <EnhancedBrowserControl />
+            </div>
+          )}
+          {activeTab === 'joe' && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <button onClick={handlePurgeCache} className="px-3 py-1.5 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-sm inline-flex items-center gap-1"><Trash2 className="w-4 h-4"/> مسح الكاش</button>
+                <button onClick={handleResetCircuits} className="px-3 py-1.5 rounded bg-purple-600 hover:bg-purple-700 text-white text-sm inline-flex items-center gap-1"><RotateCcw className="w-4 h-4"/> إعادة تعيين القواطع</button>
+                {adminMsg && (
+                  <span className="text-xs text-cyan-300 ml-2">{adminMsg}</span>
+                )}
+              </div>
+              <div className="bg-cyan-500/20 border border-cyan-500 text-cyan-200 px-4 py-3 rounded-lg">
+                <p className="text-sm">لوحة جـو المبسطة تعرض أفضل الأدوات أداءً والقواطع المفتوحة.</p>
+              </div>
+              <iframe title="JOE Monitor" src="/api/v1/joe/monitor" className="w-full h-[600px] rounded-lg border border-slate-700 bg-slate-900" />
             </div>
           )}
         </div>

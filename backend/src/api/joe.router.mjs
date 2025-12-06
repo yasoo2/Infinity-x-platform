@@ -94,6 +94,17 @@ const joeRouterFactory = ({ requireRole, optionalAuth, db }) => {
       if (!instruction) {
         return res.status(400).json({ success: false, error: 'MISSING_INSTRUCTION' });
       }
+      const s = String(instruction || '').toLowerCase();
+      const wantsSummary = /(شو|شنو|ايش)\s*(بتقدر|تقدر)\s*(تعمل)|وظائفك|قدراتك|ملخص\s*عن\s*النظام|شو\s*الادوات|ما\s*هي\s*ادواتك|what\s*can\s*you\s*do|your\s*capabilities|system\s*summary|tools\s*you\s*control|functions/.test(s);
+      if (wantsSummary) {
+        const schemas = toolManager.getToolSchemas();
+        const descs = (schemas || []).map(t => ({ n: String(t?.function?.name || '').trim(), d: String(t?.function?.description || '').trim() })).filter(x => x.n);
+        const top = descs.slice(0, 10).map(x => `- ${x.n}: ${x.d}`).join('\n') || '- لا توجد أوصاف متاحة.';
+        const count = Array.isArray(schemas) ? schemas.length : 0;
+        const responsibilities = ['إنتاج وسائط ونشر محلي','تصفح وتحليل الروابط','تدقيق أمني وفحص أسرار','إدخال واستعلام المعرفة','تنسيق وفحص الشيفرة','عمليات GitHub ومزامنة'];
+        const response = [`🎨 ملخص النظام`,`🔢 عدد الأدوات/الوظائف: ${count}`,`⚙️ أبرز القدرات:`,responsibilities.map(r=>`- ${r}`).join('\n'),`🛠️ أهم الأدوات:`,top].filter(Boolean).join('\n');
+        return res.json({ success: true, response, toolsUsed: [] });
+      }
       const out = await toolManager.execute('autoPlanAndExecute', { instruction, context });
       const response = out?.response || out?.output || out?.summary || out?.message || '';
       const toolsUsed = Array.isArray(out?.toolsUsed) ? out.toolsUsed : (Array.isArray(out?.toolCalls) ? out.toolCalls.map(tc => tc.function?.name).filter(Boolean) : []);
@@ -136,6 +147,44 @@ const joeRouterFactory = ({ requireRole, optionalAuth, db }) => {
     } catch (err) {
       console.error('❌ /api/joe/suggestions/decision error', err);
       res.status(500).json({ error: 'SERVER_ERROR', message: err.message });
+    }
+  });
+
+  router.get('/stats', requireRole('ADMIN'), async (req, res) => {
+    try {
+      const snapshot = toolManager.getStatsSnapshot();
+      return res.json({ success: true, ...snapshot });
+    } catch (err) {
+      console.error('❌ /api/joe/stats error', err);
+      return res.status(500).json({ success: false, error: 'SERVER_ERROR', message: err.message });
+    }
+  });
+
+  router.get('/monitor', requireRole('ADMIN'), (req, res) => {
+    try {
+      const s = toolManager.getStatsSnapshot();
+      const rows = (s.ranking || []).slice(0, 25).map(r => `<tr><td>${r.name}</td><td>${r.success}</td><td>${r.failure}</td><td>${r.avgMs}</td><td>${r.lastMs}</td><td>${r.score}</td></tr>`).join('');
+      const open = (s.openCircuits || []).map(n => `<li>${n}</li>`).join('') || '<li>None</li>';
+      const html = `<!doctype html><html><head><meta charset="utf-8"><title>JOE Monitor</title><style>body{font-family:sans-serif;padding:16px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:8px;text-align:left}th{background:#f5f5f5}</style></head><body><h1>JOE Monitor</h1><p>Tools: ${s.toolsCount} | Schemas: ${s.schemasCount} | Cache: ${s.cacheSize}</p><h2>Open Circuits</h2><ul>${open}</ul><h2>Top Tools</h2><table><thead><tr><th>Name</th><th>Success</th><th>Failure</th><th>Avg ms</th><th>Last ms</th><th>Score</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.send(html);
+    } catch (err) {
+      console.error('❌ /api/joe/monitor error', err);
+      return res.status(500).send('SERVER_ERROR');
+    }
+  });
+
+  router.post('/tools/cache/purge', requireRole('ADMIN'), (req, res) => {
+    try { toolManager.purgeCache(); return res.json({ success: true }); } catch (err) {
+      console.error('❌ /api/joe/tools/cache/purge error', err);
+      return res.status(500).json({ success: false, error: 'SERVER_ERROR', message: err.message });
+    }
+  });
+
+  router.post('/tools/circuits/reset', requireRole('ADMIN'), (req, res) => {
+    try { toolManager.resetCircuits(); return res.json({ success: true }); } catch (err) {
+      console.error('❌ /api/joe/tools/circuits/reset error', err);
+      return res.status(500).json({ success: false, error: 'SERVER_ERROR', message: err.message });
     }
   });
 

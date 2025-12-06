@@ -34,11 +34,22 @@ async function main(){
   console.log('[REST] listening on', restPort)
   let restResult = null
   try {
-    const r = await axios.post(`http://127.0.0.1:${restPort}/api/v1/joe/execute`, { instruction: 'اختبر الرد عبر REST وتحقق من الأدوات المستخدمة' })
+    const r = await axios.post(
+      `http://127.0.0.1:${restPort}/api/v1/joe/execute`,
+      { instruction: 'ملخص عن النظام والأدوات' },
+      { timeout: 30000 }
+    )
     restResult = r.data
     console.log('[REST] ok response length:', String(restResult?.response || '').length, 'tools:', Array.isArray(restResult?.toolsUsed) ? restResult.toolsUsed.join(',') : '')
   } catch (e) {
     console.log('[REST] error', e?.response?.status || '', e?.response?.data || e?.message)
+  }
+
+  try {
+    const mon = await axios.get(`http://127.0.0.1:${restPort}/api/v1/joe/monitor`, { timeout: 5000 })
+    console.log('[REST] monitor length:', String(mon?.data || '').length)
+  } catch (e) {
+    console.log('[REST] monitor error', e?.response?.status || '', e?.response?.data || e?.message)
   }
 
   const wsPort = 5001
@@ -53,9 +64,9 @@ async function main(){
   let wsResponse = null
   let wsTools = []
   await new Promise((resolve) => {
-    const timeout = setTimeout(() => resolve(), 15000)
+    setTimeout(resolve, 15000)
     client.on('open', () => {
-      client.send(JSON.stringify({ action: 'instruct', message: 'اختبر الرد عبر WebSocket وتحقق من الأدوات المستخدمة', lang: 'ar' }))
+      client.send(JSON.stringify({ action: 'instruct', message: 'ملخص عن النظام والأدوات', lang: 'ar' }))
     })
     client.on('message', (msg) => {
       try {

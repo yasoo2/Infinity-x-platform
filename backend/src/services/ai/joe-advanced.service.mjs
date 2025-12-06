@@ -85,6 +85,14 @@ function adaptToolsForGemini(openAITools) {
   }));
 }
 
+function orderByRanking(names) {
+  try {
+    const ranking = toolManager.getToolRanking ? toolManager.getToolRanking() : [];
+    const scoreMap = new Map(ranking.map(r => [r.name, r.score]));
+    return [...names].sort((a, b) => (scoreMap.get(b) || 0) - (scoreMap.get(a) || 0));
+  } catch { return names; }
+}
+
 function shouldAugment(msg) {
   const s = String(msg || '').toLowerCase();
   return /(install|npm|package|library|module)/.test(s);
@@ -155,9 +163,11 @@ async function processMessage(userId, message, sessionId, { model = null, lang }
     const startTime = Date.now();
     console.log(`
 🤖 JOE v9 "Gemini-Phoenix" [${model}] Processing: "${message.substring(0, 80)}..." for User: ${userId}`);
+    try { joeEvents.emitProgress(userId, sessionId, 5, 'Starting'); } catch { /* noop */ }
 
     // 1. Retrieve Conversation Context
         const conversationHistory = await memoryManager.getConversationContext(userId, { limit: 15 });
+    try { joeEvents.emitProgress(userId, sessionId, 10, 'Context loaded'); } catch { /* noop */ }
     const history = conversationHistory.map(item => ({
         role: item.command.role === 'assistant' ? 'model' : 'user', // Gemini uses 'model' for assistant
         parts: [{ text: item.command.content || String(item.command) }]
@@ -175,6 +185,7 @@ async function processMessage(userId, message, sessionId, { model = null, lang }
     // 2. Dynamic Tool Discovery
     const availableTools = toolManager.getToolSchemas();
     console.log(`🛠️ Discovered ${availableTools.length} tools available for this request.`);
+    try { joeEvents.emitProgress(userId, sessionId, 15, 'Tools discovered'); } catch { /* noop */ }
 
     let finalContent = 'An error occurred.';
     const toolCalls = [];
@@ -210,6 +221,7 @@ async function processMessage(userId, message, sessionId, { model = null, lang }
       try {
         finalContent = formatSystemSummary(targetLang, availableTools);
         handled = true;
+        try { joeEvents.emitProgress(userId, sessionId, 50, 'Summary generated'); } catch { /* noop */ }
       } catch {
         finalContent = targetLang === 'ar' ? 'فشل توليد ملخص النظام.' : 'Failed to generate system summary.';
         handled = true;
@@ -232,9 +244,11 @@ async function processMessage(userId, message, sessionId, { model = null, lang }
             const params = typeof st?.params === 'object' && st.params ? st.params : {};
             if (typeof fnName === 'string' && fnName) {
               try {
+                try { joeEvents.emitProgress(userId, sessionId, 30, `Running ${fnName}`); } catch { /* noop */ }
                 const r = await toolManager.execute(fnName, params);
                 toolResults.push({ tool: fnName, args: params, result: r });
                 toolCalls.push({ function: { name: fnName, arguments: params } });
+                try { joeEvents.emitProgress(userId, sessionId, 60, `${fnName} done`); } catch { /* noop */ }
               } catch { void 0 }
             }
           };
@@ -283,15 +297,18 @@ ${transcript.slice(0, 8000)}`;
             } catch { void 0 }
           } else if (hasUrl) {
             try {
-              const url = (preview.match(/https?:\/\/[^\s]+/i) || [])[0];
-              const r = await toolManager.execute('browseWebsite', { url });
-              toolResults.push({ tool: 'browseWebsite', args: { url }, result: r });
-              toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
-              pieces.push(String(r?.summary || r?.content || ''));
+                const url = (preview.match(/https?:\/\/[^\s]+/i) || [])[0];
+                try { joeEvents.emitProgress(userId, sessionId, 30, 'browseWebsite'); } catch { /* noop */ }
+                const r = await toolManager.execute('browseWebsite', { url });
+                toolResults.push({ tool: 'browseWebsite', args: { url }, result: r });
+                toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
+                pieces.push(String(r?.summary || r?.content || ''));
+                try { joeEvents.emitProgress(userId, sessionId, 60, 'browseWebsite done'); } catch { /* noop */ }
             } catch { void 0 }
           }
           if (wantsSecurity) {
             try {
+              try { joeEvents.emitProgress(userId, sessionId, 30, 'Security audit'); } catch { /* noop */ }
               const a = await toolManager.execute('runSecurityAudit', {});
               const s = await toolManager.execute('scanSecrets', {});
               const i = await toolManager.execute('scanInsecurePatterns', {});
@@ -302,40 +319,49 @@ ${transcript.slice(0, 8000)}`;
               toolCalls.push({ function: { name: 'scanSecrets', arguments: {} } });
               toolCalls.push({ function: { name: 'scanInsecurePatterns', arguments: {} } });
               pieces.push(['Security audit completed.', a?.summary, s?.summary, i?.summary].filter(Boolean).join('\n'));
+              try { joeEvents.emitProgress(userId, sessionId, 65, 'Security audit done'); } catch { /* noop */ }
             } catch { void 0 }
           }
           if (wantsIngest) {
             try {
               const title = preview.slice(0, 60);
+              try { joeEvents.emitProgress(userId, sessionId, 30, 'ingestDocument'); } catch { /* noop */ }
               const r = await toolManager.execute('ingestDocument', { documentTitle: title, content: preview });
               toolResults.push({ tool: 'ingestDocument', args: { documentTitle: title }, result: r });
               toolCalls.push({ function: { name: 'ingestDocument', arguments: { documentTitle: title } } });
               pieces.push(String(r?.summary || r?.message || ''));
+              try { joeEvents.emitProgress(userId, sessionId, 60, 'ingestDocument done'); } catch { /* noop */ }
             } catch { void 0 }
           }
           if (wantsQuery) {
             try {
+              try { joeEvents.emitProgress(userId, sessionId, 30, 'queryKnowledgeBase'); } catch { /* noop */ }
               const r = await toolManager.execute('queryKnowledgeBase', { query: preview });
               toolResults.push({ tool: 'queryKnowledgeBase', args: { query: preview }, result: r });
               toolCalls.push({ function: { name: 'queryKnowledgeBase', arguments: { query: preview } } });
               const items = (r?.results || []).slice(0, 3).map(x => `- ${x.title} (score: ${x.score?.toFixed?.(2) || x.score})`).join('\n');
               pieces.push(items || 'No related knowledge found.');
+              try { joeEvents.emitProgress(userId, sessionId, 60, 'queryKnowledgeBase done'); } catch { /* noop */ }
             } catch { void 0 }
           }
           if (wantsFormat) {
             try {
+              try { joeEvents.emitProgress(userId, sessionId, 30, 'formatPrettier'); } catch { /* noop */ }
               const r = await toolManager.execute('formatPrettier', {});
               toolResults.push({ tool: 'formatPrettier', args: {}, result: r });
               toolCalls.push({ function: { name: 'formatPrettier', arguments: {} } });
               pieces.push('Formatting applied.');
+              try { joeEvents.emitProgress(userId, sessionId, 60, 'formatPrettier done'); } catch { /* noop */ }
             } catch { void 0 }
           }
           if (wantsLint) {
             try {
+              try { joeEvents.emitProgress(userId, sessionId, 30, 'runLint'); } catch { /* noop */ }
               const r = await toolManager.execute('runLint', {});
               toolResults.push({ tool: 'runLint', args: {}, result: r });
               toolCalls.push({ function: { name: 'runLint', arguments: {} } });
               pieces.push('Lint analysis completed.');
+              try { joeEvents.emitProgress(userId, sessionId, 60, 'runLint done'); } catch { /* noop */ }
             } catch { void 0 }
           }
           finalContent = pieces.length ? pieces.filter(Boolean).join('\n\n') : 'وضع محلي جاهز. أرسل تعليمات أدق لاختيار الأدوات المثالية.';
@@ -488,9 +514,11 @@ ${transcript.slice(0, 8000)}`;
               }
               if (wantsSecurity) {
                 try {
-                  const a = await toolManager.execute('runSecurityAudit', {});
-                  const s = await toolManager.execute('scanSecrets', {});
-                  const i = await toolManager.execute('scanInsecurePatterns', {});
+                  const ordered = orderByRanking(['runSecurityAudit','scanSecrets','scanInsecurePatterns']);
+                  const [t1,t2,t3] = ordered;
+                  const a = await toolManager.execute(t1, {});
+                  const s = await toolManager.execute(t2, {});
+                  const i = await toolManager.execute(t3, {});
                   toolResults.push({ tool: 'runSecurityAudit', args: {}, result: a });
                   toolResults.push({ tool: 'scanSecrets', args: {}, result: s });
                   toolResults.push({ tool: 'scanInsecurePatterns', args: {}, result: i });
@@ -564,9 +592,11 @@ ${transcript.slice(0, 8000)}`;
             }
             if (wantsSecurity) {
               try {
-                const a = await toolManager.execute('runSecurityAudit', {});
-                const s = await toolManager.execute('scanSecrets', {});
-                const i = await toolManager.execute('scanInsecurePatterns', {});
+                const ordered = orderByRanking(['runSecurityAudit','scanSecrets','scanInsecurePatterns']);
+                const [t1,t2,t3] = ordered;
+                const a = await toolManager.execute(t1, {});
+                const s = await toolManager.execute(t2, {});
+                const i = await toolManager.execute(t3, {});
                 toolResults.push({ tool: 'runSecurityAudit', args: {}, result: a });
                 toolResults.push({ tool: 'scanSecrets', args: {}, result: s });
                 toolResults.push({ tool: 'scanInsecurePatterns', args: {}, result: i });
@@ -652,20 +682,22 @@ ${transcript.slice(0, 8000)}`;
             }
           } catch { void 0 }
         }
-        if (wantsSecurity) {
-          try {
-            const a = await toolManager.execute('runSecurityAudit', {});
-            const s = await toolManager.execute('scanSecrets', {});
-            const i = await toolManager.execute('scanInsecurePatterns', {});
-            toolResults.push({ tool: 'runSecurityAudit', args: {}, result: a });
-            toolResults.push({ tool: 'scanSecrets', args: {}, result: s });
-            toolResults.push({ tool: 'scanInsecurePatterns', args: {}, result: i });
-            toolCalls.push({ function: { name: 'runSecurityAudit', arguments: {} } });
-            toolCalls.push({ function: { name: 'scanSecrets', arguments: {} } });
-            toolCalls.push({ function: { name: 'scanInsecurePatterns', arguments: {} } });
-            pieces.push(['Security audit completed.', a?.summary, s?.summary, i?.summary].filter(Boolean).join('\n'));
-          } catch { void 0 }
-        }
+          if (wantsSecurity) {
+            try {
+              const ordered = orderByRanking(['runSecurityAudit','scanSecrets','scanInsecurePatterns']);
+              const [t1,t2,t3] = ordered;
+              const a = await toolManager.execute(t1, {});
+              const s = await toolManager.execute(t2, {});
+              const i = await toolManager.execute(t3, {});
+              toolResults.push({ tool: 'runSecurityAudit', args: {}, result: a });
+              toolResults.push({ tool: 'scanSecrets', args: {}, result: s });
+              toolResults.push({ tool: 'scanInsecurePatterns', args: {}, result: i });
+              toolCalls.push({ function: { name: 'runSecurityAudit', arguments: {} } });
+              toolCalls.push({ function: { name: 'scanSecrets', arguments: {} } });
+              toolCalls.push({ function: { name: 'scanInsecurePatterns', arguments: {} } });
+              pieces.push(['Security audit completed.', a?.summary, s?.summary, i?.summary].filter(Boolean).join('\n'));
+            } catch { void 0 }
+          }
         if (wantsIngest) {
           try {
             const title = preview.slice(0, 60);
@@ -710,6 +742,7 @@ ${transcript.slice(0, 8000)}`;
 
     const duration = Date.now() - startTime;
     console.log(`✅ Processing complete in ${duration}ms.`);
+    try { joeEvents.emitProgress(userId, sessionId, 90, 'Saving'); } catch { /* noop */ }
 
     // 6. Save the complete interaction to memory
     const prefixed = (() => { const t = String(finalContent || ''); return t.startsWith('joe ') ? t : ('joe ' + t); })();
@@ -718,6 +751,7 @@ ${transcript.slice(0, 8000)}`;
       tokens: usage?.total_tokens
     });
 
+    try { joeEvents.emitProgress(userId, sessionId, 100, 'Done'); } catch { /* noop */ }
     return {
         response: prefixed,
         toolsUsed: toolCalls.map(tc => tc.function.name),
