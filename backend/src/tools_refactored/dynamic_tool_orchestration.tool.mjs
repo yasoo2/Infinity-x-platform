@@ -247,6 +247,22 @@ The self-correction mechanism has been activated. A detailed, multi-step plan ha
                 }
             }
 
+            // Media production orchestration (cartoon/film/video)
+            if (has('مسلسل','كرتون','فيلم','فيديو','video','cartoon','series','movie')) {
+                const title = context?.title || 'JOE Series'
+                const episodes = Number(context?.episodes || 1)
+                const scenesPerEpisode = Number(context?.scenesPerEpisode || 4)
+                const style = context?.style || 'cartoon'
+                const voice = context?.voice || 'neutral'
+                const baseUrl = context?.baseUrl || 'http://localhost:4000'
+                try {
+                    const prod = await tm.execute('produceCartoonSeries', { title, episodes, scenesPerEpisode, style, voice, baseUrl })
+                    push('Produce cartoon series', { tool: 'produceCartoonSeries', output: prod })
+                } catch (e) {
+                    push('Produce cartoon series failed', { warning: e?.message || String(e) })
+                }
+            }
+
             return { success: true, instruction, plan, results };
         } catch (error) {
             return { success: false, instruction, plan, error: error.message, results };

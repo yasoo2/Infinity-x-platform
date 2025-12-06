@@ -1,0 +1,12 @@
+{
+  "title": "Kids Cartoon Demo",
+  "style": "cartoon",
+  "voice": "neutral",
+  "episodes": 1,
+  "files": [
+    "episode_01.webm"
+  ],
+  "urls": [
+    "http://localhost:4000/exports/series_1764981325248/episode_01.webm"
+  ]
+}
