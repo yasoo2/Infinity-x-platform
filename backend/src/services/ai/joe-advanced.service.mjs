@@ -238,11 +238,16 @@ async function processMessage(userId, message, sessionId, { model = null, lang }
       }
     }
 
+    const noCloud = !openaiClient && !geminiClient;
     if (!model) {
-      model = (userCfg?.activeModel) || cfg.activeModel || null;
-      if (!model) {
-        const provider = (userCfg?.activeProvider) || cfg.activeProvider || (effectiveKeys.openai ? 'openai' : (effectiveKeys.gemini ? 'gemini' : null));
-        model = await resolveAutoModel(provider, openaiClient, geminiClient);
+      if (noCloud) {
+        model = '__disabled__';
+      } else {
+        model = (userCfg?.activeModel) || cfg.activeModel || null;
+        if (!model) {
+          const provider = (userCfg?.activeProvider) || cfg.activeProvider || (effectiveKeys.openai ? 'openai' : (effectiveKeys.gemini ? 'gemini' : null));
+          model = await resolveAutoModel(provider, openaiClient, geminiClient);
+        }
       }
     }
 
