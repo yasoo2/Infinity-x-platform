@@ -662,7 +662,8 @@ export const useJoeChat = () => {
         const isDevLocal = (() => {
           try { const u = new URL(sioBase); return (u.hostname === 'localhost' || u.hostname === '127.0.0.1') && ['4173','5173','3000'].includes(u.port || ''); } catch { return false; }
         })();
-        const initialTransports = isDevLocal ? ['polling','websocket'] : ['polling','websocket'];
+        const isProdHost = (() => { try { const u = new URL(sioBase); return /xelitesolutions\.com$/.test(u.hostname); } catch { return false; } })();
+        const initialTransports = isProdHost ? ['websocket'] : (isDevLocal ? ['polling','websocket'] : ['polling','websocket']);
         const socket = io(sioUrl, {
           auth: { token: sessionToken },
           path: '/socket.io',
@@ -693,11 +694,6 @@ export const useJoeChat = () => {
             const msg = String(reason || '').toLowerCase();
             if (/transport error/i.test(msg)) {
               try { socket.io.opts.transports = ['websocket']; socket.connect(); } catch { /* noop */ }
-              try {
-                const h = window.location.hostname;
-                const isProd = h && !(/localhost|127\.0\.0\.1/.test(h));
-                if (isProd) { localStorage.setItem('joeUseWS', 'true'); window.dispatchEvent(new CustomEvent('joe:reconnect')); }
-              } catch { /* noop */ }
             }
           } catch { /* noop */ }
         });
@@ -712,16 +708,8 @@ export const useJoeChat = () => {
             return;
           }
           dispatch({ type: 'ADD_WS_LOG', payload: `[SIO] Connect error: ${msg}` });
-          // If production and SIO keeps failing, fall back to native WebSocket automatically
-          try {
-            const h = window.location.hostname;
-            const isProd = h && !(/localhost|127\.0\.0\.1/.test(h));
-            if (isProd) {
-              try { localStorage.setItem('joeUseWS', 'true'); } catch { /* noop */ }
-              // Trigger WS path
-              try { if (ws.current && ws.current.readyState !== WebSocket.CLOSED) { ws.current.close(); } } catch { /* noop */ }
-            }
-          } catch { /* noop */ }
+          // Keep SIO; do not auto-switch to native WS in production
+        
           if (/INVALID_TOKEN|NO_TOKEN/i.test(msg)) {
             try { localStorage.removeItem('sessionToken'); } catch { /* noop */ }
             try {
@@ -809,8 +797,7 @@ export const useJoeChat = () => {
           const p = String(envPref||'').toLowerCase();
           if (p === 'ws') return true;
           if (p === 'sio') return false;
-          if (String(envUseWs||'').toLowerCase() === 'true') return true;
-          try { return localStorage.getItem('joeUseWS') === 'true'; } catch { return false; }
+          return String(envUseWs||'').toLowerCase() === 'true';
         })();
         if (!useWs) {
           return;
