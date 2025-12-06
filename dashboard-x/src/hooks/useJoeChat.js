@@ -650,11 +650,13 @@ export const useJoeChat = () => {
           const u = new URL(sanitizedHttp);
           const isLocal = (u.hostname === 'localhost' || u.hostname === '127.0.0.1');
           const devPorts = new Set(['4173','5173','3000']);
+          let host = u.host;
           if (isLocal && devPorts.has(u.port || '')) {
-            sioBase = `${u.protocol}//${u.hostname}:4000`;
+            host = `${u.hostname}:4000`;
           } else if (u.hostname === 'www.xelitesolutions.com' || u.hostname === 'xelitesolutions.com') {
-            sioBase = `${u.protocol}//api.xelitesolutions.com`;
+            host = 'api.xelitesolutions.com';
           }
+          sioBase = `${u.protocol}//${host}`;
         } catch { /* noop */ }
         sioUrl = `${sioBase}/joe-agent`;
         const isDevLocal = (() => {

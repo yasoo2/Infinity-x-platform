@@ -18,6 +18,7 @@ export class JoeAgentWebSocketServer {
     this.io = dependencies?.io || null;
     if (this.io) {
       this.nsp = this.io.of('/joe-agent');
+      this.defaultNsp = this.io.of('/');
       this.setupSocketIOServer();
     }
     joeAdvanced.init(dependencies);
@@ -240,86 +241,90 @@ export class JoeAgentWebSocketServer {
   }
 
   setupSocketIOServer() {
-    this.nsp.use((socket, next) => {
-      try {
-        const token = socket.handshake?.auth?.token || socket.handshake?.query?.token;
-        if (!token) return next(new Error('NO_TOKEN'));
-        const secret = this.dependencies.JWT_SECRET || config.JWT_SECRET;
-        const decoded = jwt.verify(token, secret);
-        socket.data = socket.data || {};
-        socket.data.userId = decoded.userId;
-        socket.data.role = decoded.role;
-        return next();
-      } catch {
-        return next(new Error('INVALID_TOKEN'));
-      }
-    });
+    const setupFor = (nsp) => {
+      nsp.use((socket, next) => {
+        try {
+          const token = socket.handshake?.auth?.token || socket.handshake?.query?.token;
+          if (!token) return next(new Error('NO_TOKEN'));
+          const secret = this.dependencies.JWT_SECRET || config.JWT_SECRET;
+          const decoded = jwt.verify(token, secret);
+          socket.data = socket.data || {};
+          socket.data.userId = decoded.userId;
+          socket.data.role = decoded.role;
+          return next();
+        } catch {
+          return next(new Error('INVALID_TOKEN'));
+        }
+      });
 
-      this.nsp.on('connection', (socket) => {
+      nsp.on('connection', (socket) => {
         socket.emit('status', { message: 'Connected to Joe Agent v2 "Unified". Ready for instructions.' });
 
         socket.on('message', async (data) => {
           try {
-          if (!data || typeof data.action !== 'string' || typeof data.message !== 'string') {
-            const lang = String(data?.lang || 'ar');
-            const msg = lang==='ar' ? 'تنسيق الرسالة غير صالح.' : 'Invalid message format.';
-            socket.emit('error', { code: 'INVALID_MESSAGE', message: msg });
-            return;
-          }
-          const lang = String(data.lang || 'ar');
-          const preview = String(data.message || '').trim();
-          if (!preview) { const msg = lang==='ar' ? 'الرسالة فارغة غير مسموح بها.' : 'Empty message not allowed.'; socket.emit('error', { code: 'EMPTY_MESSAGE', message: msg }); return; }
-          if (preview.length > this.maxMessageLength) { const msg = lang==='ar' ? 'الرسالة طويلة جدًا.' : 'Message too long.'; socket.emit('error', { code: 'MESSAGE_TOO_LONG', message: msg }); return; }
-          {
-            const now = Date.now();
-            const rl = this.rateLimits.get(socket.data.userId) || { start: now, count: 0 };
-            if (now - rl.start > this.rateWindowMs) { rl.start = now; rl.count = 0; }
-            rl.count += 1;
-            this.rateLimits.set(socket.data.userId, rl);
-            if (rl.count > this.rateMaxCount) {
-              const msg = lang==='ar' ? 'عدد الرسائل مرتفع. حاول لاحقًا.' : 'Too many messages. Try later.';
-              socket.emit('error', { code: 'RATE_LIMIT', message: msg });
+            if (!data || typeof data.action !== 'string' || typeof data.message !== 'string') {
+              const lang = String(data?.lang || 'ar');
+              const msg = lang==='ar' ? 'تنسيق الرسالة غير صالح.' : 'Invalid message format.';
+              socket.emit('error', { code: 'INVALID_MESSAGE', message: msg });
               return;
             }
-          }
-          const userId = socket.data.userId;
-          const sessionId = data.sessionId || socket.data.sessionId || `session_${Date.now()}`;
-          socket.data.sessionId = sessionId;
-          socket.join(sessionId);
-          if (data.action === 'instruct') {
-            try { socket.emit('progress', { progress: 1, step: 'Starting' }); } catch { /* noop */ }
-            try {
-              if (mongoose.Types.ObjectId.isValid(sessionId)) {
-                await ChatMessage.create({ sessionId, userId, type: 'user', content: data.message });
-                await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date(), updatedAt: new Date() } });
+            const lang = String(data.lang || 'ar');
+            const preview = String(data.message || '').trim();
+            if (!preview) { const msg = lang==='ar' ? 'الرسالة فارغة غير مسموح بها.' : 'Empty message not allowed.'; socket.emit('error', { code: 'EMPTY_MESSAGE', message: msg }); return; }
+            if (preview.length > this.maxMessageLength) { const msg = lang==='ar' ? 'الرسالة طويلة جدًا.' : 'Message too long.'; socket.emit('error', { code: 'MESSAGE_TOO_LONG', message: msg }); return; }
+            {
+              const now = Date.now();
+              const rl = this.rateLimits.get(socket.data.userId) || { start: now, count: 0 };
+              if (now - rl.start > this.rateWindowMs) { rl.start = now; rl.count = 0; }
+              rl.count += 1;
+              this.rateLimits.set(socket.data.userId, rl);
+              if (rl.count > this.rateMaxCount) {
+                const msg = lang==='ar' ? 'عدد الرسائل مرتفع. حاول لاحقًا.' : 'Too many messages. Try later.';
+                socket.emit('error', { code: 'RATE_LIMIT', message: msg });
+                return;
               }
-            } catch { void 0 }
-            
-            const model = data.model || null;
-            const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model, lang: data.lang });
-            socket.emit('response', { response: result.response, toolsUsed: result.toolsUsed, sessionId });
-            try { socket.emit('progress', { progress: 100, step: 'Done' }); } catch { void 0 }
-            try { socket.emit('task_complete', { sessionId }); } catch { void 0 }
-            try {
-              const content = String(result?.response || '').trim();
-              if (content && mongoose.Types.ObjectId.isValid(sessionId)) {
-                await ChatMessage.create({ sessionId, userId, type: 'joe', content });
-                await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date(), updatedAt: new Date() } });
-              }
-            } catch { void 0 }
-          } else if (data.action === 'cancel') {
-            socket.emit('status', { message: 'Cancellation request received.' });
-          } else {
-            const msg = lang==='ar' ? 'إجراء غير معروف.' : 'Unknown action.';
-            socket.emit('error', { code: 'UNKNOWN_ACTION', message: msg });
+            }
+            const userId = socket.data.userId;
+            const sessionId = data.sessionId || socket.data.sessionId || `session_${Date.now()}`;
+            socket.data.sessionId = sessionId;
+            socket.join(sessionId);
+            if (data.action === 'instruct') {
+              try { socket.emit('progress', { progress: 1, step: 'Starting' }); } catch { /* noop */ }
+              try {
+                if (mongoose.Types.ObjectId.isValid(sessionId)) {
+                  await ChatMessage.create({ sessionId, userId, type: 'user', content: data.message });
+                  await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date(), updatedAt: new Date() } });
+                }
+              } catch { void 0 }
+              const model = data.model || null;
+              const result = await joeAdvanced.processMessage(userId, data.message, sessionId, { model, lang: data.lang });
+              socket.emit('response', { response: result.response, toolsUsed: result.toolsUsed, sessionId });
+              try { socket.emit('progress', { progress: 100, step: 'Done' }); } catch { void 0 }
+              try { socket.emit('task_complete', { sessionId }); } catch { void 0 }
+              try {
+                const content = String(result?.response || '').trim();
+                if (content && mongoose.Types.ObjectId.isValid(sessionId)) {
+                  await ChatMessage.create({ sessionId, userId, type: 'joe', content });
+                  await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date(), updatedAt: new Date() } });
+                }
+              } catch { void 0 }
+            } else if (data.action === 'cancel') {
+              socket.emit('status', { message: 'Cancellation request received.' });
+            } else {
+              const msg = lang==='ar' ? 'إجراء غير معروف.' : 'Unknown action.';
+              socket.emit('error', { code: 'UNKNOWN_ACTION', message: msg });
+            }
+          } catch (error) {
+            socket.emit('error', { message: `Server Error: ${error.message}` });
           }
-        } catch (error) {
-          socket.emit('error', { message: `Server Error: ${error.message}` });
-        }
-      });
+        });
 
-      socket.on('disconnect', () => { void 0 });
-    });
+        socket.on('disconnect', () => { void 0 });
+      });
+    };
+
+    if (this.nsp) setupFor(this.nsp);
+    if (this.defaultNsp) setupFor(this.defaultNsp);
   }
 
   /**
