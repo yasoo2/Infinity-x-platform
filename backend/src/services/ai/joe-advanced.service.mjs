@@ -193,7 +193,10 @@ async function processMessage(userId, message, sessionId, { model = null, lang }
     void messagesForGemini;
 
     // 2. Dynamic Tool Discovery
-    const availableTools = toolManager.getToolSchemas();
+    const allSchemas = toolManager.getToolSchemas();
+    const maxTools = 128;
+    const rankedNames = orderByRanking((allSchemas || []).map(s => String(s?.function?.name || '').trim()).filter(Boolean)).slice(0, maxTools);
+    const availableTools = (allSchemas || []).filter(s => rankedNames.includes(String(s?.function?.name || '').trim())).slice(0, maxTools);
     console.log(`🛠️ Discovered ${availableTools.length} tools available for this request.`);
     try { joeEvents.emitProgress(userId, sessionId, 15, 'Tools discovered'); } catch { /* noop */ }
 
