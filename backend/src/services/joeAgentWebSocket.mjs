@@ -1,5 +1,8 @@
 import { WebSocketServer } from 'ws';
+import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import joeAdvanced from './ai/joe-advanced.service.mjs';
+import { setKey, setActive } from './ai/runtime-config.mjs';
 import ChatMessage from '../database/models/ChatMessage.mjs';
 import ChatSession from '../database/models/ChatSession.mjs';
 import jwt from 'jsonwebtoken';
@@ -307,8 +310,78 @@ export class JoeAgentWebSocketServer {
                   await ChatMessage.create({ sessionId, userId, type: 'joe', content });
                   await ChatSession.updateOne({ _id: sessionId }, { $set: { lastModified: new Date(), updatedAt: new Date() } });
                 }
-              } catch { void 0 }
-            } else if (data.action === 'cancel') {
+            } catch { void 0 }
+          } else if (data.action === 'provide_key') {
+            try {
+              const provider = String(data.provider || '').trim() || 'openai';
+              const apiKey = String(data.apiKey || '').trim();
+              const lang = String(data.lang || 'ar');
+              if (!apiKey) {
+                const msg = lang==='ar' ? 'لا يوجد مفتاح.' : 'Missing key.';
+                socket.emit('error', { code: 'MISSING_KEY', message: msg });
+                return;
+              }
+              if (provider === 'openai') {
+                try {
+                  const client = new OpenAI({ apiKey });
+                  const ping = await client.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: 'ping' }] });
+                  const ok = !!ping?.id;
+                  if (!ok) throw new Error('OPENAI_VERIFY_FAILED');
+                  setKey('openai', apiKey);
+                  setActive('openai', 'gpt-4o');
+                  try {
+                    const db = this.dependencies?.db;
+                    const userId = socket.data.userId;
+                    if (db && userId) {
+                      await db.collection('ai_user_config').updateOne(
+                        { userId },
+                        { $set: { userId, keys: { openai: apiKey }, activeProvider: 'openai', activeModel: 'gpt-4o', updatedAt: new Date() } },
+                        { upsert: true }
+                      );
+                    }
+                  } catch { /* noop */ }
+                  const msg = lang==='ar' ? '✅ تم تفعيل OpenAI بنجاح. يمكنك المتابعة الآن.' : '✅ OpenAI activated successfully. You can continue now.';
+                  socket.emit('status', { message: msg });
+                } catch (e) {
+                  const m = String(e?.message || 'OPENAI_VERIFY_FAILED');
+                  const msg = lang==='ar' ? `فشل التحقق من مفتاح OpenAI: ${m}` : `Failed to verify OpenAI key: ${m}`;
+                  socket.emit('error', { code: 'OPENAI_VERIFY_FAILED', message: msg });
+                }
+                return;
+              }
+              if (provider === 'gemini') {
+                try {
+                  const client = new GoogleGenerativeAI(apiKey);
+                  const model = client.getGenerativeModel({ model: 'gemini-1.5-pro-latest' });
+                  const resp = await model.generateContent({ contents: [{ role: 'user', parts: [{ text: 'ping' }] }] }).catch(() => null);
+                  const ok = !!resp;
+                  if (!ok) throw new Error('GEMINI_VERIFY_FAILED');
+                  setKey('gemini', apiKey);
+                  setActive('gemini', 'gemini-1.5-pro-latest');
+                  try {
+                    const db = this.dependencies?.db;
+                    const userId = socket.data.userId;
+                    if (db && userId) {
+                      await db.collection('ai_user_config').updateOne(
+                        { userId },
+                        { $set: { userId, keys: { gemini: apiKey }, activeProvider: 'gemini', activeModel: 'gemini-1.5-pro-latest', updatedAt: new Date() } },
+                        { upsert: true }
+                      );
+                    }
+                  } catch { /* noop */ }
+                  const msg = lang==='ar' ? '✅ تم تفعيل Gemini بنجاح. يمكنك المتابعة الآن.' : '✅ Gemini activated successfully. You can continue now.';
+                  socket.emit('status', { message: msg });
+                } catch (e) {
+                  const m = String(e?.message || 'GEMINI_VERIFY_FAILED');
+                  const msg = lang==='ar' ? `فشل التحقق من مفتاح Gemini: ${m}` : `Failed to verify Gemini key: ${m}`;
+                  socket.emit('error', { code: 'GEMINI_VERIFY_FAILED', message: msg });
+                }
+                return;
+              }
+              const msg = lang==='ar' ? 'مزود غير مدعوم.' : 'Unsupported provider.';
+              socket.emit('error', { code: 'UNSUPPORTED_PROVIDER', message: msg });
+            } catch { /* noop */ }
+          } else if (data.action === 'cancel') {
               socket.emit('status', { message: 'Cancellation request received.' });
             } else {
               const msg = lang==='ar' ? 'إجراء غير معروف.' : 'Unknown action.';

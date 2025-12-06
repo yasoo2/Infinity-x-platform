@@ -1121,6 +1121,15 @@ export const useJoeChat = () => {
     } catch { void 0; }
 
     const trySend = (attempt = 0) => {
+      const keyMatch = (() => {
+        const m1 = inputText.match(/^openai[_\s-]*key\s*:\s*(.+)$/i);
+        if (m1) return { provider: 'openai', apiKey: m1[1].trim() };
+        const m2 = inputText.match(/^gemini[_\s-]*key\s*:\s*(.+)$/i);
+        if (m2) return { provider: 'gemini', apiKey: m2[1].trim() };
+        const m3 = inputText.match(/\b(sk-[A-Za-z0-9_-]{20,})\b/);
+        if (m3) return { provider: 'openai', apiKey: m3[1].trim() };
+        return null;
+      })();
       if (sioRef.current && sioRef.current.connected) {
         let selectedModel = activeModelRef.current || localStorage.getItem('aiSelectedModel');
         if (!selectedModel) {
@@ -1129,7 +1138,9 @@ export const useJoeChat = () => {
         const lang = getLang();
         const conv = state.conversations[convId] || null;
         const sidToUse = conv?.sessionId || sid || null;
-        const payload = { action: 'instruct', message: inputText, sessionId: sidToUse || undefined, lang };
+        const payload = keyMatch
+          ? { action: 'provide_key', provider: keyMatch.provider, apiKey: keyMatch.apiKey, sessionId: sidToUse || undefined, lang }
+          : { action: 'instruct', message: inputText, sessionId: sidToUse || undefined, lang };
         if (selectedModel) payload.model = selectedModel;
         sioRef.current.emit('message', payload);
         try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
@@ -1174,7 +1185,9 @@ export const useJoeChat = () => {
         const lang = getLang();
       const conv = state.conversations[convId] || null;
       const sidToUse = conv?.sessionId || sid || null;
-        const msg = { action: 'instruct', message: inputText, sessionId: sidToUse, lang };
+        const msg = keyMatch
+          ? { action: 'provide_key', provider: keyMatch.provider, apiKey: keyMatch.apiKey, sessionId: sidToUse, lang }
+          : { action: 'instruct', message: inputText, sessionId: sidToUse, lang };
         if (selectedModel) msg.model = selectedModel;
         ws.current.send(JSON.stringify(msg));
         try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
