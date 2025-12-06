@@ -582,7 +582,9 @@ ${transcript.slice(0, 8000)}`;
                 if (good.length) {
                   finalContent = good.join('\n\n');
                 } else {
-                  finalContent = targetLang === 'ar' ? 'يرجى تفعيل مزود الذكاء (OpenAI أو Gemini) من مزودين.' : 'Please activate an AI provider (OpenAI or Gemini) from Providers.';
+                  finalContent = targetLang === 'ar'
+                    ? 'مزود الذكاء السحابي غير متاح حاليًا. تم تفعيل النمط المحلي للأدوات. أرسل تعليمات واضحة ليستخدم جو الأدوات المناسبة.'
+                    : 'Cloud AI provider is currently unavailable. Local tools mode is active. Provide clear instructions and Joe will use available tools.';
               }
             }
           }
@@ -659,7 +661,9 @@ ${transcript.slice(0, 8000)}`;
             if (good.length) {
               finalContent = good.join('\n\n');
             } else {
-              finalContent = targetLang === 'ar' ? 'يرجى تفعيل مزود الذكاء (OpenAI أو Gemini) من مزودين.' : 'Please activate an AI provider (OpenAI or Gemini) from Providers.';
+              finalContent = targetLang === 'ar'
+                ? 'مزود الذكاء السحابي غير متاح حاليًا. تم تفعيل النمط المحلي للأدوات. أرسل تعليمات واضحة ليستخدم جو الأدوات المناسبة.'
+                : 'Cloud AI provider is currently unavailable. Local tools mode is active. Provide clear instructions and Joe will use available tools.';
             }
           }
           }
