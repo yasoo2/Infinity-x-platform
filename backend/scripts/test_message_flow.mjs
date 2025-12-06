@@ -82,7 +82,7 @@ async function main(){
     ws: { success: !!wsResponse, toolsUsed: wsTools }
   }
   console.log(JSON.stringify(report))
+  process.exit(0)
 }
 
 main().catch(e => { console.error('fatal', e?.message || String(e)) ; process.exit(1) })
-
