@@ -86,6 +86,27 @@ function adaptToolsForGemini(openAITools) {
   }));
 }
 
+function sanitizeJsonSchemaForOpenAI(schema) {
+  if (Array.isArray(schema)) return schema.map(sanitizeJsonSchemaForOpenAI);
+  if (!schema || typeof schema !== 'object') return schema;
+  const out = {};
+  for (const [key, value] of Object.entries(schema)) {
+    if (key === 'optional') continue;
+    if (key === 'type' && value === 'array') {
+      out.type = 'array';
+      const items = schema.items && typeof schema.items === 'object' ? schema.items : { type: 'string' };
+      out.items = sanitizeJsonSchemaForOpenAI(items);
+      continue;
+    }
+    if (key === 'items' && (!value || typeof value !== 'object')) {
+      out.items = { type: 'string' };
+      continue;
+    }
+    out[key] = sanitizeJsonSchemaForOpenAI(value);
+  }
+  return out;
+}
+
 function orderByRanking(names) {
   try {
     const ranking = toolManager.getToolRanking ? toolManager.getToolRanking() : [];
@@ -196,7 +217,10 @@ async function processMessage(userId, message, sessionId, { model = null, lang }
     const allSchemas = toolManager.getToolSchemas();
     const maxTools = 128;
     const rankedNames = orderByRanking((allSchemas || []).map(s => String(s?.function?.name || '').trim()).filter(Boolean)).slice(0, maxTools);
-    const availableTools = (allSchemas || []).filter(s => rankedNames.includes(String(s?.function?.name || '').trim())).slice(0, maxTools);
+    const availableTools = (allSchemas || [])
+      .filter(s => rankedNames.includes(String(s?.function?.name || '').trim()))
+      .slice(0, maxTools)
+      .map(t => ({ type: 'function', function: { ...t.function, parameters: sanitizeJsonSchemaForOpenAI(t.function.parameters) } }));
     console.log(`🛠️ Discovered ${availableTools.length} tools available for this request.`);
     try { joeEvents.emitProgress(userId, sessionId, 15, 'Tools discovered'); } catch { /* noop */ }
 
