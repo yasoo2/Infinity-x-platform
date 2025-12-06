@@ -258,6 +258,31 @@ The self-correction mechanism has been activated. A detailed, multi-step plan ha
                 try {
                     const prod = await tm.execute('produceCartoonSeries', { title, episodes, scenesPerEpisode, style, voice, baseUrl })
                     push('Produce cartoon series', { tool: 'produceCartoonSeries', output: prod })
+                    const firstUrl = (prod?.urls || [])[0]
+                    const seriesDir = prod?.seriesDir
+                    const firstFile = firstUrl ? `${seriesDir}/${firstUrl.split('/').pop()}` : null
+                    if (context?.publish || has('انشر','نشر','رفع','تحميل','publish','upload')) {
+                        try {
+                            if (firstFile) {
+                                const pub = await tm.execute('publishLocally', { filePath: firstFile, baseUrl })
+                                push('Publish locally', { tool: 'publishLocally', output: pub })
+                            }
+                        } catch (e) {
+                            push('Publish locally failed', { warning: e?.message || String(e) })
+                        }
+                        if (context?.youtube?.accessToken) {
+                            try {
+                                const yt = await tm.execute('uploadToYouTube', { filePath: firstFile, title, description: `Produced by JOE & XEliteSolutions`, privacyStatus: 'unlisted', tags: ['JOE','XEliteSolutions','cartoon'], accessToken: context.youtube.accessToken })
+                                push('Upload to YouTube', { tool: 'uploadToYouTube', output: yt })
+                            } catch (e) { push('Upload to YouTube failed', { warning: e?.message || String(e) }) }
+                        }
+                        if (context?.tiktok?.accessToken) {
+                            try {
+                                const tk = await tm.execute('uploadToTikTok', { filePath: firstFile, title, description: `Produced by JOE & XEliteSolutions`, accessToken: context.tiktok.accessToken })
+                                push('Upload to TikTok', { tool: 'uploadToTikTok', output: tk })
+                            } catch (e) { push('Upload to TikTok failed', { warning: e?.message || String(e) }) }
+                        }
+                    }
                 } catch (e) {
                     push('Produce cartoon series failed', { warning: e?.message || String(e) })
                 }
