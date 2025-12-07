@@ -847,9 +847,12 @@ export const useJoeChat = () => {
           try {
             const tools = Array.isArray(d?.toolsUsed) ? d.toolsUsed : [];
             for (const t of tools) {
-              const name = (t?.function?.name) || t?.name || t?.tool || '';
-              const details = t?.function?.arguments || t?.arguments || t?.args || null;
-              if (name) dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'tool_used', content: name, details } });
+              const name = (typeof t === 'string') ? t : ((t?.function?.name) || t?.name || t?.tool || '');
+              const details = (typeof t === 'object') ? (t?.function?.arguments || t?.arguments || t?.args || null) : null;
+              if (name) {
+                dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'tool_used', content: name, details } });
+                try { if (String(name).toLowerCase() === 'browsewebsite') { window.dispatchEvent(new Event('joe:open-browser')); } } catch { /* noop */ }
+              }
             }
           } catch { /* noop */ }
           dispatch({ type: 'STOP_PROCESSING' });
@@ -1065,9 +1068,12 @@ export const useJoeChat = () => {
             try {
               const tools = Array.isArray(data?.toolsUsed) ? data.toolsUsed : [];
               for (const t of tools) {
-                const name = (t?.function?.name) || t?.name || t?.tool || '';
-                const details = t?.function?.arguments || t?.arguments || t?.args || null;
-                if (name) dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'tool_used', content: name, details } });
+                const name = (typeof t === 'string') ? t : ((t?.function?.name) || t?.name || t?.tool || '');
+                const details = (typeof t === 'object') ? (t?.function?.arguments || t?.arguments || t?.args || null) : null;
+                if (name) {
+                  dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'tool_used', content: name, details } });
+                  try { if (String(name).toLowerCase() === 'browsewebsite') { window.dispatchEvent(new Event('joe:open-browser')); } } catch { /* noop */ }
+                }
               }
             } catch { /* noop */ }
             try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
@@ -1225,7 +1231,7 @@ export const useJoeChat = () => {
             const ctx = { sessionId: sidToUse || undefined, lang };
             if (selectedModel) ctx.model = selectedModel;
             const { data } = await apiClient.post('/api/v1/joe/execute', { instruction: inputText, context: ctx });
-              const text = sanitizeCompetitors(String(data?.response || data?.message || '').trim());
+            const text = sanitizeCompetitors(String(data?.response || data?.message || '').trim());
             if (text) {
               try {
                 const id = sidToUse;
@@ -1244,6 +1250,17 @@ export const useJoeChat = () => {
                 }
               } catch { /* noop */ }
             }
+            try {
+              const tools = Array.isArray(data?.toolsUsed) ? data.toolsUsed : [];
+              for (const t of tools) {
+                const name = (typeof t === 'string') ? t : ((t?.function?.name) || t?.name || t?.tool || '');
+                const details = (typeof t === 'object') ? (t?.function?.arguments || t?.arguments || t?.args || null) : null;
+                if (name) {
+                  dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'tool_used', content: name, details } });
+                  try { if (String(name).toLowerCase() === 'browsewebsite') { window.dispatchEvent(new Event('joe:open-browser')); } } catch { /* noop */ }
+                }
+              }
+            } catch { /* noop */ }
           } catch { /* noop */ } finally {
             dispatch({ type: 'STOP_PROCESSING' });
             dispatch({ type: 'REMOVE_PENDING_LOGS' });
@@ -1275,6 +1292,17 @@ export const useJoeChat = () => {
                 }
               } catch { /* noop */ }
             }
+            try {
+              const tools = Array.isArray(data?.toolsUsed) ? data.toolsUsed : [];
+              for (const t of tools) {
+                const name = (typeof t === 'string') ? t : ((t?.function?.name) || t?.name || t?.tool || '');
+                const details = (typeof t === 'object') ? (t?.function?.arguments || t?.arguments || t?.args || null) : null;
+                if (name) {
+                  dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'tool_used', content: name, details } });
+                  try { if (String(name).toLowerCase() === 'browsewebsite') { window.dispatchEvent(new Event('joe:open-browser')); } } catch { /* noop */ }
+                }
+              }
+            } catch { /* noop */ }
           } catch { /* noop */ } finally {
             dispatch({ type: 'STOP_PROCESSING' });
             dispatch({ type: 'REMOVE_PENDING_LOGS' });
@@ -1316,6 +1344,17 @@ export const useJoeChat = () => {
               }
             } catch { /* ignore */ }
           }
+          try {
+            const tools = Array.isArray(data?.toolsUsed) ? data.toolsUsed : [];
+            for (const t of tools) {
+              const name = (typeof t === 'string') ? t : ((t?.function?.name) || t?.name || t?.tool || '');
+              const details = (typeof t === 'object') ? (t?.function?.arguments || t?.arguments || t?.args || null) : null;
+              if (name) {
+                dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'tool_used', content: name, details } });
+                try { if (String(name).toLowerCase() === 'browsewebsite') { window.dispatchEvent(new Event('joe:open-browser')); } } catch { /* noop */ }
+              }
+            }
+          } catch { /* noop */ }
         } catch (e) {
           const m = lang === 'ar' ? 'فشل الإرسال عبر REST، حاول لاحقًا.' : 'REST fallback failed, please try again later.';
           dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `${m} ${e?.message || ''}`.trim() } });
