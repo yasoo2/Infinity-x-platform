@@ -589,8 +589,6 @@ ${transcript.slice(0, 8000)}`;
             const wantsLint = /(lint|تحليل|فحص)/i.test(lower);
             const wantsImage = /(image|صورة|لوغو|شعار|generate\s*image)/i.test(lower);
             const wantsWebsite = /(website|ويب|موقع|landing\s*page|انشاء\s*موقع|بناء\s*موقع)/i.test(lower);
-            const wantsImage = /(image|صورة|لوغو|شعار|generate\s*image)/i.test(lower);
-            const wantsWebsite = /(website|ويب|موقع|landing\s*page|انشاء\s*موقع|بناء\s*موقع)/i.test(lower);
             let pieces = [];
             if (hasUrl) {
               try {
