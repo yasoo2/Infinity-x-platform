@@ -14,8 +14,8 @@ class BrowserController {
     }
 
     try {
-      this.browser = await puppeteer.launch({
-        headless: true,
+      const launchBase = {
+        headless: (process.env.PUPPETEER_HEADLESS_MODE || 'true') === 'true' ? 'new' : false,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -24,8 +24,17 @@ class BrowserController {
           '--no-first-run',
           '--no-zygote',
           '--disable-gpu'
-        ]
-      });
+        ],
+      };
+      const execPath = process.env.PUPPETEER_EXECUTABLE_PATH;
+      if (execPath) {
+        launchBase.executablePath = execPath;
+      }
+      try {
+        this.browser = await puppeteer.launch(launchBase);
+      } catch {
+        this.browser = await puppeteer.launch({ ...launchBase, headless: 'new', args: launchBase.args.filter(a => a !== '--disable-gpu') });
+      }
 
       this.context = await this.browser.createIncognitoBrowserContext();
       this.page = await this.context.newPage();
@@ -71,7 +80,7 @@ class BrowserController {
     }
 
     try {
-      const screenshot = await this.page.screenshot({ type: 'jpeg', quality: 80, fullPage: false });
+      const screenshot = await this.page.screenshot({ type: 'jpeg', quality: 60, fullPage: false, omitBackground: true });
       
       return screenshot.toString('base64');
     } catch (error) {

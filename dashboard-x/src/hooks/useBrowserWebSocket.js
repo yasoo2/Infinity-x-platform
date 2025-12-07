@@ -40,6 +40,8 @@ const useBrowserWebSocket = () => {
 
         wsRef.current.onopen = () => {
           setIsConnected(true);
+          try { wsRef.current.send(JSON.stringify({ type: 'get_screenshot' })); } catch { /* noop */ }
+          try { wsRef.current.send(JSON.stringify({ type: 'start_streaming' })); } catch { /* noop */ }
         };
 
         wsRef.current.onclose = (ev) => {

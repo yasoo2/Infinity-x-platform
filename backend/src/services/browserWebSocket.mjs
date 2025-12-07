@@ -28,6 +28,7 @@ class BrowserWebSocketServer {
         .catch(err => {
           console.error('Failed to initialize browser:', err);
           ws.send(JSON.stringify({ type: 'error', message: 'Failed to initialize browser' }));
+          try { ws.close(1011, 'INIT_FAILED'); } catch { /* noop */ }
         });
 
       ws.on('message', async (message) => {
@@ -160,7 +161,7 @@ class BrowserWebSocketServer {
               } catch (error) {
                 console.error('Screenshot streaming error:', error);
               }
-            }, 500);
+            }, 1000);
           }
           break;
         }
