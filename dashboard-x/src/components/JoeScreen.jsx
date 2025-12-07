@@ -6,7 +6,7 @@ import FullScreenBrowser from './FullScreenBrowser';
 import SearchPanel from './SearchPanel';
 import apiClient from '../api/client';
 
-const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initialUrl, initialSearchQuery }) => {
+const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initialUrl, initialSearchQuery, autoOpenOnSearch }) => {
   const [isTakeoverActive, setIsTakeoverActive] = useState(false);
   const [activeTab, setActiveTab] = useState('browser'); // 'terminal' or 'browser'
   const [browserUrl, setBrowserUrl] = useState('https://www.xelitesolutions.com');
@@ -23,6 +23,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState('');
   const [showSearchPanel, setShowSearchPanel] = useState(false);
+  const [autoOpenFirstResult, setAutoOpenFirstResult] = useState(false);
 
   const {
     screenshot,
@@ -74,6 +75,18 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
       if (data?.success) {
         setSearchResults(data.results || []);
         setShowSearchPanel(true);
+        try {
+          const results = data.results || [];
+          if (autoOpenFirstResult && results.length > 0) {
+            setAutoOpenFirstResult(false);
+            setShowSearchPanel(false);
+            const first = results[0];
+            if (first?.url) {
+              setBrowserUrl(first.url);
+              navigate(first.url);
+            }
+          }
+        } catch { /* noop */ }
       } else {
         setSearchError(data?.error || 'فشل البحث');
         setShowSearchPanel(true);
@@ -173,6 +186,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
     const q = String(initialSearchQuery || '').trim();
     if (q) {
       setSearchQuery(q);
+      setAutoOpenFirstResult(Boolean(autoOpenOnSearch));
       runSearch();
     }
   }, [initialSearchQuery]);
@@ -554,4 +568,5 @@ JoeScreen.propTypes = {
   onClose: PropTypes.func.isRequired,
   initialUrl: PropTypes.string,
   initialSearchQuery: PropTypes.string,
+  autoOpenOnSearch: PropTypes.bool,
 };
