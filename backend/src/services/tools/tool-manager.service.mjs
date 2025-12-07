@@ -103,24 +103,60 @@ class ToolManager {
                 tools[propName] = bound;
             }
         }
+        for (const key of Object.keys(instance)) {
+            const val = instance[key];
+            if (typeof val === 'function') {
+                const md = val.metadata || {};
+                const schema = {
+                    name: md.name || key,
+                    description: md.description || 'No description provided',
+                    parameters: md.parameters || { type: 'object', properties: {} }
+                };
+                const bound = val.bind(instance);
+                bound.metadata = schema;
+                tools[key] = bound;
+            } else if (val && typeof val === 'object') {
+                for (const [k2, v2] of Object.entries(val)) {
+                    if (typeof v2 === 'function') {
+                        const md2 = v2.metadata || {};
+                        const schema2 = {
+                            name: md2.name || `${key}.${k2}`,
+                            description: md2.description || 'No description provided',
+                            parameters: md2.parameters || { type: 'object', properties: {} }
+                        };
+                        const bound2 = v2.bind(instance);
+                        bound2.metadata = schema2;
+                        tools[`${key}.${k2}`] = bound2;
+                    }
+                }
+            }
+        }
         return tools;
     }
 
     _registerModule(module) {
-        for (const [toolName, toolFunction] of Object.entries(module)) {
-            if (typeof toolFunction === 'function') {
-                const md = toolFunction.metadata || {};
-                const schema = {
-                    name: md.name || toolName,
-                    description: md.description || 'No description provided',
-                    parameters: md.parameters || { type: 'object', properties: {} }
-                };
-                // attach schema back to function for consistency
-                toolFunction.metadata = schema;
-                this.tools.set(toolName, toolFunction);
-                this.toolSchemas.push({ type: 'function', function: schema });
+        const addFn = (fn, name) => {
+            const md = fn.metadata || {};
+            const schema = {
+                name: md.name || name,
+                description: md.description || 'No description provided',
+                parameters: md.parameters || { type: 'object', properties: {} }
+            };
+            fn.metadata = schema;
+            this.tools.set(name, fn);
+            this.toolSchemas.push({ type: 'function', function: schema });
+        };
+        const walk = (obj, prefix = '') => {
+            for (const [k, v] of Object.entries(obj)) {
+                const name = prefix ? `${prefix}${k}` : k;
+                if (typeof v === 'function') {
+                    addFn(v, name);
+                } else if (v && typeof v === 'object') {
+                    walk(v, `${name}.`);
+                }
             }
-        }
+        };
+        walk(module);
     }
 
     registerDynamicTool(toolName, toolFunction, schema) {
