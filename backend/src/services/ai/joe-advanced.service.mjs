@@ -193,7 +193,7 @@ async function processMessage(userId, message, sessionId, { model = null, lang }
     if (!memoryManager) { throw new Error('MemoryManager not initialized'); }
     const startTime = Date.now();
     console.log(`
-🤖 JOE v9 "Gemini-Phoenix" [${model}] Processing: "${message.substring(0, 80)}..." for User: ${userId}`);
+🤖 JOE v9 "Gemini-Phoenix" [${model}] <lang=${String(lang||'').toLowerCase()||'en'}> "${message.substring(0, 80)}..." uid=${userId}`);
     try { joeEvents.emitProgress(userId, sessionId, 5, 'Starting'); } catch { /* noop */ }
 
     // 1. Retrieve Conversation Context

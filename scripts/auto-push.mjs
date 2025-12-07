@@ -26,10 +26,13 @@ const commitIfNeeded = async () => {
   try {
     const s = await run('git status --porcelain')
     if (!String(s.stdout || '').trim()) return
+    const current = await run('git branch --show-current')
+    const branch = String(current.stdout || '').trim()
+    if (branch !== 'main') return
     await run('git add -A')
     const msg = `auto: ${new Date().toISOString()}`
     await run(`git commit -m "${msg}"`)
-    await run('git push origin $(git branch --show-current)')
+    await run('git push origin main')
   } catch { /* noop */ }
 }
 
