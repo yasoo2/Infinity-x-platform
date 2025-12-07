@@ -196,11 +196,26 @@ async function setupDependencies() {
     let planningSystem = null;
     let schedulingSystem = null;
     try {
-        db = await initMongo();
-        await connectDB(); // Initialize Mongoose connection
-        await setupSuperAdmin(() => Promise.resolve(db));
-        planningSystem = new PlanningSystem(db);
-        schedulingSystem = new SchedulingSystem(db);
+        try {
+            const hasMongoEnv = !!(process.env.MONGODB_URI || process.env.MONGO_URI);
+            if (hasMongoEnv) {
+                db = await initMongo();
+                await connectDB(); // Initialize Mongoose connection
+                await setupSuperAdmin(() => Promise.resolve(db));
+            } else {
+                throw new Error('MONGO_ENV_MISSING');
+            }
+        } catch (e) {
+            console.warn('⚠️ Database unavailable. Continuing in degraded mode without MongoDB.', e?.message || String(e));
+            db = null;
+        }
+        if (db) {
+            planningSystem = new PlanningSystem(db);
+            schedulingSystem = new SchedulingSystem(db);
+        } else {
+            planningSystem = null;
+            schedulingSystem = null;
+        }
 
         const sandboxManager = await new SandboxManager().initializeConnections();
         const memoryManager = new MemoryManager();
@@ -291,6 +306,9 @@ async function startServer({ dependencyInitializer = setupDependencies, exit = p
   try {
     console.log('🔄 Starting server setup...');
     const dependencies = await dependencyInitializer();
+    server.listen(CONFIG.PORT, '0.0.0.0', () => {
+      console.log(`✅ Server running on http://localhost:${CONFIG.PORT}`);
+    });
     setupAuth(dependencies.db);
     await applyRoutes(dependencies);
 
@@ -303,9 +321,7 @@ async function startServer({ dependencyInitializer = setupDependencies, exit = p
         res.status(500).json({ error: 'SERVER_ERROR', message: err.message });
     });
 
-    server.listen(CONFIG.PORT, '0.0.0.0', () => {
-      console.log(`✅ Server running on http://localhost:${CONFIG.PORT}`);
-    });
+    void 0;
 
     // Background initialization (non-blocking)
     Promise.resolve().then(async () => {

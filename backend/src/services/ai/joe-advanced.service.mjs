@@ -456,9 +456,25 @@ ${transcript.slice(0, 8000)}`;
     } else if (!handled && openaiClient) {
         try {
           const modelId = model || 'gpt-4o';
-          const response = await openaiClient.chat.completions.create({ model: modelId, messages: messagesForOpenAI, tools: availableTools, tool_choice: 'auto' });
-          const messageResponse = response.choices[0].message;
-          usage = response.usage;
+          const isProjectKey = typeof effectiveKeys.openai === 'string' && effectiveKeys.openai.startsWith('sk-proj');
+          if (isProjectKey) {
+            const flatPrompt = [
+              MANUS_STYLE_PROMPT,
+              languageDirective,
+              ...conversationHistory.map(m => (m?.command?.content || '')).reverse(),
+              message
+            ].filter(Boolean).join('\n\n');
+            const resp = await openaiClient.responses.create({ model: modelId, input: flatPrompt });
+            const text = (resp && (resp.output_text || resp?.content?.[0]?.text || resp?.choices?.[0]?.message?.content)) || '';
+            finalContent = String(text || '').trim() || '';
+            usage = resp?.usage || {};
+            if (!finalContent) {
+              finalContent = 'لم أحصل على رد من النموذج. جرّب صياغة مختلفة.';
+            }
+          } else {
+            const response = await openaiClient.chat.completions.create({ model: modelId, messages: messagesForOpenAI, tools: availableTools, tool_choice: 'auto' });
+            const messageResponse = response.choices[0].message;
+            usage = response.usage;
 
           if (messageResponse.tool_calls) {
               console.log(`🔧 OpenAI Executing ${messageResponse.tool_calls.length} tool(s)...`);
@@ -506,6 +522,7 @@ ${transcript.slice(0, 8000)}`;
                 } catch (e0) { void e0; }
               }
           }
+          
         } catch (e) {
           try { console.log(e && e.message); } catch (e00) { void e00; }
           if (geminiClient) {

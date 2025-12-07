@@ -1,6 +1,7 @@
 import express from 'express';
 import toolManager from '../services/tools/tool-manager.service.mjs';
 import joeAdvanced from '../services/ai/joe-advanced.service.mjs';
+import { setKey, setActive } from '../services/ai/runtime-config.mjs';
 import { ObjectId } from 'mongodb';
 
 // Renamed to factory and set as default export for consistency with the new architecture
@@ -91,7 +92,7 @@ const joeRouterFactory = ({ requireRole, optionalAuth, db }) => {
   // POST /api/v1/joe/execute - Analyze instruction and auto-run relevant tools
   router.post('/execute', async (req, res) => {
     try {
-      const { instruction, lang, model, sessionId: providedSessionId } = req.body || {};
+      const { instruction, lang, model, sessionId: providedSessionId, provider, apiKey } = req.body || {};
       if (!instruction) {
         return res.status(400).json({ success: false, error: 'MISSING_INSTRUCTION' });
       }
@@ -105,6 +106,22 @@ const joeRouterFactory = ({ requireRole, optionalAuth, db }) => {
         const responsibilities = ['إنتاج وسائط ونشر محلي','تصفح وتحليل الروابط','تدقيق أمني وفحص أسرار','إدخال واستعلام المعرفة','تنسيق وفحص الشيفرة','عمليات GitHub ومزامنة'];
         const response = [`🎨 ملخص النظام`,`🔢 عدد الأدوات/الوظائف: ${count}`,`⚙️ أبرز القدرات:`,responsibilities.map(r=>`- ${r}`).join('\n'),`🛠️ أهم الأدوات:`,top].filter(Boolean).join('\n');
         return res.json({ success: true, response, toolsUsed: [] });
+      }
+      if (typeof apiKey === 'string' && apiKey.trim()) {
+        const prov = String(provider || '').trim().toLowerCase() || 'openai';
+        try { setKey(prov, apiKey.trim()); setActive(prov, prov === 'openai' ? (model || 'gpt-4o') : (model || 'gemini-1.5-pro-latest')); } catch { /* noop */ }
+        try {
+          const mongoDb = await db();
+          const userId = req.user?._id || null;
+          if (mongoDb && userId) {
+            const keyObj = prov === 'openai' ? { openai: apiKey.trim() } : { gemini: apiKey.trim() };
+            await mongoDb.collection('ai_user_config').updateOne(
+              { userId },
+              { $set: { userId, keys: keyObj, activeProvider: prov, activeModel: (prov === 'openai' ? (model || 'gpt-4o') : (model || 'gemini-1.5-pro-latest')), updatedAt: new Date() } },
+              { upsert: true }
+            );
+          }
+        } catch { /* noop */ }
       }
       const userId = req.user?._id ? String(req.user._id) : (req.session?.token ? `guest:${req.session.token}` : `guest:${Date.now()}`);
       const sessionId = typeof providedSessionId === 'string' && providedSessionId.trim() ? providedSessionId.trim() : `sess_${Date.now()}`;
