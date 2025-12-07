@@ -77,6 +77,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   const [browserPanelMode, setBrowserPanelMode] = React.useState('mini');
   const [browserInitialUrl, setBrowserInitialUrl] = React.useState('');
   const [browserInitialSearch, setBrowserInitialSearch] = React.useState('');
+  const [browserAutoOpenFirst, setBrowserAutoOpenFirst] = React.useState(false);
   const galleryPanelRef = useRef(null);
 
   const { 
@@ -177,6 +178,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
         if (url) setBrowserInitialUrl(url);
         const q = String(d?.searchQuery || '').trim();
         if (q) setBrowserInitialSearch(q);
+        setBrowserAutoOpenFirst(Boolean(d?.autoOpenFirst));
         setShowBrowserPanel(true);
         setBrowserPanelMode('mini');
       } catch { /* noop */ }
@@ -850,6 +852,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
               onClose={() => setShowBrowserPanel(false)}
               initialUrl={browserInitialUrl}
               initialSearchQuery={browserInitialSearch}
+              autoOpenOnSearch={browserAutoOpenFirst}
             />
           </div>
         </div>
