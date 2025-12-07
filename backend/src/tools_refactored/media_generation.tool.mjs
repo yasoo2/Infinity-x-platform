@@ -148,7 +148,9 @@ class MediaGenerationTool {
             const outPath = String(outputFilePath || '').trim() || path.join(baseUploads, name);
             await fs.writeFile(outPath, buf);
             const publicUrl = `/uploads/${path.basename(outPath)}`;
-            return { success: true, outputFile: outPath, publicUrl, contentType: ct };
+            const base = process.env.PUBLIC_BASE_URL || 'http://localhost:4000';
+            const absoluteUrl = `${base}${publicUrl}`;
+            return { success: true, outputFile: outPath, publicUrl, absoluteUrl, contentType: ct };
         } catch (error) {
             return { success: false, error: error?.message || String(error) };
         }

@@ -347,7 +347,8 @@ ${transcript.slice(0, 8000)}`;
                   const out = await executeTool(userId, sessionId, 'downloadImageFromUrl', { url });
                   toolResults.push({ tool: 'downloadImageFromUrl', args: { url }, result: out });
                   toolCalls.push({ function: { name: 'downloadImageFromUrl', arguments: { url } } });
-                  const msg = out?.publicUrl ? `تم تحميل الصورة: ${out.publicUrl}` : 'تم تحميل الصورة.';
+                  const link = out?.absoluteUrl || out?.publicUrl || '';
+                  const msg = link ? `تم تحميل الصورة: ${link}` : 'تم تحميل الصورة.';
                   pieces.push(msg);
                   try { joeEvents.emitProgress(userId, sessionId, 60, 'downloadImageFromUrl done'); } catch { /* noop */ }
                 } else {
@@ -610,7 +611,8 @@ ${transcript.slice(0, 8000)}`;
                   const out = await executeTool(userId, sessionId, 'downloadImageFromUrl', { url });
                   toolResults.push({ tool: 'downloadImageFromUrl', args: { url }, result: out });
                   toolCalls.push({ function: { name: 'downloadImageFromUrl', arguments: { url } } });
-                  const msg = out?.publicUrl ? `تم تحميل الصورة: ${out.publicUrl}` : 'تم تحميل الصورة.';
+                  const link = out?.absoluteUrl || out?.publicUrl || '';
+                  const msg = link ? `تم تحميل الصورة: ${link}` : 'تم تحميل الصورة.';
                   pieces.push(msg);
                 } else {
                   const r = await executeTool(userId, sessionId, 'browseWebsite', { url });
@@ -730,7 +732,8 @@ ${transcript.slice(0, 8000)}`;
               const out = await toolManager.execute('downloadImageFromUrl', { url });
               toolResults.push({ tool: 'downloadImageFromUrl', args: { url }, result: out });
               toolCalls.push({ function: { name: 'downloadImageFromUrl', arguments: { url } } });
-              const msg = out?.publicUrl ? `تم تحميل الصورة: ${out.publicUrl}` : 'تم تحميل الصورة.';
+              const link = out?.absoluteUrl || out?.publicUrl || '';
+              const msg = link ? `تم تحميل الصورة: ${link}` : 'تم تحميل الصورة.';
               pieces.push(msg);
             } else {
               const r = await toolManager.execute('browseWebsite', { url });
