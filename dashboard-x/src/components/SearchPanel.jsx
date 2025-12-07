@@ -34,7 +34,11 @@ const SearchPanel = ({ results, loading, error, onClose, onOpen }) => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-purple-300 text-xs truncate">
                     <LinkIcon className="w-3 h-3" />
-                    <a href={r.url} target="_blank" rel="noreferrer" className="hover:underline">
+                    <a
+                      href={r.url}
+                      onClick={(e) => { e.preventDefault(); onOpen?.(r.url) }}
+                      className="hover:underline"
+                    >
                       {r.url}
                     </a>
                   </div>

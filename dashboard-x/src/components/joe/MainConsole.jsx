@@ -571,16 +571,18 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                 });
                 const renderContent = (text) => {
                   const t = String(text || '');
-                  const urlRe = /(https?:\/\/[^\s)]+)/g;
+                  const urlRe = /((https?:\/\/)?(?:www\.)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s)]+)?)/gi;
                   const parts = [];
                   let lastIndex = 0;
                   let m;
                   while ((m = urlRe.exec(t)) !== null) {
                     const i = m.index;
-                    const u = m[0];
+                    const raw = m[0];
+                    const hasScheme = !!m[2];
+                    const target = hasScheme ? raw : `https://${raw}`;
                     if (i > lastIndex) parts.push(t.slice(lastIndex, i));
-                    parts.push({ href: u });
-                    lastIndex = i + u.length;
+                    parts.push({ href: target, display: raw });
+                    lastIndex = i + raw.length;
                   }
                   if (lastIndex < t.length) parts.push(t.slice(lastIndex));
                   const imageUrls = Array.from(new Set((t.match(/https?:\/\/[^\s)]+/g) || []).filter(u => /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(u))));
@@ -594,7 +596,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                             onClick={(e) => { e.preventDefault(); try { window.dispatchEvent(new CustomEvent('joe:open-browser', { detail: { url: p.href } })); } catch { /* noop */ } }}
                             className="underline text-yellow-400 break-all"
                           >
-                            {p.href}
+                            {p.display || p.href}
                           </a>
                         ))}
                       </p>
