@@ -59,6 +59,13 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
     stopStreaming();
   };
 
+  const handleEndTask = () => {
+    try { stopStreaming(); } catch { /* noop */ }
+    try { setIsTakeoverActive(false); } catch { /* noop */ }
+    try { window.dispatchEvent(new Event('joe:end-browser-task')); } catch { /* noop */ }
+    onClose();
+  };
+
   const handleNavigate = () => {
     if (browserUrl) {
       navigate(browserUrl);
@@ -187,6 +194,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
     if (q) {
       setSearchQuery(q);
       setAutoOpenFirstResult(Boolean(autoOpenOnSearch));
+      try { navigate(`https://www.google.com/search?q=${encodeURIComponent(q)}`); } catch { /* noop */ }
       runSearch();
     }
   }, [initialSearchQuery]);
@@ -263,6 +271,13 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
                 title={isCollapsed ? "Expand" : "Collapse"}
               >
                 {isCollapsed ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+              <button
+                onClick={handleEndTask}
+                className="px-2 py-1 text-xs rounded-md bg-green-600 hover:bg-green-500 text-white border border-green-700"
+                title="إنهاء المهمة"
+              >
+                إنهاء المهمة
               </button>
               <button
                 onClick={onClose}

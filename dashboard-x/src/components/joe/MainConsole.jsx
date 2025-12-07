@@ -183,8 +183,20 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
         setBrowserPanelMode('mini');
       } catch { /* noop */ }
     };
+    const onEndTask = () => {
+      try {
+        setShowBrowserPanel(false);
+        setBrowserInitialUrl('');
+        setBrowserInitialSearch('');
+        setBrowserAutoOpenFirst(false);
+      } catch { /* noop */ }
+    };
     window.addEventListener('joe:open-browser', onOpenBrowser);
-    return () => window.removeEventListener('joe:open-browser', onOpenBrowser);
+    window.addEventListener('joe:end-browser-task', onEndTask);
+    return () => {
+      window.removeEventListener('joe:open-browser', onOpenBrowser);
+      window.removeEventListener('joe:end-browser-task', onEndTask);
+    };
   }, []);
 
   
