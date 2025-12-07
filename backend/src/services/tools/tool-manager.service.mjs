@@ -88,12 +88,19 @@ class ToolManager {
 
     _extractToolsFromInstance(instance) {
         const tools = {};
-        // Look for methods on the prototype that have metadata
         for (const propName of Object.getOwnPropertyNames(Object.getPrototypeOf(instance))) {
+            if (propName === 'constructor') continue;
             const prop = instance[propName];
-            if (typeof prop === 'function' && prop.metadata) {
-                tools[propName] = prop.bind(instance);
-                tools[propName].metadata = prop.metadata; // Re-attach metadata
+            if (typeof prop === 'function') {
+                const md = prop.metadata || {};
+                const schema = {
+                    name: md.name || propName,
+                    description: md.description || 'No description provided',
+                    parameters: md.parameters || { type: 'object', properties: {} }
+                };
+                const bound = prop.bind(instance);
+                bound.metadata = schema;
+                tools[propName] = bound;
             }
         }
         return tools;
