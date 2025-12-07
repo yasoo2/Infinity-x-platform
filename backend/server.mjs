@@ -232,6 +232,14 @@ async function setupDependencies() {
             optionalAuth: optionalAuth(db),
             liveStreamingService,
             JWT_SECRET: process.env.JWT_SECRET || 'a-very-weak-secret-for-dev',
+            github: {
+              token: process.env.GITHUB_TOKEN || null,
+              username: process.env.GITHUB_USERNAME || 'yasoo2'
+            },
+            cloudflare: {
+              apiToken: process.env.CLOUDFLARE_API_TOKEN || null,
+              accountId: process.env.CLOUDFLARE_ACCOUNT_ID || null
+            }
         };
 
         await toolManager.initialize(dependencies);
