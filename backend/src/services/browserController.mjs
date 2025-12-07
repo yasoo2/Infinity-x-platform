@@ -1,4 +1,5 @@
 import puppeteer from 'puppeteer';
+import fs from 'fs';
 
 class BrowserController {
   constructor() {
@@ -26,14 +27,34 @@ class BrowserController {
           '--disable-gpu'
         ],
       };
-      const execPath = process.env.PUPPETEER_EXECUTABLE_PATH;
-      if (execPath) {
-        launchBase.executablePath = execPath;
-      }
+      const execCandidates = [];
+      const execEnv = process.env.PUPPETEER_EXECUTABLE_PATH;
+      if (execEnv) execCandidates.push(execEnv);
+      execCandidates.push(
+        '/usr/bin/google-chrome',
+        '/usr/bin/chromium',
+        '/usr/bin/chromium-browser',
+        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+      );
+      const foundPath = execCandidates.find(p => {
+        try { return fs.existsSync(p); } catch { return false; }
+      });
+      if (foundPath) launchBase.executablePath = foundPath;
+
       try {
         this.browser = await puppeteer.launch(launchBase);
-      } catch {
-        this.browser = await puppeteer.launch({ ...launchBase, headless: 'new', args: launchBase.args.filter(a => a !== '--disable-gpu') });
+      } catch (e1) {
+        try {
+          this.browser = await puppeteer.launch({ ...launchBase, headless: 'new', args: launchBase.args.filter(a => a !== '--disable-gpu') });
+        } catch (e2) {
+          try {
+            this.browser = await puppeteer.launch({ ...launchBase, channel: 'chrome' });
+          } catch (e3) {
+            const err = e3 || e2 || e1;
+            console.error('Puppeteer launch failed. Consider installing Chrome via "npx puppeteer browsers install chrome" or setting PUPPETEER_EXECUTABLE_PATH.', err?.message || String(err));
+            throw err;
+          }
+        }
       }
 
       this.context = await this.browser.createIncognitoBrowserContext();
