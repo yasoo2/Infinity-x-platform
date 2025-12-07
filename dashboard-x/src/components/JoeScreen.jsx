@@ -6,7 +6,7 @@ import FullScreenBrowser from './FullScreenBrowser';
 import SearchPanel from './SearchPanel';
 import apiClient from '../api/client';
 
-const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
+const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initialUrl }) => {
   const [isTakeoverActive, setIsTakeoverActive] = useState(false);
   const [activeTab, setActiveTab] = useState('browser'); // 'terminal' or 'browser'
   const [browserUrl, setBrowserUrl] = useState('https://www.xelitesolutions.com');
@@ -159,6 +159,15 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
       navigate(browserUrl);
     }
   }, [isConnected]);
+
+  useEffect(() => {
+    const u = String(initialUrl || '').trim();
+    if (u) {
+      setBrowserUrl(u);
+      navigate(u);
+      setShowMiniPreview(true);
+    }
+  }, [initialUrl]);
 
   const getStatusIcon = () => {
     if (isProcessing || isLoading) return <Cpu className="w-4 h-4 text-purple-400 animate-pulse" />;
@@ -535,4 +544,5 @@ JoeScreen.propTypes = {
   wsLog: PropTypes.array.isRequired,
   onTakeover: PropTypes.func.isRequired,
   onClose: PropTypes.func.isRequired,
+  initialUrl: PropTypes.string,
 };
