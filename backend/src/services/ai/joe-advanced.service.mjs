@@ -726,6 +726,12 @@ ${transcript.slice(0, 8000)}`;
               } else {
                 pieces.push(targetLang === 'ar' ? 'لا يوجد نص مستخرج للفيديو.' : 'No transcript extracted for the video.');
               }
+            } else if (/\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(url)) {
+              const out = await toolManager.execute('downloadImageFromUrl', { url });
+              toolResults.push({ tool: 'downloadImageFromUrl', args: { url }, result: out });
+              toolCalls.push({ function: { name: 'downloadImageFromUrl', arguments: { url } } });
+              const msg = out?.publicUrl ? `تم تحميل الصورة: ${out.publicUrl}` : 'تم تحميل الصورة.';
+              pieces.push(msg);
             } else {
               const r = await toolManager.execute('browseWebsite', { url });
               toolResults.push({ tool: 'browseWebsite', args: { url }, result: r });
