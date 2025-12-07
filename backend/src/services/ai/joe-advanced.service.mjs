@@ -219,12 +219,26 @@ async function processMessage(userId, message, sessionId, { model = null, lang }
             if (uText) h.push({ role: 'user', parts: [{ text: uText }] });
             if (aText) h.push({ role: 'model', parts: [{ text: aText }] });
         }
+        if (ltmFactsText) {
+            h.unshift({ role: 'model', parts: [{ text: ltmFactsText }] });
+        }
         return h;
     })();
 
     const targetLang = (String(lang || '').toLowerCase() === 'ar') ? 'ar' : 'en';
     const languageDirective = targetLang === 'ar' ? 'اعتمد العربية في جميع الردود، ولخص المحتوى بشكل واضح مع نقاط موجزة وعناوين فرعية.' : 'Respond in English. Provide a clear summary with bullet points and subheadings.';
     const systemPrompt = { role: 'system', content: `${MANUS_STYLE_PROMPT}\n\n${languageDirective}` };
+    let ltmFactsText = '';
+    try {
+        const ltmFacts = await memoryManager.getLTM(userId, { limit: 5 });
+        const lines = (ltmFacts || []).map(p => {
+            const t = String(p?.title || '').trim();
+            return t ? `- ${t}` : '';
+        }).filter(Boolean);
+        if (lines.length) {
+            ltmFactsText = (targetLang === 'ar' ? 'معلومات معروفة:\n' : 'Known facts:\n') + lines.join('\n');
+        }
+    } catch { /* noop */ }
     const userMessage = { role: 'user', content: message };
 
     const messagesForOpenAI = [systemPrompt, ...conversationHistory.map(item => item.command).reverse(), userMessage];
@@ -498,6 +512,7 @@ ${transcript.slice(0, 8000)}`;
           const flatPrompt = [
             MANUS_STYLE_PROMPT,
             languageDirective,
+            ltmFactsText,
             ...convoLines,
             `User: ${message}`
           ].filter(Boolean).join('\n\n');
