@@ -464,12 +464,16 @@ export const useJoeChat = () => {
     try { pendingDeleteIdsRef.current.set(String(sid), Date.now() + 30000); } catch { /* noop */ }
     dispatch({ type: 'DELETE_CONVERSATION', payload: { id } });
     try {
-      await deleteChatSession(sid, { timeout: 12000 });
+      const isObjId = typeof sid === 'string' && /^[a-f0-9]{24}$/i.test(sid);
+      if (isObjId) {
+        await deleteChatSession(sid, { timeout: 12000 });
+      }
       const ms = Date.now() - start;
       try { pendingDeleteIdsRef.current.set(String(sid), Date.now() + Math.max(5000, ms * 2)); } catch { /* noop */ }
       try { pendingDeleteIdsRef.current.delete(String(sid)); } catch { /* noop */ }
     } catch { void 0; }
     try {
+      try { if (syncAbortRef.current) syncAbortRef.current.abort(); } catch { /* noop */ }
       if (syncRef.current) syncRef.current();
     } catch { void 0; }
   }, [state.conversations]);
