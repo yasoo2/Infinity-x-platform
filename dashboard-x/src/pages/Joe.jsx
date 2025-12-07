@@ -360,18 +360,19 @@ const JoeContent = () => {
         {/* Removed ActivityBar to free space and use TopBar toggles */}
         {isSidePanelOpen && (
           <div className={`relative z-0 bg-gray-900 flex-shrink-0 ${panelStyles.left.width === 0 ? 'border-r border-gray-800' : ''}`} style={{ ...leftStyle, width: isMobile ? Math.min(leftWidth, 360) : leftWidth }}>
-            <SidePanel 
-              conversations={conversationsList} 
-              currentConversationId={currentConversationId}
-              onConversationSelect={handleConversationSelect}
-              onNewConversation={handleNewConversation}
-              onRenameConversation={renameConversation}
-              onDeleteConversation={deleteConversation}
-              onPinToggle={pinToggle}
-              onDuplicate={duplicateConversation}
-              onClear={clearMessages}
-              lang={lang}
-            />
+        <SidePanel 
+          conversations={conversationsList} 
+          currentConversationId={currentConversationId}
+          onConversationSelect={handleConversationSelect}
+          onNewConversation={handleNewConversation}
+          onDeleteAllConversations={deleteAllConversations}
+          onRenameConversation={renameConversation}
+          onDeleteConversation={deleteConversation}
+          onPinToggle={pinToggle}
+          onDuplicate={duplicateConversation}
+          onClear={clearMessages}
+          lang={lang}
+        />
             <div
               onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setDragLeft(true); }}
               className="absolute top-0 right-0 h-full cursor-col-resize z-20 select-none"

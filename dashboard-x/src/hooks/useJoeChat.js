@@ -437,10 +437,19 @@ export const useJoeChat = () => {
       if (/canceled|abort(ed)?/i.test(m)) { /* ignore */ } else { toolsCount = 0; }
     }
     const lang = getLang();
-    const en = `Welcome to Joe AI Assistant! 👋\n\nYour AI-powered engineering partner with ${toolsCount} tools and functions.\n\nI can help you with:\n💬 Chat & Ask - Get instant answers and explanations\n🛠️ Build & Create - Generate projects and applications\n🔍 Analyze & Process - Work with data and generate insights\n\nStart by typing an instruction below, attaching a file, or using your voice.`;
+  const en = `Welcome to Joe AI Assistant! 👋\n\nYour AI-powered engineering partner with ${toolsCount} tools and functions.\n\nI can help you with:\n💬 Chat & Ask - Get instant answers and explanations\n🛠️ Build & Create - Generate projects and applications\n🔍 Analyze & Process - Work with data and generate insights\n\nStart by typing an instruction below, attaching a file, or using your voice.`;
     const ar = `مرحبًا بك في مساعد جو الذكي! 👋\n\nشريكك الهندسي المدعوم بالذكاء مع ${toolsCount} أداة ووظيفة.\n\nأستطيع مساعدتك في:\n💬 المحادثة والسؤال - إجابات وشروحات فورية\n🛠️ البناء والإنشاء - توليد مشاريع وتطبيقات\n🔍 التحليل والمعالجة - العمل مع البيانات وتوليد رؤى\n\nابدأ بكتابة تعليماتك أدناه أو إرفاق ملف أو استخدام الصوت.`;
     const msg = lang === 'ar' ? ar : en;
-    dispatch({ type: 'NEW_CONVERSATION', payload: { selectNew, welcomeMessage: msg } });
+    const newId = uuidv4();
+    dispatch({ type: 'NEW_CONVERSATION', payload: { selectNew, welcomeMessage: msg, id: newId } });
+    (async () => {
+      try {
+        const created = await createChatSession('New Conversation');
+        const s = created?.session;
+        const sid = s?._id || s?.id || null;
+        if (sid) dispatch({ type: 'SET_SESSION_ID', payload: { id: newId, sessionId: sid } });
+      } catch { /* ignore */ }
+    })();
   }, []);
 
   const renameConversation = useCallback((id, title) => {
@@ -458,6 +467,22 @@ export const useJoeChat = () => {
       if (syncRef.current) syncRef.current();
     } catch { void 0; }
   }, [state.conversations]);
+
+  const deleteAllConversations = useCallback(async () => {
+    try {
+      const s = await getChatSessions({});
+      const ids = (s?.sessions || []).map((x) => x?.id || x?._id).filter(Boolean);
+      for (const sid of ids) {
+        try { await deleteChatSession(sid); } catch { /* ignore */ }
+      }
+    } catch { /* ignore */ }
+    try {
+      dispatch({ type: 'SET_CONVERSATIONS', payload: {} });
+      dispatch({ type: 'SELECT_CONVERSATION', payload: null });
+      await handleNewConversation(true);
+    } catch { /* ignore */ }
+    try { if (syncRef.current) syncRef.current(); } catch { /* ignore */ }
+  }, [handleNewConversation]);
 
   useEffect(() => {
     try {
@@ -1413,6 +1438,7 @@ export const useJoeChat = () => {
     handleVoiceInput,
     renameConversation,
     deleteConversation,
+    deleteAllConversations,
     pinToggle: (id) => dispatch({ type: 'PIN_TOGGLE', payload: { id } }),
     duplicateConversation: (id) => dispatch({ type: 'DUPLICATE_CONVERSATION', payload: { id } }),
     clearMessages: (id) => dispatch({ type: 'CLEAR_MESSAGES', payload: { id } }),
