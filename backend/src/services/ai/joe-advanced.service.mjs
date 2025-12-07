@@ -341,12 +341,23 @@ ${transcript.slice(0, 8000)}`;
           } else if (hasUrl) {
             try {
                 const url = (preview.match(/https?:\/\/[^\s]+/i) || [])[0];
-                try { joeEvents.emitProgress(userId, sessionId, 30, 'browseWebsite'); } catch { /* noop */ }
-                const r = await executeTool(userId, sessionId, 'browseWebsite', { url });
-                toolResults.push({ tool: 'browseWebsite', args: { url }, result: r });
-                toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
-                pieces.push(String(r?.summary || r?.content || ''));
-                try { joeEvents.emitProgress(userId, sessionId, 60, 'browseWebsite done'); } catch { /* noop */ }
+                const isImageUrl = /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(url);
+                if (isImageUrl) {
+                  try { joeEvents.emitProgress(userId, sessionId, 30, 'downloadImageFromUrl'); } catch { /* noop */ }
+                  const out = await executeTool(userId, sessionId, 'downloadImageFromUrl', { url });
+                  toolResults.push({ tool: 'downloadImageFromUrl', args: { url }, result: out });
+                  toolCalls.push({ function: { name: 'downloadImageFromUrl', arguments: { url } } });
+                  const msg = out?.publicUrl ? `تم تحميل الصورة: ${out.publicUrl}` : 'تم تحميل الصورة.';
+                  pieces.push(msg);
+                  try { joeEvents.emitProgress(userId, sessionId, 60, 'downloadImageFromUrl done'); } catch { /* noop */ }
+                } else {
+                  try { joeEvents.emitProgress(userId, sessionId, 30, 'browseWebsite'); } catch { /* noop */ }
+                  const r = await executeTool(userId, sessionId, 'browseWebsite', { url });
+                  toolResults.push({ tool: 'browseWebsite', args: { url }, result: r });
+                  toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
+                  pieces.push(String(r?.summary || r?.content || ''));
+                  try { joeEvents.emitProgress(userId, sessionId, 60, 'browseWebsite done'); } catch { /* noop */ }
+                }
             } catch { void 0 }
           }
           if (wantsSecurity) {
@@ -594,10 +605,19 @@ ${transcript.slice(0, 8000)}`;
             if (hasUrl) {
               try {
                 const url = (preview.match(/https?:\/\/[^\s]+/i) || [])[0];
-                const r = await executeTool(userId, sessionId, 'browseWebsite', { url });
-                toolResults.push({ tool: 'browseWebsite', args: { url }, result: r });
-                toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
-                pieces.push(String(r?.summary || r?.content || ''));
+                const isImageUrl = /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(url);
+                if (isImageUrl) {
+                  const out = await executeTool(userId, sessionId, 'downloadImageFromUrl', { url });
+                  toolResults.push({ tool: 'downloadImageFromUrl', args: { url }, result: out });
+                  toolCalls.push({ function: { name: 'downloadImageFromUrl', arguments: { url } } });
+                  const msg = out?.publicUrl ? `تم تحميل الصورة: ${out.publicUrl}` : 'تم تحميل الصورة.';
+                  pieces.push(msg);
+                } else {
+                  const r = await executeTool(userId, sessionId, 'browseWebsite', { url });
+                  toolResults.push({ tool: 'browseWebsite', args: { url }, result: r });
+                  toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
+                  pieces.push(String(r?.summary || r?.content || ''));
+                }
               } catch (e11) { void e11; }
             }
             if (wantsImage) {
