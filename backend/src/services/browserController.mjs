@@ -1,5 +1,6 @@
 import puppeteer from 'puppeteer';
 import fs from 'fs';
+import path from 'path';
 
 class BrowserController {
   constructor() {
@@ -30,12 +31,34 @@ class BrowserController {
       const execCandidates = [];
       const execEnv = process.env.PUPPETEER_EXECUTABLE_PATH;
       if (execEnv) execCandidates.push(execEnv);
+      try {
+        const built = typeof puppeteer.executablePath === 'function' ? puppeteer.executablePath() : null;
+        if (built && fs.existsSync(built)) execCandidates.push(built);
+      } catch { /* noop */ }
+      // Common locations across Linux/macOS
       execCandidates.push(
         '/usr/bin/google-chrome',
         '/usr/bin/chromium',
         '/usr/bin/chromium-browser',
         '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
       );
+      // Try Puppeteer cache directories if available
+      const cacheDirs = [
+        process.env.PUPPETEER_CACHE_DIR,
+        path.join(process.cwd(), '.cache', 'puppeteer'),
+        '/opt/render/project/.cache/puppeteer',
+        path.join(process.env.HOME || '', '.cache', 'puppeteer')
+      ].filter(Boolean);
+      for (const base of cacheDirs) {
+        try {
+          const chromeDir = path.join(base, 'chrome');
+          const entries = await fs.promises.readdir(chromeDir).catch(() => []);
+          for (const entry of entries) {
+            const candidate = path.join(chromeDir, entry, process.platform === 'darwin' ? 'Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing' : 'chrome');
+            if (fs.existsSync(candidate)) execCandidates.push(candidate);
+          }
+        } catch { /* noop */ }
+      }
       const foundPath = execCandidates.find(p => {
         try { return fs.existsSync(p); } catch { return false; }
       });
@@ -47,13 +70,10 @@ class BrowserController {
         try {
           this.browser = await puppeteer.launch({ ...launchBase, headless: 'new', args: launchBase.args.filter(a => a !== '--disable-gpu') });
         } catch (e2) {
-          try {
-            this.browser = await puppeteer.launch({ ...launchBase, channel: 'chrome' });
-          } catch (e3) {
-            const err = e3 || e2 || e1;
-            console.error('Puppeteer launch failed. Consider installing Chrome via "npx puppeteer browsers install chrome" or setting PUPPETEER_EXECUTABLE_PATH.', err?.message || String(err));
-            throw err;
-          }
+          const err = e2 || e1;
+          const hint = 'Chrome/Chromium not found. Set PUPPETEER_EXECUTABLE_PATH to your Chrome binary or run: npx puppeteer browsers install chrome';
+          console.error('Puppeteer launch failed:', err?.message || String(err), '\nHint:', hint);
+          throw new Error(hint);
         }
       }
 
