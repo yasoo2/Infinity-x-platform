@@ -29,6 +29,7 @@ const commitIfNeeded = async () => {
     await run('git add -A')
     const msg = `auto: ${new Date().toISOString()}`
     await run(`git commit -m "${msg}"`)
+    await run('git push origin $(git branch --show-current)')
   } catch { /* noop */ }
 }
 
