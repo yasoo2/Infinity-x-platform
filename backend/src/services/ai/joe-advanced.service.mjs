@@ -139,6 +139,31 @@ function wantsSelfDescribe(msg) {
   );
 }
 
+function resolveSiteToUrl(message) {
+  const s = String(message || '').toLowerCase();
+  const map = [
+    { keys: ['google', 'جوجل', 'قوقل'], url: 'https://google.com' },
+    { keys: ['youtube', 'يوتيوب'], url: 'https://youtube.com' },
+    { keys: ['twitter', 'تويتر', 'x.com', 'اكس'], url: 'https://twitter.com' },
+    { keys: ['facebook', 'فيسبوك'], url: 'https://facebook.com' },
+    { keys: ['github', 'جيتهاب'], url: 'https://github.com' },
+    { keys: ['wikipedia', 'ويكيبيديا'], url: 'https://wikipedia.org' }
+  ];
+  for (const entry of map) {
+    for (const k of entry.keys) {
+      if (s.includes(k)) return entry.url;
+    }
+  }
+  const m = s.match(/افتح\s*(?:موقع\s*)?([a-z\u0600-\u06FF]+)/i) || s.match(/open\s*(?:site\s*)?([a-z\u0600-\u06FF]+)/i);
+  if (m && m[1]) {
+    const name = m[1];
+    try {
+      if (/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(name)) return `https://${name}`;
+    } catch { /* noop */ }
+  }
+  return null;
+}
+
 function formatSystemSummary(lang, schemas) {
   const count = Array.isArray(schemas) ? schemas.length : 0;
   const descs = (schemas || []).map(t => ({ n: String(t?.function?.name || '').trim(), d: String(t?.function?.description || '').trim() })).filter(x => x.n);
@@ -720,9 +745,14 @@ ${transcript.slice(0, 8000)}`;
             try {
               const preview = String(message || '').trim();
               const m = preview.match(/https?:\/\/[^\s]+/i);
+              let url = null;
               if (m) {
                 const rawUrl = m[0];
-                const url = rawUrl ? rawUrl.replace(/[.,;:!?)]+$/,'') : rawUrl;
+                url = rawUrl ? rawUrl.replace(/[.,;:!?)]+$/,'') : rawUrl;
+              } else {
+                url = resolveSiteToUrl(preview);
+              }
+              if (url) {
                 const br = await executeTool(userId, sessionId, 'browseWebsite', { url });
                 toolResults.push({ tool: 'browseWebsite', args: { url }, result: br });
                 toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
@@ -829,7 +859,7 @@ ${transcript.slice(0, 8000)}`;
               const wantsDeploy = /(deploy|نشر)/i.test(lower);
               let pieces = [];
               if (hasUrl) {
-              try {
+                try {
                   const rawUrl = (preview.match(/https?:\/\/[^\s]+/i) || [])[0];
                   const url = rawUrl ? rawUrl.replace(/[.,;:!?)]+$/,'') : rawUrl;
                   const r = await executeTool(userId, sessionId, 'browseWebsite', { url });
@@ -837,6 +867,16 @@ ${transcript.slice(0, 8000)}`;
                   toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
                   pieces.push(String(r?.summary || r?.content || ''));
                 } catch (e3) { void e3; }
+              } else {
+                try {
+                  const url2 = resolveSiteToUrl(preview);
+                  if (url2) {
+                    const r = await executeTool(userId, sessionId, 'browseWebsite', { url: url2 });
+                    toolResults.push({ tool: 'browseWebsite', args: { url: url2 }, result: r });
+                    toolCalls.push({ function: { name: 'browseWebsite', arguments: { url: url2 } } });
+                    pieces.push(String(r?.summary || r?.content || ''));
+                  }
+                } catch (e3b) { void e3b; }
               }
               if (wantsSecurity) {
                 try {
