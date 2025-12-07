@@ -81,7 +81,7 @@ export async function getPageContent(url) {
             }
         }
         return content;
-    } catch (e) {
+    } catch {
         const res = await fetch(url, { headers: { 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', 'User-Agent': 'Mozilla/5.0 (compatible; JOE/1.0; +http://localhost)' } });
         const text = await res.text();
         if (redis) {
