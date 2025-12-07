@@ -794,11 +794,7 @@ export const useJoeChat = () => {
         socket.on('session_updated', () => { if (syncRef.current) syncRef.current(); });
         socket.on('error', (e) => {
           const msg = typeof e === 'string' ? e : (e?.message || 'ERROR');
-          const lower = String(msg).toLowerCase();
           dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `[ERROR]: ${msg}` } });
-          if (/provider unavailable|no ai provider|missing key|activate another provider/i.test(lower)) {
-            try { window.dispatchEvent(new CustomEvent('joe:openProviders', { detail: { provider: 'openai' } })); } catch { /* noop */ }
-          }
           dispatch({ type: 'STOP_PROCESSING' });
           try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
         });

@@ -610,12 +610,8 @@ ${transcript.slice(0, 8000)}`;
                   finalContent = good.join('\n\n');
                 } else {
                   finalContent = targetLang === 'ar'
-                    ? 'مزود الذكاء السحابي غير متاح حاليًا. أدخل مفتاح OpenAI عبر الرسالة بهذه الصيغة: "openai_key: sk-..." ليتم التفعيل فورًا. إن لم ترغب، سيستخدم جو الأدوات المحلية.'
-                    : 'Cloud AI provider is unavailable. Provide your OpenAI key in message like: "openai_key: sk-..." to activate instantly. Otherwise, Joe will use local tools.';
-                  try { joeEvents.emitProgress(userId, sessionId, 20, 'Awaiting API key'); } catch { /* noop */ }
-                  try { /* add a structured action hint */ } catch { /* noop */ }
-                  const actionHint = { requireAction: { type: 'provide_api_key', provider: 'openai', how: 'Send: openai_key: sk-...' } };
-                  finalContent = `${finalContent}\n\n${JSON.stringify(actionHint)}`;
+                    ? 'سيواصل جو العمل باستخدام الأدوات المحلية دون الحاجة لمفاتيح.'
+                    : 'Joe will continue using local tools without requiring any keys.';
               }
             }
           }
@@ -693,11 +689,8 @@ ${transcript.slice(0, 8000)}`;
               finalContent = good.join('\n\n');
             } else {
               finalContent = targetLang === 'ar'
-                ? 'مزود الذكاء السحابي غير متاح حاليًا. أدخل مفتاح OpenAI عبر الرسالة بهذه الصيغة: "openai_key: sk-..." ليتم التفعيل فورًا. إن لم ترغب، سيستخدم جو الأدوات المحلية.'
-                : 'Cloud AI provider is unavailable. Provide your OpenAI key in message like: "openai_key: sk-..." to activate instantly. Otherwise, Joe will use local tools.';
-              try { joeEvents.emitProgress(userId, sessionId, 20, 'Awaiting API key'); } catch { /* noop */ }
-              const actionHint2 = { requireAction: { type: 'provide_api_key', provider: 'openai', how: 'Send: openai_key: sk-...' } };
-              finalContent = `${finalContent}\n\n${JSON.stringify(actionHint2)}`;
+                ? 'سيواصل جو العمل باستخدام الأدوات المحلية دون الحاجة لمفاتيح.'
+                : 'Joe will continue using local tools without requiring any keys.';
             }
           }
           }
@@ -789,7 +782,7 @@ ${transcript.slice(0, 8000)}`;
         if (pieces.length) {
           finalContent = pieces.filter(Boolean).join('\n\n');
         } else {
-          finalContent = targetLang === 'ar' ? 'يرجى تفعيل مزود الذكاء (OpenAI أو Gemini) من مزودين.' : 'Please activate an AI provider (OpenAI or Gemini) from Providers.';
+          finalContent = targetLang === 'ar' ? 'النظام يعمل بالأدوات المحلية مباشرة.' : 'The system operates with local tools directly.';
         }
     }
 
