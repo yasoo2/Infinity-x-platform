@@ -683,6 +683,31 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                         </div>
                       </div>
                     )}
+                    {(() => {
+                      try {
+                        const steps = Array.isArray(plan) ? plan.filter(s => s?.type === 'tool_used') : [];
+                        const hasImg = steps.some(s => /generateImage|dall|image/i.test(String(s?.content || '')));
+                        if (!isProcessing || !hasImg) return null;
+                        const last = steps.slice().reverse().find(s => /generateImage|dall|image/i.test(String(s?.content || '')));
+                        const d = last?.details || {};
+                        const stage = String(d?.stage || '').toLowerCase();
+                        const args = d?.args || {};
+                        const prompt = String(args?.prompt || args?.description || args?.text || '').trim();
+                        if (stage === 'end') return null;
+                        return (
+                          <div className="mt-3 bg-gray-800/80 border border-gray-700 rounded-2xl p-4">
+                            <div className="flex items-center gap-2 text-sm text-gray-300">
+                              <span className="w-6 h-6 inline-flex items-center justify-center rounded-full bg-yellow-500 text-black font-bold">I</span>
+                              <span>{lang==='ar' ? 'جاري إنشاء الصورة' : 'Image is being generated'}</span>
+                            </div>
+                            {prompt && (
+                              <div className="mt-2 text-xs text-gray-400">{prompt}</div>
+                            )}
+                            <div className="mt-3 h-40 rounded-lg bg-gradient-to-br from-gray-700 to-gray-800 border border-gray-700 shadow-inner animate-pulse"></div>
+                          </div>
+                        );
+                      } catch { return null; }
+                    })()}
                   </div>
                 </div>
               )}
