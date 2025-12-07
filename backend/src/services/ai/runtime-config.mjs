@@ -2,7 +2,9 @@ const aiConfig = {
   activeProvider: process.env.OPENAI_API_KEY
     ? 'openai'
     : ((process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY) ? 'gemini' : null),
-  activeModel: null,
+  activeModel: process.env.OPENAI_API_KEY
+    ? 'gpt-4o-mini'
+    : ((process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY) ? 'gemini-1.5-pro-latest' : null),
   keys: {
     openai: process.env.OPENAI_API_KEY || null,
     gemini: process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || null,
