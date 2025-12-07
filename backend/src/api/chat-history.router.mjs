@@ -2,7 +2,7 @@ import express from 'express'
 import ChatSession from '../database/models/ChatSession.mjs'
 import ChatMessage from '../database/models/ChatMessage.mjs'
 
-const chatHistoryRouterFactory = ({ requireRole }) => {
+const chatHistoryRouterFactory = ({ requireRole, io }) => {
   const router = express.Router()
 
   const ensureOwnSession = async (userId, sessionId) => {
@@ -33,6 +33,7 @@ const chatHistoryRouterFactory = ({ requireRole }) => {
       const uid = req.user?._id
       const title = String(req.body?.title || 'New Conversation').trim() || 'New Conversation'
       const s = await ChatSession.create({ userId: uid, title, pinned: false, lastModified: new Date(), updatedAt: new Date() })
+      try { io?.of?.('/joe-agent')?.emit?.('session_updated', { op: 'create', id: String(s._id), title: s.title }); } catch { /* noop */ }
       res.json({ success: true, session: s })
     } catch (error) {
       res.status(500).json({ success: false, error: 'SESSION_CREATE_FAILED', message: error.message })
@@ -73,6 +74,7 @@ const chatHistoryRouterFactory = ({ requireRole }) => {
       patch.updatedAt = new Date()
       patch.lastModified = new Date()
       const updated = await ChatSession.findByIdAndUpdate(s._id, { $set: patch }, { new: true })
+      try { io?.of?.('/joe-agent')?.emit?.('session_updated', { op: 'update', id: String(updated._id), title: updated.title }); } catch { /* noop */ }
       res.json({ success: true, session: updated })
     } catch (error) {
       res.status(500).json({ success: false, error: 'SESSION_UPDATE_FAILED', message: error.message })
@@ -87,6 +89,7 @@ const chatHistoryRouterFactory = ({ requireRole }) => {
       if (!s) return res.status(404).json({ success: false, error: 'SESSION_NOT_FOUND' })
       await ChatMessage.deleteMany({ sessionId: s._id })
       await ChatSession.findByIdAndDelete(s._id)
+      try { io?.of?.('/joe-agent')?.emit?.('session_updated', { op: 'delete', id: String(s._id) }); } catch { /* noop */ }
       res.json({ success: true })
     } catch (error) {
       res.status(500).json({ success: false, error: 'SESSION_DELETE_FAILED', message: error.message })
@@ -122,6 +125,7 @@ const chatHistoryRouterFactory = ({ requireRole }) => {
       if (!content || !['user','joe'].includes(type)) return res.status(400).json({ success: false, error: 'INVALID_MESSAGE' })
       const msg = await ChatMessage.create({ sessionId: s._id, userId: uid, type, content })
       await ChatSession.findByIdAndUpdate(s._id, { $set: { updatedAt: new Date(), lastModified: new Date() } })
+      try { io?.of?.('/joe-agent')?.emit?.('session_updated', { op: 'message', id: String(s._id) }); } catch { /* noop */ }
       res.json({ success: true, message: msg })
     } catch (error) {
       res.status(500).json({ success: false, error: 'MESSAGE_CREATE_FAILED', message: error.message })
