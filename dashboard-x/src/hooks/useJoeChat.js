@@ -1248,6 +1248,19 @@ export const useJoeChat = () => {
       const lang = getLang();
       const conv = state.conversations[convId] || null;
       const sidToUse = conv?.sessionId || sid || null;
+      try {
+        const openMatch = inputText.match(/^(?:افتح(?:\s+(?:موقع|رابط))?\s+|open(?:\s+(?:site|website))?\s+)(.+)$/i);
+        if (openMatch) {
+          const term = String(openMatch[1] || '').trim();
+          const looksUrl = /^(https?:\/\/\S+|\S+\.[a-z]{2,})(\/\S*)?$/i.test(term);
+          if (looksUrl) {
+            const withScheme = term.match(/^https?:\/\//i) ? term : `https://${term}`;
+            window.dispatchEvent(new CustomEvent('joe:open-browser', { detail: { url: withScheme } }));
+          } else {
+            window.dispatchEvent(new CustomEvent('joe:open-browser', { detail: { searchQuery: term, autoOpenFirst: true } }));
+          }
+        }
+      } catch { /* noop */ }
       const buildPayload = () => {
         let selectedModel = activeModelRef.current || localStorage.getItem('aiSelectedModel');
         if (!selectedModel) selectedModel = null;
