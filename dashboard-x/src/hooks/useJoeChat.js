@@ -1276,7 +1276,7 @@ export const useJoeChat = () => {
       if (selectedModel) payload.model = selectedModel;
       if (sioRef.current && sioRef.current.connected) {
         sioRef.current.emit('message', payload);
-        try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
+        try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch {}
         sioSendTimeoutRef.current = setTimeout(async () => {
           try {
             const ctx = { sessionId: sid || undefined, lang };
@@ -1291,16 +1291,16 @@ export const useJoeChat = () => {
                 const details = (typeof t === 'object') ? (t?.function?.arguments || t?.arguments || t?.args || null) : null;
                 if (name) dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'tool_used', content: name, details } });
               }
-            } catch { /* noop */ }
-          } catch { /* noop */ } finally {
+            } catch {}
+          } catch {} finally {
             dispatch({ type: 'STOP_PROCESSING' });
             dispatch({ type: 'REMOVE_PENDING_LOGS' });
-            try { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } catch { /* noop */ }
+            try { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } catch {}
             if (syncRef.current) syncRef.current();
           }
         }, 8000);
       } else if (ws.current?.readyState === WebSocket.OPEN) {
-        try { ws.current.send(JSON.stringify(payload)); } catch { /* noop */ }
+        try { ws.current.send(JSON.stringify(payload)); } catch {}
       } else {
         try {
           const ctx2 = { sessionId: sid || undefined, lang };
@@ -1315,8 +1315,8 @@ export const useJoeChat = () => {
               const details = (typeof t === 'object') ? (t?.function?.arguments || t?.arguments || t?.args || null) : null;
               if (name) dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'tool_used', content: name, details } });
             }
-          } catch { /* noop */ }
-        } catch { /* noop */ } finally {
+          } catch {}
+        } catch {} finally {
           dispatch({ type: 'STOP_PROCESSING' });
           dispatch({ type: 'REMOVE_PENDING_LOGS' });
           if (syncRef.current) syncRef.current();
