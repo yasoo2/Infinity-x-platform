@@ -51,42 +51,21 @@ class AdvancedBrowserManager {
         '/usr/bin/chromium-browser',
         '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
       );
-      const cacheDirs = [
-        process.env.PUPPETEER_CACHE_DIR,
-        path.join(process.cwd(), '.cache', 'puppeteer'),
-        '/opt/render/project/.cache/puppeteer',
-        path.join(process.env.HOME || '', '.cache', 'puppeteer')
-      ].filter(Boolean);
-      for (const base of cacheDirs) {
-        try {
-          const chromeDir = path.join(base, 'chrome');
-          const cEntries = await fs.promises.readdir(chromeDir).catch(() => []);
-          for (const entry of cEntries) {
-            const candidate = path.join(
-              chromeDir,
-              entry,
-              process.platform === 'darwin'
-                ? 'Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing'
-                : 'chrome'
-            );
-            if (fs.existsSync(candidate)) execCandidates.push(candidate);
-          }
-        } catch { /* noop */ }
-        try {
-          const chromiumDir = path.join(base, 'chromium');
-          const kEntries = await fs.promises.readdir(chromiumDir).catch(() => []);
-          for (const entry of kEntries) {
-            const candidate = path.join(
-              chromiumDir,
-              entry,
-              process.platform === 'darwin'
-                ? 'chrome-mac/Chromium.app/Contents/MacOS/Chromium'
-                : 'chrome'
-            );
-            if (fs.existsSync(candidate)) execCandidates.push(candidate);
-          }
-        } catch { /* noop */ }
-      }
+      const projectCache = path.join(process.cwd(), '.cache', 'puppeteer');
+      const chromiumDir = path.join(projectCache, 'chromium');
+      try {
+        const entries = await fs.promises.readdir(chromiumDir).catch(() => []);
+        for (const entry of entries) {
+          const candidate = path.join(
+            chromiumDir,
+            entry,
+            process.platform === 'darwin'
+              ? 'chrome-mac/Chromium.app/Contents/MacOS/Chromium'
+              : 'chrome'
+          );
+          if (fs.existsSync(candidate)) execCandidates.push(candidate);
+        }
+      } catch { /* noop */ }
       const foundPath = execCandidates.find(p => {
         try { return fs.existsSync(p); } catch { return false; }
       });

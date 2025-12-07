@@ -1,6 +1,7 @@
 import puppeteer from 'puppeteer';
 import fs from 'fs';
 import path from 'path';
+import { spawnSync } from 'child_process';
 
 class BrowserController {
   constructor() {
@@ -28,44 +29,14 @@ class BrowserController {
           '--disable-gpu'
         ],
       };
+      const projectCache = path.join(process.cwd(), '.cache', 'puppeteer');
       const execCandidates = [];
-      const execEnv = process.env.PUPPETEER_EXECUTABLE_PATH;
-      if (execEnv) execCandidates.push(execEnv);
-      const chromeEnv1 = process.env.GOOGLE_CHROME_BIN;
-      if (chromeEnv1) execCandidates.push(chromeEnv1);
-      const chromeEnv2 = process.env.CHROME_PATH;
-      if (chromeEnv2) execCandidates.push(chromeEnv2);
-      try {
-        const built = typeof puppeteer.executablePath === 'function' ? puppeteer.executablePath() : null;
-        if (built && fs.existsSync(built)) execCandidates.push(built);
-      } catch { /* noop */ }
-      // Common locations across Linux/macOS
-      execCandidates.push(
-        '/usr/bin/google-chrome',
-        '/usr/bin/chromium',
-        '/usr/bin/chromium-browser',
-        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-      );
-      // Try Puppeteer cache directories if available
-      const cacheDirs = [
-        process.env.PUPPETEER_CACHE_DIR,
-        path.join(process.cwd(), '.cache', 'puppeteer'),
-        '/opt/render/project/.cache/puppeteer',
-        path.join(process.env.HOME || '', '.cache', 'puppeteer')
-      ].filter(Boolean);
-      for (const base of cacheDirs) {
+      const scanCache = async () => {
+        const found = [];
         try {
-          const chromeDir = path.join(base, 'chrome');
-          const entries = await fs.promises.readdir(chromeDir).catch(() => []);
+          const chromiumDir = path.join(projectCache, 'chromium');
+          const entries = await fs.promises.readdir(chromiumDir).catch(() => []);
           for (const entry of entries) {
-            const candidate = path.join(chromeDir, entry, process.platform === 'darwin' ? 'Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing' : 'chrome');
-            if (fs.existsSync(candidate)) execCandidates.push(candidate);
-          }
-        } catch { /* noop */ }
-        try {
-          const chromiumDir = path.join(base, 'chromium');
-          const kEntries = await fs.promises.readdir(chromiumDir).catch(() => []);
-          for (const entry of kEntries) {
             const candidate = path.join(
               chromiumDir,
               entry,
@@ -73,9 +44,16 @@ class BrowserController {
                 ? 'chrome-mac/Chromium.app/Contents/MacOS/Chromium'
                 : 'chrome'
             );
-            if (fs.existsSync(candidate)) execCandidates.push(candidate);
+            if (fs.existsSync(candidate)) found.push(candidate);
           }
         } catch { /* noop */ }
+        return found;
+      };
+      execCandidates.push(...(await scanCache()));
+      if (execCandidates.length === 0) {
+        const env = { ...process.env, PUPPETEER_CACHE_DIR: projectCache };
+        spawnSync('npx', ['puppeteer', 'browsers', 'install', 'chromium'], { env, stdio: 'ignore' });
+        execCandidates.push(...(await scanCache()));
       }
       const foundPath = execCandidates.find(p => {
         try { return fs.existsSync(p); } catch { return false; }
@@ -99,7 +77,7 @@ class BrowserController {
       await this.page.setViewport({ width: 1280, height: 720 });
       await this.page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
       try {
-        const initialUrl = process.env.BROWSER_INITIAL_URL || 'https://www.google.com';
+        const initialUrl = process.env.BROWSER_INITIAL_URL || 'about:blank';
         await this.page.goto(initialUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
       } catch { /* noop */ }
       
