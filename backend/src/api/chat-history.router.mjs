@@ -16,7 +16,12 @@ const chatHistoryRouterFactory = ({ requireRole }) => {
   router.get('/sessions', requireRole('USER'), async (req, res) => {
     try {
       const uid = req.user?._id
-      const sessions = await ChatSession.find({ userId: { $in: [uid, String(uid)] } }).sort({ updatedAt: -1 }).limit(500)
+      const sessions = await ChatSession.find({ userId: { $in: [uid, String(uid)] } })
+        .sort({ updatedAt: -1 })
+        .limit(500)
+        .select({ title: 1, pinned: 1, updatedAt: 1, lastModified: 1 })
+        .lean()
+      res.set('Cache-Control', 'no-store')
       res.json({ success: true, sessions })
     } catch (error) {
       res.status(500).json({ success: false, error: 'SESSIONS_LIST_FAILED', message: error.message })
@@ -40,7 +45,12 @@ const chatHistoryRouterFactory = ({ requireRole }) => {
       const sid = req.params.id
       const s = await ensureOwnSession(uid, sid)
       if (!s) return res.status(404).json({ success: false, error: 'SESSION_NOT_FOUND' })
-      const msgs = await ChatMessage.find({ sessionId: s._id }).sort({ createdAt: 1 }).limit(2000)
+      const msgs = await ChatMessage.find({ sessionId: s._id })
+        .sort({ createdAt: 1 })
+        .limit(2000)
+        .select({ type: 1, content: 1, createdAt: 1 })
+        .lean()
+      res.set('Cache-Control', 'no-store')
       res.json({ success: true, session: s, messages: msgs })
     } catch (error) {
       res.status(500).json({ success: false, error: 'SESSION_FETCH_FAILED', message: error.message })
@@ -89,7 +99,12 @@ const chatHistoryRouterFactory = ({ requireRole }) => {
       const sid = req.params.id
       const s = await ensureOwnSession(uid, sid)
       if (!s) return res.status(404).json({ success: false, error: 'SESSION_NOT_FOUND' })
-      const msgs = await ChatMessage.find({ sessionId: s._id }).sort({ createdAt: 1 }).limit(2000)
+      const msgs = await ChatMessage.find({ sessionId: s._id })
+        .sort({ createdAt: 1 })
+        .limit(2000)
+        .select({ type: 1, content: 1, createdAt: 1 })
+        .lean()
+      res.set('Cache-Control', 'no-store')
       res.json({ success: true, messages: msgs })
     } catch (error) {
       res.status(500).json({ success: false, error: 'MESSAGES_LIST_FAILED', message: error.message })
