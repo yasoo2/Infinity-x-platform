@@ -3,7 +3,7 @@
  * Advanced browser automation and web interaction
  */
 
-import puppeteer from 'puppeteer-core';
+import puppeteer from 'puppeteer';
 import { v4 as uuidv4 } from 'uuid';
 import * as cheerio from 'cheerio';
 
@@ -13,7 +13,7 @@ class AdvancedBrowserManager {
     this.pages = new Map();
     this.browserOptions = options.browserOptions || {
       headless: 'new',
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || (typeof puppeteer.executablePath === 'function' ? puppeteer.executablePath() : undefined),
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',

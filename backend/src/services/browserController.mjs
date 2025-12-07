@@ -31,6 +31,10 @@ class BrowserController {
       const execCandidates = [];
       const execEnv = process.env.PUPPETEER_EXECUTABLE_PATH;
       if (execEnv) execCandidates.push(execEnv);
+      const chromeEnv1 = process.env.GOOGLE_CHROME_BIN;
+      if (chromeEnv1) execCandidates.push(chromeEnv1);
+      const chromeEnv2 = process.env.CHROME_PATH;
+      if (chromeEnv2) execCandidates.push(chromeEnv2);
       try {
         const built = typeof puppeteer.executablePath === 'function' ? puppeteer.executablePath() : null;
         if (built && fs.existsSync(built)) execCandidates.push(built);
