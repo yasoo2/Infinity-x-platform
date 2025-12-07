@@ -887,6 +887,13 @@ export const useJoeChat = () => {
         socket.on('task_complete', () => {
           dispatch({ type: 'STOP_PROCESSING' });
           dispatch({ type: 'REMOVE_PENDING_LOGS' });
+          try {
+            const d = browserSummaryRef.current;
+            if (d && typeof d.summary === 'string' && d.summary.trim().length > 0) {
+              dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: d.summary } });
+              browserSummaryRef.current = null;
+            }
+          } catch { /* noop */ }
           try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
           if (syncRef.current) syncRef.current();
         });
