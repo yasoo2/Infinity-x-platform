@@ -1202,6 +1202,18 @@ export const useJoeChat = () => {
     return () => window.removeEventListener('auth:forbidden', onForbidden);
   }, []);
 
+  useEffect(() => {
+    const onBrowserReport = (e) => {
+      const d = e?.detail || {};
+      const text = typeof d.summary === 'string' && d.summary.trim().length > 0
+        ? d.summary
+        : 'تم إنهاء مهمة المتصفح.';
+      dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
+    };
+    window.addEventListener('joe:browser-report', onBrowserReport);
+    return () => window.removeEventListener('joe:browser-report', onBrowserReport);
+  }, []);
+
   const handleSend = useCallback(async () => {
     const inputText = state.input.trim();
     if (!inputText) return;

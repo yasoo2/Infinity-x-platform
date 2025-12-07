@@ -17,6 +17,10 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
   const [isLogCollapsed, setIsLogCollapsed] = useState(true);
   const imageRef = useRef(null);
   const [showMiniPreview, setShowMiniPreview] = useState(false);
+  const [activity, setActivity] = useState([]);
+  const addActivity = (text, type = 'info') => {
+    try { setActivity((prev) => [...prev, { id: Date.now(), type, text }]); } catch { /* noop */ }
+  };
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -40,11 +44,14 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
     stopStreaming
   } = useBrowserWebSocket();
 
+  const navigateAndLog = (url) => { addActivity(`Navigate: ${url}`, 'action'); navigate(url); };
+
   useEffect(() => {
     // Update URL from page info
     if (pageInfo.url) {
       setBrowserUrl(pageInfo.url);
       setShowMiniPreview(true);
+      addActivity(`Page loaded: ${pageInfo.title || ''} | ${pageInfo.url}`, 'success');
     }
   }, [pageInfo]);
 
@@ -52,23 +59,37 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
     setIsTakeoverActive(true);
     startStreaming();
     onTakeover();
+    addActivity('Take Control enabled', 'system');
   };
 
   const handleRelease = () => {
     setIsTakeoverActive(false);
     stopStreaming();
+    addActivity('Control released', 'system');
   };
 
   const handleEndTask = () => {
     try { stopStreaming(); } catch { /* noop */ }
     try { setIsTakeoverActive(false); } catch { /* noop */ }
-    try { window.dispatchEvent(new Event('joe:end-browser-task')); } catch { /* noop */ }
+    try {
+      const summary = (() => {
+        const counts = activity.reduce((acc, a) => { acc[a.type] = (acc[a.type] || 0) + 1; return acc; }, {});
+        const navs = activity.filter(a => /Navigate:/i.test(a.text)).length;
+        const clicks = activity.filter(a => /^Click/i.test(a.text)).length;
+        const keys = activity.filter(a => /^Key|^Type/i.test(a.text)).length;
+        const scrolls = activity.filter(a => /^Scroll/i.test(a.text)).length;
+        const lastPage = pageInfo?.url || browserUrl;
+        return `تقرير المهمة:\n- تنقلات: ${navs}\n- نقرات: ${clicks}\n- مفاتيح/كتابة: ${keys}\n- تمرير: ${scrolls}\n- الصفحة الأخيرة: ${lastPage || 'غير معروف'}`;
+      })();
+      window.dispatchEvent(new CustomEvent('joe:browser-report', { detail: { entries: activity, summary } }));
+      window.dispatchEvent(new Event('joe:end-browser-task'));
+    } catch { /* noop */ }
     onClose();
   };
 
   const handleNavigate = () => {
     if (browserUrl) {
-      navigate(browserUrl);
+      navigateAndLog(browserUrl);
     }
   };
 
@@ -82,6 +103,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
       if (data?.success) {
         setSearchResults(data.results || []);
         setShowSearchPanel(true);
+        addActivity(`Search query: ${q} (${(data.results || []).length} results)`, 'action');
         try {
           const results = data.results || [];
           if (autoOpenFirstResult && results.length > 0) {
@@ -90,7 +112,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
             const first = results[0];
             if (first?.url) {
               setBrowserUrl(first.url);
-              navigate(first.url);
+              navigateAndLog(first.url);
             }
           }
         } catch { /* noop */ }
@@ -110,7 +132,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
     if (url) {
       setBrowserUrl(url);
       setShowSearchPanel(false);
-      navigate(url);
+      navigateAndLog(url);
     }
   };
 
@@ -122,6 +144,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
     const y = ((e.clientY - rect.top) / rect.height) * 720;
     
     click(Math.round(x), Math.round(y));
+    addActivity(`Click at (${Math.round(x)}, ${Math.round(y)})`, 'action');
   };
 
   const handleKeyDown = (e) => {
@@ -131,12 +154,16 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
     
     if (e.key === 'Enter') {
       pressKey('Enter');
+      addActivity('Key: Enter', 'action');
     } else if (e.key === 'Backspace') {
       pressKey('Backspace');
+      addActivity('Key: Backspace', 'action');
     } else if (e.key === 'Tab') {
       pressKey('Tab');
+      addActivity('Key: Tab', 'action');
     } else if (e.key.length === 1) {
       type(e.key);
+      addActivity(`Type: ${e.key}`, 'action');
     }
   };
 
@@ -144,6 +171,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
     if (!isTakeoverActive) return;
     e.preventDefault();
     scroll(e.deltaY);
+    addActivity(`Scroll: ${Math.round(e.deltaY)}`, 'action');
   };
 
   // Use the real-time log passed from the hook
@@ -176,7 +204,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
   useEffect(() => {
     if (isConnected && browserUrl && !screenshot) {
       startStreaming();
-      navigate(browserUrl);
+      navigateAndLog(browserUrl);
     }
   }, [isConnected]);
 
@@ -184,7 +212,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
     const u = String(initialUrl || '').trim();
     if (u) {
       setBrowserUrl(u);
-      navigate(u);
+      navigateAndLog(u);
       setShowMiniPreview(true);
     }
   }, [initialUrl]);
@@ -194,7 +222,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
     if (q) {
       setSearchQuery(q);
       setAutoOpenFirstResult(Boolean(autoOpenOnSearch));
-      try { navigate(`https://www.google.com/search?q=${encodeURIComponent(q)}`); } catch { /* noop */ }
+      try { navigateAndLog(`https://www.google.com/search?q=${encodeURIComponent(q)}`); } catch { /* noop */ }
       runSearch();
     }
   }, [initialSearchQuery]);
