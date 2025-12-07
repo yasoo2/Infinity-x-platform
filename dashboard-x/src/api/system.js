@@ -167,3 +167,10 @@ export const addChatMessage = (id, payload, opts) =>
 
 export const deleteChatMessage = (id, messageId, opts) =>
   call(() => apiClient.delete(chatHistory(`/sessions/${id}/messages/${messageId}`), { signal: opts?.signal }));
+
+// User uploads (images)
+export const listUserUploads = (opts) =>
+  call(() => apiClient.get(v1('/file/uploads/list'), { signal: opts?.signal }));
+
+export const deleteUserUpload = (name, opts) =>
+  call(() => apiClient.delete(v1('/file/uploads/delete'), { data: { name }, signal: opts?.signal }));
