@@ -587,6 +587,10 @@ ${transcript.slice(0, 8000)}`;
             const wantsQuery = /(query|search|سؤال|ابحث|استعلام)/i.test(lower);
             const wantsFormat = /(format|prettier|تنسيق)/i.test(lower);
             const wantsLint = /(lint|تحليل|فحص)/i.test(lower);
+            const wantsImage = /(image|صورة|لوغو|شعار|generate\s*image)/i.test(lower);
+            const wantsWebsite = /(website|ويب|موقع|landing\s*page|انشاء\s*موقع|بناء\s*موقع)/i.test(lower);
+            const wantsImage = /(image|صورة|لوغو|شعار|generate\s*image)/i.test(lower);
+            const wantsWebsite = /(website|ويب|موقع|landing\s*page|انشاء\s*موقع|بناء\s*موقع)/i.test(lower);
             let pieces = [];
             if (hasUrl) {
               try {
@@ -596,6 +600,24 @@ ${transcript.slice(0, 8000)}`;
                 toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
                 pieces.push(String(r?.summary || r?.content || ''));
               } catch (e11) { void e11; }
+            }
+            if (wantsImage) {
+              try {
+                const outPath = `/tmp/joe-image-${Date.now()}.png`;
+                const r = await executeTool(userId, sessionId, 'generateImage', { prompt: preview, style: 'modern', outputFilePath: outPath });
+                toolResults.push({ tool: 'generateImage', args: { prompt: preview, style: 'modern', outputFilePath: outPath }, result: r });
+                toolCalls.push({ function: { name: 'generateImage', arguments: { prompt: preview, style: 'modern', outputFilePath: outPath } } });
+                pieces.push(`Image task queued. Output: ${outPath}`);
+              } catch (eImg) { void eImg; }
+            }
+            if (wantsWebsite) {
+              try {
+                const r = await toolManager.execute('autoPlanAndExecute', { instruction: preview, context: { description: preview } });
+                toolResults.push({ tool: 'autoPlanAndExecute', args: { instruction: preview }, result: r });
+                toolCalls.push({ function: { name: 'autoPlanAndExecute', arguments: { instruction: preview } } });
+                const planText = Array.isArray(r?.plan) ? r.plan.map((p, i) => `${i+1}. ${p}`).join('\n') : '';
+                pieces.push(['Website orchestration initiated.', planText].filter(Boolean).join('\n'));
+              } catch (eWeb) { void eWeb; }
             }
             if (wantsSecurity) {
               try {
@@ -690,6 +712,24 @@ ${transcript.slice(0, 8000)}`;
               pieces.push(String(r?.summary || r?.content || ''));
             }
           } catch { void 0 }
+        }
+        if (wantsImage) {
+          try {
+            const outPath = `/tmp/joe-image-${Date.now()}.png`;
+            const r = await toolManager.execute('generateImage', { prompt: preview, style: 'modern', outputFilePath: outPath });
+            toolResults.push({ tool: 'generateImage', args: { prompt: preview, style: 'modern', outputFilePath: outPath }, result: r });
+            toolCalls.push({ function: { name: 'generateImage', arguments: { prompt: preview, style: 'modern', outputFilePath: outPath } } });
+            pieces.push(`Image task queued. Output: ${outPath}`);
+          } catch { /* noop */ }
+        }
+        if (wantsWebsite) {
+          try {
+            const r = await toolManager.execute('autoPlanAndExecute', { instruction: preview, context: { description: preview } });
+            toolResults.push({ tool: 'autoPlanAndExecute', args: { instruction: preview }, result: r });
+            toolCalls.push({ function: { name: 'autoPlanAndExecute', arguments: { instruction: preview } } });
+            const planText = Array.isArray(r?.plan) ? r.plan.map((p, i) => `${i+1}. ${p}`).join('\n') : '';
+            pieces.push(['Website orchestration initiated.', planText].filter(Boolean).join('\n'));
+          } catch { /* noop */ }
         }
           if (wantsSecurity) {
             try {
