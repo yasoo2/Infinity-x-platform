@@ -177,6 +177,15 @@ function resolveSiteToUrl(message) {
   return null;
 }
 
+function navigateVisual(url) {
+  try {
+    const srv = _dependencies?.browserWSServer;
+    if (srv && typeof srv.navigateProgrammatically === 'function' && url) {
+      srv.navigateProgrammatically(url);
+    }
+  } catch { void 0 }
+}
+
 function formatSystemSummary(lang, schemas) {
   const count = Array.isArray(schemas) ? schemas.length : 0;
   const descs = (schemas || []).map(t => ({ n: String(t?.function?.name || '').trim(), d: String(t?.function?.description || '').trim() })).filter(x => x.n);
@@ -449,6 +458,7 @@ ${transcript.slice(0, 8000)}`;
                   toolResults.push({ tool: 'browseWebsite', args: { url }, result: r });
                   toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
                   pieces.push(String(r?.summary || r?.content || ''));
+                  navigateVisual(url);
                   try { joeEvents.emitProgress(userId, sessionId, 60, 'browseWebsite done'); } catch { /* noop */ }
                 }
             } catch { void 0 }
@@ -771,6 +781,7 @@ ${transcript.slice(0, 8000)}`;
                 toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
                 const sum = String(br?.summary || br?.content || '');
                 finalContent = sum || finalContent;
+                navigateVisual(url);
               }
             } catch { void 0 }
             if (shouldAugment(message)) {
@@ -879,6 +890,7 @@ ${transcript.slice(0, 8000)}`;
                   toolResults.push({ tool: 'browseWebsite', args: { url }, result: r });
                   toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
                   pieces.push(String(r?.summary || r?.content || ''));
+                  navigateVisual(url);
                 } catch (e3) { void e3; }
               } else {
                 try {
@@ -888,6 +900,7 @@ ${transcript.slice(0, 8000)}`;
                     toolResults.push({ tool: 'browseWebsite', args: { url: url2 }, result: r });
                     toolCalls.push({ function: { name: 'browseWebsite', arguments: { url: url2 } } });
                     pieces.push(String(r?.summary || r?.content || ''));
+                    navigateVisual(url2);
                   }
                 } catch (e3b) { void e3b; }
               }
@@ -1182,6 +1195,7 @@ ${transcript.slice(0, 8000)}`;
                   toolResults.push({ tool: 'browseWebsite', args: { url }, result: r });
                   toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
                   pieces.push(String(r?.summary || r?.content || ''));
+                  navigateVisual(url);
                 }
               } catch (e11) { void e11; }
             }
@@ -1323,6 +1337,7 @@ ${transcript.slice(0, 8000)}`;
               toolResults.push({ tool: 'browseWebsite', args: { url }, result: r });
               toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
               pieces.push(String(r?.summary || r?.content || ''));
+              navigateVisual(url);
             }
           } catch { void 0 }
         }
