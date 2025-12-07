@@ -1,5 +1,6 @@
 import express from 'express';
 import toolManager from '../services/tools/tool-manager.service.mjs';
+import joeAdvanced from '../services/ai/joe-advanced.service.mjs';
 import { ObjectId } from 'mongodb';
 
 // Renamed to factory and set as default export for consistency with the new architecture
@@ -90,7 +91,7 @@ const joeRouterFactory = ({ requireRole, optionalAuth, db }) => {
   // POST /api/v1/joe/execute - Analyze instruction and auto-run relevant tools
   router.post('/execute', async (req, res) => {
     try {
-      const { instruction, context } = req.body || {};
+      const { instruction, lang, model, sessionId: providedSessionId } = req.body || {};
       if (!instruction) {
         return res.status(400).json({ success: false, error: 'MISSING_INSTRUCTION' });
       }
@@ -105,10 +106,12 @@ const joeRouterFactory = ({ requireRole, optionalAuth, db }) => {
         const response = [`🎨 ملخص النظام`,`🔢 عدد الأدوات/الوظائف: ${count}`,`⚙️ أبرز القدرات:`,responsibilities.map(r=>`- ${r}`).join('\n'),`🛠️ أهم الأدوات:`,top].filter(Boolean).join('\n');
         return res.json({ success: true, response, toolsUsed: [] });
       }
-      const out = await toolManager.execute('autoPlanAndExecute', { instruction, context });
-      const response = out?.response || out?.output || out?.summary || out?.message || '';
-      const toolsUsed = Array.isArray(out?.toolsUsed) ? out.toolsUsed : (Array.isArray(out?.toolCalls) ? out.toolCalls.map(tc => tc.function?.name).filter(Boolean) : []);
-      return res.json({ ...out, response, toolsUsed });
+      const userId = req.user?._id ? String(req.user._id) : (req.session?.token ? `guest:${req.session.token}` : `guest:${Date.now()}`);
+      const sessionId = typeof providedSessionId === 'string' && providedSessionId.trim() ? providedSessionId.trim() : `sess_${Date.now()}`;
+      const result = await joeAdvanced.processMessage(userId, instruction, sessionId, { model: model || null, lang: lang || 'ar' });
+      const response = result?.response || '';
+      const toolsUsed = Array.isArray(result?.toolsUsed) ? result.toolsUsed : [];
+      return res.json({ success: true, response, toolsUsed, sessionId });
     } catch (err) {
       console.error('❌ /api/joe/execute error', err);
       return res.status(500).json({ success: false, error: 'SERVER_ERROR', message: err.message });
