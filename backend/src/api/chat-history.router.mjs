@@ -10,13 +10,15 @@ const chatHistoryRouterFactory = ({ requireRole, io }) => {
     if (!s) return null
     const u1 = String(s.userId)
     const u2 = String(userId)
-    return u1 === u2 ? s : null
+    if (u1 !== u2) return null
+    if (s.deleted) return null
+    return s
   }
 
   router.get('/sessions', requireRole('USER'), async (req, res) => {
     try {
       const uid = req.user?._id
-      const sessions = await ChatSession.find({ userId: { $in: [uid, String(uid)] } })
+  const sessions = await ChatSession.find({ userId: { $in: [uid, String(uid)] }, deleted: { $ne: true } })
         .sort({ updatedAt: -1 })
         .limit(500)
         .select({ title: 1, pinned: 1, updatedAt: 1, lastModified: 1 })
@@ -87,10 +89,13 @@ const chatHistoryRouterFactory = ({ requireRole, io }) => {
       const sid = req.params.id
       const s = await ensureOwnSession(uid, sid)
       if (!s) return res.status(404).json({ success: false, error: 'SESSION_NOT_FOUND' })
-      await ChatMessage.deleteMany({ sessionId: s._id })
-      await ChatSession.findByIdAndDelete(s._id)
+      await ChatSession.findByIdAndUpdate(s._id, { $set: { deleted: true, updatedAt: new Date(), lastModified: new Date() } }, { new: true })
       try { io?.of?.('/joe-agent')?.emit?.('session_updated', { op: 'delete', id: String(s._id) }); } catch { /* noop */ }
       res.json({ success: true })
+      Promise.resolve().then(async () => {
+        try { await ChatMessage.deleteMany({ sessionId: s._id }) } catch { /* ignore */ }
+        try { await ChatSession.deleteOne({ _id: s._id }) } catch { /* ignore */ }
+      })
     } catch (error) {
       res.status(500).json({ success: false, error: 'SESSION_DELETE_FAILED', message: error.message })
     }
