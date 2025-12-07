@@ -505,18 +505,27 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
             <WelcomeScreen toolsCount={toolsCount} />
           ) : (
             <div className="space-y-5">
-              {messages.map((msg, index) => (
-                <div 
-                  key={msg.id || index} 
-                  className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
+              {(() => {
+                const ordered = [...messages].sort((a, b) => {
+                  const ta = typeof a.createdAt === 'number' ? a.createdAt : 0;
+                  const tb = typeof b.createdAt === 'number' ? b.createdAt : 0;
+                  if (ta !== tb) return ta - tb;
+                  const wa = a.type === 'user' ? 0 : 1;
+                  const wb = b.type === 'user' ? 0 : 1;
+                  return wa - wb;
+                });
+                return ordered.map((msg, index) => (
                   <div 
-                    className={`max-w-[90%] sm:max-w-[85%] md:max-w-[75%] rounded-2xl px-5 py-4 ${
-                      msg.type === 'user' 
-                        ? 'bg-gradient-to-br from-yellow-500 to-yellow-600 text-black border border-yellow-600 ring-1 ring-yellow-600/30 shadow-xl' 
-                        : 'bg-gradient-to-br from-blue-900 to-gray-900 text-gray-100 border border-blue-800 ring-1 ring-blue-700/40 shadow-xl backdrop-blur-sm'
-                    }`}
+                    key={msg.id || index} 
+                    className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
+                    <div 
+                      className={`max-w-[90%] sm:max-w-[85%] md:max-w-[75%] rounded-2xl px-5 py-4 ${
+                        msg.type === 'user' 
+                          ? 'bg-gradient-to-br from-yellow-500 to-yellow-600 text-black border border-yellow-600 ring-1 ring-yellow-600/30 shadow-xl' 
+                          : 'bg-gradient-to-br from-blue-900 to-gray-900 text-gray-100 border border-blue-800 ring-1 ring-blue-700/40 shadow-xl backdrop-blur-sm'
+                      }`}
+                    >
                     {msg.type !== 'user' && (
                       <div className="flex items-center gap-2 text-xs text-gray-300 mb-2">
                         <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-yellow-500 text-black font-bold">J</span>
@@ -526,7 +535,8 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                     <p className="text-base leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
                   </div>
                 </div>
-              ))}
+              ));
+              })()}
               
               {/* Progress Bar */}
               {isProcessing && (
