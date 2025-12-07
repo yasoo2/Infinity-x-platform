@@ -18,6 +18,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
   const [boxSize, setBoxSize] = useState({ width: 700, height: 500 });
   const [isLogCollapsed, setIsLogCollapsed] = useState(true);
   const imageRef = useRef(null);
+  const [showMiniPreview, setShowMiniPreview] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -44,6 +45,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
     // Update URL from page info
     if (pageInfo.url) {
       setBrowserUrl(pageInfo.url);
+      setShowMiniPreview(true);
     }
   }, [pageInfo]);
 
@@ -170,6 +172,33 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
     <>
       {isFullScreen && (
         <FullScreenBrowser onClose={() => setIsFullScreen(false)} />
+      )}
+      {showMiniPreview && (
+        <div
+          className="fixed bottom-4 left-4 z-[60]"
+          style={{ width: '1.5cm', height: '1.5cm' }}
+        >
+          <div className="relative w-full h-full border-2 border-purple-500/60 rounded-md overflow-hidden shadow-lg shadow-purple-900/40 bg-black">
+            {screenshot ? (
+              <img
+                src={`data:image/jpeg;base64,${screenshot}`}
+                alt="Mini Browser Preview"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gray-900">
+                <Globe className="w-4 h-4 text-purple-400" />
+              </div>
+            )}
+            <button
+              onClick={() => setIsFullScreen(true)}
+              title="تكبير"
+              className="absolute top-0.5 right-0.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-sm p-0.5 hover:from-purple-700 hover:to-blue-700"
+            >
+              <Maximize2 className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
       )}
       <Draggable handle=".handle" bounds="body">
         <ResizableBox
