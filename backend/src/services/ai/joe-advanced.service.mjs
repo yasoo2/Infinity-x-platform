@@ -394,7 +394,7 @@ ${transcript.slice(0, 8000)}`;
           } else if (hasUrl) {
             try {
                 const rawUrl = (preview.match(/https?:\/\/[^\s]+/i) || [])[0];
-                const url = rawUrl ? rawUrl.replace(/[\.,;:!?)]+$/,'') : rawUrl;
+                const url = rawUrl ? rawUrl.replace(/[.,;:!?)]+$/,'') : rawUrl;
                 const isImageUrl = /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(url);
                 if (isImageUrl) {
                   try { joeEvents.emitProgress(userId, sessionId, 30, 'downloadImageFromUrl'); } catch { /* noop */ }
@@ -818,7 +818,7 @@ ${transcript.slice(0, 8000)}`;
               if (hasUrl) {
               try {
                   const rawUrl = (preview.match(/https?:\/\/[^\s]+/i) || [])[0];
-                  const url = rawUrl ? rawUrl.replace(/[\.,;:!?)]+$/,'') : rawUrl;
+                  const url = rawUrl ? rawUrl.replace(/[.,;:!?)]+$/,'') : rawUrl;
                   const r = await executeTool(userId, sessionId, 'browseWebsite', { url });
                   toolResults.push({ tool: 'browseWebsite', args: { url }, result: r });
                   toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
@@ -1102,7 +1102,7 @@ ${transcript.slice(0, 8000)}`;
             if (hasUrl) {
               try {
                 const rawUrl = (preview.match(/https?:\/\/[^\s]+/i) || [])[0];
-                const url = rawUrl ? rawUrl.replace(/[\.,;:!?)]+$/,'') : rawUrl;
+                const url = rawUrl ? rawUrl.replace(/[.,;:!?)]+$/,'') : rawUrl;
                 const isImageUrl = /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(url);
                 if (isImageUrl) {
                   const out = await executeTool(userId, sessionId, 'downloadImageFromUrl', { url, userId });
