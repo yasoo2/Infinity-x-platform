@@ -4,6 +4,8 @@
  */
 
 import puppeteer from 'puppeteer';
+import fs from 'fs';
+import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import * as cheerio from 'cheerio';
 
@@ -11,17 +13,7 @@ class AdvancedBrowserManager {
   constructor(options = {}) {
     this.browser = null;
     this.pages = new Map();
-    this.browserOptions = options.browserOptions || {
-      headless: 'new',
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || (typeof puppeteer.executablePath === 'function' ? puppeteer.executablePath() : undefined),
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--disable-gpu'
-      ]
-    };
+    this.browserOptions = options.browserOptions || null;
     this.timeout = options.timeout || 30000;
   }
 
@@ -30,7 +22,88 @@ class AdvancedBrowserManager {
    */
   async initialize() {
     try {
-      this.browser = await puppeteer.launch(this.browserOptions);
+      const baseOpts = {
+        headless: (process.env.PUPPETEER_HEADLESS_MODE || 'true') === 'true' ? 'new' : false,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--no-zygote',
+          '--disable-gpu'
+        ],
+      };
+      const execCandidates = [];
+      const execEnv = process.env.PUPPETEER_EXECUTABLE_PATH;
+      if (execEnv) execCandidates.push(execEnv);
+      const chromeEnv1 = process.env.GOOGLE_CHROME_BIN;
+      if (chromeEnv1) execCandidates.push(chromeEnv1);
+      const chromeEnv2 = process.env.CHROME_PATH;
+      if (chromeEnv2) execCandidates.push(chromeEnv2);
+      try {
+        const built = typeof puppeteer.executablePath === 'function' ? puppeteer.executablePath() : null;
+        if (built && fs.existsSync(built)) execCandidates.push(built);
+      } catch { /* noop */ }
+      execCandidates.push(
+        '/usr/bin/google-chrome',
+        '/usr/bin/chromium',
+        '/usr/bin/chromium-browser',
+        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+      );
+      const cacheDirs = [
+        process.env.PUPPETEER_CACHE_DIR,
+        path.join(process.cwd(), '.cache', 'puppeteer'),
+        '/opt/render/project/.cache/puppeteer',
+        path.join(process.env.HOME || '', '.cache', 'puppeteer')
+      ].filter(Boolean);
+      for (const base of cacheDirs) {
+        try {
+          const chromeDir = path.join(base, 'chrome');
+          const cEntries = await fs.promises.readdir(chromeDir).catch(() => []);
+          for (const entry of cEntries) {
+            const candidate = path.join(
+              chromeDir,
+              entry,
+              process.platform === 'darwin'
+                ? 'Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing'
+                : 'chrome'
+            );
+            if (fs.existsSync(candidate)) execCandidates.push(candidate);
+          }
+        } catch { /* noop */ }
+        try {
+          const chromiumDir = path.join(base, 'chromium');
+          const kEntries = await fs.promises.readdir(chromiumDir).catch(() => []);
+          for (const entry of kEntries) {
+            const candidate = path.join(
+              chromiumDir,
+              entry,
+              process.platform === 'darwin'
+                ? 'chrome-mac/Chromium.app/Contents/MacOS/Chromium'
+                : 'chrome'
+            );
+            if (fs.existsSync(candidate)) execCandidates.push(candidate);
+          }
+        } catch { /* noop */ }
+      }
+      const foundPath = execCandidates.find(p => {
+        try { return fs.existsSync(p); } catch { return false; }
+      });
+      const launchOpts = { ...baseOpts };
+      if (foundPath) launchOpts.executablePath = foundPath;
+      try {
+        this.browser = await puppeteer.launch(launchOpts);
+      } catch (e1) {
+        try {
+          this.browser = await puppeteer.launch({ ...launchOpts, headless: 'new', args: launchOpts.args.filter(a => a !== '--disable-gpu') });
+        } catch (e2) {
+          const err = e2 || e1;
+          const hint = 'Chrome/Chromium not found. Set PUPPETEER_EXECUTABLE_PATH to your Chrome binary or run: npx puppeteer browsers install chrome';
+          console.error('Puppeteer launch failed:', err?.message || String(err), '\nHint:', hint);
+          throw new Error(hint);
+        }
+      }
       console.log('✅ Advanced Browser Manager initialized');
     } catch (err) {
       console.error('❌ Failed to initialize browser:', err);
