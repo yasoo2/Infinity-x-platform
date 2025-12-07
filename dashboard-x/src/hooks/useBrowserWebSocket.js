@@ -11,12 +11,14 @@ const useBrowserWebSocket = () => {
   const wsRef = useRef(null);
 
   useEffect(() => {
+    const failCountRef = { current: 0 };
+    const lastAttemptRef = { current: 0 };
     const connect = () => {
       let sessionToken = null;
       try { sessionToken = localStorage.getItem('sessionToken'); } catch { sessionToken = null; }
 
-      const base = (typeof apiClient?.defaults?.baseURL === 'string' ? apiClient.defaults.baseURL : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000'));
-      const wsBase = String(base).replace(/^https/, 'wss').replace(/^http/, 'ws');
+      let base = (typeof apiClient?.defaults?.baseURL === 'string' ? apiClient.defaults.baseURL : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000'));
+      let wsBase = String(base).replace(/^https/, 'wss').replace(/^http/, 'ws');
       const ensureToken = async () => {
         if (sessionToken) return sessionToken;
         try {
@@ -42,16 +44,28 @@ const useBrowserWebSocket = () => {
           setIsConnected(true);
           try { wsRef.current.send(JSON.stringify({ type: 'get_screenshot' })); } catch { /* noop */ }
           try { wsRef.current.send(JSON.stringify({ type: 'start_streaming' })); } catch { /* noop */ }
+          failCountRef.current = 0;
         };
 
         wsRef.current.onclose = (ev) => {
           setIsConnected(false);
           try { console.warn('[Browser WS] Closed:', { code: ev?.code, reason: ev?.reason }); } catch { /* noop */ }
-          setTimeout(connect, 3000);
+          failCountRef.current += 1;
+          const now = Date.now();
+          if (failCountRef.current >= 3 && now - (lastAttemptRef.current || 0) < 15000) {
+            try {
+              const alt = (typeof window !== 'undefined' ? window.location.origin : base);
+              base = alt;
+              wsBase = String(base).replace(/^https/, 'wss').replace(/^http/, 'ws');
+            } catch { /* noop */ }
+          }
+          lastAttemptRef.current = now;
+          setTimeout(connect, Math.min(6000, 1500 + 500 * failCountRef.current));
         };
 
         wsRef.current.onerror = (err) => {
           try { console.error('[Browser WS] Error:', err); } catch { /* noop */ }
+          failCountRef.current += 1;
         };
 
         wsRef.current.onmessage = (event) => {

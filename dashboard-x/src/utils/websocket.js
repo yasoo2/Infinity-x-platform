@@ -124,11 +124,20 @@ export const connectWebSocket = (onMessage, onOpen, onClose) => {
     const { io } = await import('socket.io-client');
     await ensureToken();
     ioSocket = io(`${httpBase}/joe-agent`, { path: '/socket.io', auth: { token }, transports: ['polling','websocket'], upgrade: true, reconnection: true, reconnectionDelay: 500, reconnectionDelayMax: 4000, timeout: 3000, forceNew: true });
+    const fallbackTimer = setTimeout(() => {
+      try {
+        if (!ioSocket.connected) {
+          try { ioSocket.close(); } catch { /* noop */ }
+          ioSocket = io(`${httpBase}/joe-agent`, { path: '/ws/socket.io', auth: { token }, transports: ['websocket','polling'], upgrade: true, reconnection: true, reconnectionDelay: 500, reconnectionDelayMax: 4000, timeout: 3000, forceNew: true });
+        }
+      } catch { /* noop */ }
+    }, 1500);
     ioSocket.on('connect', () => {
       failedAttempts = 0;
       if (!isConnected) {
         isConnected = true;
         clearTimeout(connectTimeout);
+        try { clearTimeout(fallbackTimer); } catch { /* noop */ }
         if (ws) { try { ws.close(); } catch { void 0; } ws = null; }
         try {
           const end = typeof performance !== 'undefined' ? performance.now() : Date.now();
