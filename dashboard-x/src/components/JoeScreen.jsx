@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import Draggable from 'react-draggable';
-import { ResizableBox } from 'react-resizable';
 import { Terminal, Cpu, Globe, Monitor, ChevronDown, ChevronUp, RefreshCw, MousePointer, Maximize2, Search, Copy } from 'lucide-react';
 import PropTypes from 'prop-types';
 import useBrowserWebSocket from '../hooks/useBrowserWebSocket';
@@ -155,6 +153,13 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
+  useEffect(() => {
+    if (isConnected && browserUrl && !screenshot) {
+      startStreaming();
+      navigate(browserUrl);
+    }
+  }, [isConnected]);
+
   const getStatusIcon = () => {
     if (isProcessing || isLoading) return <Cpu className="w-4 h-4 text-purple-400 animate-pulse" />;
     if (!isConnected) return <Monitor className="w-4 h-4 text-red-400" />;
@@ -200,14 +205,10 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
           </div>
         </div>
       )}
-      <Draggable handle=".handle" bounds="body">
-        <ResizableBox
-          width={boxSize.width}
-          height={isCollapsed ? 50 : boxSize.height}
-          minConstraints={[Math.min(500, Math.max(300, (typeof window!=='undefined'?window.innerWidth:800)-120)), 50]}
-          maxConstraints={[Math.max(600, (typeof window!=='undefined'?window.innerWidth:800)-40), Math.max(400, (typeof window!=='undefined'?window.innerHeight:600)-120)]}
-          className="absolute bottom-4 right-4 z-50"
-        >
+      <div
+        className="absolute bottom-4 right-4 z-50"
+        style={{ width: boxSize.width, height: isCollapsed ? 50 : boxSize.height }}
+      >
         <div className="w-full h-full flex flex-col bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border-2 border-purple-500/30 rounded-xl shadow-2xl shadow-purple-900/50 overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between p-3 bg-gradient-to-r from-gray-800/90 to-gray-900/90 border-b-2 border-purple-500/30 flex-shrink-0">
@@ -521,8 +522,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose }) => {
             </>
           )}
         </div>
-        </ResizableBox>
-      </Draggable>
+      </div>
     </>
   );
 };
