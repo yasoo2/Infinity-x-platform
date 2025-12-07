@@ -8,6 +8,7 @@ import ChatSession from '../database/models/ChatSession.mjs';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import config from '../config.mjs';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Joe Agent WebSocket Server - v2.0 "Unified"
@@ -76,29 +77,22 @@ export class JoeAgentWebSocketServer {
       const urlParams = new URLSearchParams(req.url.split('?')[1]);
       const token = urlParams.get('token');
 
-      if (!token) {
-        console.log('[JoeAgentV2] Connection rejected: No token provided.');
-        ws.close(1008, 'Policy Violation: No token provided');
-        return;
-      }
-
-      // 2. التحقق من التوكين
       let decoded;
-      try {
-        const secret = this.dependencies.JWT_SECRET || config.JWT_SECRET;
-        decoded = jwt.verify(token, secret);
-      } catch (err) {
-        // Detailed logging for JWT errors
-        console.log(`[JoeAgentV2] Connection rejected: Token validation failed. Error: ${err.name} - ${err.message}`);
-        ws.close(1008, `Policy Violation: Invalid token (${err.name})`);
-        return;
+      if (token) {
+        try {
+          const secret = this.dependencies.JWT_SECRET || config.JWT_SECRET;
+          decoded = jwt.verify(token, secret);
+        } catch {
+          decoded = { userId: `guest:${uuidv4()}`, role: 'guest' };
+        }
+      } else {
+        decoded = { userId: `guest:${uuidv4()}`, role: 'guest' };
       }
 
-      // 3. ربط الاتصال بمعلومات المستخدم
       console.log(`[JoeAgentV2] Client connected. User ID: ${decoded.userId}`);
       ws.userId = decoded.userId;
       ws.sessionId = null;
-      ws.role = decoded.role; // تخزين الدور للتحقق من الصلاحيات
+      ws.role = decoded.role;
 
       // التحقق من الصلاحيات: السماح للمستخدمين العاديين والضيوف
       const allowedRoles = new Set(['super_admin', 'admin', 'user', 'guest']);
@@ -248,9 +242,17 @@ export class JoeAgentWebSocketServer {
       nsp.use((socket, next) => {
         try {
           const token = socket.handshake?.auth?.token || socket.handshake?.query?.token;
-          if (!token) return next(new Error('NO_TOKEN'));
-          const secret = this.dependencies.JWT_SECRET || config.JWT_SECRET;
-          const decoded = jwt.verify(token, secret);
+          let decoded;
+          if (token) {
+            try {
+              const secret = this.dependencies.JWT_SECRET || config.JWT_SECRET;
+              decoded = jwt.verify(token, secret);
+            } catch {
+              decoded = { userId: `guest:${uuidv4()}`, role: 'guest' };
+            }
+          } else {
+            decoded = { userId: `guest:${uuidv4()}`, role: 'guest' };
+          }
           socket.data = socket.data || {};
           socket.data.userId = decoded.userId;
           socket.data.role = decoded.role;

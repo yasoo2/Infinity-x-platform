@@ -600,34 +600,25 @@ export const useJoeChat = () => {
       if (ws.current && (ws.current.readyState === WebSocket.OPEN || ws.current.readyState === WebSocket.CONNECTING)) return;
       const validateToken = async () => {
         let t = localStorage.getItem('sessionToken');
-        const needsRefresh = () => {
-          if (!t) return true;
+        const needsReset = () => {
+          if (!t) return false;
           try {
             const p = JSON.parse(atob((t.split('.')[1]) || ''));
             const exp = p?.exp;
             const uid = String(p?.userId || '');
             const role = String(p?.role || '');
             const isObjectId = /^[a-f0-9]{24}$/i.test(uid);
-            // Force refresh for legacy dev tokens or malformed super_admin IDs
             if (uid === 'super-admin-id-dev' || (role === 'super_admin' && !isObjectId)) {
-              try { localStorage.removeItem('sessionToken'); } catch { void 0; }
-              t = null;
               return true;
             }
-            // Guest tokens are acceptable; only refresh when near expiry
             return typeof exp === 'number' ? (Date.now() / 1000) >= (exp - 30) : false;
           } catch {
-            return false;
+            return true;
           }
         };
-        if (needsRefresh()) {
-          try {
-            const r = await getGuestToken();
-            if (r?.ok && r?.token) {
-              localStorage.setItem('sessionToken', r.token);
-              t = r.token;
-            }
-          } catch { void 0; }
+        if (needsReset()) {
+          try { localStorage.removeItem('sessionToken'); } catch { /* noop */ }
+          t = null;
         }
         return t || null;
       };
@@ -721,17 +712,10 @@ export const useJoeChat = () => {
           }
           dispatch({ type: 'ADD_WS_LOG', payload: `[SIO] Connect error: ${msg}` });
           // Keep SIO; do not auto-switch to native WS in production
-        
+          
           if (/INVALID_TOKEN|NO_TOKEN/i.test(msg)) {
             try { localStorage.removeItem('sessionToken'); } catch { /* noop */ }
-            try {
-              const r = await getGuestToken();
-              if ((r?.ok || r?.success) && r?.token) {
-                try { localStorage.setItem('sessionToken', r.token); } catch { /* noop */ }
-                socket.auth = { token: r.token };
-                try { socket.connect(); } catch { /* noop */ }
-              }
-            } catch { /* noop */ }
+            try { socket.auth = {}; socket.connect(); } catch { /* noop */ }
           }
         });
         socket.on('error', async (err) => {
@@ -742,14 +726,7 @@ export const useJoeChat = () => {
           }
           if (/INVALID_TOKEN|NO_TOKEN/i.test(msg)) {
             try { localStorage.removeItem('sessionToken'); } catch { /* noop */ }
-            try {
-              const r = await getGuestToken();
-              if ((r?.ok || r?.success) && r?.token) {
-                try { localStorage.setItem('sessionToken', r.token); } catch { /* noop */ }
-                socket.auth = { token: r.token };
-                try { socket.connect(); } catch { /* noop */ }
-              }
-            } catch { /* noop */ }
+            try { socket.auth = {}; socket.connect(); } catch { /* noop */ }
           }
         });
         socket.on('status', (d) => { dispatch({ type: 'ADD_WS_LOG', payload: `[SIO] ${JSON.stringify(d)}` }); });
@@ -847,7 +824,8 @@ export const useJoeChat = () => {
             wsBase = 'ws://localhost:4000';
           }
         }
-        wsUrl = `${wsBase}/ws/joe-agent?token=${sessionToken}`;
+        wsUrl = `${wsBase}/ws/joe-agent`;
+        if (sessionToken) wsUrl += `?token=${sessionToken}`;
         let isValidWs = false;
         try {
           const u3 = new URL(wsUrl);
@@ -924,12 +902,6 @@ export const useJoeChat = () => {
           }, 250);
           if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
           reconnectTimer.current = setTimeout(async () => {
-            if (shouldResetToken) {
-              try {
-                const r = await getGuestToken();
-                if (r?.ok && r?.token) localStorage.setItem('sessionToken', r.token);
-              } catch { void 0; }
-            }
             connect();
           }, delay);
         };
