@@ -6,6 +6,8 @@ const useBrowserWebSocket = () => {
   const [pageInfo, setPageInfo] = useState({ title: '', url: '' });
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [pageText, setPageText] = useState('');
+  const [serpResults, setSerpResults] = useState([]);
   const wsRef = useRef(null);
 
   useEffect(() => {
@@ -57,6 +59,16 @@ const useBrowserWebSocket = () => {
               case 'screenshot':
                 setScreenshot(data.payload.screenshot);
                 setPageInfo(data.payload.pageInfo);
+                setIsLoading(false);
+                break;
+              case 'page_text':
+                setPageText(String(data.payload?.result?.text || ''));
+                setPageInfo(data.payload.pageInfo || {});
+                setIsLoading(false);
+                break;
+              case 'serp_results':
+                setSerpResults(Array.isArray(data.payload?.result?.results) ? data.payload.result.results : []);
+                setPageInfo(data.payload.pageInfo || {});
                 setIsLoading(false);
                 break;
               case 'navigate_result':
@@ -133,6 +145,20 @@ const useBrowserWebSocket = () => {
     }
   }, []);
 
+  const getPageText = useCallback(() => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      setIsLoading(true);
+      wsRef.current.send(JSON.stringify({ type: 'get_page_text' }));
+    }
+  }, []);
+
+  const extractSerp = useCallback((query) => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      setIsLoading(true);
+      wsRef.current.send(JSON.stringify({ type: 'extract_serp', payload: { query } }));
+    }
+  }, []);
+
   const startStreaming = useCallback(() => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: 'start_streaming' }));
@@ -150,12 +176,16 @@ const useBrowserWebSocket = () => {
     pageInfo,
     isConnected,
     isLoading,
+    pageText,
+    serpResults,
     navigate,
     click,
     type,
     scroll,
     pressKey,
     getScreenshot,
+    getPageText,
+    extractSerp,
     startStreaming,
     stopStreaming
   };
