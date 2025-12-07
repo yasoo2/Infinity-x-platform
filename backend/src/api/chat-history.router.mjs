@@ -1,5 +1,4 @@
 import express from 'express'
-import mongoose from 'mongoose'
 import ChatSession from '../database/models/ChatSession.mjs'
 import ChatMessage from '../database/models/ChatMessage.mjs'
 
