@@ -82,21 +82,17 @@ export async function getPageContent(url) {
         }
         return content;
     } catch (e) {
-        try {
-            const res = await fetch(url, { headers: { 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', 'User-Agent': 'Mozilla/5.0 (compatible; JOE/1.0; +http://localhost)' } });
-            const text = await res.text();
-            if (redis) {
-                try {
-                    await redis.set(cacheKey, text, { ex: 3600 });
-                    console.log(`CACHED (HTTP): Stored content for ${url} in Redis.`);
-                } catch (error) {
-                    console.error(`Redis SET failed for key "${cacheKey}":`, error.message);
-                }
+        const res = await fetch(url, { headers: { 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', 'User-Agent': 'Mozilla/5.0 (compatible; JOE/1.0; +http://localhost)' } });
+        const text = await res.text();
+        if (redis) {
+            try {
+                await redis.set(cacheKey, text, { ex: 3600 });
+                console.log(`CACHED (HTTP): Stored content for ${url} in Redis.`);
+            } catch (error) {
+                console.error(`Redis SET failed for key "${cacheKey}":`, error.message);
             }
-            return text;
-        } catch (e2) {
-            throw e2;
         }
+        return text;
     } finally {
         try { if (page) await page.close(); } catch { /* noop */ }
     }
