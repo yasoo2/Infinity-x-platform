@@ -15,7 +15,7 @@ import { AgentLoop } from '../joengine-agi/core/AgentLoop.mjs';
 dotenv.config();
 
 const DB_NAME = process.env.DB_NAME || 'future_system';
-const mongoClient = new MongoClient(process.env.MONGO_URI);
+const mongoClient = new MongoClient(process.env.MONGODB_URI || process.env.MONGO_URI);
 // Redis integration can be enabled when needed
 
 function sleep(ms) {

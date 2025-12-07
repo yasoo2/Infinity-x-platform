@@ -26,7 +26,7 @@ dotenv.config();
 // __dirname not needed in current implementation
 
 const DB_NAME = process.env.DB_NAME || 'future_system';
-const mongoClient = new MongoClient(process.env.MONGO_URI);
+const mongoClient = new MongoClient(process.env.MONGODB_URI || process.env.MONGO_URI);
 // Redis integration can be enabled when needed
 
 // تهيئة JOEngine AGI

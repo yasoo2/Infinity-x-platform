@@ -3,7 +3,7 @@ import { GeminiEngine } from './lib/geminiEngine.mjs';
 import fs from 'fs/promises';
 import path from 'path';
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017';
+const MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017';
 const DB_NAME = process.env.DB_NAME || 'future_system';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
