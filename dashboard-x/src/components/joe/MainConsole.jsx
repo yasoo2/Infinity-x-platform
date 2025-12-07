@@ -1,9 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
-import { FiMic, FiPaperclip, FiSend, FiStopCircle, FiCompass, FiArrowDown, FiLink, FiGitBranch } from 'react-icons/fi';
+import { FiMic, FiPaperclip, FiSend, FiStopCircle, FiCompass, FiArrowDown, FiLink, FiGitBranch, FiImage, FiTrash2, FiCopy } from 'react-icons/fi';
 import { useJoeChatContext } from '../../context/JoeChatContext.jsx';
 import apiClient from '../../api/client';
-import { getSystemStatus } from '../../api/system';
+import { getSystemStatus, listUserUploads, deleteUserUpload } from '../../api/system';
 import BrowserViewer from '../BrowserViewer.jsx';
 
 const WelcomeScreen = ({ toolsCount }) => (
@@ -70,6 +70,10 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   const [builderProjectType, setBuilderProjectType] = React.useState('page');
   const [builderLoading, setBuilderLoading] = React.useState(false);
   const [toolsCount, setToolsCount] = React.useState(0);
+  const [showGallery, setShowGallery] = React.useState(false);
+  const [uploads, setUploads] = React.useState([]);
+  const [uploadsLoading, setUploadsLoading] = React.useState(false);
+  const galleryPanelRef = useRef(null);
 
   const { 
     messages, isProcessing, progress, currentStep, 
@@ -202,6 +206,39 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
     document.addEventListener('mousedown', onDocClick);
     return () => document.removeEventListener('mousedown', onDocClick);
   }, [showGithub]);
+
+  useEffect(() => {
+    const onDocClick = (e) => {
+      if (!showGallery) return;
+      const el = galleryPanelRef.current;
+      if (el && !el.contains(e.target)) setShowGallery(false);
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [showGallery]);
+
+  const loadUploads = async () => {
+    try {
+      setUploadsLoading(true);
+      const data = await listUserUploads({});
+      setUploads(Array.isArray(data?.items) ? data.items : []);
+    } catch {
+      setUploads([]);
+    } finally {
+      setUploadsLoading(false);
+    }
+  };
+
+  const handleDeleteUpload = async (name) => {
+    try {
+      await deleteUserUpload(name, {});
+      await loadUploads();
+    } catch {}
+  };
+
+  const handleCopyUrl = async (url) => {
+    try { await navigator.clipboard.writeText(url); } catch {}
+  };
 
   
 
@@ -741,6 +778,14 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                 <FiGitBranch size={14} />
               </button>
               <button
+                onClick={() => { okPulse('gallery','toggle'); setShowGallery(v => { const next = !v; if (next) loadUploads(); return next; }); }}
+                className="p-2 text-gray-400 hover:text-yellow-400 hover:bg-gray-700 rounded-lg transition-colors border border-gray-700"
+                disabled={isProcessing}
+                title={lang==='ar'?'معرض الصور':'Image Gallery'}
+              >
+                <FiImage size={14} />
+              </button>
+              <button
                 onClick={() => { okPulse('builder','toggle'); setShowBuilder(v => !v); }}
                 className="p-2 text-gray-400 hover:text-yellow-400 hover:bg-gray-700 rounded-lg transition-colors border border-gray-700"
                 disabled={isProcessing}
@@ -869,6 +914,34 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
               <p className="text-[10px] text-gray-500 mt-2">{lang==='ar'?'للخاصة: يلزم GITHUB_TOKEN':'Private repos require GITHUB_TOKEN'}</p>
             </div>
           )}
+        {showGallery && (
+          <div ref={galleryPanelRef} className="absolute right-3 bottom-14 w-[480px] max-w-[92vw] bg-gray-900 border border-gray-700 rounded-xl shadow-lg p-3">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-gray-300">{lang==='ar'?'مكتبة الصور':'Image Gallery'}</p>
+              <button onClick={loadUploads} className="text-[11px] px-2 py-1 rounded bg-gray-700 text-gray-200 hover:bg-gray-600">{lang==='ar'?'تحديث':'Refresh'}</button>
+            </div>
+            {uploadsLoading ? (
+              <div className="flex items-center gap-2 text-xs text-yellow-300"><span className="w-3 h-3 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin" />{lang==='ar'?'جاري التحميل':'Loading'}</div>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                {uploads.length === 0 ? (
+                  <div className="col-span-3 text-[12px] text-gray-500">{lang==='ar'?'لا توجد صور':'No images found'}</div>
+                ) : (
+                  uploads.map((it, i) => (
+                    <div key={`${it.name}-${i}`} className="relative group border border-gray-700 rounded-md overflow-hidden">
+                      <img src={it.absoluteUrl} alt={it.name} className="w-full h-28 object-cover" />
+                      <div className="absolute inset-x-0 bottom-0 bg-gray-900/70 text-[11px] text-gray-300 px-2 py-1 truncate">{it.name}</div>
+                      <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => handleCopyUrl(it.absoluteUrl)} className="p-1 rounded bg-gray-800 text-gray-200 hover:bg-gray-700" title={lang==='ar'?'نسخ الرابط':'Copy URL'}><FiCopy size={12} /></button>
+                        <button onClick={() => handleDeleteUpload(it.name)} className="p-1 rounded bg-red-700 text-white hover:bg-red-800" title={lang==='ar'?'حذف':'Delete'}><FiTrash2 size={12} /></button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        )}
         {showBuilder && (
           <div className="absolute right-3 bottom-14 w-[320px] bg-gray-900 border border-gray-700 rounded-xl shadow-lg p-3">
             <p className="text-xs text-gray-300 mb-2">{lang==='ar'?'إنشاء ونشر مشروع':'Create & Deploy Project'}</p>
