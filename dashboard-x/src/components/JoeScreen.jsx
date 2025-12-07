@@ -14,6 +14,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
   
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [boxSize, setBoxSize] = useState({ width: 700, height: 500 });
+  const [sizeMode, setSizeMode] = useState('medium');
   const [isLogCollapsed, setIsLogCollapsed] = useState(true);
   const imageRef = useRef(null);
   const [showMiniPreview, setShowMiniPreview] = useState(false);
@@ -194,15 +195,25 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
     const computeSize = () => {
       const vw = typeof window !== 'undefined' ? window.innerWidth : 1024;
       const vh = typeof window !== 'undefined' ? window.innerHeight : 768;
-      const width = Math.min(700, Math.max(320, vw - 32));
-      const height = Math.min(500, Math.max(240, vh - 120));
+      let width = 700;
+      let height = 500;
+      if (sizeMode === 'small') {
+        width = Math.min(420, Math.max(300, vw - 24));
+        height = Math.min(320, Math.max(220, vh - 160));
+      } else if (sizeMode === 'large') {
+        width = Math.min(1000, Math.max(700, vw - 40));
+        height = Math.min(720, Math.max(520, vh - 160));
+      } else {
+        width = Math.min(720, Math.max(360, vw - 32));
+        height = Math.min(520, Math.max(260, vh - 140));
+      }
       setBoxSize({ width, height });
     };
     computeSize();
     const onResize = () => computeSize();
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
-  }, []);
+  }, [sizeMode]);
 
   useEffect(() => {
     if (isConnected && browserUrl && !screenshot) {
@@ -310,13 +321,30 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-400">{getStatusText()}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400">{getStatusText()}</span>
+            <div className="flex items-center gap-1">
               <button
-                onClick={() => setIsCollapsed(!isCollapsed)}
-                className="text-gray-400 hover:text-white transition-colors"
-                title={isCollapsed ? "Expand" : "Collapse"}
-              >
+                onClick={() => setSizeMode('small')}
+                className={`px-1.5 py-0.5 text-[10px] rounded ${sizeMode==='small'?'bg-gray-700 text-white border border-purple-500/50':'bg-gray-800 text-gray-400 border border-gray-700'}`}
+                title="حجم صغير"
+              >S</button>
+              <button
+                onClick={() => setSizeMode('medium')}
+                className={`px-1.5 py-0.5 text-[10px] rounded ${sizeMode==='medium'?'bg-gray-700 text-white border border-purple-500/50':'bg-gray-800 text-gray-400 border border-gray-700'}`}
+                title="حجم متوسط"
+              >M</button>
+              <button
+                onClick={() => setSizeMode('large')}
+                className={`px-1.5 py-0.5 text-[10px] rounded ${sizeMode==='large'?'bg-gray-700 text-white border border-purple-500/50':'bg-gray-800 text-gray-400 border border-gray-700'}`}
+                title="حجم كبير"
+              >L</button>
+            </div>
+            <button
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="text-gray-400 hover:text-white transition-colors"
+              title={isCollapsed ? "Expand" : "Collapse"}
+            >
                 {isCollapsed ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
               <button
@@ -376,7 +404,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
                         value={browserUrl}
                         onChange={(e) => setBrowserUrl(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleNavigate()}
-                        className="flex-1 bg-gray-900 text-gray-300 text-xs px-3 py-1.5 rounded border border-gray-700 focus:border-purple-500 focus:outline-none"
+                        className={`${sizeMode==='small'?'w-40':'flex-1'} bg-gray-900 text-gray-300 text-xs px-3 py-1.5 rounded border border-gray-700 focus:border-purple-500 focus:outline-none`}
                         placeholder="Enter URL..."
                         disabled={!isConnected}
                       />
@@ -394,7 +422,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && runSearch()}
-                        className="w-48 bg-gray-900 text-gray-300 text-xs px-3 py-1.5 rounded border border-gray-700 focus:border-blue-500 focus:outline-none"
+                        className={`${sizeMode==='small'?'w-28':(sizeMode==='large'?'w-64':'w-48')} bg-gray-900 text-gray-300 text-xs px-3 py-1.5 rounded border border-gray-700 focus:border-blue-500 focus:outline-none`}
                         placeholder="بحث..."
                         disabled={isLoading}
                       />
