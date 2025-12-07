@@ -73,15 +73,14 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
     try { setIsTakeoverActive(false); } catch { /* noop */ }
     try {
       const summary = (() => {
-        const counts = activity.reduce((acc, a) => { acc[a.type] = (acc[a.type] || 0) + 1; return acc; }, {});
         const navs = activity.filter(a => /Navigate:/i.test(a.text)).length;
         const clicks = activity.filter(a => /^Click/i.test(a.text)).length;
         const keys = activity.filter(a => /^Key|^Type/i.test(a.text)).length;
         const scrolls = activity.filter(a => /^Scroll/i.test(a.text)).length;
         const lastPage = pageInfo?.url || browserUrl;
-        return `تقرير المهمة:\n- تنقلات: ${navs}\n- نقرات: ${clicks}\n- مفاتيح/كتابة: ${keys}\n- تمرير: ${scrolls}\n- الصفحة الأخيرة: ${lastPage || 'غير معروف'}`;
+        return `تقرير مهمة المتصفح (جزئي):\n- تنقلات: ${navs}\n- نقرات: ${clicks}\n- مفاتيح/كتابة: ${keys}\n- تمرير: ${scrolls}\n- الصفحة الأخيرة: ${lastPage || 'غير معروف'}`;
       })();
-      window.dispatchEvent(new CustomEvent('joe:browser-report', { detail: { entries: activity, summary } }));
+      window.dispatchEvent(new CustomEvent('joe:browser-summary', { detail: { entries: activity, summary } }));
       window.dispatchEvent(new Event('joe:end-browser-task'));
     } catch { /* noop */ }
     onClose();

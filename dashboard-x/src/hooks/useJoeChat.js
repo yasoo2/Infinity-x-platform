@@ -1201,17 +1201,14 @@ export const useJoeChat = () => {
     window.addEventListener('auth:forbidden', onForbidden);
     return () => window.removeEventListener('auth:forbidden', onForbidden);
   }, []);
-
+  const browserSummaryRef = useRef(null);
   useEffect(() => {
-    const onBrowserReport = (e) => {
+    const onBrowserSummary = (e) => {
       const d = e?.detail || {};
-      const text = typeof d.summary === 'string' && d.summary.trim().length > 0
-        ? d.summary
-        : 'تم إنهاء مهمة المتصفح.';
-      dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
+      browserSummaryRef.current = d;
     };
-    window.addEventListener('joe:browser-report', onBrowserReport);
-    return () => window.removeEventListener('joe:browser-report', onBrowserReport);
+    window.addEventListener('joe:browser-summary', onBrowserSummary);
+    return () => window.removeEventListener('joe:browser-summary', onBrowserSummary);
   }, []);
 
   const handleSend = useCallback(async () => {
