@@ -1218,6 +1218,115 @@ export const useJoeChat = () => {
     return () => window.removeEventListener('joe:browser-summary', onBrowserSummary);
   }, []);
 
+  const browserDataRef = useRef(null);
+  useEffect(() => {
+    const onBrowserData = async (e) => {
+      const detail = e?.detail || {};
+      const lang = getLang();
+      let inputText = '';
+      if (Array.isArray(detail.serpResults) && detail.serpResults.length > 0) {
+        const items = detail.serpResults.slice(0, 10).map((r) => {
+          const t = String(r?.title || '').trim();
+          const u = String(r?.url || '').trim();
+          const s = String(r?.snippet || '').trim();
+          const lines = [t, u, s].filter(Boolean);
+          return lines.join('\n');
+        }).join('\n\n');
+        const header = lang === 'ar' ? 'ادخال المعرفة من نتائج المتصفح:' : 'Ingest knowledge from browser results:';
+        const directive = lang === 'ar' ? 'حلّل هذه النتائج واستعملها للبناء على النظام المكلف به.' : 'Analyze these results and use them to build the assigned system.';
+        inputText = `${header}\n\n${items}\n\n${directive}`;
+      } else if (typeof detail.pageText === 'string' && detail.pageText.trim().length > 0) {
+        const text = String(detail.pageText).slice(0, 8000);
+        const header = lang === 'ar' ? 'ادخال المعرفة من نص الصفحة:' : 'Ingest knowledge from page text:';
+        const directive = lang === 'ar' ? 'حلّل المحتوى واستعمله في متابعة التنفيذ.' : 'Analyze the content and use it to continue execution.';
+        inputText = `${header}\n\n${text}\n\n${directive}`;
+      } else {
+        return;
+      }
+      browserDataRef.current = detail;
+      dispatch({ type: 'SEND_MESSAGE', payload: inputText });
+      dispatch({ type: 'START_PROCESSING', payload: inputText });
+      let sid = null;
+      try {
+        let t = localStorage.getItem('sessionToken');
+        if (!t) {
+          const r = await getGuestToken();
+          if (r?.ok && r?.token) {
+            localStorage.setItem('sessionToken', r.token);
+            t = r.token;
+          }
+        }
+        const convId = stateRef.current.currentConversationId;
+        const conv = stateRef.current.conversations[convId] || null;
+        sid = conv?.sessionId || null;
+        if (!sid) {
+          const created = await createChatSession(normalizeTitle(inputText));
+          const s = created?.session;
+          sid = s?._id || s?.id || null;
+          if (sid) dispatch({ type: 'SET_SESSION_ID', payload: { id: convId, sessionId: sid } });
+        } else {
+          await updateChatSession(sid, { title: normalizeTitle(inputText) }).catch(() => {});
+        }
+        if (sid) {
+          await addChatMessage(sid, { type: 'user', content: inputText }).catch(() => {});
+        }
+      } catch { void 0; }
+      const selectedModel = activeModelRef.current || localStorage.getItem('aiSelectedModel') || null;
+      const payload = { action: 'instruct', message: inputText, sessionId: sid || undefined, lang };
+      if (selectedModel) payload.model = selectedModel;
+      if (sioRef.current && sioRef.current.connected) {
+        sioRef.current.emit('message', payload);
+        try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
+        sioSendTimeoutRef.current = setTimeout(async () => {
+          try {
+            const ctx = { sessionId: sid || undefined, lang };
+            if (selectedModel) ctx.model = selectedModel;
+            const { data } = await apiClient.post('/api/v1/joe/execute', { instruction: inputText, context: ctx });
+            const text = sanitizeCompetitors(String(data?.response || data?.message || '').trim());
+            if (text) dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
+            try {
+              const tools = Array.isArray(data?.toolsUsed) ? data.toolsUsed : [];
+              for (const t of tools) {
+                const name = (typeof t === 'string') ? t : ((t?.function?.name) || t?.name || t?.tool || '');
+                const details = (typeof t === 'object') ? (t?.function?.arguments || t?.arguments || t?.args || null) : null;
+                if (name) dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'tool_used', content: name, details } });
+              }
+            } catch { /* noop */ }
+          } catch { /* noop */ } finally {
+            dispatch({ type: 'STOP_PROCESSING' });
+            dispatch({ type: 'REMOVE_PENDING_LOGS' });
+            try { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } catch { /* noop */ }
+            if (syncRef.current) syncRef.current();
+          }
+        }, 8000);
+      } else if (ws.current?.readyState === WebSocket.OPEN) {
+        try { ws.current.send(JSON.stringify(payload)); } catch { /* noop */ }
+      } else {
+        try {
+          const ctx2 = { sessionId: sid || undefined, lang };
+          if (selectedModel) ctx2.model = selectedModel;
+          const { data } = await apiClient.post('/api/v1/joe/execute', { instruction: inputText, context: ctx2 });
+          const text = sanitizeCompetitors(String(data?.response || data?.message || '').trim());
+          if (text) dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
+          try {
+            const tools = Array.isArray(data?.toolsUsed) ? data.toolsUsed : [];
+            for (const t of tools) {
+              const name = (typeof t === 'string') ? t : ((t?.function?.name) || t?.name || t?.tool || '');
+              const details = (typeof t === 'object') ? (t?.function?.arguments || t?.arguments || t?.args || null) : null;
+              if (name) dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'tool_used', content: name, details } });
+            }
+          } catch { /* noop */ }
+        } catch { /* noop */ } finally {
+          dispatch({ type: 'STOP_PROCESSING' });
+          dispatch({ type: 'REMOVE_PENDING_LOGS' });
+          if (syncRef.current) syncRef.current();
+        }
+      }
+    };
+    window.addEventListener('joe:browser-data', onBrowserData);
+    return () => window.removeEventListener('joe:browser-data', onBrowserData);
+  }, []);
+
   const handleSend = useCallback(async () => {
     const inputText = state.input.trim();
     if (!inputText) return;
