@@ -62,6 +62,20 @@ class BrowserController {
             if (fs.existsSync(candidate)) execCandidates.push(candidate);
           }
         } catch { /* noop */ }
+        try {
+          const chromiumDir = path.join(base, 'chromium');
+          const kEntries = await fs.promises.readdir(chromiumDir).catch(() => []);
+          for (const entry of kEntries) {
+            const candidate = path.join(
+              chromiumDir,
+              entry,
+              process.platform === 'darwin'
+                ? 'chrome-mac/Chromium.app/Contents/MacOS/Chromium'
+                : 'chrome'
+            );
+            if (fs.existsSync(candidate)) execCandidates.push(candidate);
+          }
+        } catch { /* noop */ }
       }
       const foundPath = execCandidates.find(p => {
         try { return fs.existsSync(p); } catch { return false; }
@@ -81,8 +95,7 @@ class BrowserController {
         }
       }
 
-      this.context = await this.browser.createIncognitoBrowserContext();
-      this.page = await this.context.newPage();
+      this.page = await this.browser.newPage();
       await this.page.setViewport({ width: 1280, height: 720 });
       await this.page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
       try {
