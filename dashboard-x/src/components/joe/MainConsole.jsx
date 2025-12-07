@@ -4,6 +4,7 @@ import { FiMic, FiPaperclip, FiSend, FiStopCircle, FiCompass, FiArrowDown, FiLin
 import { useJoeChatContext } from '../../context/JoeChatContext.jsx';
 import apiClient from '../../api/client';
 import { getSystemStatus, listUserUploads, deleteUserUpload } from '../../api/system';
+import JoeScreen from '../JoeScreen.jsx';
 
 const WelcomeScreen = ({ toolsCount }) => (
   <div className="flex flex-col items-center justify-center h-full text-center px-6">
@@ -166,13 +167,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
 
   useEffect(() => {
     const onOpenBrowser = () => {
-      try {
-        const loc = (typeof window !== 'undefined' ? window.location : null);
-        const host = String(loc?.hostname || '').toLowerCase();
-        const isLocal = host === 'localhost' || host === '127.0.0.1';
-        const url = isLocal ? 'http://localhost:4001/dashboard/joe-screen' : 'https://www.xelitesolutions.com/dashboard/joe';
-        window.open(url, '_blank', 'noopener,noreferrer');
-      } catch { /* noop */ }
+      try { setShowBrowserPanel(true); setBrowserPanelMode('mini'); } catch { /* noop */ }
     };
     window.addEventListener('joe:open-browser', onOpenBrowser);
     return () => window.removeEventListener('joe:open-browser', onOpenBrowser);
@@ -641,17 +636,9 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                     <div className="flex items-center justify-between gap-3 mb-2">
                       <p className="text-sm text-gray-300">{currentStep || 'Processing your request...'}</p>
                       <button
-                        onClick={() => {
-                          try {
-                            const loc = (typeof window !== 'undefined' ? window.location : null);
-                            const host = String(loc?.hostname || '').toLowerCase();
-                            const isLocal = host === 'localhost' || host === '127.0.0.1';
-                            const url = isLocal ? 'http://localhost:4001/dashboard/joe-screen' : 'https://www.xelitesolutions.com/dashboard/joe';
-                            window.open(url, '_blank', 'noopener,noreferrer');
-                          } catch { /* noop */ }
-                        }}
+                        onClick={() => { setShowBrowserPanel(true); setBrowserPanelMode('mini'); }}
                         className="text-xs px-2 py-1 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-200 border border-gray-600"
-                        title={lang==='ar' ? 'فتح شاشة جو' : 'Open Joe Screen'}
+                        title={lang==='ar' ? 'فتح شاشة جو داخل الجلسة' : 'Open Joe Screen inline'}
                       >
                         {lang==='ar' ? 'شاشة جو' : 'Joe Screen'}
                       </button>
@@ -763,9 +750,9 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
               <div ref={messagesEndRef} />
             </div>
           )}
-        </div>
-        {/* Scroll To Bottom - Floating Button */}
-        <button
+      </div>
+      {/* Scroll To Bottom - Floating Button */}
+      <button
           onClick={() => {
             const el = scrollContainerRef.current;
             if (!el) return;
@@ -785,6 +772,35 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
           </span>
         </button>
       </div>
+
+      {/* Embedded Joe Screen Panel */}
+      {showBrowserPanel && (
+        <div className={(() => {
+          const base = 'fixed z-50 bg-gray-900/98 border border-gray-800 rounded-xl shadow-2xl overflow-hidden';
+          if (browserPanelMode === 'full') return base + ' inset-0';
+          if (browserPanelMode === 'half') return base + ' top-0 right-0 h-full w-1/2';
+          return base + ' bottom-4 right-4 w-[400px] h-[280px]';
+        })()}>
+          <div className="flex items-center justify-between px-3 py-2 bg-gray-800 border-b border-gray-700">
+            <div className="text-xs text-gray-300">{lang==='ar' ? 'شاشة جو المدمجة' : 'Embedded Joe Screen'}</div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setBrowserPanelMode('mini')} className="text-xs px-2 py-1 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-200 border border-gray-600">{lang==='ar' ? 'تصغير' : 'Mini'}</button>
+              <button onClick={() => setBrowserPanelMode('half')} className="text-xs px-2 py-1 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-200 border border-gray-600">{lang==='ar' ? 'نصف الشاشة' : 'Half'}</button>
+              <button onClick={() => setBrowserPanelMode('full')} className="text-xs px-2 py-1 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-200 border border-gray-600">{lang==='ar' ? 'ملء الشاشة' : 'Full'}</button>
+              <button onClick={() => setShowBrowserPanel(false)} className="text-xs px-2 py-1 rounded-md bg-red-700 hover:bg-red-600 text-white border border-red-600">{lang==='ar' ? 'إغلاق' : 'Close'}</button>
+            </div>
+          </div>
+          <div className="w-full h-full">
+            <JoeScreen
+              isProcessing={isProcessing}
+              progress={progress}
+              wsLog={[]}
+              onTakeover={() => {}}
+              onClose={() => setShowBrowserPanel(false)}
+            />
+          </div>
+        </div>
+      )}
       
 
       {/* Conversations strip removed to avoid duplication with left SidePanel */}
@@ -1086,3 +1102,5 @@ MainConsole.propTypes = {
   isBottomPanelOpen: PropTypes.bool,
   isBottomCollapsed: PropTypes.bool,
 };
+  const [showBrowserPanel, setShowBrowserPanel] = React.useState(false);
+  const [browserPanelMode, setBrowserPanelMode] = React.useState('mini'); // 'mini' | 'half' | 'full'
