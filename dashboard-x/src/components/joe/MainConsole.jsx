@@ -514,9 +514,15 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                     className={`max-w-[90%] sm:max-w-[85%] md:max-w-[75%] rounded-2xl px-5 py-4 ${
                       msg.type === 'user' 
                         ? 'bg-gradient-to-br from-yellow-500 to-yellow-600 text-black border border-yellow-600 ring-1 ring-yellow-600/30 shadow-xl' 
-                        : 'bg-gradient-to-br from-gray-800 to-gray-900 text-gray-100 border border-gray-700 ring-1 ring-gray-700/30 shadow-md'
+                        : 'bg-gradient-to-br from-blue-900 to-gray-900 text-gray-100 border border-blue-800 ring-1 ring-blue-700/40 shadow-xl backdrop-blur-sm'
                     }`}
                   >
+                    {msg.type !== 'user' && (
+                      <div className="flex items-center gap-2 text-xs text-gray-300 mb-2">
+                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-yellow-500 text-black font-bold">J</span>
+                        <span className="uppercase tracking-wide">JOE</span>
+                      </div>
+                    )}
                     <p className="text-base leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
                   </div>
                 </div>
@@ -531,6 +537,11 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                         className="bg-gradient-to-r from-yellow-500 to-yellow-600 h-2.5 rounded-full transition-all duration-300" 
                         style={{ width: `${progress}%` }}
                       ></div>
+                    </div>
+                    <div className="relative mt-2 h-8 overflow-hidden">
+                      <style>{`@keyframes joeWalk{0%{transform:translateX(0) rotateY(0);}50%{transform:translateX(70%) rotateY(180deg);}100%{transform:translateX(0) rotateY(0);} }`}</style>
+                      <div className="absolute inset-x-0 top-3 h-1 bg-gray-700 rounded-full"></div>
+                      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-yellow-500 text-black font-bold shadow-md" style={{ animation: 'joeWalk 2.4s infinite linear' }}>J</span>
                     </div>
                     <div className="flex items-center justify-between gap-3 mb-2">
                       <p className="text-sm text-gray-300">{currentStep || 'Processing your request...'}</p>
