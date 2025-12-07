@@ -514,6 +514,40 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                   const wb = b.type === 'user' ? 0 : 1;
                   return wa - wb;
                 });
+                const renderContent = (text) => {
+                  const t = String(text || '');
+                  const urlRe = /(https?:\/\/[^\s)]+)/g;
+                  const parts = [];
+                  let lastIndex = 0;
+                  let m;
+                  while ((m = urlRe.exec(t)) !== null) {
+                    const i = m.index;
+                    const u = m[0];
+                    if (i > lastIndex) parts.push(t.slice(lastIndex, i));
+                    parts.push({ href: u });
+                    lastIndex = i + u.length;
+                  }
+                  if (lastIndex < t.length) parts.push(t.slice(lastIndex));
+                  const imageUrls = Array.from(new Set((t.match(/https?:\/\/[^\s)]+/g) || []).filter(u => /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(u))));
+                  return (
+                    <>
+                      <p className="text-base leading-relaxed whitespace-pre-wrap break-words">
+                        {parts.map((p, i) => typeof p === 'string' ? p : (
+                          <a key={`lnk-${i}`} href={p.href} target="_blank" rel="noopener noreferrer" className="underline text-yellow-400 break-all">{p.href}</a>
+                        ))}
+                      </p>
+                      {imageUrls.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-3">
+                          {imageUrls.slice(0, 4).map((src, i) => (
+                            <a key={`img-${i}`} href={src} target="_blank" rel="noopener noreferrer" className="block">
+                              <img src={src} alt="image" className="max-h-56 rounded-lg border border-gray-700"/>
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  );
+                };
                 return ordered.map((msg, index) => (
                   <div 
                     key={msg.id || index} 
@@ -532,7 +566,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                         <span className="uppercase tracking-wide">JOE</span>
                       </div>
                     )}
-                    <p className="text-base leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
+                    {renderContent(msg.content)}
                   </div>
                 </div>
               ));
