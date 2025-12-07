@@ -34,12 +34,16 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
     pageInfo,
     isConnected,
     isLoading,
+    pageText,
+    serpResults,
     navigate,
     click,
     type,
     scroll,
     pressKey,
     getScreenshot,
+    getPageText,
+    extractSerp,
     startStreaming,
     stopStreaming
   } = useBrowserWebSocket();
@@ -401,6 +405,23 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
                       >
                         <Maximize2 className="w-3 h-3" />
                       </button>
+                      <div className="w-px h-5 bg-gray-700 mx-2" />
+                      <button
+                        onClick={() => extractSerp(searchQuery)}
+                        disabled={!isConnected || isLoading}
+                        className="bg-purple-600 hover:bg-purple-700 text-white text-xs px-3 py-1.5 rounded disabled:opacity-50"
+                        title="قراءة نتائج جوجل"
+                      >
+                        قراءة النتائج
+                      </button>
+                      <button
+                        onClick={getPageText}
+                        disabled={!isConnected || isLoading}
+                        className="bg-gray-700 hover:bg-gray-600 text-white text-xs px-3 py-1.5 rounded disabled:opacity-50"
+                        title="قراءة نص الصفحة"
+                      >
+                        نص الصفحة
+                      </button>
                     </div>
 
                     {/* Browser Content Area - Real Screenshot */}
@@ -456,6 +477,48 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
                     {pageInfo.title && (
                       <div className="px-3 py-1.5 bg-gray-800 border-t border-gray-700 text-xs text-gray-400 truncate">
                         <span className="font-medium text-purple-400">Title:</span> {pageInfo.title}
+                      </div>
+                    )}
+                    {(serpResults && serpResults.length > 0) && (
+                      <div className="px-3 py-2 bg-gray-900 border-t border-gray-700 text-xs text-gray-200">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-medium text-blue-300">نتائج مقروءة</span>
+                          <button
+                            onClick={() => { try { window.dispatchEvent(new CustomEvent('joe:browser-data', { detail: { serpResults } })); } catch { /* noop */ } }}
+                            className="px-2 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white"
+                          >
+                            إرسال إلى جو
+                          </button>
+                        </div>
+                        <div className="space-y-1 max-h-40 overflow-auto">
+                          {serpResults.slice(0,10).map((r, i) => (
+                            <div key={r.url || i} className="flex items-start gap-2">
+                              <span className="text-gray-500">{i+1}.</span>
+                              <div className="flex-1">
+                                <div className="text-white truncate">{r.title}</div>
+                                <div className="text-gray-400 truncate">{r.url}</div>
+                                {r.snippet && (<div className="text-gray-500 line-clamp-2">{r.snippet}</div>)}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {(pageText && pageText.length > 0) && (
+                      <div className="px-3 py-2 bg-gray-900 border-t border-gray-700 text-xs text-gray-200">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-medium text-purple-300">نص مقروء</span>
+                          <button
+                            onClick={() => { try { window.dispatchEvent(new CustomEvent('joe:browser-data', { detail: { pageText } })); } catch { /* noop */ } }}
+                            className="px-2 py-1 rounded bg-purple-600 hover:bg-purple-500 text-white"
+                          >
+                            إرسال إلى جو
+                          </button>
+                        </div>
+                        <div className="text-gray-300 whitespace-pre-wrap break-words max-h-40 overflow-auto">
+                          {pageText.slice(0, 1200)}
+                          {pageText.length > 1200 && '…'}
+                        </div>
                       </div>
                     )}
                   </div>
