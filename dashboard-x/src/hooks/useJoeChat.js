@@ -448,14 +448,16 @@ export const useJoeChat = () => {
   }, []);
 
   const deleteConversation = useCallback(async (id) => {
+    const conv = state.conversations[id];
+    const sid = conv?.sessionId || id;
     dispatch({ type: 'DELETE_CONVERSATION', payload: { id } });
     try {
-      await deleteChatSession(id);
+      await deleteChatSession(sid);
     } catch { void 0; }
     try {
       if (syncRef.current) syncRef.current();
     } catch { void 0; }
-  }, []);
+  }, [state.conversations]);
 
   useEffect(() => {
     try {
