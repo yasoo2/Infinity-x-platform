@@ -153,6 +153,60 @@ class BrowserController {
     }
   }
 
+  async getPageText() {
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
+    try {
+      const text = await this.page.evaluate(() => document.body ? document.body.innerText || '' : '');
+      const trimmed = String(text || '').trim();
+      return { success: true, text: trimmed.slice(0, 50000) };
+    } catch (error) {
+      console.error('Get page text error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async extractSerp(query) {
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
+    try {
+      if (query && String(query).trim().length > 0) {
+        const q = encodeURIComponent(String(query).trim());
+        await this.navigate(`https://www.google.com/search?q=${q}`);
+      }
+      const results = await this.page.evaluate(() => {
+        const items = [];
+        const containers = document.querySelectorAll('#search .g, #search .MjjYud');
+        containers.forEach((c) => {
+          const a = c.querySelector('a');
+          const h = c.querySelector('h3');
+          const s = c.querySelector('.VwiC3b, .MUxGbd, .lyLwlc');
+          const url = a && a.href ? a.href : '';
+          const title = h && h.textContent ? h.textContent : '';
+          const snippet = s && s.textContent ? s.textContent : '';
+          if (url && title) {
+            items.push({ title, url, snippet });
+          }
+        });
+        if (items.length === 0) {
+          // Fallback: generic links with headings
+          document.querySelectorAll('#search a').forEach(a => {
+            const url = a.href || '';
+            const title = a.textContent || '';
+            if (url && title) items.push({ title, url, snippet: '' });
+          });
+        }
+        return items.slice(0, 20);
+      });
+      return { success: true, results };
+    } catch (error) {
+      console.error('Extract SERP error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
   async close() {
     if (this.browser) {
       await this.browser.close();

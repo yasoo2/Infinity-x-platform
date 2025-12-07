@@ -124,6 +124,23 @@ class BrowserWebSocketServer {
           break;
         }
 
+      case 'get_page_text':
+        {
+          const textResult = await this.browserController.getPageText();
+          const pageInfo = await this.browserController.getPageInfo();
+          ws.send(JSON.stringify({ type: 'page_text', payload: { result: textResult, pageInfo } }));
+          break;
+        }
+
+      case 'extract_serp':
+        {
+          const query = payload?.query || '';
+          const serp = await this.browserController.extractSerp(query);
+          const pageInfo = await this.browserController.getPageInfo();
+          ws.send(JSON.stringify({ type: 'serp_results', payload: { result: serp, pageInfo } }));
+          break;
+        }
+
       case 'start_streaming':
         {
           if (!this.screenshotInterval) {
