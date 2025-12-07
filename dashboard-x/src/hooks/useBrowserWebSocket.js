@@ -8,17 +8,16 @@ const useBrowserWebSocket = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [pageText, setPageText] = useState('');
   const [serpResults, setSerpResults] = useState([]);
-  const wsRef = useRef(null);
+  const ioRef = useRef(null);
 
   useEffect(() => {
-    const failCountRef = { current: 0 };
-    const lastAttemptRef = { current: 0 };
-    const connect = () => {
+    void 0;
+    const connect = async () => {
       let sessionToken = null;
       try { sessionToken = localStorage.getItem('sessionToken'); } catch { sessionToken = null; }
 
       let base = (typeof apiClient?.defaults?.baseURL === 'string' ? apiClient.defaults.baseURL : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000'));
-      let wsBase = String(base).replace(/^https/, 'wss').replace(/^http/, 'ws');
+      let httpBase = String(base);
       const ensureToken = async () => {
         if (sessionToken) return sessionToken;
         try {
@@ -32,158 +31,83 @@ const useBrowserWebSocket = () => {
         return null;
       };
 
-      (async () => {
-        const token = await ensureToken();
-        if (!token) return;
-        const wsUrl = `${wsBase}/ws/browser?token=${token}`;
-        try { console.warn('[Browser WS] Connecting:', wsUrl); } catch { /* noop */ }
-
-        wsRef.current = new WebSocket(wsUrl);
-
-        wsRef.current.onopen = () => {
-          setIsConnected(true);
-          try { wsRef.current.send(JSON.stringify({ type: 'get_screenshot' })); } catch { /* noop */ }
-          try { wsRef.current.send(JSON.stringify({ type: 'start_streaming' })); } catch { /* noop */ }
-          failCountRef.current = 0;
-        };
-
-        wsRef.current.onclose = (ev) => {
-          setIsConnected(false);
-          try { console.warn('[Browser WS] Closed:', { code: ev?.code, reason: ev?.reason }); } catch { /* noop */ }
-          failCountRef.current += 1;
-          const now = Date.now();
-          if (failCountRef.current >= 3 && now - (lastAttemptRef.current || 0) < 15000) {
-            try {
-              const alt = (typeof window !== 'undefined' ? window.location.origin : base);
-              base = alt;
-              wsBase = String(base).replace(/^https/, 'wss').replace(/^http/, 'ws');
-            } catch { /* noop */ }
-          }
-          lastAttemptRef.current = now;
-          setTimeout(connect, Math.min(6000, 1500 + 500 * failCountRef.current));
-        };
-
-        wsRef.current.onerror = (err) => {
-          try { console.error('[Browser WS] Error:', err); } catch { /* noop */ }
-          failCountRef.current += 1;
-        };
-
-        wsRef.current.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            switch (data.type) {
-              case 'screenshot':
-                setScreenshot(data.payload.screenshot);
-                setPageInfo(data.payload.pageInfo);
-                setIsLoading(false);
-                break;
-              case 'page_text':
-                setPageText(String(data.payload?.result?.text || ''));
-                setPageInfo(data.payload.pageInfo || {});
-                setIsLoading(false);
-                break;
-              case 'serp_results':
-                setSerpResults(Array.isArray(data.payload?.result?.results) ? data.payload.result.results : []);
-                setPageInfo(data.payload.pageInfo || {});
-                setIsLoading(false);
-                break;
-              case 'navigate_result':
-              case 'click_result':
-              case 'type_result':
-              case 'scroll_result':
-              case 'press_key_result':
-                break;
-              case 'error':
-                try { console.error('[Browser WS] Server Error:', data.message); } catch { /* noop */ }
-                setIsLoading(false);
-                break;
-              default:
-                break;
-            }
-          } catch { /* noop */ }
-        };
-      })();
+      const token = await ensureToken();
+      if (!token) return;
+      const { io } = await import('socket.io-client');
+      const ioUrl = httpBase.replace(/\/$/, '');
+      ioRef.current = io(`${ioUrl}/joe-agent`, { path: '/socket.io', auth: { token }, transports: ['polling','websocket'], upgrade: true, reconnection: true });
+      ioRef.current.on('connect', () => { setIsConnected(true); ioRef.current.emit('browser:start'); ioRef.current.emit('browser:start_streaming'); });
+      ioRef.current.on('disconnect', () => { setIsConnected(false); });
+      ioRef.current.on('error', (e) => { try { console.error('[Browser IO] Error:', e); } catch { /* noop */ } });
+      ioRef.current.on('browser:screenshot', ({ screenshot: sc, pageInfo: pi }) => { setScreenshot(sc); setPageInfo(pi || {}); setIsLoading(false); });
+      ioRef.current.on('browser:page_text', ({ result, pageInfo: pi }) => { setPageText(String(result?.text || '')); setPageInfo(pi || {}); setIsLoading(false); });
+      ioRef.current.on('browser:serp_results', ({ result, pageInfo: pi }) => { setSerpResults(Array.isArray(result?.results) ? result.results : []); setPageInfo(pi || {}); setIsLoading(false); });
     };
 
     connect();
-    return () => wsRef.current?.close();
+    return () => { try { ioRef.current?.close(); } catch { /* noop */ } };
   }, []);
 
   const navigate = useCallback((url) => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+    if (ioRef.current && ioRef.current.connected) {
       setIsLoading(true);
-      wsRef.current.send(JSON.stringify({
-        type: 'navigate',
-        payload: { url }
-      }));
+      ioRef.current.emit('browser:navigate', { url });
     }
   }, []);
 
   const click = useCallback((x, y) => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        type: 'click',
-        payload: { x, y }
-      }));
+    if (ioRef.current && ioRef.current.connected) {
+      ioRef.current.emit('browser:click', { x, y });
     }
   }, []);
 
   const type = useCallback((text) => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        type: 'type',
-        payload: { text }
-      }));
+    if (ioRef.current && ioRef.current.connected) {
+      ioRef.current.emit('browser:type', { text });
     }
   }, []);
 
   const scroll = useCallback((deltaY) => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        type: 'scroll',
-        payload: { deltaY }
-      }));
+    if (ioRef.current && ioRef.current.connected) {
+      ioRef.current.emit('browser:scroll', { deltaY });
     }
   }, []);
 
   const pressKey = useCallback((key) => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        type: 'press_key',
-        payload: { key }
-      }));
+    if (ioRef.current && ioRef.current.connected) {
+      ioRef.current.emit('browser:press_key', { key });
     }
   }, []);
 
   const getScreenshot = useCallback(() => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'get_screenshot' }));
+    if (ioRef.current && ioRef.current.connected) {
+      ioRef.current.emit('browser:get_screenshot');
     }
   }, []);
 
   const getPageText = useCallback(() => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+    if (ioRef.current && ioRef.current.connected) {
       setIsLoading(true);
-      wsRef.current.send(JSON.stringify({ type: 'get_page_text' }));
+      ioRef.current.emit('browser:get_page_text');
     }
   }, []);
 
   const extractSerp = useCallback((query) => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+    if (ioRef.current && ioRef.current.connected) {
       setIsLoading(true);
-      wsRef.current.send(JSON.stringify({ type: 'extract_serp', payload: { query } }));
+      ioRef.current.emit('browser:extract_serp', { query });
     }
   }, []);
 
   const startStreaming = useCallback(() => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'start_streaming' }));
+    if (ioRef.current && ioRef.current.connected) {
+      ioRef.current.emit('browser:start_streaming');
     }
   }, []);
 
   const stopStreaming = useCallback(() => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'stop_streaming' }));
+    if (ioRef.current && ioRef.current.connected) {
+      ioRef.current.emit('browser:stop_streaming');
     }
   }, []);
 

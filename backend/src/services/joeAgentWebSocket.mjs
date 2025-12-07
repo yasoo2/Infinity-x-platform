@@ -9,6 +9,7 @@ import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import config from '../config.mjs';
 import { v4 as uuidv4 } from 'uuid';
+import BrowserController from './browserController.mjs';
 
 /**
  * Joe Agent WebSocket Server - v2.0 "Unified"
@@ -34,6 +35,7 @@ export class JoeAgentWebSocketServer {
     this.rateWindowMs = Number(process.env.WS_RATE_WINDOW_MS || 60000);
     this.rateMaxCount = Number(process.env.WS_RATE_MAX_COUNT || 120);
     this.maxMessageLength = Number(process.env.WS_MAX_MESSAGE_LENGTH || 10000000);
+    this.browserByUser = new Map();
     // Heartbeat to keep connections alive and detect broken sockets
     this.heartbeat = setInterval(() => {
       this.wss.clients.forEach((client) => {
@@ -265,6 +267,91 @@ export class JoeAgentWebSocketServer {
       nsp.on('connection', (socket) => {
         socket.emit('status', { message: 'Connected to Joe Agent v2 "Unified". Ready for instructions.' });
 
+        const getOrCreateBrowser = async () => {
+          const uid = socket.data.userId;
+          let bc = this.browserByUser.get(uid);
+          if (!bc) {
+            bc = new BrowserController();
+            await bc.initialize();
+            this.browserByUser.set(uid, bc);
+          }
+          return bc;
+        };
+
+        socket.on('browser:start', async () => {
+          try {
+            const bc = await getOrCreateBrowser();
+            const screenshot = await bc.getScreenshot();
+            const pageInfo = await bc.getPageInfo();
+            socket.emit('browser:screenshot', { screenshot, pageInfo });
+          } catch (e) {
+            socket.emit('error', { code: 'BROWSER_START_FAILED', message: String(e?.message || 'Failed to start browser') });
+          }
+        });
+
+        socket.on('browser:stop', async () => {
+          try {
+            const uid = socket.data.userId;
+            const bc = this.browserByUser.get(uid);
+            if (bc) { await bc.close(); this.browserByUser.delete(uid); }
+            socket.emit('status', { message: 'Browser stopped.' });
+          } catch (e) { socket.emit('error', { code: 'BROWSER_STOP_FAILED', message: String(e?.message || 'Failed to stop browser') }); }
+        });
+
+        socket.on('browser:navigate', async ({ url }) => {
+          try {
+            const bc = await getOrCreateBrowser();
+            await bc.navigate(url);
+            const screenshot = await bc.getScreenshot();
+            const pageInfo = await bc.getPageInfo();
+            socket.emit('browser:screenshot', { screenshot, pageInfo });
+          } catch (e) { socket.emit('error', { code: 'NAVIGATE_FAILED', message: String(e?.message || 'Navigation failed') }); }
+        });
+
+        socket.on('browser:get_screenshot', async () => {
+          try { const bc = await getOrCreateBrowser(); const screenshot = await bc.getScreenshot(); const pageInfo = await bc.getPageInfo(); socket.emit('browser:screenshot', { screenshot, pageInfo }); } catch (e) { socket.emit('error', { code: 'SCREENSHOT_FAILED', message: String(e?.message || 'Screenshot failed') }); }
+        });
+
+        socket.on('browser:get_page_text', async () => {
+          try { const bc = await getOrCreateBrowser(); const result = await bc.getPageText(); const pageInfo = await bc.getPageInfo(); socket.emit('browser:page_text', { result, pageInfo }); } catch (e) { socket.emit('error', { code: 'PAGE_TEXT_FAILED', message: String(e?.message || 'Get page text failed') }); }
+        });
+
+        socket.on('browser:extract_serp', async ({ query }) => {
+          try { const bc = await getOrCreateBrowser(); const result = await bc.extractSerp(query); const pageInfo = await bc.getPageInfo(); socket.emit('browser:serp_results', { result, pageInfo }); } catch (e) { socket.emit('error', { code: 'SERP_FAILED', message: String(e?.message || 'SERP failed') }); }
+        });
+
+        socket.on('browser:click', async ({ x, y }) => {
+          try { const bc = await getOrCreateBrowser(); await bc.click(x, y); const screenshot = await bc.getScreenshot(); socket.emit('browser:screenshot', { screenshot }); } catch (e) { socket.emit('error', { code: 'CLICK_FAILED', message: String(e?.message || 'Click failed') }); }
+        });
+
+        socket.on('browser:type', async ({ text }) => {
+          try { const bc = await getOrCreateBrowser(); await bc.type(text); socket.emit('status', { message: 'Typed.' }); } catch (e) { socket.emit('error', { code: 'TYPE_FAILED', message: String(e?.message || 'Type failed') }); }
+        });
+
+        socket.on('browser:scroll', async ({ deltaY }) => {
+          try { const bc = await getOrCreateBrowser(); await bc.scroll(deltaY); const screenshot = await bc.getScreenshot(); socket.emit('browser:screenshot', { screenshot }); } catch (e) { socket.emit('error', { code: 'SCROLL_FAILED', message: String(e?.message || 'Scroll failed') }); }
+        });
+
+        socket.on('browser:press_key', async ({ key }) => {
+          try { const bc = await getOrCreateBrowser(); await bc.pressKey(key); socket.emit('status', { message: `Pressed ${key}` }); } catch (e) { socket.emit('error', { code: 'PRESS_KEY_FAILED', message: String(e?.message || 'Press key failed') }); }
+        });
+
+        socket.on('browser:start_streaming', async () => {
+          try {
+            const bc = await getOrCreateBrowser();
+            const key = `stream:${socket.id}`;
+            if (socket.data.browserStreamTimer) { clearInterval(socket.data.browserStreamTimer); socket.data.browserStreamTimer = null; }
+            socket.data.browserStreamTimer = setInterval(async () => {
+              try { const screenshot = await bc.getScreenshot(); const pageInfo = await bc.getPageInfo(); socket.emit('browser:screenshot', { screenshot, pageInfo }); } catch { /* noop */ }
+            }, 1000);
+            this.streamBuffers.set(key, true);
+          } catch (e) { socket.emit('error', { code: 'STREAM_START_FAILED', message: String(e?.message || 'Start streaming failed') }); }
+        });
+
+        socket.on('browser:stop_streaming', () => {
+          try { if (socket.data.browserStreamTimer) { clearInterval(socket.data.browserStreamTimer); socket.data.browserStreamTimer = null; } } catch { /* noop */ }
+        });
+
         socket.on('message', async (data) => {
           try {
             if (!data || typeof data.action !== 'string' || typeof data.message !== 'string') {
@@ -394,7 +481,9 @@ export class JoeAgentWebSocketServer {
           }
         });
 
-        socket.on('disconnect', () => { void 0 });
+        socket.on('disconnect', () => {
+          try { if (socket.data.browserStreamTimer) { clearInterval(socket.data.browserStreamTimer); socket.data.browserStreamTimer = null; } } catch { /* noop */ }
+        });
       });
     };
 
