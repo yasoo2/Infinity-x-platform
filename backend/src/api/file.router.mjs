@@ -226,7 +226,7 @@ const fileRouterFactory = ({ requireRole, fileProcessingService }) => {
     router.get('/uploads/list', requireRole('USER'), async (req, res) => {
         try {
             const uid = String(req.user?._id || '');
-            const safe = uid.replace(/[^A-Za-z0-9_:\-]/g, '_');
+            const safe = uid.replace(/[^A-Za-z0-9_:-]/g, '_');
             const baseUploads = path.join(process.cwd(), 'public-site', 'uploads');
             const userDir = path.join(baseUploads, safe);
             try { await fs.mkdir(userDir, { recursive: true }); } catch { /* noop */ }
@@ -250,7 +250,7 @@ const fileRouterFactory = ({ requireRole, fileProcessingService }) => {
     router.delete('/uploads/delete', requireRole('USER'), async (req, res) => {
         try {
             const uid = String(req.user?._id || '');
-            const safe = uid.replace(/[^A-Za-z0-9_:\-]/g, '_');
+            const safe = uid.replace(/[^A-Za-z0-9_:-]/g, '_');
             const { name } = req.body || {};
             if (!name || /\//.test(String(name))) return res.status(400).json({ success: false, error: 'INVALID_NAME' });
             const baseUploads = path.join(process.cwd(), 'public-site', 'uploads');

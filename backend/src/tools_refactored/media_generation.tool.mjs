@@ -147,7 +147,7 @@ class MediaGenerationTool {
             let userFolder = '';
             if (userId) {
                 try {
-                    const safe = String(userId).replace(/[^A-Za-z0-9_:\-]/g, '_');
+                    const safe = String(userId).replace(/[^A-Za-z0-9_:-]/g, '_');
                     userFolder = safe;
                     await fs.mkdir(path.join(baseUploads, userFolder), { recursive: true });
                 } catch { userFolder = ''; }
