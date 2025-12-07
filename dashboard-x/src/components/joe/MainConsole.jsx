@@ -178,11 +178,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
     return () => window.removeEventListener('joe:open-browser', onOpenBrowser);
   }, []);
 
-  useEffect(() => {
-    const onOpenBrowser = () => { try { setShowBrowser(true); } catch { /* noop */ } };
-    window.addEventListener('joe:open-browser', onOpenBrowser);
-    return () => window.removeEventListener('joe:open-browser', onOpenBrowser);
-  }, []);
+  
 
   
 
