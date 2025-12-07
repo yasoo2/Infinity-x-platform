@@ -197,13 +197,30 @@ async function processMessage(userId, message, sessionId, { model = null, lang }
 🤖 JOE v9 "Gemini-Phoenix" [${model}] <lang=${String(lang||'').toLowerCase()||'en'}> "${message.substring(0, 80)}..." uid=${userId}`);
     try { joeEvents.emitProgress(userId, sessionId, 5, 'Starting'); } catch { /* noop */ }
 
-    // 1. Retrieve Conversation Context
-        const conversationHistory = await memoryManager.getConversationContext(userId, { limit: 15 });
+    // 1. Retrieve Conversation Context (prefer current session if available)
+        const conversationHistory = (() => { return null; })();
+        let convo = [];
+        try {
+            if (sessionId) {
+                const s = await memoryManager.getSession(sessionId, userId);
+                convo = Array.isArray(s?.interactions) ? s.interactions : [];
+            }
+            if (!convo || convo.length === 0) {
+                convo = await memoryManager.getConversationContext(userId, { limit: 15 });
+            }
+        } catch { convo = await memoryManager.getConversationContext(userId, { limit: 15 }); }
     try { joeEvents.emitProgress(userId, sessionId, 10, 'Context loaded'); } catch { /* noop */ }
-    const history = conversationHistory.map(item => ({
-        role: item.command.role === 'assistant' ? 'model' : 'user', // Gemini uses 'model' for assistant
-        parts: [{ text: item.command.content || String(item.command) }]
-    })).reverse();
+    const history = (() => {
+        const h = [];
+        const items = (convo || []).slice().reverse();
+        for (const item of items) {
+            const uText = String(item?.command?.content || item?.command || '').trim();
+            const aText = String(item?.result || '').trim();
+            if (uText) h.push({ role: 'user', parts: [{ text: uText }] });
+            if (aText) h.push({ role: 'model', parts: [{ text: aText }] });
+        }
+        return h;
+    })();
 
     const targetLang = (String(lang || '').toLowerCase() === 'ar') ? 'ar' : 'en';
     const languageDirective = targetLang === 'ar' ? 'اعتمد العربية في جميع الردود، ولخص المحتوى بشكل واضح مع نقاط موجزة وعناوين فرعية.' : 'Respond in English. Provide a clear summary with bullet points and subheadings.';
@@ -470,11 +487,19 @@ ${transcript.slice(0, 8000)}`;
     } else if (!handled && openaiClient) {
         try {
           const modelId = model || 'gpt-4o';
+          const convoLines = (convo || []).slice().reverse().map(m => {
+            const uc = String(m?.command?.content || m?.command || '').trim();
+            const ac = String(m?.result || '').trim();
+            const parts = [];
+            if (uc) parts.push(`User: ${uc}`);
+            if (ac) parts.push(`Assistant: ${ac}`);
+            return parts.join('\n');
+          }).filter(Boolean);
           const flatPrompt = [
             MANUS_STYLE_PROMPT,
             languageDirective,
-            ...conversationHistory.map(m => (m?.command?.content || '')).reverse(),
-            message
+            ...convoLines,
+            `User: ${message}`
           ].filter(Boolean).join('\n\n');
           const resp = await openaiClient.responses.create({ model: modelId, input: flatPrompt });
           const text = String(resp?.output_text || '').trim();
