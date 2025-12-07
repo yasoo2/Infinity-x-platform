@@ -21,9 +21,9 @@ const JoeContent = () => {
   const [isBottomPanelOpen, setIsBottomPanelOpen] = useState(() => {
     try {
       const v = localStorage.getItem('joeBottomOpen');
-      return v ? v === 'true' : true;
+      return v ? v === 'true' : false;
     } catch {
-      return true;
+      return false;
     }
   });
   const [isBottomCollapsed, setIsBottomCollapsed] = useState(false);
