@@ -210,6 +210,7 @@ async function processMessage(userId, message, sessionId, { model = null, lang }
     const userMessage = { role: 'user', content: message };
 
     const messagesForOpenAI = [systemPrompt, ...conversationHistory.map(item => item.command).reverse(), userMessage];
+    void messagesForOpenAI;
     const messagesForGemini = [...history, { role: 'user', parts: [{ text: message }] }];
     void messagesForGemini;
 
@@ -687,6 +688,8 @@ ${transcript.slice(0, 8000)}`;
         const wantsQuery = /(query|search|سؤال|ابحث|استعلام)/i.test(lower);
         const wantsFormat = /(format|prettier|تنسيق)/i.test(lower);
         const wantsLint = /(lint|تحليل|فحص)/i.test(lower);
+        const wantsImage = /(image|صورة|لوغو|شعار|generate\s*image)/i.test(lower);
+        const wantsWebsite = /(website|ويب|موقع|landing\s*page|انشاء\s*موقع|بناء\s*موقع)/i.test(lower);
 
         let pieces = [];
         if (hasUrl) {
