@@ -353,6 +353,10 @@ async function processMessage(userId, message, sessionId, { model = null, lang }
           const wantsTests = /(tests?|اختبار|تشغيل\s*الاختبارات|unit\s*tests?|e2e)/i.test(lower);
           const wantsBrowserDiag = /(diagnostic|تشخيص|مشاكل\s*الموقع|network\s*failures|console\s*errors)/i.test(lower);
           const wantsApiSearch = /(api|دمج\s*api|ربط\s*واجهة\s*برمجية|endpoint|integrate\s*api)/i.test(lower);
+          const wantsNpmSearch = /(npm\s*search|بحث\s*npm|حزمة\s*npm)/i.test(lower);
+          const wantsGithubSearch = /(github\s*search|بحث\s*جيتهاب|مستودع\s*جيتهاب)/i.test(lower);
+          const wantsNetworkScan = /(network\s*scan|فحص\s*الشبكة|nmap|ports)/i.test(lower);
+          const wantsRegisterHttp = /(register\s*http|سجل\s*موصل\s*http|اربط\s*api\s*http)/i.test(lower);
           const wantsCodeSearch = /(search\s*code|ابحث\s*في\s*الشيفرة|grep|regex)/i.test(lower);
           const wantsRefactorReplace = /(replace|استبدل|بحث\s*واستبدال)/i.test(lower);
           const wantsRefactorRename = /(rename\s*import|اعادة\s*تسمية\s*الاستيراد)/i.test(lower);
@@ -514,6 +518,47 @@ ${transcript.slice(0, 8000)}`;
               const results = (r?.mockResults || []).slice(0, 5).map(x => `- ${x.name}: ${x.url}`).join('\n');
               pieces.push(results || 'No API candidates found.');
               try { joeEvents.emitProgress(userId, sessionId, 60, 'searchAPI done'); } catch { /* noop */ }
+            } catch { void 0 }
+          }
+          if (wantsNpmSearch) {
+            try {
+              const q = (preview.match(/npm\s*:\s*([^\n]+)/i) || [])[1] || preview;
+              const r = await executeTool(userId, sessionId, 'discoverNpmPackages', { query: q, size: 5 });
+              toolResults.push({ tool: 'discoverNpmPackages', args: { query: q }, result: r });
+              toolCalls.push({ function: { name: 'discoverNpmPackages', arguments: { query: q } } });
+              const items = (r?.items || []).slice(0, 5).map(x => `- ${x.name} ${x.version}: ${x.links?.homepage || x.links?.npm || ''}`).join('\n');
+              pieces.push(items || 'No npm packages found.');
+            } catch { void 0 }
+          }
+          if (wantsGithubSearch) {
+            try {
+              const q = (preview.match(/gh\s*:\s*([^\n]+)/i) || [])[1] || preview;
+              const r = await executeTool(userId, sessionId, 'discoverGitHubRepos', { query: q, size: 5 });
+              toolResults.push({ tool: 'discoverGitHubRepos', args: { query: q }, result: r });
+              toolCalls.push({ function: { name: 'discoverGitHubRepos', arguments: { query: q } } });
+              const items = (r?.items || []).slice(0, 5).map(x => `- ${x.full_name} ⭐ ${x.stars}: ${x.url}`).join('\n');
+              pieces.push(items || 'No GitHub repos found.');
+            } catch { void 0 }
+          }
+          if (wantsNetworkScan) {
+            try {
+              const host = (preview.match(/host\s*:\s*(\S+)/i) || [])[1] || 'localhost';
+              const r = await executeTool(userId, sessionId, 'authorizedNetworkScan', { host });
+              toolResults.push({ tool: 'authorizedNetworkScan', args: { host }, result: r });
+              toolCalls.push({ function: { name: 'authorizedNetworkScan', arguments: { host } } });
+              pieces.push('Network scan completed.');
+            } catch { void 0 }
+          }
+          if (wantsRegisterHttp) {
+            try {
+              const base = (preview.match(/base\s*:\s*(\S+)/i) || [])[1];
+              const name = (preview.match(/name\s*:\s*(\S+)/i) || [])[1] || 'external_http';
+              if (base) {
+                const r = await executeTool(userId, sessionId, 'registerHttpTool', { name, baseUrl: base });
+                toolResults.push({ tool: 'registerHttpTool', args: { name, baseUrl: base }, result: r });
+                toolCalls.push({ function: { name: 'registerHttpTool', arguments: { name, baseUrl: base } } });
+                pieces.push('HTTP connector registered.');
+              }
             } catch { void 0 }
           }
           if (wantsDepcheck) {
@@ -752,6 +797,10 @@ ${transcript.slice(0, 8000)}`;
               const wantsTests = /(tests?|اختبار|تشغيل\s*الاختبارات|unit\s*tests?|e2e)/i.test(lower);
               const wantsBrowserDiag = /(diagnostic|تشخيص|مشاكل\s*الموقع|network\s*failures|console\s*errors)/i.test(lower);
               const wantsApiSearch = /(api|دمج\s*api|ربط\s*واجهة\s*برمجية|endpoint|integrate\s*api)/i.test(lower);
+              const wantsNpmSearch = /(npm\s*search|بحث\s*npm|حزمة\s*npm)/i.test(lower);
+              const wantsGithubSearch = /(github\s*search|بحث\s*جيتهاب|مستودع\s*جيتهاب)/i.test(lower);
+              const wantsNetworkScan = /(network\s*scan|فحص\s*الشبكة|nmap|ports)/i.test(lower);
+              const wantsRegisterHttp = /(register\s*http|سجل\s*موصل\s*http|اربط\s*api\s*http)/i.test(lower);
               const wantsCodeSearch = /(search\s*code|ابحث\s*في\s*الشيفرة|grep|regex)/i.test(lower);
               const wantsRefactorReplace = /(replace|استبدل|بحث\s*واستبدال)/i.test(lower);
               const wantsRefactorRename = /(rename\s*import|اعادة\s*تسمية\s*الاستيراد)/i.test(lower);
@@ -863,6 +912,47 @@ ${transcript.slice(0, 8000)}`;
                   const results = (r?.mockResults || []).slice(0, 5).map(x => `- ${x.name}: ${x.url}`).join('\n');
                   pieces.push(results || 'No API candidates found.');
                 } catch (eAS) { void eAS; }
+              }
+              if (wantsNpmSearch) {
+                try {
+                  const q = (preview.match(/npm\s*:\s*([^\n]+)/i) || [])[1] || preview;
+                  const r = await executeTool(userId, sessionId, 'discoverNpmPackages', { query: q, size: 5 });
+                  toolResults.push({ tool: 'discoverNpmPackages', args: { query: q }, result: r });
+                  toolCalls.push({ function: { name: 'discoverNpmPackages', arguments: { query: q } } });
+                  const items = (r?.items || []).slice(0, 5).map(x => `- ${x.name} ${x.version}: ${x.links?.homepage || x.links?.npm || ''}`).join('\n');
+                  pieces.push(items || 'No npm packages found.');
+                } catch (eNP) { void eNP; }
+              }
+              if (wantsGithubSearch) {
+                try {
+                  const q = (preview.match(/gh\s*:\s*([^\n]+)/i) || [])[1] || preview;
+                  const r = await executeTool(userId, sessionId, 'discoverGitHubRepos', { query: q, size: 5 });
+                  toolResults.push({ tool: 'discoverGitHubRepos', args: { query: q }, result: r });
+                  toolCalls.push({ function: { name: 'discoverGitHubRepos', arguments: { query: q } } });
+                  const items = (r?.items || []).slice(0, 5).map(x => `- ${x.full_name} ⭐ ${x.stars}: ${x.url}`).join('\n');
+                  pieces.push(items || 'No GitHub repos found.');
+                } catch (eGH) { void eGH; }
+              }
+              if (wantsNetworkScan) {
+                try {
+                  const host = (preview.match(/host\s*:\s*(\S+)/i) || [])[1] || 'localhost';
+                  const r = await executeTool(userId, sessionId, 'authorizedNetworkScan', { host });
+                  toolResults.push({ tool: 'authorizedNetworkScan', args: { host }, result: r });
+                  toolCalls.push({ function: { name: 'authorizedNetworkScan', arguments: { host } } });
+                  pieces.push('Network scan completed.');
+                } catch (eNS) { void eNS; }
+              }
+              if (wantsRegisterHttp) {
+                try {
+                  const base = (preview.match(/base\s*:\s*(\S+)/i) || [])[1];
+                  const name = (preview.match(/name\s*:\s*(\S+)/i) || [])[1] || 'external_http';
+                  if (base) {
+                    const r = await executeTool(userId, sessionId, 'registerHttpTool', { name, baseUrl: base });
+                    toolResults.push({ tool: 'registerHttpTool', args: { name, baseUrl: base }, result: r });
+                    toolCalls.push({ function: { name: 'registerHttpTool', arguments: { name, baseUrl: base } } });
+                    pieces.push('HTTP connector registered.');
+                  }
+                } catch (eRH) { void eRH; }
               }
               if (wantsDepcheck) {
                 try {
@@ -1120,6 +1210,10 @@ ${transcript.slice(0, 8000)}`;
         const wantsTests = /(tests?|اختبار|تشغيل\s*الاختبارات|unit\s*tests?|e2e)/i.test(lower);
         const wantsBrowserDiag = /(diagnostic|تشخيص|مشاكل\s*الموقع|network\s*failures|console\s*errors)/i.test(lower);
         const wantsApiSearch = /(api|دمج\s*api|ربط\s*واجهة\s*برمجية|endpoint|integrate\s*api)/i.test(lower);
+        const wantsNpmSearch = /(npm\s*search|بحث\s*npm|حزمة\s*npm)/i.test(lower);
+        const wantsGithubSearch = /(github\s*search|بحث\s*جيتهاب|مستودع\s*جيتهاب)/i.test(lower);
+        const wantsNetworkScan = /(network\s*scan|فحص\s*الشبكة|nmap|ports)/i.test(lower);
+        const wantsRegisterHttp = /(register\s*http|سجل\s*موصل\s*http|اربط\s*api\s*http)/i.test(lower);
         const wantsCodeSearch = /(search\s*code|ابحث\s*في\s*الشيفرة|grep|regex)/i.test(lower);
         const wantsRefactorReplace = /(replace|استبدل|بحث\s*واستبدال)/i.test(lower);
         const wantsRefactorRename = /(rename\s*import|اعادة\s*تسمية\s*الاستيراد)/i.test(lower);
@@ -1273,6 +1367,47 @@ ${transcript.slice(0, 8000)}`;
             toolCalls.push({ function: { name: 'searchAPI', arguments: { query: preview } } });
             const results = (r?.mockResults || []).slice(0, 5).map(x => `- ${x.name}: ${x.url}`).join('\n');
             pieces.push(results || 'No API candidates found.');
+          } catch { void 0 }
+        }
+        if (wantsNpmSearch) {
+          try {
+            const q = (preview.match(/npm\s*:\s*([^\n]+)/i) || [])[1] || preview;
+            const r = await toolManager.execute('discoverNpmPackages', { query: q, size: 5 });
+            toolResults.push({ tool: 'discoverNpmPackages', args: { query: q }, result: r });
+            toolCalls.push({ function: { name: 'discoverNpmPackages', arguments: { query: q } } });
+            const items = (r?.items || []).slice(0, 5).map(x => `- ${x.name} ${x.version}: ${x.links?.homepage || x.links?.npm || ''}`).join('\n');
+            pieces.push(items || 'No npm packages found.');
+          } catch { void 0 }
+        }
+        if (wantsGithubSearch) {
+          try {
+            const q = (preview.match(/gh\s*:\s*([^\n]+)/i) || [])[1] || preview;
+            const r = await toolManager.execute('discoverGitHubRepos', { query: q, size: 5 });
+            toolResults.push({ tool: 'discoverGitHubRepos', args: { query: q }, result: r });
+            toolCalls.push({ function: { name: 'discoverGitHubRepos', arguments: { query: q } } });
+            const items = (r?.items || []).slice(0, 5).map(x => `- ${x.full_name} ⭐ ${x.stars}: ${x.url}`).join('\n');
+            pieces.push(items || 'No GitHub repos found.');
+          } catch { void 0 }
+        }
+        if (wantsNetworkScan) {
+          try {
+            const host = (preview.match(/host\s*:\s*(\S+)/i) || [])[1] || 'localhost';
+            const r = await toolManager.execute('authorizedNetworkScan', { host });
+            toolResults.push({ tool: 'authorizedNetworkScan', args: { host }, result: r });
+            toolCalls.push({ function: { name: 'authorizedNetworkScan', arguments: { host } } });
+            pieces.push('Network scan completed.');
+          } catch { void 0 }
+        }
+        if (wantsRegisterHttp) {
+          try {
+            const base = (preview.match(/base\s*:\s*(\S+)/i) || [])[1];
+            const name = (preview.match(/name\s*:\s*(\S+)/i) || [])[1] || 'external_http';
+            if (base) {
+              const r = await toolManager.execute('registerHttpTool', { name, baseUrl: base });
+              toolResults.push({ tool: 'registerHttpTool', args: { name, baseUrl: base }, result: r });
+              toolCalls.push({ function: { name: 'registerHttpTool', arguments: { name, baseUrl: base } } });
+              pieces.push('HTTP connector registered.');
+            }
           } catch { void 0 }
         }
         if (wantsDepcheck) {
