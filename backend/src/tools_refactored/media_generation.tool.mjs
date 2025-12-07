@@ -124,7 +124,7 @@ class MediaGenerationTool {
         };
     }
 
-    async downloadImageFromUrl({ url, outputFilePath, filename }) {
+    async downloadImageFromUrl({ url, outputFilePath, filename, userId }) {
         const src = String(url || '').trim();
         if (!src) return { success: false, error: 'URL_REQUIRED' };
         try {
@@ -144,10 +144,21 @@ class MediaGenerationTool {
 
             const baseUploads = path.join(process.cwd(), 'public-site', 'uploads');
             try { await fs.mkdir(baseUploads, { recursive: true }); } catch { /* noop */ }
+            let userFolder = '';
+            if (userId) {
+                try {
+                    const safe = String(userId).replace(/[^A-Za-z0-9_:\-]/g, '_');
+                    userFolder = safe;
+                    await fs.mkdir(path.join(baseUploads, userFolder), { recursive: true });
+                } catch { userFolder = ''; }
+            }
             const name = String(filename || '').trim() || `imported-${Date.now()}${ext}`;
-            const outPath = String(outputFilePath || '').trim() || path.join(baseUploads, name);
+            const outPath = String(outputFilePath || '').trim() || path.join(baseUploads, userFolder ? userFolder : '', name);
             await fs.writeFile(outPath, buf);
-            const publicUrl = `/uploads/${path.basename(outPath)}`;
+            const parts = ['/uploads'];
+            if (userFolder) parts.push(userFolder);
+            parts.push(path.basename(outPath));
+            const publicUrl = parts.join('/');
             const base = process.env.PUBLIC_BASE_URL || 'http://localhost:4000';
             const absoluteUrl = `${base}${publicUrl}`;
             return { success: true, outputFile: outPath, publicUrl, absoluteUrl, contentType: ct };

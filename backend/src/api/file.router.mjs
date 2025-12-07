@@ -223,6 +223,45 @@ const fileRouterFactory = ({ requireRole, fileProcessingService }) => {
         }
     });
 
+    router.get('/uploads/list', requireRole('USER'), async (req, res) => {
+        try {
+            const uid = String(req.user?._id || '');
+            const safe = uid.replace(/[^A-Za-z0-9_:\-]/g, '_');
+            const baseUploads = path.join(process.cwd(), 'public-site', 'uploads');
+            const userDir = path.join(baseUploads, safe);
+            try { await fs.mkdir(userDir, { recursive: true }); } catch { /* noop */ }
+            const entries = await fs.readdir(userDir, { withFileTypes: true });
+            const items = [];
+            for (const e of entries) {
+                if (!e.isFile()) continue;
+                const filePath = path.join(userDir, e.name);
+                const st = await fs.stat(filePath).catch(() => null);
+                const publicUrl = `/uploads/${safe}/${e.name}`;
+                const base = process.env.PUBLIC_BASE_URL || 'http://localhost:4000';
+                const absoluteUrl = `${base}${publicUrl}`;
+                items.push({ name: e.name, publicUrl, absoluteUrl, size: st?.size || 0, mtime: st?.mtime?.toISOString?.() });
+            }
+            res.json({ success: true, items });
+        } catch (error) {
+            res.status(500).json({ success: false, error: 'UPLOADS_LIST_FAILED', details: error.message });
+        }
+    });
+
+    router.delete('/uploads/delete', requireRole('USER'), async (req, res) => {
+        try {
+            const uid = String(req.user?._id || '');
+            const safe = uid.replace(/[^A-Za-z0-9_:\-]/g, '_');
+            const { name } = req.body || {};
+            if (!name || /\//.test(String(name))) return res.status(400).json({ success: false, error: 'INVALID_NAME' });
+            const baseUploads = path.join(process.cwd(), 'public-site', 'uploads');
+            const filePath = path.join(baseUploads, safe, name);
+            await fs.unlink(filePath);
+            res.json({ success: true });
+        } catch (error) {
+            res.status(500).json({ success: false, error: 'UPLOAD_DELETE_FAILED', details: error.message });
+        }
+    });
+
     router.post('/github/list', requireRole('USER'), async (req, res) => {
         try {
             const { url, branch = 'main', token, directory = '.' } = req.body || {};

@@ -344,7 +344,7 @@ ${transcript.slice(0, 8000)}`;
                 const isImageUrl = /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(url);
                 if (isImageUrl) {
                   try { joeEvents.emitProgress(userId, sessionId, 30, 'downloadImageFromUrl'); } catch { /* noop */ }
-                  const out = await executeTool(userId, sessionId, 'downloadImageFromUrl', { url });
+                  const out = await executeTool(userId, sessionId, 'downloadImageFromUrl', { url, userId });
                   toolResults.push({ tool: 'downloadImageFromUrl', args: { url }, result: out });
                   toolCalls.push({ function: { name: 'downloadImageFromUrl', arguments: { url } } });
                   const link = out?.absoluteUrl || out?.publicUrl || '';
@@ -608,7 +608,7 @@ ${transcript.slice(0, 8000)}`;
                 const url = (preview.match(/https?:\/\/[^\s]+/i) || [])[0];
                 const isImageUrl = /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(url);
                 if (isImageUrl) {
-                  const out = await executeTool(userId, sessionId, 'downloadImageFromUrl', { url });
+                  const out = await executeTool(userId, sessionId, 'downloadImageFromUrl', { url, userId });
                   toolResults.push({ tool: 'downloadImageFromUrl', args: { url }, result: out });
                   toolCalls.push({ function: { name: 'downloadImageFromUrl', arguments: { url } } });
                   const link = out?.absoluteUrl || out?.publicUrl || '';
@@ -729,7 +729,7 @@ ${transcript.slice(0, 8000)}`;
                 pieces.push(targetLang === 'ar' ? 'لا يوجد نص مستخرج للفيديو.' : 'No transcript extracted for the video.');
               }
             } else if (/\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(url)) {
-              const out = await toolManager.execute('downloadImageFromUrl', { url });
+              const out = await toolManager.execute('downloadImageFromUrl', { url, userId });
               toolResults.push({ tool: 'downloadImageFromUrl', args: { url }, result: out });
               toolCalls.push({ function: { name: 'downloadImageFromUrl', arguments: { url } } });
               const link = out?.absoluteUrl || out?.publicUrl || '';
