@@ -1242,11 +1242,11 @@ export const useJoeChat = () => {
         const r = await getChatMessages(sid);
         const fetched = (r?.messages || []).map(m => ({ type: m.type === 'user' ? 'user' : 'joe', content: m.content, id: m._id || uuidv4() }));
         const local = state.conversations[id]?.messages || [];
-        const seen = new Set(fetched.map(m => `${m.type}:${m.content}`));
-        const merged = [...fetched];
-        for (const lm of local) {
-          const key = `${lm.type}:${lm.content}`;
-          if (!seen.has(key)) merged.push(lm);
+        const seen = new Set(local.map(m => `${m.type}:${m.content}`));
+        const merged = [...local];
+        for (const fm of fetched) {
+          const key = `${fm.type}:${fm.content}`;
+          if (!seen.has(key)) merged.push(fm);
         }
         dispatch({ type: 'SET_MESSAGES_FOR_CONVERSATION', payload: { id, messages: merged } });
       } catch { void 0; }
