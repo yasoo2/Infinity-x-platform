@@ -17,10 +17,18 @@ class BrowserWebSocketServer {
       this.clients.add(ws);
 
       // Initialize browser on first connection
-      this.browserController.initialize().catch(err => {
-        console.error('Failed to initialize browser:', err);
-        ws.send(JSON.stringify({ type: 'error', message: 'Failed to initialize browser' }));
-      });
+      this.browserController.initialize()
+        .then(async () => {
+          try {
+            const screenshot = await this.browserController.getScreenshot();
+            const pageInfo = await this.browserController.getPageInfo();
+            ws.send(JSON.stringify({ type: 'screenshot', payload: { screenshot, pageInfo } }));
+          } catch (e) { /* noop */ }
+        })
+        .catch(err => {
+          console.error('Failed to initialize browser:', err);
+          ws.send(JSON.stringify({ type: 'error', message: 'Failed to initialize browser' }));
+        });
 
       ws.on('message', async (message) => {
         try {
