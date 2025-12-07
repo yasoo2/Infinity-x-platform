@@ -492,6 +492,7 @@ export const useJoeChat = () => {
       }
     } catch { /* ignore */ }
     try {
+      try { localStorage.removeItem(JOE_CHAT_HISTORY); } catch { /* noop */ }
       dispatch({ type: 'SET_CONVERSATIONS', payload: {} });
       dispatch({ type: 'SELECT_CONVERSATION', payload: null });
       await handleNewConversation(true);
@@ -572,7 +573,7 @@ export const useJoeChat = () => {
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
         return isObjId || isUuid;
       });
-      const convs = { ...state.conversations };
+      const convs = {};
       for (const sess of validList) {
         const sid = String(sess?._id || sess?.id || '').trim();
         if (!sid) continue;
