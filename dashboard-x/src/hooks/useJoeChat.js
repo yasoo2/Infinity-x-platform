@@ -1319,8 +1319,15 @@ export const useJoeChat = () => {
     currentConversation: state.conversations[state.currentConversationId] || null,
     messages: (() => {
       const msgs = state.conversations[state.currentConversationId]?.messages || [];
-      if (msgs.length === 0 && state.lastSentEcho && state.lastSentEchoConvId === state.currentConversationId) {
-        return [state.lastSentEcho];
+      const echo = state.lastSentEcho;
+      const echoConv = state.lastSentEchoConvId;
+      if (!msgs.length && echo && echoConv === state.currentConversationId) {
+        return [echo];
+      }
+      if (echo && echoConv === state.currentConversationId) {
+        const last = msgs[msgs.length - 1] || null;
+        const isDuplicate = last && (last.id === echo.id || String(last.content || '') === String(echo.content || '')) && last.type === 'user';
+        return isDuplicate ? msgs : [...msgs, echo];
       }
       return msgs;
     })(),
