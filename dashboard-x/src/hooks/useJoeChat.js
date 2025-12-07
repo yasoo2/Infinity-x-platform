@@ -331,6 +331,7 @@ export const useJoeChat = () => {
   const activeModelRef = useRef(null);
   const pendingQueueRef = useRef([]);
   const heartbeatIntervalRef = useRef(null);
+  const pendingDeleteIdsRef = useRef(new Map());
 
   const [state, dispatch] = useReducer(chatReducer, {
     conversations: {},
@@ -459,9 +460,11 @@ export const useJoeChat = () => {
   const deleteConversation = useCallback(async (id) => {
     const conv = state.conversations[id];
     const sid = conv?.sessionId || id;
+    try { pendingDeleteIdsRef.current.set(String(sid), Date.now() + 30000); } catch { /* noop */ }
     dispatch({ type: 'DELETE_CONVERSATION', payload: { id } });
     try {
       await deleteChatSession(sid);
+      try { pendingDeleteIdsRef.current.delete(String(sid)); } catch { /* noop */ }
     } catch { void 0; }
     try {
       if (syncRef.current) syncRef.current();
@@ -473,7 +476,9 @@ export const useJoeChat = () => {
       const s = await getChatSessions({});
       const ids = (s?.sessions || []).map((x) => x?.id || x?._id).filter(Boolean);
       for (const sid of ids) {
+        try { pendingDeleteIdsRef.current.set(String(sid), Date.now() + 60000); } catch { /* noop */ }
         try { await deleteChatSession(sid); } catch { /* ignore */ }
+        try { pendingDeleteIdsRef.current.delete(String(sid)); } catch { /* noop */ }
       }
     } catch { /* ignore */ }
     try {
@@ -548,6 +553,10 @@ export const useJoeChat = () => {
       const validList = list.filter((sess) => {
         const id = String(sess?.id || '').trim();
         if (!id || seen.has(id)) return false;
+        try {
+          const ttl = pendingDeleteIdsRef.current.get(id);
+          if (typeof ttl === 'number' && ttl > Date.now()) return false;
+        } catch { /* noop */ }
         seen.add(id);
         const isObjId = /^[a-f0-9]{24}$/i.test(id);
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
@@ -602,6 +611,14 @@ export const useJoeChat = () => {
     } finally {
       syncInProgressRef.current = false;
       try { if (!syncRetryTimerRef.current) { syncBackoffRef.current = 1000; } } catch { /* noop */ }
+      try {
+        const now = Date.now();
+        for (const [k, v] of pendingDeleteIdsRef.current.entries()) {
+          if (!(typeof v === 'number' && v > now)) {
+            pendingDeleteIdsRef.current.delete(k);
+          }
+        }
+      } catch { /* noop */ }
     }
   }, [state.conversations, state.currentConversationId, state.isProcessing, mapSessionToConversation]);
 
