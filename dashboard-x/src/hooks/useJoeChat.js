@@ -698,6 +698,7 @@ export const useJoeChat = () => {
           dispatch({ type: 'SET_WS_CONNECTED', payload: true });
           dispatch({ type: 'SET_RECONNECT_STATE', payload: { active: false, attempt: 0, delayMs: 0, etaTs: 0 } });
           dispatch({ type: 'ADD_WS_LOG', payload: '[SIO] Connection established' });
+          try { localStorage.setItem('joeTransport', 'sio'); } catch { /* noop */ }
           try {
             if (Array.isArray(pendingQueueRef.current) && pendingQueueRef.current.length) {
               const q = pendingQueueRef.current.slice();
@@ -807,16 +808,7 @@ export const useJoeChat = () => {
           try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
         });
         sioRef.current = socket;
-        const envPref = (typeof import.meta !== 'undefined' ? (import.meta.env?.VITE_CONN_PREF) : undefined);
-        const envUseWs = (typeof import.meta !== 'undefined' ? (import.meta.env?.VITE_USE_WS) : undefined);
-        const lsUseWs = (() => { try { return localStorage.getItem('joeUseWS') === 'true'; } catch { return false; } })();
-        const useWs = (() => {
-          const p = String(envPref||'').toLowerCase();
-          if (p === 'ws') return true;
-          if (p === 'sio') return false;
-          if (String(envUseWs||'').toLowerCase() === 'true') return true;
-          return lsUseWs;
-        })();
+        const useWs = false;
         if (!useWs) {
           return;
         }
@@ -900,6 +892,7 @@ export const useJoeChat = () => {
           dispatch({ type: 'SET_WS_CONNECTED', payload: true });
           dispatch({ type: 'SET_RECONNECT_STATE', payload: { active: false, attempt: 0, delayMs: 0, etaTs: 0 } });
           dispatch({ type: 'ADD_WS_LOG', payload: '[WS] Connection established' });
+          try { localStorage.setItem('joeTransport', 'ws'); } catch { /* noop */ }
           try {
             if (Array.isArray(pendingQueueRef.current) && pendingQueueRef.current.length) {
               const q = pendingQueueRef.current.slice();
