@@ -97,8 +97,18 @@ class MediaGenerationTool {
             const b64 = res?.data?.[0]?.b64_json || '';
             if (!b64) return { success: false, error: 'EMPTY_IMAGE_RESPONSE' };
             const buf = Buffer.from(b64, 'base64');
+            try { await fs.mkdir(path.dirname(out), { recursive: true }); } catch { /* noop */ }
             await fs.writeFile(out, buf);
-            return { success: true, outputFile: out, size, model };
+            const baseUploads = path.join(process.cwd(), 'public-site', 'uploads');
+            let publicUrl = '';
+            if (out.startsWith(baseUploads)) {
+                const rel = out.slice(baseUploads.length).replace(/^[\\/]/, '').replace(/\\/g, '/');
+                publicUrl = ['/uploads', rel].join('/');
+            }
+            const base = process.env.PUBLIC_BASE_URL || 'http://localhost:4000';
+            const absoluteUrl = publicUrl ? `${base}${publicUrl}` : '';
+            const message = absoluteUrl ? `Image saved: ${absoluteUrl}` : 'Image generated';
+            return { success: true, outputFile: out, size, model, publicUrl, absoluteUrl, message };
         } catch (error) {
             return { success: false, error: error?.message || String(error) };
         }

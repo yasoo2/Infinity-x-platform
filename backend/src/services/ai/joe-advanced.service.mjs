@@ -10,6 +10,7 @@
  */
 
 import OpenAI from 'openai';
+import path from 'path';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { getConfig } from './runtime-config.mjs';
 import { EventEmitter } from 'events';
@@ -745,11 +746,15 @@ ${transcript.slice(0, 8000)}`;
         }
         if (wantsImage) {
           try {
-            const outPath = `/tmp/joe-image-${Date.now()}.png`;
+            const safeUser = String(userId || '').replace(/[^A-Za-z0-9_:-]/g, '_');
+            const fileName = `joe-image-${Date.now()}.png`;
+            const outPath = path.join(process.cwd(), 'public-site', 'uploads', safeUser, fileName);
             const r = await toolManager.execute('generateImage', { prompt: preview, style: 'modern', outputFilePath: outPath });
             toolResults.push({ tool: 'generateImage', args: { prompt: preview, style: 'modern', outputFilePath: outPath }, result: r });
             toolCalls.push({ function: { name: 'generateImage', arguments: { prompt: preview, style: 'modern', outputFilePath: outPath } } });
-            pieces.push(`Image task queued. Output: ${outPath}`);
+            const link = r?.absoluteUrl || r?.publicUrl || '';
+            const msg = targetLang === 'ar' ? (link ? `تم إنشاء الصورة: ${link}` : 'تم إنشاء الصورة.') : (link ? `Image generated: ${link}` : 'Image generated.');
+            pieces.push(msg);
           } catch { /* noop */ }
         }
         if (wantsWebsite) {
