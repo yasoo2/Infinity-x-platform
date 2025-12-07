@@ -9,6 +9,9 @@ const chatSessionSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now }
 })
 
+chatSessionSchema.index({ userId: 1, updatedAt: -1 })
+chatSessionSchema.index({ userId: 1, lastModified: -1 })
+
 const ChatSession = mongoose.model('ChatSession', chatSessionSchema)
 
 export default ChatSession

@@ -16,6 +16,7 @@ if (process.env.NODE_ENV !== 'production') {
 import express from 'express';
 import helmet from 'helmet';
 import http from 'http';
+import compression from 'compression';
 import fs from 'fs';
 import rateLimit from 'express-rate-limit';
 import xssClean from 'xss-clean';
@@ -99,6 +100,7 @@ const isAllowedOrigin = (origin) => {
 
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
+app.set('etag', 'strong');
 
 // Apply helmet with CORS-friendly configuration
 app.use(helmet({
@@ -116,6 +118,7 @@ app.use(helmet({
   }
 }));
 
+app.use(compression({ threshold: 1024 }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: false }));
 app.use(mongoSanitize());
@@ -168,13 +171,15 @@ const publicSitePath = path.join(__dirname, '..', 'public-site');
 const dashboardPath = path.join(__dirname, '..', 'dashboard-x');
 
 const finalDashboardPath = path.join(__dirname, '..', 'dashboard-x', 'dist');
-app.use('/dashboard', express.static(finalDashboardPath));
+app.use('/dashboard', express.static(finalDashboardPath, { maxAge: '1d', immutable: true, etag: true }));
 
 app.get('/dashboard*', (req, res) => {
     const indexPath = path.join(finalDashboardPath, 'index.html');
     if (fs.existsSync(indexPath)) {
+        res.setHeader('Cache-Control', 'no-cache');
         res.sendFile(indexPath);
     } else {
+        res.setHeader('Cache-Control', 'no-cache');
         res.sendFile(path.join(dashboardPath, 'index.html'));
     }
 });
@@ -182,14 +187,16 @@ app.get('/dashboard*', (req, res) => {
 app.get('/', (req, res) => {
     const indexPath = path.join(finalDashboardPath, 'index.html');
     if (fs.existsSync(indexPath)) {
+        res.setHeader('Cache-Control', 'no-cache');
         res.sendFile(indexPath);
     } else {
+        res.setHeader('Cache-Control', 'no-cache');
         res.sendFile(path.join(publicSitePath, 'index.html'));
     }
 });
 
-app.use(express.static(publicSitePath));
-app.use(express.static(finalDashboardPath));
+app.use(express.static(publicSitePath, { maxAge: '1d', immutable: true, etag: true }));
+app.use(express.static(finalDashboardPath, { maxAge: '1d', immutable: true, etag: true }));
 
 async function setupDependencies() {
     let db;
@@ -317,6 +324,11 @@ async function startServer({ dependencyInitializer = setupDependencies, exit = p
     server.listen(CONFIG.PORT, '0.0.0.0', () => {
       console.log(`✅ Server running on http://localhost:${CONFIG.PORT}`);
     });
+    try {
+      server.keepAliveTimeout = 65000;
+      server.headersTimeout = 66000;
+      server.requestTimeout = 300000;
+    } catch { /* noop */ }
     setupAuth(dependencies.db);
     await applyRoutes(dependencies);
 

@@ -9,6 +9,9 @@ const chatMessageSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now }
 })
 
+chatMessageSchema.index({ sessionId: 1, createdAt: 1 })
+chatMessageSchema.index({ sessionId: 1, updatedAt: 1 })
+
 const ChatMessage = mongoose.model('ChatMessage', chatMessageSchema)
 
 export default ChatMessage
