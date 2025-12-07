@@ -110,19 +110,19 @@ const chatReducer = (state, action) => {
 	        nextState.currentConversationId = convoId;
 	    }
 	    const convo = nextState.conversations[convoId];
-	    const newMessage = { type: 'user', content: inputText, id: uuidv4() };
+	    const newMessage = { type: 'user', content: inputText, id: uuidv4(), createdAt: Date.now() };
 	    const updatedMessages = [...(convo?.messages || []), newMessage];
-	    const title = (!convo?.title || convo?.title === 'New Conversation') ? normalizeTitle(inputText) : convo.title;
-	    nextState.conversations = {
-	        ...nextState.conversations,
-	        [convoId]: { ...convo, messages: updatedMessages, title, lastModified: Date.now() },
-	    };
-	    nextState.input = '';
+            const title = (!convo?.title || convo?.title === 'New Conversation') ? normalizeTitle(inputText) : convo.title;
+            nextState.conversations = {
+                ...nextState.conversations,
+                [convoId]: { ...convo, messages: updatedMessages, title, lastModified: Date.now() },
+            };
+            nextState.input = '';
             nextState.lastSentEcho = newMessage;
             nextState.lastSentEchoConvId = convoId;
 	    // Note: SEND_MESSAGE should not set isProcessing, progress, currentStep, or plan.
 	    // START_PROCESSING will handle that later.
-	    return nextState;
+            return nextState;
         }
 
         case 'APPEND_MESSAGE': {
@@ -140,7 +140,9 @@ const chatReducer = (state, action) => {
             if (lastMessage && lastMessage.type === 'joe' && action.payload.type === 'joe') {
                 updatedMessages = [...convo.messages.slice(0, -1), { ...lastMessage, content: lastMessage.content + action.payload.content }];
             } else {
-                updatedMessages = [...convo.messages, { type: action.payload.type, content: action.payload.content, id: uuidv4() }];
+                const now = Date.now();
+                const createdAt = action.payload.type === 'joe' ? now + 1 : now;
+                updatedMessages = [...convo.messages, { type: action.payload.type, content: action.payload.content, id: uuidv4(), createdAt }];
             }
             const updatedConvo = { ...convo, messages: updatedMessages, lastModified: Date.now() };
             const nextConversations = { ...conversations, [convoId]: updatedConvo };
@@ -251,7 +253,15 @@ const chatReducer = (state, action) => {
             const { id, messages } = action.payload;
             const convo = state.conversations[id];
             if (!convo) return state;
-            const updated = { ...convo, messages, lastModified: Date.now() };
+            const sorted = [...messages].sort((a, b) => {
+              const ta = typeof a.createdAt === 'number' ? a.createdAt : 0;
+              const tb = typeof b.createdAt === 'number' ? b.createdAt : 0;
+              if (ta !== tb) return ta - tb;
+              const wa = a.type === 'user' ? 0 : 1;
+              const wb = b.type === 'user' ? 0 : 1;
+              return wa - wb;
+            });
+            const updated = { ...convo, messages: sorted, lastModified: Date.now() };
             return { ...state, conversations: { ...state.conversations, [id]: updated } };
         }
 
@@ -1329,15 +1339,23 @@ export const useJoeChat = () => {
       const msgs = state.conversations[state.currentConversationId]?.messages || [];
       const echo = state.lastSentEcho;
       const echoConv = state.lastSentEchoConvId;
-      if (!msgs.length && echo && echoConv === state.currentConversationId) {
-        return [echo];
-      }
+      const base = (() => {
+        const arr = [...msgs].sort((a, b) => {
+          const ta = typeof a.createdAt === 'number' ? a.createdAt : 0;
+          const tb = typeof b.createdAt === 'number' ? b.createdAt : 0;
+          if (ta !== tb) return ta - tb;
+          const wa = a.type === 'user' ? 0 : 1;
+          const wb = b.type === 'user' ? 0 : 1;
+          return wa - wb;
+        });
+        return arr;
+      })();
       if (echo && echoConv === state.currentConversationId) {
-        const last = msgs[msgs.length - 1] || null;
+        const last = base[base.length - 1] || null;
         const isDuplicate = last && (last.id === echo.id || String(last.content || '') === String(echo.content || '')) && last.type === 'user';
-        return isDuplicate ? msgs : [...msgs, echo];
+        return isDuplicate ? base : [...base, echo];
       }
-      return msgs;
+      return base;
     })(),
     isProcessing: state.isProcessing,
     progress: state.progress,
