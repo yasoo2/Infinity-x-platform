@@ -23,7 +23,7 @@ class BrowserWebSocketServer {
             const screenshot = await this.browserController.getScreenshot();
             const pageInfo = await this.browserController.getPageInfo();
             ws.send(JSON.stringify({ type: 'screenshot', payload: { screenshot, pageInfo } }));
-          } catch (e) { /* noop */ }
+          } catch { /* noop */ }
         })
         .catch(err => {
           console.error('Failed to initialize browser:', err);
