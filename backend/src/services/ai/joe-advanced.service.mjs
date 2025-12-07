@@ -456,73 +456,19 @@ ${transcript.slice(0, 8000)}`;
     } else if (!handled && openaiClient) {
         try {
           const modelId = model || 'gpt-4o';
-          const isProjectKey = typeof effectiveKeys.openai === 'string' && effectiveKeys.openai.startsWith('sk-proj');
-          if (isProjectKey) {
-            const flatPrompt = [
-              MANUS_STYLE_PROMPT,
-              languageDirective,
-              ...conversationHistory.map(m => (m?.command?.content || '')).reverse(),
-              message
-            ].filter(Boolean).join('\n\n');
-            const resp = await openaiClient.responses.create({ model: modelId, input: flatPrompt });
-            const text = (resp && (resp.output_text || resp?.content?.[0]?.text || resp?.choices?.[0]?.message?.content)) || '';
-            finalContent = String(text || '').trim() || '';
-            usage = resp?.usage || {};
-            if (!finalContent) {
-              finalContent = 'لم أحصل على رد من النموذج. جرّب صياغة مختلفة.';
-            }
-          } else {
-            const response = await openaiClient.chat.completions.create({ model: modelId, messages: messagesForOpenAI, tools: availableTools, tool_choice: 'auto' });
-            const messageResponse = response.choices[0].message;
-            usage = response.usage;
-
-          if (messageResponse.tool_calls) {
-              console.log(`🔧 OpenAI Executing ${messageResponse.tool_calls.length} tool(s)...`);
-              const toolMessages = [messageResponse];
-              for (const toolCall of messageResponse.tool_calls) {
-                  const functionName = toolCall.function.name;
-                  const args = JSON.parse(toolCall.function.arguments);
-                  console.log(`⚡ ${functionName}(${JSON.stringify(args).substring(0, 60)}...)`);
-                  const result = await executeTool(userId, sessionId, functionName, args);
-                  toolResults.push({ tool: functionName, args, result });
-                  toolMessages.push({ role: 'tool', tool_call_id: toolCall.id, content: JSON.stringify(result) });
-                  toolCalls.push(toolCall);
-              }
-              console.log('🔄 OpenAI Synthesizing tool results...');
-              const secondResponse = await openaiClient.chat.completions.create({ model, messages: [...messagesForOpenAI, ...toolMessages] });
-              finalContent = secondResponse.choices[0].message.content;
-              usage.total_tokens += secondResponse.usage.total_tokens;
-          } else {
-              finalContent = messageResponse.content;
-              if (shouldAugment(message)) {
-                try {
-                  const disc = await toolManager.execute('discoverNpmPackages', { query: message, size: 3 });
-                  const cand = (disc?.items || [])[0];
-                  if (cand?.name) {
-                    await toolManager.execute('registerNpmTool', { packageName: cand.name, version: 'latest', functionName: 'default' });
-                    const tools2 = toolManager.getToolSchemas();
-                    const secondResponse = await openaiClient.chat.completions.create({ model, messages: messagesForOpenAI, tools: tools2, tool_choice: 'auto' });
-                    const m2 = secondResponse.choices[0].message;
-                    if (m2.tool_calls && m2.tool_calls.length) {
-                      const toolMessages2 = [m2];
-                      for (const tc of m2.tool_calls) {
-                        const fn = tc.function.name;
-                        const args = JSON.parse(tc.function.arguments);
-                        const result2 = await toolManager.execute(fn, args);
-                        toolResults.push({ tool: fn, args, result: result2 });
-                        toolMessages2.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result2) });
-                      }
-                      const synth = await openaiClient.chat.completions.create({ model, messages: [...messagesForOpenAI, ...toolMessages2] });
-                      finalContent = synth.choices[0].message.content;
-                      usage.total_tokens = (usage?.total_tokens || 0) + (synth?.usage?.total_tokens || 0);
-                    } else {
-                      finalContent = m2.content;
-                    }
-                  }
-                } catch (e0) { void e0; }
-              }
+          const flatPrompt = [
+            MANUS_STYLE_PROMPT,
+            languageDirective,
+            ...conversationHistory.map(m => (m?.command?.content || '')).reverse(),
+            message
+          ].filter(Boolean).join('\n\n');
+          const resp = await openaiClient.responses.create({ model: modelId, input: flatPrompt });
+          const text = String(resp?.output_text || '').trim();
+          finalContent = text || '';
+          usage = resp?.usage || {};
+          if (!finalContent) {
+            finalContent = 'لم أحصل على رد من النموذج. جرّب صياغة مختلفة.';
           }
-          
         } catch (e) {
           try { console.log(e && e.message); } catch (e00) { void e00; }
           if (geminiClient) {
