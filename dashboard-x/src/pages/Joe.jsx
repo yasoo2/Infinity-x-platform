@@ -101,6 +101,7 @@ const JoeContent = () => {
     wsConnected,
     renameConversation,
     deleteConversation,
+    deleteAllConversations,
     pinToggle,
     duplicateConversation,
     clearMessages,
