@@ -350,6 +350,9 @@ async function processMessage(userId, message, sessionId, { model = null, lang }
           const wantsFormat = /(format|prettier|تنسيق)/i.test(lower);
           const wantsLint = /(lint|تحليل|فحص)/i.test(lower);
           const wantsDepcheck = /(depcheck|dependencies|مكتبات|حزم|اعتماديات|حزم\s*غير\s*مستخدمة|dependencies\s*audit)/i.test(lower);
+          const wantsTests = /(tests?|اختبار|تشغيل\s*الاختبارات|unit\s*tests?|e2e)/i.test(lower);
+          const wantsBrowserDiag = /(diagnostic|تشخيص|مشاكل\s*الموقع|network\s*failures|console\s*errors)/i.test(lower);
+          const wantsApiSearch = /(api|دمج\s*api|ربط\s*واجهة\s*برمجية|endpoint|integrate\s*api)/i.test(lower);
           let pieces = [];
           if (videoUrlMatch) {
             const url = videoUrlMatch[0];
@@ -462,6 +465,44 @@ ${transcript.slice(0, 8000)}`;
               toolCalls.push({ function: { name: 'runLint', arguments: {} } });
               pieces.push('Lint analysis completed.');
               try { joeEvents.emitProgress(userId, sessionId, 60, 'runLint done'); } catch { /* noop */ }
+            } catch { void 0 }
+          }
+          if (wantsTests) {
+            try {
+              const fileMatch = preview.match(/\S+\.(?:js|jsx|ts|tsx|mjs)/i);
+              if (fileMatch) {
+                try { joeEvents.emitProgress(userId, sessionId, 30, 'generateAndRunTests'); } catch { /* noop */ }
+                const fp = fileMatch[0];
+                const r = await executeTool(userId, sessionId, 'generateAndRunTests', { filePath: fp });
+                toolResults.push({ tool: 'generateAndRunTests', args: { filePath: fp }, result: r });
+                toolCalls.push({ function: { name: 'generateAndRunTests', arguments: { filePath: fp } } });
+                pieces.push('Tests generated and executed.');
+                try { joeEvents.emitProgress(userId, sessionId, 60, 'generateAndRunTests done'); } catch { /* noop */ }
+              }
+            } catch { void 0 }
+          }
+          if (wantsBrowserDiag) {
+            try {
+              const url = (preview.match(/https?:\/\/[^\s]+/i) || [])[0];
+              if (url) {
+                try { joeEvents.emitProgress(userId, sessionId, 30, 'analyzePageState'); } catch { /* noop */ }
+                const r = await executeTool(userId, sessionId, 'analyzePageState', { url });
+                toolResults.push({ tool: 'analyzePageState', args: { url }, result: r });
+                toolCalls.push({ function: { name: 'analyzePageState', arguments: { url } } });
+                pieces.push(String(r?.summary || 'Page diagnostics completed.'));
+                try { joeEvents.emitProgress(userId, sessionId, 60, 'analyzePageState done'); } catch { /* noop */ }
+              }
+            } catch { void 0 }
+          }
+          if (wantsApiSearch) {
+            try {
+              try { joeEvents.emitProgress(userId, sessionId, 30, 'searchAPI'); } catch { /* noop */ }
+              const r = await executeTool(userId, sessionId, 'searchAPI', { query: preview });
+              toolResults.push({ tool: 'searchAPI', args: { query: preview }, result: r });
+              toolCalls.push({ function: { name: 'searchAPI', arguments: { query: preview } } });
+              const results = (r?.mockResults || []).slice(0, 5).map(x => `- ${x.name}: ${x.url}`).join('\n');
+              pieces.push(results || 'No API candidates found.');
+              try { joeEvents.emitProgress(userId, sessionId, 60, 'searchAPI done'); } catch { /* noop */ }
             } catch { void 0 }
           }
           if (wantsDepcheck) {
@@ -586,6 +627,9 @@ ${transcript.slice(0, 8000)}`;
               const wantsFormat = /(format|prettier|تنسيق)/i.test(lower);
               const wantsLint = /(lint|تحليل|فحص)/i.test(lower);
               const wantsDepcheck = /(depcheck|dependencies|مكتبات|حزم|اعتماديات|حزم\s*غير\s*مستخدمة|dependencies\s*audit)/i.test(lower);
+              const wantsTests = /(tests?|اختبار|تشغيل\s*الاختبارات|unit\s*tests?|e2e)/i.test(lower);
+              const wantsBrowserDiag = /(diagnostic|تشخيص|مشاكل\s*الموقع|network\s*failures|console\s*errors)/i.test(lower);
+              const wantsApiSearch = /(api|دمج\s*api|ربط\s*واجهة\s*برمجية|endpoint|integrate\s*api)/i.test(lower);
               let pieces = [];
               if (hasUrl) {
                 try {
@@ -654,6 +698,38 @@ ${transcript.slice(0, 8000)}`;
                   toolCalls.push({ function: { name: 'runLint', arguments: {} } });
                   pieces.push('Lint analysis completed.');
                 } catch (e8) { void e8; }
+              }
+              if (wantsTests) {
+                try {
+                  const fileMatch = preview.match(/\S+\.(?:js|jsx|ts|tsx|mjs)/i);
+                  if (fileMatch) {
+                    const fp = fileMatch[0];
+                    const r = await executeTool(userId, sessionId, 'generateAndRunTests', { filePath: fp });
+                    toolResults.push({ tool: 'generateAndRunTests', args: { filePath: fp }, result: r });
+                    toolCalls.push({ function: { name: 'generateAndRunTests', arguments: { filePath: fp } } });
+                    pieces.push('Tests generated and executed.');
+                  }
+                } catch (eT) { void eT; }
+              }
+              if (wantsBrowserDiag) {
+                try {
+                  const url = (preview.match(/https?:\/\/[^\s]+/i) || [])[0];
+                  if (url) {
+                    const r = await executeTool(userId, sessionId, 'analyzePageState', { url });
+                    toolResults.push({ tool: 'analyzePageState', args: { url }, result: r });
+                    toolCalls.push({ function: { name: 'analyzePageState', arguments: { url } } });
+                    pieces.push(String(r?.summary || 'Page diagnostics completed.'));
+                  }
+                } catch (eBD) { void eBD; }
+              }
+              if (wantsApiSearch) {
+                try {
+                  const r = await executeTool(userId, sessionId, 'searchAPI', { query: preview });
+                  toolResults.push({ tool: 'searchAPI', args: { query: preview }, result: r });
+                  toolCalls.push({ function: { name: 'searchAPI', arguments: { query: preview } } });
+                  const results = (r?.mockResults || []).slice(0, 5).map(x => `- ${x.name}: ${x.url}`).join('\n');
+                  pieces.push(results || 'No API candidates found.');
+                } catch (eAS) { void eAS; }
               }
               if (wantsDepcheck) {
                 try {
@@ -797,6 +873,9 @@ ${transcript.slice(0, 8000)}`;
         const wantsImage = /(image|صورة|لوغو|شعار|generate\s*image)/i.test(lower);
         const wantsWebsite = /(website|ويب|موقع|landing\s*page|انشاء\s*موقع|بناء\s*موقع)/i.test(lower);
         const wantsDepcheck = /(depcheck|dependencies|مكتبات|حزم|اعتماديات|حزم\s*غير\s*مستخدمة|dependencies\s*audit)/i.test(lower);
+        const wantsTests = /(tests?|اختبار|تشغيل\s*الاختبارات|unit\s*tests?|e2e)/i.test(lower);
+        const wantsBrowserDiag = /(diagnostic|تشخيص|مشاكل\s*الموقع|network\s*failures|console\s*errors)/i.test(lower);
+        const wantsApiSearch = /(api|دمج\s*api|ربط\s*واجهة\s*برمجية|endpoint|integrate\s*api)/i.test(lower);
 
         let pieces = [];
         if (hasUrl) {
@@ -907,6 +986,38 @@ ${transcript.slice(0, 8000)}`;
             toolResults.push({ tool: 'runLint', args: {}, result: r });
             toolCalls.push({ function: { name: 'runLint', arguments: {} } });
             pieces.push('Lint analysis completed.');
+          } catch { void 0 }
+        }
+        if (wantsTests) {
+          try {
+            const fileMatch = preview.match(/\S+\.(?:js|jsx|ts|tsx|mjs)/i);
+            if (fileMatch) {
+              const fp = fileMatch[0];
+              const r = await toolManager.execute('generateAndRunTests', { filePath: fp });
+              toolResults.push({ tool: 'generateAndRunTests', args: { filePath: fp }, result: r });
+              toolCalls.push({ function: { name: 'generateAndRunTests', arguments: { filePath: fp } } });
+              pieces.push('Tests generated and executed.');
+            }
+          } catch { void 0 }
+        }
+        if (wantsBrowserDiag) {
+          try {
+            const url = (preview.match(/https?:\/\/[^\s]+/i) || [])[0];
+            if (url) {
+              const r = await toolManager.execute('analyzePageState', { url });
+              toolResults.push({ tool: 'analyzePageState', args: { url }, result: r });
+              toolCalls.push({ function: { name: 'analyzePageState', arguments: { url } } });
+              pieces.push(String(r?.summary || 'Page diagnostics completed.'));
+            }
+          } catch { void 0 }
+        }
+        if (wantsApiSearch) {
+          try {
+            const r = await toolManager.execute('searchAPI', { query: preview });
+            toolResults.push({ tool: 'searchAPI', args: { query: preview }, result: r });
+            toolCalls.push({ function: { name: 'searchAPI', arguments: { query: preview } } });
+            const results = (r?.mockResults || []).slice(0, 5).map(x => `- ${x.name}: ${x.url}`).join('\n');
+            pieces.push(results || 'No API candidates found.');
           } catch { void 0 }
         }
         if (wantsDepcheck) {
