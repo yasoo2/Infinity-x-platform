@@ -75,6 +75,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   const [uploadsLoading, setUploadsLoading] = React.useState(false);
   const [showBrowserPanel, setShowBrowserPanel] = React.useState(false);
   const [browserPanelMode, setBrowserPanelMode] = React.useState('mini');
+  const [browserInitialUrl, setBrowserInitialUrl] = React.useState('');
   const galleryPanelRef = useRef(null);
 
   const { 
@@ -168,8 +169,14 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   }, []);
 
   useEffect(() => {
-    const onOpenBrowser = () => {
-      try { setShowBrowserPanel(true); setBrowserPanelMode('mini'); } catch { /* noop */ }
+    const onOpenBrowser = (e) => {
+      try {
+        const d = e && e.detail ? e.detail : {};
+        const url = String(d?.url || '').trim();
+        if (url) setBrowserInitialUrl(url);
+        setShowBrowserPanel(true);
+        setBrowserPanelMode('mini');
+      } catch { /* noop */ }
     };
     window.addEventListener('joe:open-browser', onOpenBrowser);
     return () => window.removeEventListener('joe:open-browser', onOpenBrowser);
@@ -799,6 +806,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
               wsLog={[]}
               onTakeover={() => {}}
               onClose={() => setShowBrowserPanel(false)}
+              initialUrl={browserInitialUrl}
             />
           </div>
         </div>

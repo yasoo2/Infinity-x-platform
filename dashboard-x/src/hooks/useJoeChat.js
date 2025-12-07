@@ -827,7 +827,19 @@ export const useJoeChat = () => {
         socket.on('tool_used', (d) => {
           const name = (d?.tool?.function?.name) || d?.tool?.name || d?.tool || '';
           const details = d?.details || null;
-          try { if (String(name || '').toLowerCase() === 'browsewebsite') { window.dispatchEvent(new Event('joe:open-browser')); } } catch { /* noop */ }
+          if (String(name || '').toLowerCase() === 'browsewebsite') {
+            let target = '';
+            try {
+              if (details && typeof details === 'object') {
+                target = String(details.url || details.target || details.query || details.q || '').trim();
+              } else if (typeof details === 'string') {
+                const s = details.trim();
+                const m = s.match(/https?:\/\/\S+/i);
+                target = m ? m[0] : s;
+              }
+            } catch { /* noop */ }
+            try { window.dispatchEvent(new CustomEvent('joe:open-browser', { detail: { url: target || undefined } })); } catch { /* noop */ }
+          }
           if (name) dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'tool_used', content: name, details } });
         });
         socket.on('stream', (d) => { if (typeof d?.content === 'string') { const c = sanitizeCompetitors(d.content); if (c) dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: c } }); } });
@@ -851,7 +863,19 @@ export const useJoeChat = () => {
               const details = (typeof t === 'object') ? (t?.function?.arguments || t?.arguments || t?.args || null) : null;
               if (name) {
                 dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'tool_used', content: name, details } });
-                try { if (String(name).toLowerCase() === 'browsewebsite') { window.dispatchEvent(new Event('joe:open-browser')); } } catch { /* noop */ }
+                if (String(name).toLowerCase() === 'browsewebsite') {
+                  let target = '';
+                  try {
+                    if (details && typeof details === 'object') {
+                      target = String(details.url || details.target || details.query || details.q || '').trim();
+                    } else if (typeof details === 'string') {
+                      const s = details.trim();
+                      const m = s.match(/https?:\/\/\S+/i);
+                      target = m ? m[0] : s;
+                    }
+                  } catch { /* noop */ }
+                  try { window.dispatchEvent(new CustomEvent('joe:open-browser', { detail: { url: target || undefined } })); } catch { /* noop */ }
+                }
               }
             }
           } catch { /* noop */ }
@@ -1072,7 +1096,19 @@ export const useJoeChat = () => {
                 const details = (typeof t === 'object') ? (t?.function?.arguments || t?.arguments || t?.args || null) : null;
                 if (name) {
                   dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'tool_used', content: name, details } });
-                  try { if (String(name).toLowerCase() === 'browsewebsite') { window.dispatchEvent(new Event('joe:open-browser')); } } catch { /* noop */ }
+                  if (String(name).toLowerCase() === 'browsewebsite') {
+                    let target = '';
+                    try {
+                      if (details && typeof details === 'object') {
+                        target = String(details.url || details.target || details.query || details.q || '').trim();
+                      } else if (typeof details === 'string') {
+                        const s = details.trim();
+                        const m = s.match(/https?:\/\/\S+/i);
+                        target = m ? m[0] : s;
+                      }
+                    } catch { /* noop */ }
+                    try { window.dispatchEvent(new CustomEvent('joe:open-browser', { detail: { url: target || undefined } })); } catch { /* noop */ }
+                  }
                 }
               }
             } catch { /* noop */ }
@@ -1257,7 +1293,19 @@ export const useJoeChat = () => {
                 const details = (typeof t === 'object') ? (t?.function?.arguments || t?.arguments || t?.args || null) : null;
                 if (name) {
                   dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'tool_used', content: name, details } });
-                  try { if (String(name).toLowerCase() === 'browsewebsite') { window.dispatchEvent(new Event('joe:open-browser')); } } catch { /* noop */ }
+                  if (String(name).toLowerCase() === 'browsewebsite') {
+                    let target = '';
+                    try {
+                      if (details && typeof details === 'object') {
+                        target = String(details.url || details.target || details.query || details.q || '').trim();
+                      } else if (typeof details === 'string') {
+                        const s = details.trim();
+                        const m = s.match(/https?:\/\/\S+/i);
+                        target = m ? m[0] : s;
+                      }
+                    } catch { /* noop */ }
+                    try { window.dispatchEvent(new CustomEvent('joe:open-browser', { detail: { url: target || undefined } })); } catch { /* noop */ }
+                  }
                 }
               }
             } catch { /* noop */ }
