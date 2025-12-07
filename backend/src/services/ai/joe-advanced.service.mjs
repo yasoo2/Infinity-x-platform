@@ -353,6 +353,17 @@ async function processMessage(userId, message, sessionId, { model = null, lang }
           const wantsTests = /(tests?|اختبار|تشغيل\s*الاختبارات|unit\s*tests?|e2e)/i.test(lower);
           const wantsBrowserDiag = /(diagnostic|تشخيص|مشاكل\s*الموقع|network\s*failures|console\s*errors)/i.test(lower);
           const wantsApiSearch = /(api|دمج\s*api|ربط\s*واجهة\s*برمجية|endpoint|integrate\s*api)/i.test(lower);
+          const wantsCodeSearch = /(search\s*code|ابحث\s*في\s*الشيفرة|grep|regex)/i.test(lower);
+          const wantsRefactorReplace = /(replace|استبدل|بحث\s*واستبدال)/i.test(lower);
+          const wantsRefactorRename = /(rename\s*import|اعادة\s*تسمية\s*الاستيراد)/i.test(lower);
+          const wantsAutoFix = /(auto\s*fix|اصلح\s*تلقائيا)/i.test(lower);
+          const wantsReadFile = /(اقرأ\s*ملف|read\s*file)/i.test(lower);
+          const wantsWriteFile = /(اكتب\s*ملف|write\s*file)/i.test(lower);
+          const wantsDeleteFile = /(احذف\s*ملف|delete\s*file)/i.test(lower);
+          const wantsListFiles = /(سرد\s*الملفات|list\s*files)/i.test(lower);
+          const wantsScreenshot = /(screenshot|لقطة\s*شاشة)/i.test(lower);
+          const wantsAnalyzeImage = /(حلل\s*صورة|analyze\s*image)/i.test(lower);
+          const wantsDeploy = /(deploy|نشر)/i.test(lower);
           let pieces = [];
           if (videoUrlMatch) {
             const url = videoUrlMatch[0];
@@ -515,6 +526,117 @@ ${transcript.slice(0, 8000)}`;
               try { joeEvents.emitProgress(userId, sessionId, 60, 'runDepcheck done'); } catch { /* noop */ }
             } catch { void 0 }
           }
+          if (wantsCodeSearch) {
+            try {
+              const r = await executeTool(userId, sessionId, 'searchCode', { pattern: preview });
+              toolResults.push({ tool: 'searchCode', args: { pattern: preview }, result: r });
+              toolCalls.push({ function: { name: 'searchCode', arguments: { pattern: preview } } });
+              pieces.push('Code search completed.');
+            } catch { void 0 }
+          }
+          if (wantsRefactorReplace) {
+            try {
+              const mFind = preview.match(/find:\s*([^\n]+)/i);
+              const mReplace = preview.match(/replace:\s*([^\n]+)/i);
+              if (mFind && mReplace) {
+                const r = await executeTool(userId, sessionId, 'textReplace', { find: mFind[1], replace: mReplace[1], globs: ['backend/**/*.mjs','dashboard-x/src/**/*.{js,jsx,ts,tsx}'] });
+                toolResults.push({ tool: 'textReplace', args: { find: mFind[1], replace: mReplace[1] }, result: r });
+                toolCalls.push({ function: { name: 'textReplace', arguments: { find: mFind[1], replace: mReplace[1] } } });
+                pieces.push('Text replace executed.');
+              }
+            } catch { void 0 }
+          }
+          if (wantsRefactorRename) {
+            try {
+              const mFrom = preview.match(/from:\s*([^\n]+)/i);
+              const mTo = preview.match(/to:\s*([^\n]+)/i);
+              if (mFrom && mTo) {
+                const r = await executeTool(userId, sessionId, 'renameImport', { from: mFrom[1], to: mTo[1], globs: ['backend/**/*.mjs','dashboard-x/src/**/*.{js,jsx,ts,tsx}'] });
+                toolResults.push({ tool: 'renameImport', args: { from: mFrom[1], to: mTo[1] }, result: r });
+                toolCalls.push({ function: { name: 'renameImport', arguments: { from: mFrom[1], to: mTo[1] } } });
+                pieces.push('Import rename applied.');
+              }
+            } catch { void 0 }
+          }
+          if (wantsAutoFix) {
+            try {
+              const r = await executeTool(userId, sessionId, 'autoFix', {});
+              toolResults.push({ tool: 'autoFix', args: {}, result: r });
+              toolCalls.push({ function: { name: 'autoFix', arguments: {} } });
+              pieces.push('Auto fix completed.');
+            } catch { void 0 }
+          }
+          if (wantsReadFile) {
+            try {
+              const m = preview.match(/\s(\S+\.(?:js|jsx|ts|tsx|mjs|json|md|txt))/i);
+              if (m) {
+                const r = await executeTool(userId, sessionId, 'readFile', { filePath: m[1] });
+                toolResults.push({ tool: 'readFile', args: { filePath: m[1] }, result: r });
+                toolCalls.push({ function: { name: 'readFile', arguments: { filePath: m[1] } } });
+                pieces.push(String(r?.content || '').slice(0, 1000));
+              }
+            } catch { void 0 }
+          }
+          if (wantsWriteFile) {
+            try {
+              const m = preview.match(/path:\s*(\S+)\s+content:\s*([\s\S]+)/i);
+              if (m) {
+                const r = await executeTool(userId, sessionId, 'writeFile', { filePath: m[1], content: m[2] });
+                toolResults.push({ tool: 'writeFile', args: { filePath: m[1] }, result: r });
+                toolCalls.push({ function: { name: 'writeFile', arguments: { filePath: m[1] } } });
+                pieces.push('File written.');
+              }
+            } catch { void 0 }
+          }
+          if (wantsDeleteFile) {
+            try {
+              const m = preview.match(/\s(\S+\.(?:js|jsx|ts|tsx|mjs|json|md|txt))/i);
+              if (m) {
+                const r = await executeTool(userId, sessionId, 'deleteFile', { filePath: m[1] });
+                toolResults.push({ tool: 'deleteFile', args: { filePath: m[1] }, result: r });
+                toolCalls.push({ function: { name: 'deleteFile', arguments: { filePath: m[1] } } });
+                pieces.push('File deleted.');
+              }
+            } catch { void 0 }
+          }
+          if (wantsListFiles) {
+            try {
+              const r = await executeTool(userId, sessionId, 'listFiles', { directoryPath: '.' });
+              toolResults.push({ tool: 'listFiles', args: { directoryPath: '.' }, result: r });
+              toolCalls.push({ function: { name: 'listFiles', arguments: { directoryPath: '.' } } });
+              pieces.push('Files listed.');
+            } catch { void 0 }
+          }
+          if (wantsScreenshot) {
+            try {
+              const url = (preview.match(/https?:\/\/[^\s]+/i) || [])[0];
+              if (url) {
+                const r = await executeTool(userId, sessionId, 'screenshotWebsite', { url, fullPage: false });
+                toolResults.push({ tool: 'screenshotWebsite', args: { url }, result: r });
+                toolCalls.push({ function: { name: 'screenshotWebsite', arguments: { url } } });
+                pieces.push('Screenshot captured.');
+              }
+            } catch { void 0 }
+          }
+          if (wantsAnalyzeImage) {
+            try {
+              const url = (preview.match(/https?:\/\/[^\s]+/i) || [])[0];
+              if (url) {
+                const r = await executeTool(userId, sessionId, 'analyzeImage', { imageUrl: url });
+                toolResults.push({ tool: 'analyzeImage', args: { imageUrl: url }, result: r });
+                toolCalls.push({ function: { name: 'analyzeImage', arguments: { imageUrl: url } } });
+                pieces.push('Image analysis completed.');
+              }
+            } catch { void 0 }
+          }
+          if (wantsDeploy) {
+            try {
+              const r = await executeTool(userId, sessionId, 'deployProject', { projectPath: process.cwd(), platform: 'vercel' });
+              toolResults.push({ tool: 'deployProject', args: { projectPath: process.cwd(), platform: 'vercel' }, result: r });
+              toolCalls.push({ function: { name: 'deployProject', arguments: { projectPath: process.cwd(), platform: 'vercel' } } });
+              pieces.push('Deployment initiated.');
+            } catch { void 0 }
+          }
           finalContent = pieces.length ? pieces.filter(Boolean).join('\n\n') : 'وضع محلي جاهز. أرسل تعليمات أدق لاختيار الأدوات المثالية.';
         }
     } else if (!handled && model.startsWith('gemini') && geminiClient) {
@@ -630,6 +752,17 @@ ${transcript.slice(0, 8000)}`;
               const wantsTests = /(tests?|اختبار|تشغيل\s*الاختبارات|unit\s*tests?|e2e)/i.test(lower);
               const wantsBrowserDiag = /(diagnostic|تشخيص|مشاكل\s*الموقع|network\s*failures|console\s*errors)/i.test(lower);
               const wantsApiSearch = /(api|دمج\s*api|ربط\s*واجهة\s*برمجية|endpoint|integrate\s*api)/i.test(lower);
+              const wantsCodeSearch = /(search\s*code|ابحث\s*في\s*الشيفرة|grep|regex)/i.test(lower);
+              const wantsRefactorReplace = /(replace|استبدل|بحث\s*واستبدال)/i.test(lower);
+              const wantsRefactorRename = /(rename\s*import|اعادة\s*تسمية\s*الاستيراد)/i.test(lower);
+              const wantsAutoFix = /(auto\s*fix|اصلح\s*تلقائيا)/i.test(lower);
+              const wantsReadFile = /(اقرأ\s*ملف|read\s*file)/i.test(lower);
+              const wantsWriteFile = /(اكتب\s*ملف|write\s*file)/i.test(lower);
+              const wantsDeleteFile = /(احذف\s*ملف|delete\s*file)/i.test(lower);
+              const wantsListFiles = /(سرد\s*الملفات|list\s*files)/i.test(lower);
+              const wantsScreenshot = /(screenshot|لقطة\s*شاشة)/i.test(lower);
+              const wantsAnalyzeImage = /(حلل\s*صورة|analyze\s*image)/i.test(lower);
+              const wantsDeploy = /(deploy|نشر)/i.test(lower);
               let pieces = [];
               if (hasUrl) {
                 try {
@@ -738,6 +871,117 @@ ${transcript.slice(0, 8000)}`;
                   toolCalls.push({ function: { name: 'runDepcheck', arguments: { dir: 'backend' } } });
                   pieces.push('Dependency analysis completed.');
                 } catch (eDC) { void eDC; }
+              }
+              if (wantsCodeSearch) {
+                try {
+                  const r = await executeTool(userId, sessionId, 'searchCode', { pattern: preview });
+                  toolResults.push({ tool: 'searchCode', args: { pattern: preview }, result: r });
+                  toolCalls.push({ function: { name: 'searchCode', arguments: { pattern: preview } } });
+                  pieces.push('Code search completed.');
+                } catch (eSC) { void eSC; }
+              }
+              if (wantsRefactorReplace) {
+                try {
+                  const mFind = preview.match(/find:\s*([^\n]+)/i);
+                  const mReplace = preview.match(/replace:\s*([^\n]+)/i);
+                  if (mFind && mReplace) {
+                    const r = await executeTool(userId, sessionId, 'textReplace', { find: mFind[1], replace: mReplace[1], globs: ['backend/**/*.mjs','dashboard-x/src/**/*.{js,jsx,ts,tsx}'] });
+                    toolResults.push({ tool: 'textReplace', args: { find: mFind[1], replace: mReplace[1] }, result: r });
+                    toolCalls.push({ function: { name: 'textReplace', arguments: { find: mFind[1], replace: mReplace[1] } } });
+                    pieces.push('Text replace executed.');
+                  }
+                } catch (eRR) { void eRR; }
+              }
+              if (wantsRefactorRename) {
+                try {
+                  const mFrom = preview.match(/from:\s*([^\n]+)/i);
+                  const mTo = preview.match(/to:\s*([^\n]+)/i);
+                  if (mFrom && mTo) {
+                    const r = await executeTool(userId, sessionId, 'renameImport', { from: mFrom[1], to: mTo[1], globs: ['backend/**/*.mjs','dashboard-x/src/**/*.{js,jsx,ts,tsx}'] });
+                    toolResults.push({ tool: 'renameImport', args: { from: mFrom[1], to: mTo[1] }, result: r });
+                    toolCalls.push({ function: { name: 'renameImport', arguments: { from: mFrom[1], to: mTo[1] } } });
+                    pieces.push('Import rename applied.');
+                  }
+                } catch (eRI) { void eRI; }
+              }
+              if (wantsAutoFix) {
+                try {
+                  const r = await executeTool(userId, sessionId, 'autoFix', {});
+                  toolResults.push({ tool: 'autoFix', args: {}, result: r });
+                  toolCalls.push({ function: { name: 'autoFix', arguments: {} } });
+                  pieces.push('Auto fix completed.');
+                } catch (eAF) { void eAF; }
+              }
+              if (wantsReadFile) {
+                try {
+                  const m = preview.match(/\s(\S+\.(?:js|jsx|ts|tsx|mjs|json|md|txt))/i);
+                  if (m) {
+                    const r = await executeTool(userId, sessionId, 'readFile', { filePath: m[1] });
+                    toolResults.push({ tool: 'readFile', args: { filePath: m[1] }, result: r });
+                    toolCalls.push({ function: { name: 'readFile', arguments: { filePath: m[1] } } });
+                    pieces.push(String(r?.content || '').slice(0, 1000));
+                  }
+                } catch (eRF) { void eRF; }
+              }
+              if (wantsWriteFile) {
+                try {
+                  const m = preview.match(/path:\s*(\S+)\s+content:\s*([\s\S]+)/i);
+                  if (m) {
+                    const r = await executeTool(userId, sessionId, 'writeFile', { filePath: m[1], content: m[2] });
+                    toolResults.push({ tool: 'writeFile', args: { filePath: m[1] }, result: r });
+                    toolCalls.push({ function: { name: 'writeFile', arguments: { filePath: m[1] } } });
+                    pieces.push('File written.');
+                  }
+                } catch (eWF) { void eWF; }
+              }
+              if (wantsDeleteFile) {
+                try {
+                  const m = preview.match(/\s(\S+\.(?:js|jsx|ts|tsx|mjs|json|md|txt))/i);
+                  if (m) {
+                    const r = await executeTool(userId, sessionId, 'deleteFile', { filePath: m[1] });
+                    toolResults.push({ tool: 'deleteFile', args: { filePath: m[1] }, result: r });
+                    toolCalls.push({ function: { name: 'deleteFile', arguments: { filePath: m[1] } } });
+                    pieces.push('File deleted.');
+                  }
+                } catch (eDF) { void eDF; }
+              }
+              if (wantsListFiles) {
+                try {
+                  const r = await executeTool(userId, sessionId, 'listFiles', { directoryPath: '.' });
+                  toolResults.push({ tool: 'listFiles', args: { directoryPath: '.' }, result: r });
+                  toolCalls.push({ function: { name: 'listFiles', arguments: { directoryPath: '.' } } });
+                  pieces.push('Files listed.');
+                } catch (eLF) { void eLF; }
+              }
+              if (wantsScreenshot) {
+                try {
+                  const url = (preview.match(/https?:\/\/[^\s]+/i) || [])[0];
+                  if (url) {
+                    const r = await executeTool(userId, sessionId, 'screenshotWebsite', { url, fullPage: false });
+                    toolResults.push({ tool: 'screenshotWebsite', args: { url }, result: r });
+                    toolCalls.push({ function: { name: 'screenshotWebsite', arguments: { url } } });
+                    pieces.push('Screenshot captured.');
+                  }
+                } catch (eSS) { void eSS; }
+              }
+              if (wantsAnalyzeImage) {
+                try {
+                  const url = (preview.match(/https?:\/\/[^\s]+/i) || [])[0];
+                  if (url) {
+                    const r = await executeTool(userId, sessionId, 'analyzeImage', { imageUrl: url });
+                    toolResults.push({ tool: 'analyzeImage', args: { imageUrl: url }, result: r });
+                    toolCalls.push({ function: { name: 'analyzeImage', arguments: { imageUrl: url } } });
+                    pieces.push('Image analysis completed.');
+                  }
+                } catch (eAI) { void eAI; }
+              }
+              if (wantsDeploy) {
+                try {
+                  const r = await executeTool(userId, sessionId, 'deployProject', { projectPath: process.cwd(), platform: 'vercel' });
+                  toolResults.push({ tool: 'deployProject', args: { projectPath: process.cwd(), platform: 'vercel' }, result: r });
+                  toolCalls.push({ function: { name: 'deployProject', arguments: { projectPath: process.cwd(), platform: 'vercel' } } });
+                  pieces.push('Deployment initiated.');
+                } catch (eDP) { void eDP; }
               }
               {
                 const good = pieces.filter(Boolean);
@@ -876,6 +1120,17 @@ ${transcript.slice(0, 8000)}`;
         const wantsTests = /(tests?|اختبار|تشغيل\s*الاختبارات|unit\s*tests?|e2e)/i.test(lower);
         const wantsBrowserDiag = /(diagnostic|تشخيص|مشاكل\s*الموقع|network\s*failures|console\s*errors)/i.test(lower);
         const wantsApiSearch = /(api|دمج\s*api|ربط\s*واجهة\s*برمجية|endpoint|integrate\s*api)/i.test(lower);
+        const wantsCodeSearch = /(search\s*code|ابحث\s*في\s*الشيفرة|grep|regex)/i.test(lower);
+        const wantsRefactorReplace = /(replace|استبدل|بحث\s*واستبدال)/i.test(lower);
+        const wantsRefactorRename = /(rename\s*import|اعادة\s*تسمية\s*الاستيراد)/i.test(lower);
+        const wantsAutoFix = /(auto\s*fix|اصلح\s*تلقائيا)/i.test(lower);
+        const wantsReadFile = /(اقرأ\s*ملف|read\s*file)/i.test(lower);
+        const wantsWriteFile = /(اكتب\s*ملف|write\s*file)/i.test(lower);
+        const wantsDeleteFile = /(احذف\s*ملف|delete\s*file)/i.test(lower);
+        const wantsListFiles = /(سرد\s*الملفات|list\s*files)/i.test(lower);
+        const wantsScreenshot = /(screenshot|لقطة\s*شاشة)/i.test(lower);
+        const wantsAnalyzeImage = /(حلل\s*صورة|analyze\s*image)/i.test(lower);
+        const wantsDeploy = /(deploy|نشر)/i.test(lower);
 
         let pieces = [];
         if (hasUrl) {
@@ -1026,6 +1281,117 @@ ${transcript.slice(0, 8000)}`;
             toolResults.push({ tool: 'runDepcheck', args: { dir: 'backend' }, result: r });
             toolCalls.push({ function: { name: 'runDepcheck', arguments: { dir: 'backend' } } });
             pieces.push('Dependency analysis completed.');
+          } catch { void 0 }
+        }
+        if (wantsCodeSearch) {
+          try {
+            const r = await toolManager.execute('searchCode', { pattern: preview });
+            toolResults.push({ tool: 'searchCode', args: { pattern: preview }, result: r });
+            toolCalls.push({ function: { name: 'searchCode', arguments: { pattern: preview } } });
+            pieces.push('Code search completed.');
+          } catch { void 0 }
+        }
+        if (wantsRefactorReplace) {
+          try {
+            const mFind = preview.match(/find:\s*([^\n]+)/i);
+            const mReplace = preview.match(/replace:\s*([^\n]+)/i);
+            if (mFind && mReplace) {
+              const r = await toolManager.execute('textReplace', { find: mFind[1], replace: mReplace[1], globs: ['backend/**/*.mjs','dashboard-x/src/**/*.{js,jsx,ts,tsx}'] });
+              toolResults.push({ tool: 'textReplace', args: { find: mFind[1], replace: mReplace[1] }, result: r });
+              toolCalls.push({ function: { name: 'textReplace', arguments: { find: mFind[1], replace: mReplace[1] } } });
+              pieces.push('Text replace executed.');
+            }
+          } catch { void 0 }
+        }
+        if (wantsRefactorRename) {
+          try {
+            const mFrom = preview.match(/from:\s*([^\n]+)/i);
+            const mTo = preview.match(/to:\s*([^\n]+)/i);
+            if (mFrom && mTo) {
+              const r = await toolManager.execute('renameImport', { from: mFrom[1], to: mTo[1], globs: ['backend/**/*.mjs','dashboard-x/src/**/*.{js,jsx,ts,tsx}'] });
+              toolResults.push({ tool: 'renameImport', args: { from: mFrom[1], to: mTo[1] }, result: r });
+              toolCalls.push({ function: { name: 'renameImport', arguments: { from: mFrom[1], to: mTo[1] } } });
+              pieces.push('Import rename applied.');
+            }
+          } catch { void 0 }
+        }
+        if (wantsAutoFix) {
+          try {
+            const r = await toolManager.execute('autoFix', {});
+            toolResults.push({ tool: 'autoFix', args: {}, result: r });
+            toolCalls.push({ function: { name: 'autoFix', arguments: {} } });
+            pieces.push('Auto fix completed.');
+          } catch { void 0 }
+        }
+        if (wantsReadFile) {
+          try {
+            const m = preview.match(/\s(\S+\.(?:js|jsx|ts|tsx|mjs|json|md|txt))/i);
+            if (m) {
+              const r = await toolManager.execute('readFile', { filePath: m[1] });
+              toolResults.push({ tool: 'readFile', args: { filePath: m[1] }, result: r });
+              toolCalls.push({ function: { name: 'readFile', arguments: { filePath: m[1] } } });
+              pieces.push(String(r?.content || '').slice(0, 1000));
+            }
+          } catch { void 0 }
+        }
+        if (wantsWriteFile) {
+          try {
+            const m = preview.match(/path:\s*(\S+)\s+content:\s*([\s\S]+)/i);
+            if (m) {
+              const r = await toolManager.execute('writeFile', { filePath: m[1], content: m[2] });
+              toolResults.push({ tool: 'writeFile', args: { filePath: m[1] }, result: r });
+              toolCalls.push({ function: { name: 'writeFile', arguments: { filePath: m[1] } } });
+              pieces.push('File written.');
+            }
+          } catch { void 0 }
+        }
+        if (wantsDeleteFile) {
+          try {
+            const m = preview.match(/\s(\S+\.(?:js|jsx|ts|tsx|mjs|json|md|txt))/i);
+            if (m) {
+              const r = await toolManager.execute('deleteFile', { filePath: m[1] });
+              toolResults.push({ tool: 'deleteFile', args: { filePath: m[1] }, result: r });
+              toolCalls.push({ function: { name: 'deleteFile', arguments: { filePath: m[1] } } });
+              pieces.push('File deleted.');
+            }
+          } catch { void 0 }
+        }
+        if (wantsListFiles) {
+          try {
+            const r = await toolManager.execute('listFiles', { directoryPath: '.' });
+            toolResults.push({ tool: 'listFiles', args: { directoryPath: '.' }, result: r });
+            toolCalls.push({ function: { name: 'listFiles', arguments: { directoryPath: '.' } } });
+            pieces.push('Files listed.');
+          } catch { void 0 }
+        }
+        if (wantsScreenshot) {
+          try {
+            const url = (preview.match(/https?:\/\/[^\s]+/i) || [])[0];
+            if (url) {
+              const r = await toolManager.execute('screenshotWebsite', { url, fullPage: false });
+              toolResults.push({ tool: 'screenshotWebsite', args: { url }, result: r });
+              toolCalls.push({ function: { name: 'screenshotWebsite', arguments: { url } } });
+              pieces.push('Screenshot captured.');
+            }
+          } catch { void 0 }
+        }
+        if (wantsAnalyzeImage) {
+          try {
+            const url = (preview.match(/https?:\/\/[^\s]+/i) || [])[0];
+            if (url) {
+              const r = await toolManager.execute('analyzeImage', { imageUrl: url });
+              toolResults.push({ tool: 'analyzeImage', args: { imageUrl: url }, result: r });
+              toolCalls.push({ function: { name: 'analyzeImage', arguments: { imageUrl: url } } });
+              pieces.push('Image analysis completed.');
+            }
+          } catch { void 0 }
+        }
+        if (wantsDeploy) {
+          try {
+            const r = await toolManager.execute('deployProject', { projectPath: process.cwd(), platform: 'vercel' });
+            toolResults.push({ tool: 'deployProject', args: { projectPath: process.cwd(), platform: 'vercel' }, result: r });
+            toolCalls.push({ function: { name: 'deployProject', arguments: { projectPath: process.cwd(), platform: 'vercel' } } });
+            pieces.push('Deployment initiated.');
           } catch { void 0 }
         }
 
