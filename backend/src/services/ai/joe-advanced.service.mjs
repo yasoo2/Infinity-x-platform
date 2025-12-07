@@ -154,12 +154,24 @@ function resolveSiteToUrl(message) {
       if (s.includes(k)) return entry.url;
     }
   }
-  const m = s.match(/افتح\s*(?:موقع\s*)?([a-z\u0600-\u06FF]+)/i) || s.match(/open\s*(?:site\s*)?([a-z\u0600-\u06FF]+)/i);
-  if (m && m[1]) {
-    const name = m[1];
-    try {
-      if (/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(name)) return `https://${name}`;
-    } catch { /* noop */ }
+  const corrections = [
+    { pat: /\bgoole\b/g, fix: 'google' },
+    { pat: /\bgogle\b/g, fix: 'google' },
+    { pat: /\bgoogel\b/g, fix: 'google' }
+  ];
+  let t = s;
+  for (const c of corrections) { t = t.replace(c.pat, c.fix); }
+  const m1 = t.match(/\b([a-z0-9.-]+\.[a-z]{2,})\b/i);
+  if (m1 && m1[1]) {
+    const dom = m1[1].replace(/[.,;:!?)]+$/,'');
+    return `https://${dom}`;
+  }
+  const m2 = t.match(/افتح\s*(?:موقع\s*)?([a-z\u0600-\u06FF0-9.-]+(?:\.[a-z]{2,})?)/i) || t.match(/open\s*(?:site\s*)?([a-z\u0600-\u06FF0-9.-]+(?:\.[a-z]{2,})?)/i);
+  if (m2 && m2[1]) {
+    const name = m2[1].replace(/[.,;:!?)]+$/,'');
+    if (/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(name)) return `https://${name}`;
+    const hit = map.find(e => e.keys.some(k => name.includes(k)));
+    if (hit) return hit.url;
   }
   return null;
 }
