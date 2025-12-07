@@ -634,55 +634,81 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                         {lang==='ar' ? 'المتصفح' : 'Browser'}
                       </button>
                     </div>
-                    {Array.isArray(plan) && plan.some(s => s?.type === 'tool_used') && (
-                      <div className="mt-1">
-                        <div className="text-xs text-gray-400 mb-1">{lang==='ar' ? 'الأدوات المستخدمة' : 'Tools Used'}</div>
-                        <div className="flex flex-wrap gap-2">
-                          {plan.filter(s => s?.type === 'tool_used').slice(-6).map((s, i) => (
-                            <span key={i} className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-700 text-gray-200 border border-gray-600 text-[11px]">
-                              <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
-                              {String(s?.content || '').trim() || 'tool'}
-                            </span>
-                          ))}
+                      {Array.isArray(plan) && plan.some(s => s?.type === 'tool_used') && (
+                        <div className="mt-1">
+                          <div className="text-xs text-gray-400 mb-1">{lang==='ar' ? 'الأدوات المستخدمة' : 'Tools Used'}</div>
+                          <div className="flex flex-wrap gap-2">
+                            {plan.filter(s => s?.type === 'tool_used').slice(-6).map((s, i) => (
+                              <span key={i} className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-700 text-gray-200 border border-gray-600 text-[11px]">
+                                <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
+                                {String(s?.content || '').trim() || 'tool'}
+                              </span>
+                            ))}
+                          </div>
+                          <div className="mt-2 max-h-28 overflow-y-auto bg-gray-800/60 border border-gray-700 rounded-md">
+                            {plan.filter(s => s?.type === 'tool_used').slice(-12).map((s, i) => {
+                              const name = String(s?.content || '').trim();
+                              const d = s?.details || {};
+                              const stage = String(d?.stage || '').toLowerCase();
+                              const ms = typeof d?.ms === 'number' ? d.ms : null;
+                              const summary = String(d?.summary || '').trim();
+                              const args = d?.args;
+                              const argsText = (() => {
+                                try {
+                                  if (!args) return '';
+                                  const keys = Object.keys(args);
+                                  if (keys.length === 0) return '';
+                                  const pairs = keys.slice(0, 3).map(k => `${k}=${typeof args[k] === 'string' ? args[k] : JSON.stringify(args[k]).slice(0, 60)}`);
+                                  return pairs.join(' ');
+                                } catch { return ''; }
+                              })();
+                              const line = (() => {
+                                if (stage === 'start') {
+                                  return lang==='ar' ? `بدء ${name} ${argsText}`.trim() : `start ${name} ${argsText}`.trim();
+                                }
+                                if (stage === 'end') {
+                                  const msText = ms != null ? `${ms}ms` : '';
+                                  const sep = (msText && summary) ? ' – ' : '';
+                                  const tail = `${msText}${sep}${summary}`.trim();
+                                  return lang==='ar' ? `انتهى ${name} ${tail}`.trim() : `end ${name} ${tail}`.trim();
+                                }
+                                return name || (lang==='ar' ? 'أداة' : 'tool');
+                              })();
+                              return (
+                                <div key={`log-${i}`} className="px-2 py-1 text-[11px] text-gray-300 border-b border-gray-700/60 last:border-b-0">
+                                  {line}
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {(() => {
+                            try {
+                              const steps = plan.filter(s => s?.type === 'tool_used');
+                              const lastImg = steps.slice().reverse().find(s => /generateImage|dall|image/i.test(String(s?.content || '')));
+                              const d = lastImg?.details || {};
+                              const stage = String(d?.stage || '').toLowerCase();
+                              if (stage !== 'end') return null;
+                              const collectUrls = (text) => {
+                                try { return Array.from(new Set(String(text||'').match(/https?:\/\/[^\s)]+/g) || [])); } catch { return []; }
+                              };
+                              const urls = [
+                                ...collectUrls(d?.summary || ''),
+                                ...collectUrls(JSON.stringify(d?.args || {}))
+                              ];
+                              const imgUrl = urls.find(u => /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(u)) || urls.find(u => /\/uploads\//.test(u));
+                              if (!imgUrl) return null;
+                              return (
+                                <div className="mt-3">
+                                  <div className="text-xs text-gray-400 mb-1">{lang==='ar' ? 'معاينة الصورة الناتجة' : 'Generated Image Preview'}</div>
+                                  <a href={imgUrl} target="_blank" rel="noopener noreferrer" className="block">
+                                    <img src={imgUrl} alt="generated" className="max-h-56 rounded-lg border border-gray-700" />
+                                  </a>
+                                </div>
+                              );
+                            } catch { return null; }
+                          })()}
                         </div>
-                        <div className="mt-2 max-h-28 overflow-y-auto bg-gray-800/60 border border-gray-700 rounded-md">
-                          {plan.filter(s => s?.type === 'tool_used').slice(-12).map((s, i) => {
-                            const name = String(s?.content || '').trim();
-                            const d = s?.details || {};
-                            const stage = String(d?.stage || '').toLowerCase();
-                            const ms = typeof d?.ms === 'number' ? d.ms : null;
-                            const summary = String(d?.summary || '').trim();
-                            const args = d?.args;
-                            const argsText = (() => {
-                              try {
-                                if (!args) return '';
-                                const keys = Object.keys(args);
-                                if (keys.length === 0) return '';
-                                const pairs = keys.slice(0, 3).map(k => `${k}=${typeof args[k] === 'string' ? args[k] : JSON.stringify(args[k]).slice(0, 60)}`);
-                                return pairs.join(' ');
-                              } catch { return ''; }
-                            })();
-                            const line = (() => {
-                              if (stage === 'start') {
-                                return lang==='ar' ? `بدء ${name} ${argsText}`.trim() : `start ${name} ${argsText}`.trim();
-                              }
-                              if (stage === 'end') {
-                                const msText = ms != null ? `${ms}ms` : '';
-                                const sep = (msText && summary) ? ' – ' : '';
-                                const tail = `${msText}${sep}${summary}`.trim();
-                                return lang==='ar' ? `انتهى ${name} ${tail}`.trim() : `end ${name} ${tail}`.trim();
-                              }
-                              return name || (lang==='ar' ? 'أداة' : 'tool');
-                            })();
-                            return (
-                              <div key={`log-${i}`} className="px-2 py-1 text-[11px] text-gray-300 border-b border-gray-700/60 last:border-b-0">
-                                {line}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
+                      )}
                     {(() => {
                       try {
                         const steps = Array.isArray(plan) ? plan.filter(s => s?.type === 'tool_used') : [];
