@@ -101,9 +101,17 @@ class ToolManager {
 
     _registerModule(module) {
         for (const [toolName, toolFunction] of Object.entries(module)) {
-            if (typeof toolFunction === 'function' && toolFunction.metadata) {
+            if (typeof toolFunction === 'function') {
+                const md = toolFunction.metadata || {};
+                const schema = {
+                    name: md.name || toolName,
+                    description: md.description || 'No description provided',
+                    parameters: md.parameters || { type: 'object', properties: {} }
+                };
+                // attach schema back to function for consistency
+                toolFunction.metadata = schema;
                 this.tools.set(toolName, toolFunction);
-                this.toolSchemas.push({ type: 'function', function: toolFunction.metadata });
+                this.toolSchemas.push({ type: 'function', function: schema });
             }
         }
     }
