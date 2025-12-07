@@ -849,6 +849,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
               onTakeover={() => {}}
               onClose={() => setShowBrowserPanel(false)}
               initialUrl={browserInitialUrl}
+              initialSearchQuery={browserInitialSearch}
             />
           </div>
         </div>
