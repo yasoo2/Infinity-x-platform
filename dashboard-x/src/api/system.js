@@ -144,7 +144,7 @@ export const getChatSessionById = (id, opts) =>
   call(() => apiClient.get(chatHistory(`/sessions/${id}`), { signal: opts?.signal }));
 
 export const deleteChatSession = (id, opts) =>
-  call(() => apiClient.delete(chatHistory(`/sessions/${id}`), { signal: opts?.signal }));
+  call(() => apiClient.delete(chatHistory(`/sessions/${id}`), { signal: opts?.signal, timeout: opts?.timeout ?? 12000 }));
 
 export const getUserContext = (params) =>
   call(() => apiClient.get(chatHistory('/user-context'), { params: { limit: params?.limit }, signal: params?.signal }));

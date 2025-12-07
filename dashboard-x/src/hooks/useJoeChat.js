@@ -460,10 +460,13 @@ export const useJoeChat = () => {
   const deleteConversation = useCallback(async (id) => {
     const conv = state.conversations[id];
     const sid = conv?.sessionId || id;
+    let start = Date.now();
     try { pendingDeleteIdsRef.current.set(String(sid), Date.now() + 30000); } catch { /* noop */ }
     dispatch({ type: 'DELETE_CONVERSATION', payload: { id } });
     try {
-      await deleteChatSession(sid);
+      await deleteChatSession(sid, { timeout: 12000 });
+      const ms = Date.now() - start;
+      try { pendingDeleteIdsRef.current.set(String(sid), Date.now() + Math.max(5000, ms * 2)); } catch { /* noop */ }
       try { pendingDeleteIdsRef.current.delete(String(sid)); } catch { /* noop */ }
     } catch { void 0; }
     try {
@@ -476,8 +479,11 @@ export const useJoeChat = () => {
       const s = await getChatSessions({});
       const ids = (s?.sessions || []).map((x) => x?.id || x?._id).filter(Boolean);
       for (const sid of ids) {
+        let start = Date.now();
         try { pendingDeleteIdsRef.current.set(String(sid), Date.now() + 60000); } catch { /* noop */ }
-        try { await deleteChatSession(sid); } catch { /* ignore */ }
+        try { await deleteChatSession(sid, { timeout: 15000 }); } catch { /* ignore */ }
+        const ms = Date.now() - start;
+        try { pendingDeleteIdsRef.current.set(String(sid), Date.now() + Math.max(8000, ms * 2)); } catch { /* noop */ }
         try { pendingDeleteIdsRef.current.delete(String(sid)); } catch { /* noop */ }
       }
     } catch { /* ignore */ }
