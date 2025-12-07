@@ -3,7 +3,7 @@ import { useReducer, useEffect, useCallback, useRef } from 'react';
 import { io } from 'socket.io-client';
 import apiClient from '../api/client';
 import { v4 as uuidv4 } from 'uuid';
-import { getChatSessions, getChatSessionById, getGuestToken, getSystemStatus, createChatSession, updateChatSession, addChatMessage, getChatMessages } from '../api/system';
+import { getChatSessions, getChatSessionById, getGuestToken, getSystemStatus, createChatSession, updateChatSession, addChatMessage, getChatMessages, deleteChatSession } from '../api/system';
 
 const JOE_CHAT_HISTORY = 'joeChatHistory';
 
@@ -447,8 +447,14 @@ export const useJoeChat = () => {
     dispatch({ type: 'RENAME_CONVERSATION', payload: { id, title } });
   }, []);
 
-  const deleteConversation = useCallback((id) => {
+  const deleteConversation = useCallback(async (id) => {
     dispatch({ type: 'DELETE_CONVERSATION', payload: { id } });
+    try {
+      await deleteChatSession(id);
+    } catch { void 0; }
+    try {
+      if (syncRef.current) syncRef.current();
+    } catch { void 0; }
   }, []);
 
   useEffect(() => {
