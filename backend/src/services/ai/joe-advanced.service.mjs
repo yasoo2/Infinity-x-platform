@@ -198,7 +198,6 @@ async function processMessage(userId, message, sessionId, { model = null, lang }
     try { joeEvents.emitProgress(userId, sessionId, 5, 'Starting'); } catch { /* noop */ }
 
     // 1. Retrieve Conversation Context (prefer current session if available)
-        const conversationHistory = (() => { return null; })();
         let convo = [];
         try {
             if (sessionId) {
@@ -210,20 +209,6 @@ async function processMessage(userId, message, sessionId, { model = null, lang }
             }
         } catch { convo = await memoryManager.getConversationContext(userId, { limit: 15 }); }
     try { joeEvents.emitProgress(userId, sessionId, 10, 'Context loaded'); } catch { /* noop */ }
-    const history = (() => {
-        const h = [];
-        const items = (convo || []).slice().reverse();
-        for (const item of items) {
-            const uText = String(item?.command?.content || item?.command || '').trim();
-            const aText = String(item?.result || '').trim();
-            if (uText) h.push({ role: 'user', parts: [{ text: uText }] });
-            if (aText) h.push({ role: 'model', parts: [{ text: aText }] });
-        }
-        if (ltmFactsText) {
-            h.unshift({ role: 'model', parts: [{ text: ltmFactsText }] });
-        }
-        return h;
-    })();
 
     const targetLang = (String(lang || '').toLowerCase() === 'ar') ? 'ar' : 'en';
     const languageDirective = targetLang === 'ar' ? 'اعتمد العربية في جميع الردود، ولخص المحتوى بشكل واضح مع نقاط موجزة وعناوين فرعية.' : 'Respond in English. Provide a clear summary with bullet points and subheadings.';
@@ -239,8 +224,24 @@ async function processMessage(userId, message, sessionId, { model = null, lang }
             ltmFactsText = (targetLang === 'ar' ? 'معلومات معروفة:\n' : 'Known facts:\n') + lines.join('\n');
         }
     } catch { /* noop */ }
-    const userMessage = { role: 'user', content: message };
 
+    const history = (() => {
+        const h = [];
+        const items = (convo || []).slice().reverse();
+        for (const item of items) {
+            const uText = String(item?.command?.content || item?.command || '').trim();
+            const aText = String(item?.result || '').trim();
+            if (uText) h.push({ role: 'user', parts: [{ text: uText }] });
+            if (aText) h.push({ role: 'model', parts: [{ text: aText }] });
+        }
+        if (ltmFactsText) {
+            h.unshift({ role: 'model', parts: [{ text: ltmFactsText }] });
+        }
+        return h;
+    })();
+
+    const conversationHistory = Array.isArray(convo) ? convo : [];
+    const userMessage = { role: 'user', content: message };
     const messagesForOpenAI = [systemPrompt, ...conversationHistory.map(item => item.command).reverse(), userMessage];
     void messagesForOpenAI;
     const messagesForGemini = [...history, { role: 'user', parts: [{ text: message }] }];
