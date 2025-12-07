@@ -18,7 +18,11 @@ const chatHistoryRouterFactory = ({ requireRole, io }) => {
   router.get('/sessions', requireRole('USER'), async (req, res) => {
     try {
       const uid = req.user?._id
-  const sessions = await ChatSession.find({ userId: { $in: [uid, String(uid)] }, deleted: { $ne: true } })
+      if (!uid) {
+        res.set('Cache-Control', 'no-store')
+        return res.json({ success: true, sessions: [] })
+      }
+      const sessions = await ChatSession.find({ userId: { $in: [uid, String(uid)] }, deleted: { $ne: true } })
         .sort({ updatedAt: -1 })
         .limit(500)
         .select({ title: 1, pinned: 1, updatedAt: 1, lastModified: 1 })

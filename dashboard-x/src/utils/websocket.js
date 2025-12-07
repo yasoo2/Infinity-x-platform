@@ -123,12 +123,12 @@ export const connectWebSocket = (onMessage, onOpen, onClose) => {
     const httpBase = baseWsUrl.replace(/^ws/, 'http').replace(/^wss/, 'https');
     const { io } = await import('socket.io-client');
     await ensureToken();
-    ioSocket = io(`${httpBase}/joe-agent`, { path: '/socket.io', auth: { token }, transports: ['polling','websocket'], upgrade: true, reconnection: true, reconnectionDelay: 500, reconnectionDelayMax: 4000, timeout: 3000, forceNew: true });
+    ioSocket = io(`${httpBase}/joe-agent`, { path: '/socket.io/', auth: { token }, transports: ['polling','websocket'], upgrade: true, reconnection: true, reconnectionDelay: 500, reconnectionDelayMax: 4000, timeout: 3000, forceNew: true });
     const fallbackTimer = setTimeout(() => {
       try {
         if (!ioSocket.connected) {
           try { ioSocket.close(); } catch { /* noop */ }
-          ioSocket = io(`${httpBase}/joe-agent`, { path: '/ws/socket.io', auth: { token }, transports: ['websocket','polling'], upgrade: true, reconnection: true, reconnectionDelay: 500, reconnectionDelayMax: 4000, timeout: 3000, forceNew: true });
+          ioSocket = io(`${httpBase}/joe-agent`, { path: '/ws/socket.io/', auth: { token }, transports: ['websocket','polling'], upgrade: true, reconnection: true, reconnectionDelay: 500, reconnectionDelayMax: 4000, timeout: 3000, forceNew: true });
         }
       } catch { /* noop */ }
     }, 1500);
