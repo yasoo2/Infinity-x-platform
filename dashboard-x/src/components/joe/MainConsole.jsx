@@ -588,13 +588,25 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                     <>
                       <p className="text-base leading-relaxed whitespace-pre-wrap break-words">
                         {parts.map((p, i) => typeof p === 'string' ? p : (
-                          <a key={`lnk-${i}`} href={p.href} target="_blank" rel="noopener noreferrer" className="underline text-yellow-400 break-all">{p.href}</a>
+                          <a
+                            key={`lnk-${i}`}
+                            href={p.href}
+                            onClick={(e) => { e.preventDefault(); try { window.dispatchEvent(new CustomEvent('joe:open-browser', { detail: { url: p.href } })); } catch { /* noop */ } }}
+                            className="underline text-yellow-400 break-all"
+                          >
+                            {p.href}
+                          </a>
                         ))}
                       </p>
                       {imageUrls.length > 0 && (
                         <div className="mt-3 flex flex-wrap gap-3">
                           {imageUrls.slice(0, 4).map((src, i) => (
-                            <a key={`img-${i}`} href={src} target="_blank" rel="noopener noreferrer" className="block">
+                            <a
+                              key={`img-${i}`}
+                              href={src}
+                              onClick={(e) => { e.preventDefault(); try { window.dispatchEvent(new CustomEvent('joe:open-browser', { detail: { url: src } })); } catch { /* noop */ } }}
+                              className="block"
+                            >
                               <img src={src} alt="image" className="max-h-56 rounded-lg border border-gray-700"/>
                             </a>
                           ))}
