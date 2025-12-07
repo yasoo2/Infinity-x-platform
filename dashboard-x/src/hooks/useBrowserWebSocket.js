@@ -11,7 +11,6 @@ const useBrowserWebSocket = () => {
   const ioRef = useRef(null);
 
   useEffect(() => {
-    void 0;
     const connect = async () => {
       let sessionToken = null;
       try { sessionToken = localStorage.getItem('sessionToken'); } catch { sessionToken = null; }
@@ -33,15 +32,32 @@ const useBrowserWebSocket = () => {
 
       const token = await ensureToken();
       if (!token) return;
-      const { io } = await import('socket.io-client');
-      const ioUrl = httpBase.replace(/\/$/, '');
-      ioRef.current = io(`${ioUrl}/joe-agent`, { path: '/socket.io', auth: { token }, transports: ['polling','websocket'], upgrade: true, reconnection: true });
-      ioRef.current.on('connect', () => { setIsConnected(true); ioRef.current.emit('browser:start'); ioRef.current.emit('browser:start_streaming'); });
-      ioRef.current.on('disconnect', () => { setIsConnected(false); });
-      ioRef.current.on('error', (e) => { try { console.error('[Browser IO] Error:', e); } catch { /* noop */ } });
-      ioRef.current.on('browser:screenshot', ({ screenshot: sc, pageInfo: pi }) => { setScreenshot(sc); setPageInfo(pi || {}); setIsLoading(false); });
-      ioRef.current.on('browser:page_text', ({ result, pageInfo: pi }) => { setPageText(String(result?.text || '')); setPageInfo(pi || {}); setIsLoading(false); });
-      ioRef.current.on('browser:serp_results', ({ result, pageInfo: pi }) => { setSerpResults(Array.isArray(result?.results) ? result.results : []); setPageInfo(pi || {}); setIsLoading(false); });
+      let sock = null;
+      try { sock = window.__joeSocket || null; } catch { sock = null; }
+      const attach = (s) => {
+        ioRef.current = s;
+        s.on('connect', () => { setIsConnected(true); s.emit('browser:start'); s.emit('browser:start_streaming'); });
+        s.on('disconnect', () => { setIsConnected(false); });
+        s.on('error', (e) => { try { console.error('[Browser IO] Error:', e); } catch { /* noop */ } });
+        s.on('browser:screenshot', ({ screenshot: sc, pageInfo: pi }) => { setScreenshot(sc); setPageInfo(pi || {}); setIsLoading(false); });
+        s.on('browser:page_text', ({ result, pageInfo: pi }) => { setPageText(String(result?.text || '')); setPageInfo(pi || {}); setIsLoading(false); });
+        s.on('browser:serp_results', ({ result, pageInfo: pi }) => { setSerpResults(Array.isArray(result?.results) ? result.results : []); setPageInfo(pi || {}); setIsLoading(false); });
+        if (s.connected) { setIsConnected(true); s.emit('browser:start'); s.emit('browser:start_streaming'); }
+      };
+      if (sock && sock.connected) {
+        attach(sock);
+      } else {
+        const onReady = () => { try { const s2 = window.__joeSocket || null; if (s2) { attach(s2); } } catch { /* noop */ } };
+        try { window.addEventListener('joe:socket-ready', onReady, { once: true }); } catch { /* noop */ }
+        setTimeout(async () => {
+          try { const s3 = window.__joeSocket || null; if (s3) { attach(s3); return; } } catch { /* noop */ }
+          const { io } = await import('socket.io-client');
+          const ioUrl = httpBase.replace(/\/$/, '');
+          const optsA = { path: '/socket.io', auth: { token }, transports: ['polling','websocket'], upgrade: true, reconnection: true };
+          const optsB = { path: '/ws/socket.io', auth: { token }, transports: ['polling','websocket'], upgrade: true, reconnection: true };
+          try { attach(io(`${ioUrl}/joe-agent`, optsA)); } catch { attach(io(`${ioUrl}/joe-agent`, optsB)); }
+        }, 1500);
+      }
     };
 
     connect();

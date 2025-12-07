@@ -905,6 +905,7 @@ export const useJoeChat = () => {
           try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
         });
         sioRef.current = socket;
+        try { window.__joeSocket = socket; window.dispatchEvent(new Event('joe:socket-ready')); } catch { /* noop */ }
         const useWs = false;
         if (!useWs) {
           return;
