@@ -209,7 +209,7 @@ const chatReducer = (state, action) => {
             const newId = explicitId || uuidv4();
             console.warn('[NEW_CONVERSATION] Creating new conversation with ID:', newId);
             const dynamicText = typeof action.payload === 'object' && action.payload.welcomeMessage ? action.payload.welcomeMessage : 'Welcome to Joe AI Assistant! 👋';
-            const welcomeMessage = { type: 'joe', content: dynamicText, id: uuidv4() };
+            const welcomeMessage = { type: 'joe', content: dynamicText, id: uuidv4(), createdAt: Date.now() };
             const newConversations = {
                 ...conversations,
                 [newId]: { id: newId, title: 'New Conversation', messages: [welcomeMessage], lastModified: Date.now(), pinned: false, sessionId: (typeof action.payload === 'object' && action.payload.sessionId) ? action.payload.sessionId : null },
@@ -1271,11 +1271,10 @@ export const useJoeChat = () => {
           createdAt: (() => { try { return m.createdAt ? new Date(m.createdAt).getTime() : (baseTs + (idx++)); } catch { return baseTs + (idx++); } })()
         }));
         const local = (state.conversations[id]?.messages || []).map((lm, i) => ({ ...lm, createdAt: typeof lm.createdAt === 'number' ? lm.createdAt : (baseTs - 1000 + i) }));
-        const seen = new Set(local.map(m => `${m.type}:${m.content}`));
+        const byId = new Set(local.map(m => m.id).filter(Boolean));
         const merged = [...local];
         for (const fm of fetched) {
-          const key = `${fm.type}:${fm.content}`;
-          if (!seen.has(key)) merged.push(fm);
+          if (!byId.has(fm.id)) merged.push(fm);
         }
         dispatch({ type: 'SET_MESSAGES_FOR_CONVERSATION', payload: { id, messages: merged } });
       } catch { void 0; }
