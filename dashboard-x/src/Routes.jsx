@@ -76,8 +76,6 @@ ProtectedRoute.propTypes = {
 };
 
 import JoeScreen from './components/JoeScreen';
-import FullScreenBrowser from './components/FullScreenBrowser';
-import BrowserViewer from './components/BrowserViewer';
 const SecurityReport = React.lazy(() => import('./pages/SecurityReport'));
 const Knowledge = React.lazy(() => import('./pages/Knowledge'));
 
@@ -101,15 +99,6 @@ const JoeScreenPage = () => {
   );
 };
 
-const BrowserFullPage = () => {
-  const navigate = useNavigate();
-  return <FullScreenBrowser onClose={() => navigate('/dashboard/joe')} />;
-};
-
-const BrowserViewerPage = () => {
-  const navigate = useNavigate();
-  return <BrowserViewer sessionId={"default"} onClose={() => navigate('/dashboard/joe')} language={'ar'} />;
-};
 
 const AppRoutes = () => {
   class ErrorBoundary extends React.Component {
@@ -151,8 +140,7 @@ const AppRoutes = () => {
           <Route path="command" element={<Command />} />
           <Route path="monitoring" element={<MonitoringPage />} />
           <Route path="joe-screen" element={<JoeScreenPage />} />
-          <Route path="browser-full" element={<BrowserFullPage />} />
-          <Route path="browser-viewer" element={<BrowserViewerPage />} />
+          
           <Route path="security" element={<SecurityReport />} />
           <Route path="knowledge" element={<Knowledge />} />
           <Route path="page-builder" element={<PageBuilder />} />
