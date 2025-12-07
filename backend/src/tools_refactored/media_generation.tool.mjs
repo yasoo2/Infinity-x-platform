@@ -2,10 +2,18 @@
  * 🎨 MediaGenerationTool - Enables JOE to create and edit images, video, and audio.
  * This tool leverages external AI services (like DALL-E, Stable Diffusion, or a custom service).
  */
+import fs from 'fs/promises'
+import OpenAI from 'openai'
+
 class MediaGenerationTool {
     constructor(dependencies) {
         this.dependencies = dependencies;
         this._initializeMetadata();
+        this._openai = null;
+        try {
+            const key = process.env.OPENAI_API_KEY || this.dependencies?.openaiApiKey;
+            if (key) this._openai = new OpenAI({ apiKey: key });
+        } catch { this._openai = null }
     }
 
     _initializeMetadata() {
@@ -53,13 +61,32 @@ class MediaGenerationTool {
     }
 
     async generateImage({ prompt, style, outputFilePath }) {
-        // Placeholder for external service call (e.g., DALL-E API)
-        return {
-            success: true,
-            message: `Image generation request for prompt: "${prompt}" in style: "${style}" initiated.`,
-            outputFile: outputFilePath,
-            note: "Actual generation requires a configured external AI service."
-        };
+        const p = String(prompt || '').trim();
+        if (!p) return { success: false, error: 'PROMPT_REQUIRED' };
+        const out = String(outputFilePath || '').trim();
+        if (!out) return { success: false, error: 'OUTPUT_PATH_REQUIRED' };
+
+        if (!this._openai) {
+            return {
+                success: false,
+                error: 'OPENAI_API_KEY_MISSING',
+                message: 'Provide OPENAI_API_KEY to enable real image generation.'
+            };
+        }
+
+        try {
+            const size = '1024x1024';
+            const model = 'gpt-image-1';
+            const promptText = style ? `${p}\nStyle: ${style}` : p;
+            const res = await this._openai.images.generate({ model, prompt: promptText, size });
+            const b64 = res?.data?.[0]?.b64_json || '';
+            if (!b64) return { success: false, error: 'EMPTY_IMAGE_RESPONSE' };
+            const buf = Buffer.from(b64, 'base64');
+            await fs.writeFile(out, buf);
+            return { success: true, outputFile: out, size, model };
+        } catch (error) {
+            return { success: false, error: error?.message || String(error) };
+        }
     }
 
     async editImage({ originalFilePath, editInstruction, outputFilePath }) {

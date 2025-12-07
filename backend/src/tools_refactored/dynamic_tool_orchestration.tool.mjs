@@ -186,8 +186,8 @@ The self-correction mechanism has been activated. A detailed, multi-step plan ha
                 const targetUrl = context?.url || context?.previewUrl || 'https://example.com';
 
                 try {
-                    const scaffold = await tm.execute('createBasicWebApp', { directory, appName, description });
-                    push(`Scaffold web app ${appName}`, { tool: 'createBasicWebApp', output: scaffold });
+                    const scaffold = await tm.execute('createEcommerceStore', { storeName: appName, config: { language: 'ar' } });
+                    push(`Scaffold web app ${appName}`, { tool: 'createEcommerceStore', output: scaffold });
                 } catch (eSc) {
                     push('Scaffold failed', { error: eSc?.message || String(eSc) });
                 }
