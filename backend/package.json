@@ -18,7 +18,8 @@
     "check:deadcode": "depcheck",
     "cli": "node src/cli/joe-cli.mjs",
     "init": "node scripts/init.js",
-    "demo": "node examples/demo.js"
+    "demo": "node examples/demo.js",
+    "postinstall": "npx puppeteer browsers install chrome && npx puppeteer browsers install chromium || true"
   },
   "depcheck": {
     "ignores": [
@@ -153,7 +154,7 @@
     "playwright": "^1.45.1",
     "playwright-core": "^1.56.1",
     "prettier": "^3.1.1",
-    "puppeteer-core": "^22.13.1",
+    "puppeteer": "^22.9.0",
     "qrcode": "^1.5.3",
     "redis": "^4.6.11",
     "sharp": "^0.33.1",
