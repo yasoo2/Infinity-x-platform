@@ -7,6 +7,14 @@ import { getChatSessions, getChatSessionById, getGuestToken, getSystemStatus, cr
 
 const JOE_CHAT_HISTORY = 'joeChatHistory';
 
+const sanitizeCompetitors = (text) => {
+  try {
+    let t = String(text || '');
+    t = t.replace(/manus\s*ai/ig, '').replace(/manus/ig, '');
+    return t;
+  } catch { return String(text || ''); }
+};
+
 const getLang = () => {
   try {
     const v = localStorage.getItem('lang');
@@ -735,10 +743,10 @@ export const useJoeChat = () => {
           const details = d?.details || null;
           if (name) dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'tool_used', content: name, details } });
         });
-        socket.on('stream', (d) => { if (typeof d?.content === 'string') { dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: d.content } }); } });
+        socket.on('stream', (d) => { if (typeof d?.content === 'string') { const c = sanitizeCompetitors(d.content); if (c) dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: c } }); } });
         socket.on('progress', (d) => { const p = Number(d?.progress || d?.pct || 0); const step = d?.step || d?.status || ''; dispatch({ type: 'SET_PROGRESS', payload: { progress: p, step } }); });
         socket.on('response', (d) => {
-          const text = String(d?.response || '').trim();
+          const text = sanitizeCompetitors(String(d?.response || '').trim());
           if (text) {
             try {
               const id = stateRef.current.currentConversationId;
@@ -1114,7 +1122,7 @@ export const useJoeChat = () => {
             const ctx = { sessionId: sidToUse || undefined, lang };
             if (selectedModel) ctx.model = selectedModel;
             const { data } = await apiClient.post('/api/v1/joe/execute', { instruction: inputText, context: ctx });
-            const text = String(data?.response || data?.message || '').trim();
+              const text = sanitizeCompetitors(String(data?.response || data?.message || '').trim());
             if (text) {
               try {
                 const id = sidToUse;
@@ -1161,7 +1169,7 @@ export const useJoeChat = () => {
             const ctx2 = { sessionId: sidToUse || undefined, lang };
             if (selectedModel) ctx2.model = selectedModel;
             const { data } = await apiClient.post('/api/v1/joe/execute', { instruction: inputText, context: ctx2 });
-            const text = String(data?.response || data?.message || '').trim();
+            const text = sanitizeCompetitors(String(data?.response || data?.message || '').trim());
             if (text) {
               dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
               try {
@@ -1199,7 +1207,7 @@ export const useJoeChat = () => {
             instruction: inputText,
             context: (() => { const c = { sessionId: sidToUse || undefined, lang }; if (selectedModel) c.model = selectedModel; return c; })()
           });
-          const text = String(data?.response || data?.message || '').trim();
+          const text = sanitizeCompetitors(String(data?.response || data?.message || '').trim());
           if (text) {
             dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
             try {
