@@ -76,6 +76,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   const [showBrowserPanel, setShowBrowserPanel] = React.useState(false);
   const [browserPanelMode, setBrowserPanelMode] = React.useState('mini');
   const [browserInitialUrl, setBrowserInitialUrl] = React.useState('');
+  const [browserInitialSearch, setBrowserInitialSearch] = React.useState('');
   const galleryPanelRef = useRef(null);
 
   const { 
@@ -174,6 +175,8 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
         const d = e && e.detail ? e.detail : {};
         const url = String(d?.url || '').trim();
         if (url) setBrowserInitialUrl(url);
+        const q = String(d?.searchQuery || '').trim();
+        if (q) setBrowserInitialSearch(q);
         setShowBrowserPanel(true);
         setBrowserPanelMode('mini');
       } catch { /* noop */ }
@@ -585,11 +588,36 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                     lastIndex = i + raw.length;
                   }
                   if (lastIndex < t.length) parts.push(t.slice(lastIndex));
+                  const brands = ['google','جوجل','غوغل','youtube','يوتيوب','facebook','فيسبوك','instagram','انستقرام','tiktok','تيك توك','twitter','x','snapchat','سناب شات','linkedin','لينكدان','netflix','نيتفلكس','amazon','أمازون','apple','آبل','microsoft','مايكروسوفت','github','جيت هب','gitlab','جيت لاب','stackoverflow','ستاك أوفر فلو'];
+                  const brandPattern = new RegExp(`\\b(?:${brands.map(b=>b.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&')).join('|')})\\b`,'gi');
+                  const renderTextWithBrands = (s) => {
+                    const nodes = [];
+                    let idx = 0;
+                    let mm;
+                    while ((mm = brandPattern.exec(s)) !== null) {
+                      const i = mm.index;
+                      const w = mm[0];
+                      if (i > idx) nodes.push(s.slice(idx, i));
+                      nodes.push(
+                        <a
+                          key={`brand-${i}-${w}`}
+                          href="#"
+                          onClick={(e) => { e.preventDefault(); try { window.dispatchEvent(new CustomEvent('joe:open-browser', { detail: { searchQuery: w } })); } catch { /* noop */ } }}
+                          className="underline text-blue-400"
+                        >
+                          {w}
+                        </a>
+                      );
+                      idx = i + w.length;
+                    }
+                    if (idx < s.length) nodes.push(s.slice(idx));
+                    return nodes;
+                  };
                   const imageUrls = Array.from(new Set((t.match(/https?:\/\/[^\s)]+/g) || []).filter(u => /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(u))));
                   return (
                     <>
                       <p className="text-base leading-relaxed whitespace-pre-wrap break-words">
-                        {parts.map((p, i) => typeof p === 'string' ? p : (
+                        {parts.map((p, i) => typeof p === 'string' ? renderTextWithBrands(p) : (
                           <a
                             key={`lnk-${i}`}
                             href={p.href}
