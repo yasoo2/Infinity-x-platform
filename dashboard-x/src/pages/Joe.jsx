@@ -18,14 +18,7 @@ const JoeContent = () => {
   });
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(true);
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
-  const [isBottomPanelOpen, setIsBottomPanelOpen] = useState(() => {
-    try {
-      const v = localStorage.getItem('joeBottomOpen');
-      return v ? v === 'true' : false;
-    } catch {
-      return false;
-    }
-  });
+  const [isBottomPanelOpen, setIsBottomPanelOpen] = useState(false);
   const [isBottomCollapsed, setIsBottomCollapsed] = useState(false);
   const [isStatusPanelOpen, setIsStatusPanelOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);

@@ -473,9 +473,13 @@ export const useJoeChat = () => {
 
   const mapSessionToConversation = useCallback((session) => {
     const messages = [];
+    let seq = 1;
     for (const i of session.interactions || []) {
-      if (i?.command) messages.push({ type: 'user', content: i.command, id: uuidv4() });
-      if (i?.result) messages.push({ type: 'joe', content: i.result, id: uuidv4() });
+      const ts = (() => {
+        try { return i?.metadata?.timestamp ? new Date(i.metadata.timestamp).getTime() : Date.now(); } catch { return Date.now(); }
+      })();
+      if (i?.command) messages.push({ type: 'user', content: i.command, id: uuidv4(), createdAt: ts + (seq++) });
+      if (i?.result) messages.push({ type: 'joe', content: i.result, id: uuidv4(), createdAt: ts + (seq++) });
     }
     const last = (session.interactions || []).at(-1);
     const lastModified = last?.metadata?.timestamp ? new Date(last.metadata.timestamp).getTime() : Date.now();
@@ -1258,8 +1262,15 @@ export const useJoeChat = () => {
     (async () => {
       try {
         const r = await getChatMessages(sid);
-        const fetched = (r?.messages || []).map(m => ({ type: m.type === 'user' ? 'user' : 'joe', content: m.content, id: m._id || uuidv4() }));
-        const local = state.conversations[id]?.messages || [];
+        const baseTs = Date.now();
+        let idx = 1;
+        const fetched = (r?.messages || []).map(m => ({
+          type: m.type === 'user' ? 'user' : 'joe',
+          content: m.content,
+          id: m._id || uuidv4(),
+          createdAt: (() => { try { return m.createdAt ? new Date(m.createdAt).getTime() : (baseTs + (idx++)); } catch { return baseTs + (idx++); } })()
+        }));
+        const local = (state.conversations[id]?.messages || []).map((lm, i) => ({ ...lm, createdAt: typeof lm.createdAt === 'number' ? lm.createdAt : (baseTs - 1000 + i) }));
         const seen = new Set(local.map(m => `${m.type}:${m.content}`));
         const merged = [...local];
         for (const fm of fetched) {
