@@ -172,6 +172,7 @@ function resolveSiteToUrl(message) {
     if (/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(name)) return `https://${name}`;
     const hit = map.find(e => e.keys.some(k => name.includes(k)));
     if (hit) return hit.url;
+    if (/^[a-z]{3,}$/i.test(name)) return `https://${name}.com`;
   }
   return null;
 }
