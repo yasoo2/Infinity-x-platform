@@ -3,6 +3,7 @@
  * This tool leverages external AI services (like DALL-E, Stable Diffusion, or a custom service).
  */
 import fs from 'fs/promises'
+import path from 'path'
 import OpenAI from 'openai'
 
 class MediaGenerationTool {
@@ -58,6 +59,20 @@ class MediaGenerationTool {
                 required: ["text", "outputFilePath"]
             }
         };
+
+        this.downloadImageFromUrl.metadata = {
+            name: "downloadImageFromUrl",
+            description: "Downloads an image from a direct URL and saves it to a web-accessible uploads folder.",
+            parameters: {
+                type: "object",
+                properties: {
+                    url: { type: "string", description: "The direct image URL (jpg, png, webp, gif, etc.)." },
+                    outputFilePath: { type: "string", description: "Optional absolute path to save file. If omitted, saves under public-site/uploads." },
+                    filename: { type: "string", description: "Optional desired filename (e.g., logo.png)." }
+                },
+                required: ["url"]
+            }
+        };
     }
 
     async generateImage({ prompt, style, outputFilePath }) {
@@ -107,6 +122,36 @@ class MediaGenerationTool {
             outputFile: outputFilePath,
             note: "Actual speech generation requires a configured external AI service."
         };
+    }
+
+    async downloadImageFromUrl({ url, outputFilePath, filename }) {
+        const src = String(url || '').trim();
+        if (!src) return { success: false, error: 'URL_REQUIRED' };
+        try {
+            const res = await fetch(src, { redirect: 'follow' });
+            if (!res.ok) return { success: false, error: `HTTP_${res.status}` };
+            const ct = res.headers.get('content-type') || '';
+            const isImage = /image\/(png|jpeg|jpg|gif|webp|bmp|svg)/i.test(ct) || /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(src);
+            if (!isImage) return { success: false, error: 'NOT_IMAGE_URL' };
+            const buf = Buffer.from(await res.arrayBuffer());
+            let ext = '.png';
+            if (/jpeg|jpg/i.test(ct) || /\.jpe?g(\?|$)/i.test(src)) ext = '.jpg';
+            else if (/png/i.test(ct) || /\.png(\?|$)/i.test(src)) ext = '.png';
+            else if (/webp/i.test(ct) || /\.webp(\?|$)/i.test(src)) ext = '.webp';
+            else if (/gif/i.test(ct) || /\.gif(\?|$)/i.test(src)) ext = '.gif';
+            else if (/bmp/i.test(ct) || /\.bmp(\?|$)/i.test(src)) ext = '.bmp';
+            else if (/svg/i.test(ct) || /\.svg(\?|$)/i.test(src)) ext = '.svg';
+
+            const baseUploads = path.join(process.cwd(), 'public-site', 'uploads');
+            try { await fs.mkdir(baseUploads, { recursive: true }); } catch { /* noop */ }
+            const name = String(filename || '').trim() || `imported-${Date.now()}${ext}`;
+            const outPath = String(outputFilePath || '').trim() || path.join(baseUploads, name);
+            await fs.writeFile(outPath, buf);
+            const publicUrl = `/uploads/${path.basename(outPath)}`;
+            return { success: true, outputFile: outPath, publicUrl, contentType: ct };
+        } catch (error) {
+            return { success: false, error: error?.message || String(error) };
+        }
     }
 }
 
