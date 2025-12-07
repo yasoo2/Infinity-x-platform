@@ -126,7 +126,11 @@ const RightPanel = ({ isProcessing, plan, forceStatus = false, wsConnected = fal
                 <h4 className="font-semibold text-white">AI Engine</h4>
               </div>
               <p className="text-sm text-gray-400">
-                {engine?.ok ? (engine.mode === 'openai' ? 'OpenAI • نشط' : 'غير معروف') : 'غير معروف'}
+                {engine?.ok
+                  ? (engine?.provider
+                      ? `${engine.provider === 'openai' ? 'OpenAI' : engine.provider} • نشط`
+                      : 'غير معروف')
+                  : 'غير معروف'}
               </p>
               {runtime?.success && runtime.loading && (
                 <div className="mt-2 text-xs text-blue-400">تحميل: {runtime.stage || 'Starting'} • {runtime.percent || 0}%</div>
