@@ -329,6 +329,8 @@ export const useJoeChat = () => {
   const saveTimerRef = useRef(null);
   const sioSendTimeoutRef = useRef(null);
   const activeModelRef = useRef(null);
+  const pendingQueueRef = useRef([]);
+  const heartbeatIntervalRef = useRef(null);
 
   const [state, dispatch] = useReducer(chatReducer, {
     conversations: {},
@@ -681,7 +683,7 @@ export const useJoeChat = () => {
           transports: initialTransports,
           upgrade: true,
           reconnection: true,
-          reconnectionAttempts: 10,
+          reconnectionAttempts: 1000000,
           reconnectionDelay: 500,
           reconnectionDelayMax: 4000,
           timeout: 8000,
@@ -696,6 +698,13 @@ export const useJoeChat = () => {
           dispatch({ type: 'SET_WS_CONNECTED', payload: true });
           dispatch({ type: 'SET_RECONNECT_STATE', payload: { active: false, attempt: 0, delayMs: 0, etaTs: 0 } });
           dispatch({ type: 'ADD_WS_LOG', payload: '[SIO] Connection established' });
+          try {
+            if (Array.isArray(pendingQueueRef.current) && pendingQueueRef.current.length) {
+              const q = pendingQueueRef.current.slice();
+              pendingQueueRef.current = [];
+              for (const p of q) { socket.emit('message', p); }
+            }
+          } catch { /* noop */ }
         });
         socket.on('disconnect', (reason) => {
           dispatch({ type: 'SET_WS_CONNECTED', payload: false });
@@ -891,6 +900,13 @@ export const useJoeChat = () => {
           dispatch({ type: 'SET_WS_CONNECTED', payload: true });
           dispatch({ type: 'SET_RECONNECT_STATE', payload: { active: false, attempt: 0, delayMs: 0, etaTs: 0 } });
           dispatch({ type: 'ADD_WS_LOG', payload: '[WS] Connection established' });
+          try {
+            if (Array.isArray(pendingQueueRef.current) && pendingQueueRef.current.length) {
+              const q = pendingQueueRef.current.slice();
+              pendingQueueRef.current = [];
+              for (const p of q) { ws.current.send(JSON.stringify(p)); }
+            }
+          } catch { /* noop */ }
         };
         ws.current.onclose = (e) => {
           clearTimeout(connectionTimeout);
@@ -1056,6 +1072,9 @@ export const useJoeChat = () => {
     };
     window.addEventListener('online', onOnline);
     window.addEventListener('joe:reconnect', onReconnect);
+    heartbeatIntervalRef.current = setInterval(async () => {
+      try { await apiClient.get('/api/v1/joe/ping'); } catch { /* noop */ }
+    }, 30000);
     return () => {
       window.removeEventListener('online', onOnline);
       window.removeEventListener('joe:reconnect', onReconnect);
@@ -1066,6 +1085,10 @@ export const useJoeChat = () => {
       if (reconnectCountdownInterval.current) {
         clearInterval(reconnectCountdownInterval.current);
         reconnectCountdownInterval.current = null;
+      }
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current);
+        heartbeatIntervalRef.current = null;
       }
       try { ws.current?.close(); } catch { void 0; }
     };
@@ -1124,18 +1147,20 @@ export const useJoeChat = () => {
         if (m3) return { provider: 'openai', apiKey: m3[1].trim() };
         return null;
       })();
-      if (sioRef.current && sioRef.current.connected) {
+      const lang = getLang();
+      const conv = state.conversations[convId] || null;
+      const sidToUse = conv?.sessionId || sid || null;
+      const buildPayload = () => {
         let selectedModel = activeModelRef.current || localStorage.getItem('aiSelectedModel');
-        if (!selectedModel) {
-          selectedModel = null;
-        }
-        const lang = getLang();
-        const conv = state.conversations[convId] || null;
-        const sidToUse = conv?.sessionId || sid || null;
-        const payload = keyMatch
+        if (!selectedModel) selectedModel = null;
+        const base = keyMatch
           ? { action: 'provide_key', provider: keyMatch.provider, apiKey: keyMatch.apiKey, sessionId: sidToUse || undefined, lang }
           : { action: 'instruct', message: inputText, sessionId: sidToUse || undefined, lang };
-        if (selectedModel) payload.model = selectedModel;
+        if (selectedModel) base.model = selectedModel;
+        return base;
+      };
+      if (sioRef.current && sioRef.current.connected) {
+        const payload = buildPayload();
         sioRef.current.emit('message', payload);
         try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
         sioSendTimeoutRef.current = setTimeout(async () => {
@@ -1172,17 +1197,7 @@ export const useJoeChat = () => {
         return;
       }
       if (ws.current?.readyState === WebSocket.OPEN) {
-        let selectedModel = activeModelRef.current || localStorage.getItem('aiSelectedModel');
-        if (!selectedModel) {
-          selectedModel = null;
-        }
-        const lang = getLang();
-      const conv = state.conversations[convId] || null;
-      const sidToUse = conv?.sessionId || sid || null;
-        const msg = keyMatch
-          ? { action: 'provide_key', provider: keyMatch.provider, apiKey: keyMatch.apiKey, sessionId: sidToUse, lang }
-          : { action: 'instruct', message: inputText, sessionId: sidToUse, lang };
-        if (selectedModel) msg.model = selectedModel;
+        const msg = buildPayload();
         ws.current.send(JSON.stringify(msg));
         try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
         sioSendTimeoutRef.current = setTimeout(async () => {
@@ -1212,6 +1227,7 @@ export const useJoeChat = () => {
         return;
       }
       if (attempt < 12) {
+        try { pendingQueueRef.current.push(buildPayload()); } catch { /* noop */ }
         setTimeout(() => trySend(attempt + 1), 500);
         return;
       }
