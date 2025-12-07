@@ -1158,6 +1158,7 @@ export const useJoeChat = () => {
         try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
         sioSendTimeoutRef.current = setTimeout(async () => {
           try {
+            const selectedModel = activeModelRef.current || localStorage.getItem('aiSelectedModel') || null;
             const ctx = { sessionId: sidToUse || undefined, lang };
             if (selectedModel) ctx.model = selectedModel;
             const { data } = await apiClient.post('/api/v1/joe/execute', { instruction: inputText, context: ctx });
@@ -1195,6 +1196,7 @@ export const useJoeChat = () => {
         try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
         sioSendTimeoutRef.current = setTimeout(async () => {
           try {
+            const selectedModel = activeModelRef.current || localStorage.getItem('aiSelectedModel') || null;
             const ctx2 = { sessionId: sidToUse || undefined, lang };
             if (selectedModel) ctx2.model = selectedModel;
             const { data } = await apiClient.post('/api/v1/joe/execute', { instruction: inputText, context: ctx2 });
