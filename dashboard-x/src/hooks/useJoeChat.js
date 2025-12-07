@@ -827,6 +827,7 @@ export const useJoeChat = () => {
         socket.on('tool_used', (d) => {
           const name = (d?.tool?.function?.name) || d?.tool?.name || d?.tool || '';
           const details = d?.details || null;
+          try { if (String(name || '').toLowerCase() === 'browsewebsite') { window.dispatchEvent(new Event('joe:open-browser')); } } catch { /* noop */ }
           if (name) dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'tool_used', content: name, details } });
         });
         socket.on('stream', (d) => { if (typeof d?.content === 'string') { const c = sanitizeCompetitors(d.content); if (c) dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: c } }); } });
