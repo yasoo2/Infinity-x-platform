@@ -163,6 +163,33 @@ class BrowserWebSocketServer {
     });
   }
 
+  async navigateProgrammatically(url) {
+    const target = String(url || '').trim();
+    if (!target) return;
+    try {
+      this.broadcast({ type: 'navigate_started', payload: { url: target } });
+      const navPromise = this.browserController.navigate(target);
+      setTimeout(async () => {
+        try {
+          const screenshot = await this.browserController.getScreenshot();
+          const pageInfo = await this.browserController.getPageInfo();
+          this.broadcast({ type: 'screenshot', payload: { screenshot, pageInfo } });
+        } catch (e) { void e }
+      }, 600);
+      const navResult = await navPromise;
+      this.broadcast({ type: 'navigate_result', payload: navResult });
+      setTimeout(async () => {
+        try {
+          const screenshot = await this.browserController.getScreenshot();
+          const pageInfo = await this.browserController.getPageInfo();
+          this.broadcast({ type: 'screenshot', payload: { screenshot, pageInfo } });
+        } catch (e) { void e }
+      }, 600);
+    } catch (e) {
+      this.broadcast({ type: 'error', message: e?.message || 'NAVIGATION_FAILED' });
+    }
+  }
+
   async close() {
     if (this.screenshotInterval) {
       clearInterval(this.screenshotInterval);
