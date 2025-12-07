@@ -4,7 +4,6 @@ import { FiMic, FiPaperclip, FiSend, FiStopCircle, FiCompass, FiArrowDown, FiLin
 import { useJoeChatContext } from '../../context/JoeChatContext.jsx';
 import apiClient from '../../api/client';
 import { getSystemStatus, listUserUploads, deleteUserUpload } from '../../api/system';
-import BrowserViewer from '../BrowserViewer.jsx';
 
 const WelcomeScreen = ({ toolsCount }) => (
   <div className="flex flex-col items-center justify-center h-full text-center px-6">
@@ -84,8 +83,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   } = useJoeChatContext();
 
   const lastContent = messages[messages.length - 1]?.content || '';
-  const [showBrowser, setShowBrowser] = React.useState(false);
-  const sessionIdForViewer = (currentConversation?.sessionId || currentConversation?.id || '');
+  
   const scrollToBottomIfNeeded = () => {
     const el = scrollContainerRef.current;
     if (!el) return;
@@ -164,6 +162,20 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
     };
     window.addEventListener('joe:lang', onLang);
     return () => window.removeEventListener('joe:lang', onLang);
+  }, []);
+
+  useEffect(() => {
+    const onOpenBrowser = () => {
+      try {
+        const loc = (typeof window !== 'undefined' ? window.location : null);
+        const host = String(loc?.hostname || '').toLowerCase();
+        const isLocal = host === 'localhost' || host === '127.0.0.1';
+        const url = isLocal ? 'http://localhost:4001/dashboard/joe-screen' : 'https://www.xelitesolutions.com/dashboard/joe';
+        window.open(url, '_blank', 'noopener,noreferrer');
+      } catch { /* noop */ }
+    };
+    window.addEventListener('joe:open-browser', onOpenBrowser);
+    return () => window.removeEventListener('joe:open-browser', onOpenBrowser);
   }, []);
 
   useEffect(() => {
@@ -633,11 +645,19 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                     <div className="flex items-center justify-between gap-3 mb-2">
                       <p className="text-sm text-gray-300">{currentStep || 'Processing your request...'}</p>
                       <button
-                        onClick={() => setShowBrowser(true)}
+                        onClick={() => {
+                          try {
+                            const loc = (typeof window !== 'undefined' ? window.location : null);
+                            const host = String(loc?.hostname || '').toLowerCase();
+                            const isLocal = host === 'localhost' || host === '127.0.0.1';
+                            const url = isLocal ? 'http://localhost:4001/dashboard/joe-screen' : 'https://www.xelitesolutions.com/dashboard/joe';
+                            window.open(url, '_blank', 'noopener,noreferrer');
+                          } catch { /* noop */ }
+                        }}
                         className="text-xs px-2 py-1 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-200 border border-gray-600"
-                        title={lang==='ar' ? 'فتح شاشة المتصفح' : 'Open Browser Screen'}
+                        title={lang==='ar' ? 'فتح شاشة جو' : 'Open Joe Screen'}
                       >
-                        {lang==='ar' ? 'المتصفح' : 'Browser'}
+                        {lang==='ar' ? 'شاشة جو' : 'Joe Screen'}
                       </button>
                     </div>
                       {Array.isArray(plan) && plan.some(s => s?.type === 'tool_used') && (
@@ -769,9 +789,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
           </span>
         </button>
       </div>
-      {showBrowser && sessionIdForViewer && (
-        <BrowserViewer sessionId={sessionIdForViewer} onClose={() => setShowBrowser(false)} language={lang} />
-      )}
+      
 
       {/* Conversations strip removed to avoid duplication with left SidePanel */}
 
