@@ -233,11 +233,11 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
     try {
       await deleteUserUpload(name, {});
       await loadUploads();
-    } catch {}
+    } catch { void 0; }
   };
 
   const handleCopyUrl = async (url) => {
-    try { await navigator.clipboard.writeText(url); } catch {}
+    try { await navigator.clipboard.writeText(url); } catch { void 0; }
   };
 
   
