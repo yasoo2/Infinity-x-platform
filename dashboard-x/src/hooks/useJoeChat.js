@@ -1257,7 +1257,7 @@ export const useJoeChat = () => {
             const withScheme = term.match(/^https?:\/\//i) ? term : `https://${term}`;
             window.dispatchEvent(new CustomEvent('joe:open-browser', { detail: { url: withScheme } }));
           } else {
-            window.dispatchEvent(new CustomEvent('joe:open-browser', { detail: { searchQuery: term, autoOpenFirst: true } }));
+            window.dispatchEvent(new CustomEvent('joe:open-browser', { detail: { searchQuery: term } }));
           }
         }
       } catch { /* noop */ }
