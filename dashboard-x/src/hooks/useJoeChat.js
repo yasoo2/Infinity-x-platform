@@ -800,11 +800,13 @@ export const useJoeChat = () => {
         sioRef.current = socket;
         const envPref = (typeof import.meta !== 'undefined' ? (import.meta.env?.VITE_CONN_PREF) : undefined);
         const envUseWs = (typeof import.meta !== 'undefined' ? (import.meta.env?.VITE_USE_WS) : undefined);
+        const lsUseWs = (() => { try { return localStorage.getItem('joeUseWS') === 'true'; } catch { return false; } })();
         const useWs = (() => {
           const p = String(envPref||'').toLowerCase();
           if (p === 'ws') return true;
           if (p === 'sio') return false;
-          return String(envUseWs||'').toLowerCase() === 'true';
+          if (String(envUseWs||'').toLowerCase() === 'true') return true;
+          return lsUseWs;
         })();
         if (!useWs) {
           return;
@@ -910,6 +912,11 @@ export const useJoeChat = () => {
           dispatch({ type: 'STOP_PROCESSING' });
           const attempt = (reconnectAttempts.current || 0) + 1;
           reconnectAttempts.current = attempt;
+          try {
+            if (attempt >= 3) {
+              localStorage.removeItem('joeUseWS');
+            }
+          } catch { /* noop */ }
           const jitter = Math.floor(Math.random() * 500);
           let delay = Math.min(30000, 1000 * Math.pow(2, attempt)) + jitter;
           if (typeof navigator !== 'undefined' && navigator.onLine === false) {
