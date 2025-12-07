@@ -557,7 +557,7 @@ export const useJoeChat = () => {
       const list = s?.sessions || [];
       const seen = new Set();
       const validList = list.filter((sess) => {
-        const id = String(sess?.id || '').trim();
+        const id = String(sess?._id || sess?.id || '').trim();
         if (!id || seen.has(id)) return false;
         try {
           const ttl = pendingDeleteIdsRef.current.get(id);
@@ -570,9 +570,10 @@ export const useJoeChat = () => {
       });
       const convs = { ...state.conversations };
       for (const sess of validList) {
-        if (!sess?.id) continue;
+        const sid = String(sess?._id || sess?.id || '').trim();
+        if (!sid) continue;
         try {
-          const detail = await getChatSessionById(sess.id, { signal });
+          const detail = await getChatSessionById(sid, { signal });
           if (detail?.success && detail?.session) {
             const mapped = mapSessionToConversation(detail.session);
             convs[mapped.id] = mapped;
@@ -584,8 +585,8 @@ export const useJoeChat = () => {
           if (!notFound) {
             console.warn('syncBackendSessions detail fetch error:', err);
           }
-          if (notFound && sess?.id) {
-            try { delete convs[sess.id]; } catch { /* ignore */ }
+          if (notFound && sid) {
+            try { delete convs[sid]; } catch { /* ignore */ }
           }
           continue;
         }
