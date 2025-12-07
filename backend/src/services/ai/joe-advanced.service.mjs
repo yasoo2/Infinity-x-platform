@@ -820,6 +820,25 @@ ${transcript.slice(0, 8000)}`;
           const text = String(resp?.output_text || '').trim();
           finalContent = text || '';
           usage = resp?.usage || {};
+          try {
+            const preview = String(message || '').trim();
+            const m = preview.match(/https?:\/\/[^\s]+/i);
+            let url = null;
+            if (m) {
+              const rawUrl = m[0];
+              url = rawUrl ? rawUrl.replace(/[.,;:!?)]+$/, '') : rawUrl;
+            } else {
+              url = resolveSiteToUrl(preview);
+            }
+            if (url) {
+              const br = await executeTool(userId, sessionId, 'browseWebsite', { url });
+              toolResults.push({ tool: 'browseWebsite', args: { url }, result: br });
+              toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
+              const sum = String(br?.summary || br?.content || '');
+              finalContent = sum || finalContent;
+              navigateVisual(url);
+            }
+          } catch { /* noop */ }
           if (!finalContent) {
             finalContent = 'لم أحصل على رد من النموذج. جرّب صياغة مختلفة.';
           }
@@ -1635,10 +1654,10 @@ ${transcript.slice(0, 8000)}`;
 
     try { joeEvents.emitProgress(userId, sessionId, 100, 'Done'); } catch { /* noop */ }
     return {
-        response: prefixed,
+        response: String(finalContent || ''),
         toolsUsed: toolCalls.map(tc => tc.function.name),
     };
-}
+  }
 
 
 // =========================
