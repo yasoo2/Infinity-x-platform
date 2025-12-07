@@ -1,5 +1,5 @@
 
-import { chromium } from 'playwright-core';
+import { chromium } from 'playwright';
 import { getUpstashRedis } from '../utils/upstashRedis.mjs';
 
 let browserInstance = null;
@@ -66,15 +66,14 @@ export async function getPageContent(url) {
     }
 
     console.log(`CACHE MISS: Fetching content for ${url} from the web.`);
-    const browser = await getBrowser();
-    const page = await browser.newPage();
+    let page;
     try {
+        const browser = await getBrowser();
+        page = await browser.newPage();
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
         const content = await page.content();
-
         if (redis) {
             try {
-                // Cache for 1 hour
                 await redis.set(cacheKey, content, { ex: 3600 });
                 console.log(`CACHED: Stored content for ${url} in Redis.`);
             } catch (error) {
@@ -82,8 +81,24 @@ export async function getPageContent(url) {
             }
         }
         return content;
+    } catch (e) {
+        try {
+            const res = await fetch(url, { headers: { 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', 'User-Agent': 'Mozilla/5.0 (compatible; JOE/1.0; +http://localhost)' } });
+            const text = await res.text();
+            if (redis) {
+                try {
+                    await redis.set(cacheKey, text, { ex: 3600 });
+                    console.log(`CACHED (HTTP): Stored content for ${url} in Redis.`);
+                } catch (error) {
+                    console.error(`Redis SET failed for key "${cacheKey}":`, error.message);
+                }
+            }
+            return text;
+        } catch (e2) {
+            throw e2;
+        }
     } finally {
-        await page.close();
+        try { if (page) await page.close(); } catch { /* noop */ }
     }
 }
 
