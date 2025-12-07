@@ -1,192 +1,132 @@
 import express from 'express'
-import { v4 as uuidv4 } from 'uuid'
 import mongoose from 'mongoose'
 import ChatSession from '../database/models/ChatSession.mjs'
 import ChatMessage from '../database/models/ChatMessage.mjs'
 
-const chatHistoryRouterFactory = ({ optionalAuth, requireRole, db }) => {
+const chatHistoryRouterFactory = ({ requireRole }) => {
   const router = express.Router()
-  if (optionalAuth) router.use(optionalAuth)
 
-  const memory = {
-    sessions: new Map(),
-    messages: new Map(),
+  const ensureOwnSession = async (userId, sessionId) => {
+    const s = await ChatSession.findById(sessionId)
+    if (!s) return null
+    const u1 = String(s.userId)
+    const u2 = String(userId)
+    return u1 === u2 ? s : null
   }
 
-  const hasDb = !!db
-
-  // List sessions
-  router.get('/sessions', async (req, res) => {
+  router.get('/sessions', requireRole('USER'), async (req, res) => {
     try {
-      const u = req.user?._id
-      const isUserObjId = typeof u === 'string' && mongoose.Types.ObjectId.isValid(u)
-      if (hasDb && isUserObjId) {
-        const list = await ChatSession.find({ userId: req.user._id }).sort({ lastModified: -1 })
-        return res.json({ success: true, sessions: list.map(s => ({ id: s._id.toString(), title: s.title, lastModified: s.lastModified })) })
-      }
-      const sessions = Array.from(memory.sessions.values()).map(s => ({ id: s.id, title: s.title, lastModified: s.lastModified }))
-      return res.json({ success: true, sessions })
-    } catch (e) {
-      res.status(500).json({ success: false, error: e?.message || 'FAILED_LIST' })
+      const uid = req.user?._id
+      const sessions = await ChatSession.find({ userId: { $in: [uid, String(uid)] } }).sort({ updatedAt: -1 }).limit(500)
+      res.json({ success: true, sessions })
+    } catch (error) {
+      res.status(500).json({ success: false, error: 'SESSIONS_LIST_FAILED', message: error.message })
     }
   })
 
-  // Create session
-  router.post('/sessions', requireRole ? requireRole('USER') : (req, _res, next) => next(), async (req, res) => {
+  router.post('/sessions', requireRole('USER'), async (req, res) => {
     try {
-      const title = String(req.body?.title || 'New Conversation')
-      const u = req.user?._id
-      const isUserObjId = typeof u === 'string' && mongoose.Types.ObjectId.isValid(u)
-      if (hasDb && isUserObjId) {
-        const s = await ChatSession.create({ userId: req.user._id, title, lastModified: new Date() })
-        return res.json({ success: true, session: { _id: s._id.toString(), id: s._id.toString(), title } })
-      }
-      const id = uuidv4()
-      memory.sessions.set(id, { id, title, lastModified: new Date() })
-      return res.json({ success: true, session: { id, title } })
-    } catch (e) {
-      res.status(500).json({ success: false, error: e?.message || 'FAILED_CREATE' })
+      const uid = req.user?._id
+      const title = String(req.body?.title || 'New Conversation').trim() || 'New Conversation'
+      const s = await ChatSession.create({ userId: uid, title, pinned: false, lastModified: new Date(), updatedAt: new Date() })
+      res.json({ success: true, session: s })
+    } catch (error) {
+      res.status(500).json({ success: false, error: 'SESSION_CREATE_FAILED', message: error.message })
     }
   })
 
-  // Get session detail
-  router.get('/sessions/:id', async (req, res) => {
+  router.get('/sessions/:id', requireRole('USER'), async (req, res) => {
     try {
-      const id = req.params.id
-      const isObjId = mongoose.Types.ObjectId.isValid(id)
-      if (hasDb && isObjId) {
-        const s = await ChatSession.findById(id)
-        if (!s) return res.status(404).json({ success: false, error: 'NOT_FOUND' })
-        const msgs = await ChatMessage.find({ sessionId: s._id }).sort({ createdAt: 1 })
-        const interactions = msgs.map(m => ({ command: m.type === 'user' ? m.content : undefined, result: m.type === 'joe' ? m.content : undefined, metadata: { timestamp: m.createdAt } }))
-        return res.json({ success: true, session: { id: s._id.toString(), title: s.title, interactions } })
-      }
-      const s = memory.sessions.get(id)
-      if (!s) return res.status(404).json({ success: false, error: 'NOT_FOUND' })
-      const msgs = memory.messages.get(id) || []
-      const interactions = msgs.map(m => ({ command: m.type === 'user' ? m.content : undefined, result: m.type === 'joe' ? m.content : undefined, metadata: { timestamp: m.createdAt } }))
-      return res.json({ success: true, session: { id, title: s.title, interactions } })
-    } catch (e) {
-      res.status(500).json({ success: false, error: e?.message || 'FAILED_DETAIL' })
+      const uid = req.user?._id
+      const sid = req.params.id
+      const s = await ensureOwnSession(uid, sid)
+      if (!s) return res.status(404).json({ success: false, error: 'SESSION_NOT_FOUND' })
+      const msgs = await ChatMessage.find({ sessionId: s._id }).sort({ createdAt: 1 }).limit(2000)
+      res.json({ success: true, session: s, messages: msgs })
+    } catch (error) {
+      res.status(500).json({ success: false, error: 'SESSION_FETCH_FAILED', message: error.message })
     }
   })
 
-  // Update session
-  router.put('/sessions/:id', requireRole ? requireRole('USER') : (req, _res, next) => next(), async (req, res) => {
+  router.put('/sessions/:id', requireRole('USER'), async (req, res) => {
     try {
-      const id = req.params.id
-      const patch = req.body || {}
-      const isObjId = mongoose.Types.ObjectId.isValid(id)
-      if (hasDb && isObjId) {
-        const s = await ChatSession.findById(id)
-        if (!s) return res.status(404).json({ success: false, error: 'NOT_FOUND' })
-        if (typeof patch.title === 'string') s.title = patch.title
-        if (typeof patch.pinned === 'boolean') s.pinned = patch.pinned
-        s.lastModified = new Date()
-        await s.save()
-        return res.json({ success: true })
+      const uid = req.user?._id
+      const sid = req.params.id
+      const s = await ensureOwnSession(uid, sid)
+      if (!s) return res.status(404).json({ success: false, error: 'SESSION_NOT_FOUND' })
+      const patch = {}
+      if (typeof req.body?.title === 'string') {
+        patch.title = req.body.title.trim() || s.title
       }
-      const s = memory.sessions.get(id)
-      if (!s) return res.status(404).json({ success: false, error: 'NOT_FOUND' })
-      memory.sessions.set(id, { ...s, ...patch, lastModified: new Date() })
-      return res.json({ success: true })
-    } catch (e) {
-      res.status(500).json({ success: false, error: e?.message || 'FAILED_UPDATE' })
+      if (typeof req.body?.pinned !== 'undefined') {
+        patch.pinned = !!req.body.pinned
+      }
+      patch.updatedAt = new Date()
+      patch.lastModified = new Date()
+      const updated = await ChatSession.findByIdAndUpdate(s._id, { $set: patch }, { new: true })
+      res.json({ success: true, session: updated })
+    } catch (error) {
+      res.status(500).json({ success: false, error: 'SESSION_UPDATE_FAILED', message: error.message })
     }
   })
 
-  // Delete session
-  router.delete('/sessions/:id', requireRole ? requireRole('USER') : (req, _res, next) => next(), async (req, res) => {
+  router.delete('/sessions/:id', requireRole('USER'), async (req, res) => {
     try {
-      const id = req.params.id
-      const isObjId = mongoose.Types.ObjectId.isValid(id)
-      if (hasDb && isObjId) {
-        await ChatMessage.deleteMany({ sessionId: id })
-        await ChatSession.findByIdAndDelete(id)
-        return res.json({ success: true })
-      }
-      memory.sessions.delete(id)
-      memory.messages.delete(id)
-      return res.json({ success: true })
-    } catch (e) {
-      res.status(500).json({ success: false, error: e?.message || 'FAILED_DELETE' })
+      const uid = req.user?._id
+      const sid = req.params.id
+      const s = await ensureOwnSession(uid, sid)
+      if (!s) return res.status(404).json({ success: false, error: 'SESSION_NOT_FOUND' })
+      await ChatMessage.deleteMany({ sessionId: s._id })
+      await ChatSession.findByIdAndDelete(s._id)
+      res.json({ success: true })
+    } catch (error) {
+      res.status(500).json({ success: false, error: 'SESSION_DELETE_FAILED', message: error.message })
     }
   })
 
-  // List messages
-  router.get('/sessions/:id/messages', async (req, res) => {
+  router.get('/sessions/:id/messages', requireRole('USER'), async (req, res) => {
     try {
-      const id = req.params.id
-      const isObjId = mongoose.Types.ObjectId.isValid(id)
-      if (hasDb && isObjId) {
-        const msgs = await ChatMessage.find({ sessionId: id }).sort({ createdAt: 1 })
-        return res.json({ success: true, messages: msgs.map(m => ({ id: m._id.toString(), type: m.type, content: m.content, createdAt: m.createdAt })) })
-      }
-      const msgs = memory.messages.get(id) || []
-      return res.json({ success: true, messages: msgs })
-    } catch (e) {
-      res.status(500).json({ success: false, error: e?.message || 'FAILED_MESSAGES' })
+      const uid = req.user?._id
+      const sid = req.params.id
+      const s = await ensureOwnSession(uid, sid)
+      if (!s) return res.status(404).json({ success: false, error: 'SESSION_NOT_FOUND' })
+      const msgs = await ChatMessage.find({ sessionId: s._id }).sort({ createdAt: 1 }).limit(2000)
+      res.json({ success: true, messages: msgs })
+    } catch (error) {
+      res.status(500).json({ success: false, error: 'MESSAGES_LIST_FAILED', message: error.message })
     }
   })
 
-  // Add message
-  router.post('/sessions/:id/messages', requireRole ? requireRole('USER') : (req, _res, next) => next(), async (req, res) => {
+  router.post('/sessions/:id/messages', requireRole('USER'), async (req, res) => {
     try {
-      const id = req.params.id
-      const { type, content } = req.body || {}
-      if (!type || !content) return res.status(400).json({ success: false, error: 'TYPE_CONTENT_REQUIRED' })
-      const isObjId = mongoose.Types.ObjectId.isValid(id)
-      if (hasDb && req.user?._id && isObjId) {
-        const msg = await ChatMessage.create({ sessionId: id, userId: req.user._id, type, content })
-        await ChatSession.findByIdAndUpdate(id, { $set: { lastModified: new Date() } })
-        return res.json({ success: true, id: msg._id.toString() })
-      }
-      const list = memory.messages.get(id) || []
-      const mid = uuidv4()
-      list.push({ id: mid, type, content, createdAt: new Date() })
-      memory.messages.set(id, list)
-      const s = memory.sessions.get(id)
-      if (s) memory.sessions.set(id, { ...s, lastModified: new Date() })
-      return res.json({ success: true, id: mid })
-    } catch (e) {
-      res.status(500).json({ success: false, error: e?.message || 'FAILED_ADD_MESSAGE' })
+      const uid = req.user?._id
+      const sid = req.params.id
+      const s = await ensureOwnSession(uid, sid)
+      if (!s) return res.status(404).json({ success: false, error: 'SESSION_NOT_FOUND' })
+      const type = String(req.body?.type || '').trim()
+      const content = String(req.body?.content || '').trim()
+      if (!content || !['user','joe'].includes(type)) return res.status(400).json({ success: false, error: 'INVALID_MESSAGE' })
+      const msg = await ChatMessage.create({ sessionId: s._id, userId: uid, type, content })
+      await ChatSession.findByIdAndUpdate(s._id, { $set: { updatedAt: new Date(), lastModified: new Date() } })
+      res.json({ success: true, message: msg })
+    } catch (error) {
+      res.status(500).json({ success: false, error: 'MESSAGE_CREATE_FAILED', message: error.message })
     }
   })
 
-  // Delete message
-  router.delete('/sessions/:id/messages/:mid', requireRole ? requireRole('USER') : (req, _res, next) => next(), async (req, res) => {
+  router.delete('/sessions/:id/messages/:messageId', requireRole('USER'), async (req, res) => {
     try {
-      const { id, mid } = req.params
-      if (hasDb) {
-        await ChatMessage.findByIdAndDelete(mid)
-        await ChatSession.findByIdAndUpdate(id, { $set: { lastModified: new Date() } })
-        return res.json({ success: true })
-      }
-      const list = (memory.messages.get(id) || []).filter(m => m.id !== mid)
-      memory.messages.set(id, list)
-      return res.json({ success: true })
-    } catch (e) {
-      res.status(500).json({ success: false, error: e?.message || 'FAILED_DELETE_MESSAGE' })
-    }
-  })
-
-  // User context summary
-  router.get('/user-context', async (req, res) => {
-    try {
-      if (hasDb && req.user?._id) {
-        const sessions = await ChatSession.find({ userId: req.user._id }).sort({ lastModified: -1 })
-        const messages = await ChatMessage.find({ userId: req.user._id }).sort({ createdAt: -1 }).limit(20)
-        return res.json({ success: true, sessionsCount: sessions.length, recentMessages: messages.map(m => ({ type: m.type, content: m.content })) })
-      }
-      const sessions = Array.from(memory.sessions.values())
-      const recent = []
-      for (const id of memory.messages.keys()) {
-        recent.push(...(memory.messages.get(id) || []))
-      }
-      recent.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt))
-      return res.json({ success: true, sessionsCount: sessions.length, recentMessages: recent.slice(0, 20).map(m => ({ type: m.type, content: m.content })) })
-    } catch (e) {
-      res.status(500).json({ success: false, error: e?.message || 'FAILED_USER_CONTEXT' })
+      const uid = req.user?._id
+      const sid = req.params.id
+      const mid = req.params.messageId
+      const s = await ensureOwnSession(uid, sid)
+      if (!s) return res.status(404).json({ success: false, error: 'SESSION_NOT_FOUND' })
+      const m = await ChatMessage.findById(mid)
+      if (!m || String(m.sessionId) !== String(s._id)) return res.status(404).json({ success: false, error: 'MESSAGE_NOT_FOUND' })
+      await ChatMessage.deleteOne({ _id: mid })
+      res.json({ success: true })
+    } catch (error) {
+      res.status(500).json({ success: false, error: 'MESSAGE_DELETE_FAILED', message: error.message })
     }
   })
 
