@@ -346,8 +346,10 @@ async function processMessage(userId, message, sessionId, { model = null, lang }
           const wantsSecurity = /(security|audit|ثغرات|أمن|حماية)/i.test(lower);
           const wantsIngest = /(ingest|knowledge|معرفة|ادخال|استيعاب)/i.test(lower);
           const wantsQuery = /(query|search|سؤال|ابحث|استعلام)/i.test(lower);
+          const wantsWebSearch = /(web\s*search|search\s*web|بحث\s*الويب|ابحث\s*في\s*الويب)/i.test(lower);
           const wantsFormat = /(format|prettier|تنسيق)/i.test(lower);
           const wantsLint = /(lint|تحليل|فحص)/i.test(lower);
+          const wantsDepcheck = /(depcheck|dependencies|مكتبات|حزم|اعتماديات|حزم\s*غير\s*مستخدمة|dependencies\s*audit)/i.test(lower);
           let pieces = [];
           if (videoUrlMatch) {
             const url = videoUrlMatch[0];
@@ -431,6 +433,17 @@ ${transcript.slice(0, 8000)}`;
               try { joeEvents.emitProgress(userId, sessionId, 60, 'queryKnowledgeBase done'); } catch { /* noop */ }
             } catch { void 0 }
           }
+          if (wantsWebSearch) {
+            try {
+              try { joeEvents.emitProgress(userId, sessionId, 30, 'searchWeb'); } catch { /* noop */ }
+              const r = await executeTool(userId, sessionId, 'searchWeb', { query: preview });
+              toolResults.push({ tool: 'searchWeb', args: { query: preview }, result: r });
+              toolCalls.push({ function: { name: 'searchWeb', arguments: { query: preview } } });
+              const results = (r?.results || r?.items || []).slice(0, 5).map(x => `- ${x.title || x.name}: ${x.url || x.link}`).join('\n');
+              pieces.push(results || 'No web results found.');
+              try { joeEvents.emitProgress(userId, sessionId, 60, 'searchWeb done'); } catch { /* noop */ }
+            } catch { void 0 }
+          }
           if (wantsFormat) {
             try {
               try { joeEvents.emitProgress(userId, sessionId, 30, 'formatPrettier'); } catch { /* noop */ }
@@ -449,6 +462,16 @@ ${transcript.slice(0, 8000)}`;
               toolCalls.push({ function: { name: 'runLint', arguments: {} } });
               pieces.push('Lint analysis completed.');
               try { joeEvents.emitProgress(userId, sessionId, 60, 'runLint done'); } catch { /* noop */ }
+            } catch { void 0 }
+          }
+          if (wantsDepcheck) {
+            try {
+              try { joeEvents.emitProgress(userId, sessionId, 30, 'runDepcheck'); } catch { /* noop */ }
+              const r = await executeTool(userId, sessionId, 'runDepcheck', { dir: 'backend' });
+              toolResults.push({ tool: 'runDepcheck', args: { dir: 'backend' }, result: r });
+              toolCalls.push({ function: { name: 'runDepcheck', arguments: { dir: 'backend' } } });
+              pieces.push('Dependency analysis completed.');
+              try { joeEvents.emitProgress(userId, sessionId, 60, 'runDepcheck done'); } catch { /* noop */ }
             } catch { void 0 }
           }
           finalContent = pieces.length ? pieces.filter(Boolean).join('\n\n') : 'وضع محلي جاهز. أرسل تعليمات أدق لاختيار الأدوات المثالية.';
@@ -559,8 +582,10 @@ ${transcript.slice(0, 8000)}`;
               const wantsSecurity = /(security|audit|ثغرات|أمن|حماية)/i.test(lower);
               const wantsIngest = /(ingest|knowledge|معرفة|ادخال|استيعاب)/i.test(lower);
               const wantsQuery = /(query|search|سؤال|ابحث|استعلام)/i.test(lower);
+              const wantsWebSearch = /(web\s*search|search\s*web|بحث\s*الويب|ابحث\s*في\s*الويب)/i.test(lower);
               const wantsFormat = /(format|prettier|تنسيق)/i.test(lower);
               const wantsLint = /(lint|تحليل|فحص)/i.test(lower);
+              const wantsDepcheck = /(depcheck|dependencies|مكتبات|حزم|اعتماديات|حزم\s*غير\s*مستخدمة|dependencies\s*audit)/i.test(lower);
               let pieces = [];
               if (hasUrl) {
                 try {
@@ -605,6 +630,15 @@ ${transcript.slice(0, 8000)}`;
                   pieces.push(items || 'No related knowledge found.');
                 } catch (e6) { void e6; }
               }
+              if (wantsWebSearch) {
+                try {
+                  const r = await executeTool(userId, sessionId, 'searchWeb', { query: preview });
+                  toolResults.push({ tool: 'searchWeb', args: { query: preview }, result: r });
+                  toolCalls.push({ function: { name: 'searchWeb', arguments: { query: preview } } });
+                  const results = (r?.results || r?.items || []).slice(0, 5).map(x => `- ${x.title || x.name}: ${x.url || x.link}`).join('\n');
+                  pieces.push(results || 'No web results found.');
+                } catch (eSW) { void eSW; }
+              }
               if (wantsFormat) {
                 try {
                   const r = await executeTool(userId, sessionId, 'formatPrettier', {});
@@ -620,6 +654,14 @@ ${transcript.slice(0, 8000)}`;
                   toolCalls.push({ function: { name: 'runLint', arguments: {} } });
                   pieces.push('Lint analysis completed.');
                 } catch (e8) { void e8; }
+              }
+              if (wantsDepcheck) {
+                try {
+                  const r = await executeTool(userId, sessionId, 'runDepcheck', { dir: 'backend' });
+                  toolResults.push({ tool: 'runDepcheck', args: { dir: 'backend' }, result: r });
+                  toolCalls.push({ function: { name: 'runDepcheck', arguments: { dir: 'backend' } } });
+                  pieces.push('Dependency analysis completed.');
+                } catch (eDC) { void eDC; }
               }
               {
                 const good = pieces.filter(Boolean);
@@ -749,10 +791,12 @@ ${transcript.slice(0, 8000)}`;
         const wantsSecurity = /(security|audit|ثغرات|أمن|حماية)/i.test(lower);
         const wantsIngest = /(ingest|knowledge|معرفة|ادخال|استيعاب)/i.test(lower);
         const wantsQuery = /(query|search|سؤال|ابحث|استعلام)/i.test(lower);
+        const wantsWebSearch = /(web\s*search|search\s*web|بحث\s*الويب|ابحث\s*في\s*الويب)/i.test(lower);
         const wantsFormat = /(format|prettier|تنسيق)/i.test(lower);
         const wantsLint = /(lint|تحليل|فحص)/i.test(lower);
         const wantsImage = /(image|صورة|لوغو|شعار|generate\s*image)/i.test(lower);
         const wantsWebsite = /(website|ويب|موقع|landing\s*page|انشاء\s*موقع|بناء\s*موقع)/i.test(lower);
+        const wantsDepcheck = /(depcheck|dependencies|مكتبات|حزم|اعتماديات|حزم\s*غير\s*مستخدمة|dependencies\s*audit)/i.test(lower);
 
         let pieces = [];
         if (hasUrl) {
@@ -840,6 +884,15 @@ ${transcript.slice(0, 8000)}`;
             pieces.push(items || 'No related knowledge found.');
           } catch { void 0 }
         }
+        if (wantsWebSearch) {
+          try {
+            const r = await toolManager.execute('searchWeb', { query: preview });
+            toolResults.push({ tool: 'searchWeb', args: { query: preview }, result: r });
+            toolCalls.push({ function: { name: 'searchWeb', arguments: { query: preview } } });
+            const results = (r?.results || r?.items || []).slice(0, 5).map(x => `- ${x.title || x.name}: ${x.url || x.link}`).join('\n');
+            pieces.push(results || 'No web results found.');
+          } catch { void 0 }
+        }
         if (wantsFormat) {
           try {
             const r = await toolManager.execute('formatPrettier', {});
@@ -854,6 +907,14 @@ ${transcript.slice(0, 8000)}`;
             toolResults.push({ tool: 'runLint', args: {}, result: r });
             toolCalls.push({ function: { name: 'runLint', arguments: {} } });
             pieces.push('Lint analysis completed.');
+          } catch { void 0 }
+        }
+        if (wantsDepcheck) {
+          try {
+            const r = await toolManager.execute('runDepcheck', { dir: 'backend' });
+            toolResults.push({ tool: 'runDepcheck', args: { dir: 'backend' }, result: r });
+            toolCalls.push({ function: { name: 'runDepcheck', arguments: { dir: 'backend' } } });
+            pieces.push('Dependency analysis completed.');
           } catch { void 0 }
         }
 
