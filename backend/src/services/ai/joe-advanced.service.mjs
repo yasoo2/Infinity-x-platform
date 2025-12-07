@@ -177,13 +177,13 @@ function resolveSiteToUrl(message) {
   return null;
 }
 
-function navigateVisual(url) {
-  try {
-    const srv = _dependencies?.browserWSServer;
-    if (srv && typeof srv.navigateProgrammatically === 'function' && url) {
-      srv.navigateProgrammatically(url);
-    }
-  } catch { void 0 }
+function navigateVisual(userId, url) {
+  const srv = _dependencies?.joeAgentServer;
+  const u = String(userId || '').trim();
+  const t = String(url || '').trim();
+  if (srv && typeof srv.navigateProgrammaticallyForUser === 'function' && u && t) {
+    srv.navigateProgrammaticallyForUser(u, t);
+  }
 }
 
 function formatSystemSummary(lang, schemas) {
@@ -458,7 +458,7 @@ ${transcript.slice(0, 8000)}`;
                   toolResults.push({ tool: 'browseWebsite', args: { url }, result: r });
                   toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
                   pieces.push(String(r?.summary || r?.content || ''));
-                  navigateVisual(url);
+                  navigateVisual(userId, url);
                   try { joeEvents.emitProgress(userId, sessionId, 60, 'browseWebsite done'); } catch { /* noop */ }
                 }
             } catch { void 0 }
@@ -781,7 +781,7 @@ ${transcript.slice(0, 8000)}`;
                 toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
                 const sum = String(br?.summary || br?.content || '');
                 finalContent = sum || finalContent;
-                navigateVisual(url);
+                navigateVisual(userId, url);
               }
             } catch { void 0 }
             if (shouldAugment(message)) {
@@ -836,7 +836,7 @@ ${transcript.slice(0, 8000)}`;
               toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
               const sum = String(br?.summary || br?.content || '');
               finalContent = sum || finalContent;
-              navigateVisual(url);
+              navigateVisual(userId, url);
             }
           } catch { /* noop */ }
           if (!finalContent) {
@@ -909,7 +909,7 @@ ${transcript.slice(0, 8000)}`;
                   toolResults.push({ tool: 'browseWebsite', args: { url }, result: r });
                   toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
                   pieces.push(String(r?.summary || r?.content || ''));
-                  navigateVisual(url);
+                  navigateVisual(userId, url);
                 } catch (e3) { void e3; }
               } else {
                 try {
@@ -919,7 +919,7 @@ ${transcript.slice(0, 8000)}`;
                     toolResults.push({ tool: 'browseWebsite', args: { url: url2 }, result: r });
                     toolCalls.push({ function: { name: 'browseWebsite', arguments: { url: url2 } } });
                     pieces.push(String(r?.summary || r?.content || ''));
-                    navigateVisual(url2);
+                    navigateVisual(userId, url2);
                   }
                 } catch (e3b) { void e3b; }
               }

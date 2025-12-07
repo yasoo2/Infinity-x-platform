@@ -545,4 +545,28 @@ export class JoeAgentWebSocketServer {
       });
     }
   }
+
+  async navigateProgrammaticallyForUser(userId, url) {
+    const uid = String(userId || '').trim();
+    if (!uid) return;
+    const target = String(url || '').trim();
+    if (!target) return;
+    let bc = this.browserByUser.get(uid);
+    if (!bc) {
+      bc = new BrowserController();
+      await bc.initialize();
+      this.browserByUser.set(uid, bc);
+    }
+    await bc.navigate(target);
+    const screenshot = await bc.getScreenshot();
+    const pageInfo = await bc.getPageInfo();
+    if (this.nsp) {
+      const sockets = await this.nsp.fetchSockets();
+      for (const s of sockets) {
+        if (s?.data?.userId === uid) {
+          s.emit('browser:screenshot', { screenshot, pageInfo });
+        }
+      }
+    }
+  }
 }
