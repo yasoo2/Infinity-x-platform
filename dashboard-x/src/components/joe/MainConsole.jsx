@@ -73,6 +73,8 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   const [showGallery, setShowGallery] = React.useState(false);
   const [uploads, setUploads] = React.useState([]);
   const [uploadsLoading, setUploadsLoading] = React.useState(false);
+  const [showBrowserPanel, setShowBrowserPanel] = React.useState(false);
+  const [browserPanelMode, setBrowserPanelMode] = React.useState('mini');
   const galleryPanelRef = useRef(null);
 
   const { 
@@ -1102,5 +1104,3 @@ MainConsole.propTypes = {
   isBottomPanelOpen: PropTypes.bool,
   isBottomCollapsed: PropTypes.bool,
 };
-  const [showBrowserPanel, setShowBrowserPanel] = React.useState(false);
-  const [browserPanelMode, setBrowserPanelMode] = React.useState('mini'); // 'mini' | 'half' | 'full'
