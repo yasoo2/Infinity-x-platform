@@ -246,7 +246,23 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
   return (
     <>
       {isFullScreen && (
-        <FullScreenBrowser onClose={() => setIsFullScreen(false)} />
+        <FullScreenBrowser
+          onClose={() => { try { stopStreaming(); } catch { /* noop */ } setIsFullScreen(false) }}
+          screenshot={screenshot}
+          pageInfo={pageInfo}
+          isConnected={isConnected}
+          isLoading={isLoading}
+          navigate={navigate}
+          getScreenshot={getScreenshot}
+          getPageText={getPageText}
+          extractSerp={extractSerp}
+          startStreaming={startStreaming}
+          stopStreaming={stopStreaming}
+          click={click}
+          type={type}
+          scroll={scroll}
+          pressKey={pressKey}
+        />
       )}
       {showMiniPreview && (
         <div
