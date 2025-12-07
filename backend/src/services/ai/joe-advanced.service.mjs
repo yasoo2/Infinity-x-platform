@@ -717,6 +717,19 @@ ${transcript.slice(0, 8000)}`;
             usage.total_tokens += secondResult.response.usageMetadata.totalTokenCount;
         } else {
             finalContent = response.text();
+            try {
+              const preview = String(message || '').trim();
+              const m = preview.match(/https?:\/\/[^\s]+/i);
+              if (m) {
+                const rawUrl = m[0];
+                const url = rawUrl ? rawUrl.replace(/[.,;:!?)]+$/,'') : rawUrl;
+                const br = await executeTool(userId, sessionId, 'browseWebsite', { url });
+                toolResults.push({ tool: 'browseWebsite', args: { url }, result: br });
+                toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
+                const sum = String(br?.summary || br?.content || '');
+                finalContent = sum || finalContent;
+              }
+            } catch { void 0 }
             if (shouldAugment(message)) {
               try {
                 const disc = await toolManager.execute('discoverNpmPackages', { query: message, size: 3 });
