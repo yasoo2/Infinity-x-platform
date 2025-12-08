@@ -376,7 +376,7 @@ export const useJoeChat = () => {
     const { signal } = ac;
     const fetchActiveModel = async () => {
       try {
-        const { data } = await apiClient.get('/api/v1/ai/providers', { signal });
+        const { data } = await apiClient.get('/api/v1/ai/providers', { signal, _noRedirect401: true });
         const m = data?.activeModel || null;
         if (m) activeModelRef.current = m;
       } catch { /* noop */ }

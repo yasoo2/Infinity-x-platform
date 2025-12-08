@@ -37,7 +37,7 @@ import apiClient from './client';
    * @param {{ signal?: AbortSignal }=} opts
    */
 export const getSystemStatus = (opts) =>
-  call(() => apiClient.get(v1('/health'), { signal: opts?.signal }));
+  call(() => apiClient.get(v1('/health'), { signal: opts?.signal, _noRedirect401: true }));
 
   /**
    * Get activity/events stream (polling JSON). For SSE, use EventSource instead.
@@ -129,7 +129,7 @@ export const withAbort = () => {
 
   // AI Providers Management
 export const getAIProviders = (opts) =>
-    call(() => apiClient.get(v1('/ai/providers'), { signal: opts?.signal, timeout: 20000 }));
+    call(() => apiClient.get(v1('/ai/providers'), { signal: opts?.signal, timeout: 20000, _noRedirect401: true }));
 
 export const validateAIKey = (provider, apiKey, opts) =>
     call(() => apiClient.post(v1('/ai/validate'), { provider, apiKey }, { signal: opts?.signal, timeout: 45000, _noRedirect401: true }));
