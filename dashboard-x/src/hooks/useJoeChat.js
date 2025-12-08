@@ -378,7 +378,7 @@ export const useJoeChat = () => {
         }, 180);
       }
     } catch { /* noop */ }
-  }, [appendStreamChunk, flushStreamBuffer]);
+  }, []);
   const flushStreamBuffer = useCallback(() => {
     try {
       if (streamFlushTimerRef.current) { clearTimeout(streamFlushTimerRef.current); streamFlushTimerRef.current = null; }
@@ -499,10 +499,24 @@ export const useJoeChat = () => {
       return args.length, undefined;
     };
     const onWindowError = (e) => {
-      try { dispatch({ type: 'ADD_WS_LOG', payload: { id: Date.now(), type: 'error', text: String(e.message || e.error || 'Error') } }); } catch { void 0; }
+      try {
+        const msg = String(e.message || e.error || 'Error');
+        const file = String(e.filename || '').trim();
+        const line = typeof e.lineno === 'number' ? e.lineno : '';
+        const col = typeof e.colno === 'number' ? e.colno : '';
+        const stack = (e.error && e.error.stack) ? String(e.error.stack) : '';
+        const details = [msg, file && `@ ${file}:${line}:${col}`, stack && `\n${stack}`].filter(Boolean).join(' ');
+        dispatch({ type: 'ADD_WS_LOG', payload: { id: Date.now(), type: 'error', text: details } });
+      } catch { void 0; }
     };
     const onRejection = (e) => {
-      try { dispatch({ type: 'ADD_WS_LOG', payload: { id: Date.now(), type: 'error', text: String(e.reason || 'Unhandled rejection') } }); } catch { void 0; }
+      try {
+        const reason = e?.reason;
+        const msg = typeof reason === 'string' ? reason : (reason?.message || 'Unhandled rejection');
+        const stack = reason?.stack ? String(reason.stack) : '';
+        const details = [msg, stack && `\n${stack}`].filter(Boolean).join(' ');
+        dispatch({ type: 'ADD_WS_LOG', payload: { id: Date.now(), type: 'error', text: details } });
+      } catch { void 0; }
     };
     const onAuthUnauthorized = () => { try { dispatch({ type: 'ADD_WS_LOG', payload: { id: Date.now(), type: 'warning', text: 'Unauthorized: redirecting to login' } }); } catch { void 0; } };
     const onAuthForbidden = (ev) => { try { dispatch({ type: 'ADD_WS_LOG', payload: { id: Date.now(), type: 'warning', text: `Forbidden: ${JSON.stringify(ev.detail||{})}` } }); } catch { void 0; } };
