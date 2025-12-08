@@ -679,39 +679,41 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
               </div>
 
               {/* Status Bar */}
-              <div className="flex items-center justify-between px-3 py-1.5 bg-gray-800/70 border-t border-gray-700/50 text-xs">
-                <div className="flex items-center gap-3">
-                  <span className="text-gray-400">
-                    Status:{' '}
-                    <span className={isConnected ? 'text-green-400' : 'text-red-400'}>
-                      {isConnected ? (isLoading ? 'Loading' : 'Connected') : 'Disconnected'}
+              {!embedded && (
+                <div className="flex items-center justify-between px-3 py-1.5 bg-gray-800/70 border-t border-gray-700/50 text-xs">
+                  <div className="flex items-center gap-3">
+                    <span className="text-gray-400">
+                      Status:{' '}
+                      <span className={isConnected ? 'text-green-400' : 'text-red-400'}>
+                        {isConnected ? (isLoading ? 'Loading' : 'Connected') : 'Disconnected'}
+                      </span>
                     </span>
-                  </span>
-                  {(isProcessing || isLoading) && (
-                    <div className="flex items-center gap-2">
-                      <div className="w-24 h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-purple-500 to-blue-500 transition-all duration-300"
-                          style={{ width: `${progress || 50}%` }}
-                        />
+                    {(isProcessing || isLoading) && (
+                      <div className="flex items-center gap-2">
+                        <div className="w-24 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-purple-500 to-blue-500 transition-all duration-300"
+                            style={{ width: `${progress || 50}%` }}
+                          />
+                        </div>
+                        <span className="text-purple-400">{progress || 50}%</span>
                       </div>
-                      <span className="text-purple-400">{progress || 50}%</span>
-                    </div>
-                  )}
+                    )}
+                  </div>
+                  <button
+                    onClick={isTakeoverActive ? handleRelease : handleTakeover}
+                    disabled={!isConnected}
+                    className={`${
+                      isTakeoverActive
+                        ? 'bg-red-500 hover:bg-red-600'
+                        : 'bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600'
+                    } text-white text-xs px-3 py-1 rounded transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed`}
+                    title={isTakeoverActive ? 'Release Control' : 'Take Control'}
+                  >
+                    {isTakeoverActive ? '🛑 Release' : '🕹️ Take Control'}
+                  </button>
                 </div>
-                <button
-                  onClick={isTakeoverActive ? handleRelease : handleTakeover}
-                  disabled={!isConnected}
-                  className={`${
-                    isTakeoverActive
-                      ? 'bg-red-500 hover:bg-red-600'
-                      : 'bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600'
-                  } text-white text-xs px-3 py-1 rounded transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed`}
-                  title={isTakeoverActive ? 'Release Control' : 'Take Control'}
-                >
-                  {isTakeoverActive ? '🛑 Release' : '🕹️ Take Control'}
-                </button>
-              </div>
+              )}
             </>
           )}
         </div>
