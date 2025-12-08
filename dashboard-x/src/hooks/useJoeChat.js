@@ -917,14 +917,11 @@ export const useJoeChat = () => {
           sioBase = `${u.protocol}//${host}`;
         } catch { /* noop */ }
         sioUrl = `${sioBase}/joe-agent`;
-        const shouldUseNativeWsOnly = (!isLocalHost) && (typeof window !== 'undefined') && (/xelitesolutions\.com$/.test(String(window.location.hostname || '')));
-        if (shouldUseNativeWsOnly) {
-          openNativeWs();
-          return;
-        }
+        
         let pathPref = '/socket.io/';
         try { const saved = localStorage.getItem('joeSioPath'); if (saved === '/socket.io' || saved === '/socket.io/') { pathPref = saved; } } catch { /* noop */ }
-        const initialTransports = ['polling','websocket'];
+        const isProdHost = (typeof window !== 'undefined') && (/xelitesolutions\.com$/.test(String(window.location.hostname || '')));
+        const initialTransports = isProdHost ? ['polling'] : ['polling','websocket'];
         const socket = io(sioUrl, {
           auth: { token: sessionToken },
           path: pathPref,
@@ -985,7 +982,7 @@ export const useJoeChat = () => {
               const next = cur === '/socket.io/' ? '/socket.io' : '/socket.io/';
               socket.io.opts.path = next;
               try { localStorage.setItem('joeSioPath', next); } catch { /* noop */ }
-              socket.io.opts.transports = ['websocket'];
+              socket.io.opts.transports = ['polling'];
               socket.connect();
             } catch { /* noop */ }
             return;
