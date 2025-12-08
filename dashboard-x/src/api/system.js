@@ -160,7 +160,20 @@ export const updateChatSession = (id, patch, opts) =>
   call(() => apiClient.put(chatHistory(`/sessions/${id}`), patch, { signal: opts?.signal }));
 
 export const getChatMessages = (id, opts) =>
-  call(() => apiClient.get(chatHistory(`/sessions/${id}/messages`), { signal: opts?.signal }));
+  call(async () => {
+    try {
+      return await apiClient.get(chatHistory(`/sessions/${id}/messages`), { signal: opts?.signal });
+    } catch (e) {
+      const err = /** @type {any} */ (e);
+      const status = err?.status ?? err?.response?.status;
+      if (status === 405 || status === 404) {
+        const res = await apiClient.get(chatHistory(`/sessions/${id}`), { signal: opts?.signal });
+        const messages = Array.isArray(res?.data?.messages) ? res.data.messages : [];
+        return { data: { success: true, messages } };
+      }
+      throw e;
+    }
+  });
 
 export const addChatMessage = (id, payload, opts) =>
   call(() => apiClient.post(chatHistory(`/sessions/${id}/messages`), payload, { signal: opts?.signal }));

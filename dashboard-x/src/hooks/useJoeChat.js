@@ -546,10 +546,22 @@ export const useJoeChat = () => {
       if (i?.command) messages.push({ type: 'user', content: i.command, id: uuidv4(), createdAt: ts + (seq++) });
       if (i?.result) messages.push({ type: 'joe', content: i.result, id: uuidv4(), createdAt: ts + (seq++) });
     }
-    const last = (session.interactions || []).at(-1);
-    const lastModified = last?.metadata?.timestamp ? new Date(last.metadata.timestamp).getTime() : Date.now();
-    const title = normalizeTitle(messages.find(m => m.type === 'user')?.content || 'New Conversation');
     const sid = session._id || session.id;
+    const prev = sid ? (stateRef.current?.conversations?.[sid] || null) : null;
+    const candidate = (() => {
+      try {
+        if (session.lastModified) return new Date(session.lastModified).getTime();
+        if (session.updatedAt) return new Date(session.updatedAt).getTime();
+        if (session.createdAt) return new Date(session.createdAt).getTime();
+        const last = (session.interactions || []).at(-1);
+        if (last?.metadata?.timestamp) return new Date(last.metadata.timestamp).getTime();
+      } catch { /* noop */ }
+      return null;
+    })();
+    const lastModified = typeof candidate === 'number' && candidate > 0
+      ? candidate
+      : (prev?.lastModified || 0);
+    const title = normalizeTitle(messages.find(m => m.type === 'user')?.content || 'New Conversation');
     return { id: sid, title, messages, lastModified, pinned: false, sessionId: sid };
   }, []);
 
