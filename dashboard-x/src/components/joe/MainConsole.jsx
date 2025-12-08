@@ -110,14 +110,14 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   StyledJoe.propTypes = { className: PropTypes.string };
 
   const JoeBadge = ({ size = 'sm' }) => {
-    const cls = size === 'md' ? 'w-7 h-7 text-[12px]' : 'w-5 h-5 text-[10px]';
+    const cls = size === 'lg' ? 'w-9 h-9 text-[14px]' : (size === 'md' ? 'w-7 h-7 text-[12px]' : 'w-5 h-5 text-[10px]');
     return (
       <span className={`inline-flex items-center justify-center ${cls} rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 border border-yellow-300 shadow-lg shadow-yellow-500/30`}> 
         <span className="font-black text-gray-900 drop-shadow-sm">J</span>
       </span>
     );
   };
-  JoeBadge.propTypes = { size: PropTypes.oneOf(['sm','md']) };
+  JoeBadge.propTypes = { size: PropTypes.oneOf(['sm','md','lg']) };
 
   const lastContent = messages[messages.length - 1]?.content || '';
   
@@ -645,7 +645,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
             <div className="text-sm text-gray-300">لوحة التحكم</div>
             <div className="p-2 rounded-lg bg-gray-800 border border-gray-700">
               <div className="flex items-center gap-2">
-                <JoeBadge size="md" />
+                <JoeBadge size="lg" />
                 <div>
                   <div className="text-xs text-gray-200"><StyledJoe /> Agent</div>
                   <div className={`text-[11px] ${wsConnected? 'text-green-300':'text-red-300'}`}>{wsConnected? (lang==='ar'?'متصل':'Online') : (lang==='ar'?'غير متصل':'Offline')}</div>
