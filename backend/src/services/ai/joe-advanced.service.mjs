@@ -116,13 +116,65 @@ function orderByRanking(names) {
   } catch { return names; }
 }
 
+function _tokenize(s) {
+  return String(s || '').toLowerCase().split(/[^a-z0-9_]+/).filter(Boolean);
+}
+
+function _buildFallbackCandidates(primaryName, args, hint) {
+  try {
+    const schemas = toolManager.getToolSchemas ? toolManager.getToolSchemas() : [];
+    const pTokens = _tokenize(primaryName);
+    const hTokens = _tokenize(hint);
+    const argKeys = Object.keys(args || {});
+    const scored = [];
+    for (const t of schemas) {
+      const n = String(t?.function?.name || '').trim();
+      if (!n || n === primaryName) continue;
+      const d = String(t?.function?.description || '');
+      const props = Object.keys((t?.function?.parameters?.properties) || {});
+      const nTok = _tokenize(n);
+      const dTok = _tokenize(d);
+      let score = 0;
+      for (const tok of pTokens) { if (nTok.includes(tok)) score += 3; }
+      for (const tok of hTokens) { if (nTok.includes(tok) || dTok.includes(tok)) score += 2; }
+      for (const k of argKeys) { if (props.includes(k)) score += 1; }
+      if (score > 0) scored.push({ name: n, score });
+    }
+    scored.sort((a, b) => b.score - a.score);
+    const names = scored.map(x => x.name).slice(0, 6);
+    return orderByRanking(names);
+  } catch { return []; }
+}
+
 async function executeTool(userId, sessionId, name, args) {
-  try { joeEvents.emitToolUsed(userId, sessionId, name, { stage: 'start', args }); } catch { /* noop */ }
+  try { joeEvents.emitToolUsed(userId, sessionId, name, { stage: 'start', args }); } catch { void 0; }
   const startedAt = Date.now();
   const result = await toolManager.execute(name, args);
   const ms = Date.now() - startedAt;
-  try { joeEvents.emitToolUsed(userId, sessionId, name, { stage: 'end', args, ms, summary: (typeof result === 'object' ? (result.summary || result.message || '') : '') }); } catch { /* noop */ }
+  try { joeEvents.emitToolUsed(userId, sessionId, name, { stage: 'end', args, ms, summary: (typeof result === 'object' ? (result.summary || result.message || '') : '') }); } catch { void 0; }
   return result;
+}
+
+async function executeWithFallback(userId, sessionId, name, args, hint) {
+  try {
+    return await executeTool(userId, sessionId, name, args);
+  } catch (e) {
+    try { joeEvents.emitError(userId, e, { tool: name, stage: 'primary' }); } catch { void 0; }
+    try { joeEvents.emitProgress(userId, sessionId, 35, `Selecting fallback for ${name}`); } catch { void 0; }
+    const candidates = _buildFallbackCandidates(name, args, hint);
+    for (const alt of candidates) {
+      try { joeEvents.emitProgress(userId, sessionId, 40, `Trying ${alt}`); } catch { void 0; }
+      try {
+        const r = await executeTool(userId, sessionId, alt, args);
+        try { joeEvents.emitProgress(userId, sessionId, 60, `${alt} done`); } catch { void 0; }
+        return r;
+      } catch (e2) {
+        try { joeEvents.emitError(userId, e2, { tool: alt, stage: 'fallback' }); } catch { void 0; }
+        continue;
+      }
+    }
+    throw e;
+  }
 }
 
 function shouldAugment(msg) {
@@ -367,12 +419,12 @@ async function processMessage(userId, message, sessionId, { model = null, lang }
             const params = typeof st?.params === 'object' && st.params ? st.params : {};
             if (typeof fnName === 'string' && fnName) {
               try {
-                try { joeEvents.emitProgress(userId, sessionId, 30, `Running ${fnName}`); } catch { /* noop */ }
-                const r = await toolManager.execute(fnName, params);
+                try { joeEvents.emitProgress(userId, sessionId, 30, `Running ${fnName}`); } catch { void 0; }
+                const r = await executeWithFallback(userId, sessionId, fnName, params, st?.thought || '');
                 toolResults.push({ tool: fnName, args: params, result: r });
                 toolCalls.push({ function: { name: fnName, arguments: params } });
-                try { joeEvents.emitProgress(userId, sessionId, 60, `${fnName} done`); } catch { /* noop */ }
-              } catch { void 0 }
+                try { joeEvents.emitProgress(userId, sessionId, 60, `${fnName} done`); } catch { void 0; }
+              } catch { void 0; }
             }
           };
           const [first, ...rest] = steps;
