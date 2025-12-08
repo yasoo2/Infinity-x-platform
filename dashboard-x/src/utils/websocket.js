@@ -76,6 +76,37 @@ export const connectWebSocket = (onMessage, onOpen, onClose) => {
     baseWsUrl = `${proto}://${urlObj.host}`;
   }
 
+  const rebuildBase = () => {
+    try {
+      const envWs2 = (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_WS_BASE_URL || import.meta.env?.VITE_WS_URL)) || '';
+      const envApi2 = (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL || import.meta.env?.VITE_EXPLICIT_API_BASE)) || '';
+      let httpBase2 = typeof apiClient?.defaults?.baseURL === 'string'
+        ? apiClient.defaults.baseURL
+        : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
+      try { if (String(envApi2).trim().length > 0) { httpBase2 = envApi2; } } catch { /* noop */ }
+      try {
+        if (!envApi2 && typeof window !== 'undefined') {
+          const h = window.location.hostname;
+          if (h === 'www.xelitesolutions.com' || h === 'xelitesolutions.com') {
+            httpBase2 = 'https://api.xelitesolutions.com';
+          }
+        }
+      } catch { /* noop */ }
+      const baseCandidate2 = String(envWs2).trim().length > 0 ? String(envWs2).trim() : String(httpBase2);
+      const urlObj2 = new URL(baseCandidate2);
+      const host2 = urlObj2.host;
+      const proto2 = urlObj2.protocol === 'https:' ? 'wss' : 'ws';
+      baseWsUrl = `${proto2}://${host2}`;
+    } catch {
+      try {
+        const origin2 = (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
+        const urlObj2 = new URL(String(origin2));
+        const proto2 = urlObj2.protocol === 'https:' ? 'wss' : 'ws';
+        baseWsUrl = `${proto2}://${urlObj2.host}`;
+      } catch { /* noop */ }
+    }
+  };
+
   const scheduleReconnect = () => {
     failedAttempts++;
     clearTimeout(reconnectInterval);
@@ -183,7 +214,19 @@ export const connectWebSocket = (onMessage, onOpen, onClose) => {
     } catch { void 0; }
   };
 
+  const onApiReset = () => {
+    try { clearTimeout(reconnectInterval); } catch { /* noop */ }
+    try { if (ws) ws.close(); } catch { /* noop */ }
+    try { if (ioSocket) ioSocket.close(); } catch { /* noop */ }
+    failedAttempts = 0;
+    wsFailures = 0;
+    ioFailures = 0;
+    rebuildBase();
+    startRace();
+  };
+
   startRace();
+  try { window.addEventListener('api:baseurl:reset', onApiReset); } catch { /* noop */ }
 
   return ws;
 };

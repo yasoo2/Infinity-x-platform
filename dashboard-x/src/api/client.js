@@ -213,6 +213,7 @@
                   : window.location.origin)
               : apiClient.defaults.baseURL;
             apiClient.defaults.baseURL = String(fallback).replace(/\/+$/, '');
+            try { localStorage.setItem('apiBaseUrl', apiClient.defaults.baseURL); } catch { /* noop */ }
             errCount = 0;
             errStart = 0;
             try { window.dispatchEvent(new CustomEvent('api:baseurl:reset')); } catch { void 0; }
@@ -220,6 +221,26 @@
             errCount = 1;
             errStart = now;
           }
+        }
+      } else if (!isDev && (status === 502 || status === 503 || status === 504)) {
+        const now = Date.now();
+        if (!errStart) errStart = now;
+        errCount += 1;
+        const elapsed = now - errStart;
+        if (errCount >= 3 && elapsed <= 20000) {
+          const fallback = typeof window !== 'undefined'
+            ? ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                ? 'http://localhost:4000'
+                : window.location.origin)
+            : apiClient.defaults.baseURL;
+          apiClient.defaults.baseURL = String(fallback).replace(/\/+$/, '');
+          try { localStorage.setItem('apiBaseUrl', apiClient.defaults.baseURL); } catch { /* noop */ }
+          errCount = 0;
+          errStart = 0;
+          try { window.dispatchEvent(new CustomEvent('api:baseurl:reset')); } catch { void 0; }
+        } else if (elapsed > 20000) {
+          errCount = 1;
+          errStart = now;
         }
       }
 

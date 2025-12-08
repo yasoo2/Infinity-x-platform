@@ -1171,6 +1171,13 @@ export const useJoeChat = () => {
     };
     
     connect();
+    const onApiReset = () => {
+      try { if (sioRef.current) sioRef.current.close(); } catch { /* noop */ }
+      try { if (ws.current) ws.current.close(); } catch { /* noop */ }
+      isConnectingRef.current = false;
+      connect();
+    };
+    try { window.addEventListener('api:baseurl:reset', onApiReset); } catch { /* noop */ }
     const onOnline = () => {
       if (!ws.current || ws.current.readyState === WebSocket.CLOSED) {
         reconnectAttempts.current = 0;
@@ -1193,6 +1200,7 @@ export const useJoeChat = () => {
       try { await apiClient.get('/api/v1/joe/ping'); } catch { /* noop */ }
     }, 30000);
     return () => {
+      try { window.removeEventListener('api:baseurl:reset', onApiReset); } catch { /* noop */ }
       window.removeEventListener('online', onOnline);
       window.removeEventListener('joe:reconnect', onReconnect);
       if (reconnectTimer.current) {

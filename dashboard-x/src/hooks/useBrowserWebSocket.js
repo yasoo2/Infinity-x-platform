@@ -61,7 +61,15 @@ const useBrowserWebSocket = () => {
     };
 
     connect();
-    return () => { try { ioRef.current?.close(); } catch { /* noop */ } };
+    const onApiReset = () => {
+      try { ioRef.current?.close(); } catch { /* noop */ }
+      connect();
+    };
+    try { window.addEventListener('api:baseurl:reset', onApiReset); } catch { /* noop */ }
+    return () => {
+      try { window.removeEventListener('api:baseurl:reset', onApiReset); } catch { /* noop */ }
+      try { ioRef.current?.close(); } catch { /* noop */ }
+    };
   }, []);
 
   const navigate = useCallback((url) => {
