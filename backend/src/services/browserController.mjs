@@ -48,7 +48,7 @@ class BrowserController {
         try {
           const mod = await import('../browser/AdvancedBrowserManager.mjs');
           AdvancedBrowserManager = mod.default || mod.AdvancedBrowserManager;
-        } catch (e2) {
+        } catch {
           const hint = 'Playwright failed to launch. Install browsers: npx playwright install --with-deps';
           console.error('Playwright launch failed:', e1?.message || String(e1), '\nHint:', hint);
           throw new Error(hint);

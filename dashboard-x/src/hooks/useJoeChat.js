@@ -584,6 +584,10 @@ export const useJoeChat = () => {
             convs[mapped.id] = mapped;
           }
         } catch (err) {
+          const isCanceled = (err?.code === 'ERR_CANCELED') || /canceled|abort(ed)?/i.test(String(err?.message || ''));
+          if (isCanceled) {
+            continue;
+          }
           const status = err?.status ?? err?.response?.status;
           const code = err?.code ?? err?.response?.data?.code;
           const notFound = status === 404 || String(err?.details?.error || code || '').toUpperCase() === 'NOT_FOUND';
