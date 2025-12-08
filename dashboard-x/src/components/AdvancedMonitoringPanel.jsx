@@ -145,25 +145,13 @@ import apiClient from '../api/client';
       setWsConnected(false);
     }, []);
 
-    const handleStartStream = useCallback(async () => {
+    useEffect(() => {
       try {
-        await apiClient.post('/api/v1/live-stream/start');
         setIsStreaming(true);
         connectWs();
-      } catch (e) {
-        setError(e?.message || 'فشل بدء البث');
-      }
-    }, [connectWs]);
-
-    const handleStopStream = useCallback(async () => {
-      try {
-        await apiClient.post('/api/v1/live-stream/stop');
-        setIsStreaming(false);
-        disconnectWs();
-      } catch (e) {
-        setError(e?.message || 'فشل إيقاف البث');
-      }
-    }, [disconnectWs]);
+      } catch { /* noop */ }
+      return () => { disconnectWs(); };
+    }, [connectWs, disconnectWs]);
 
     // بيانات Mock للأنشطة والتنبيهات (يمكن استبدالها بمصدر حقيقي)
     useEffect(() => {
@@ -206,12 +194,7 @@ import apiClient from '../api/client';
           <p className="text-gray-400">مراقبة أداء النظام والعمليات الجارية في الوقت الفعلي</p>
           <div className="mt-3 flex items-center gap-2">
             <span className={`px-2 py-1 text-xs rounded ${wsConnected ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-slate-600/40 text-slate-300 border border-slate-600/50'}`}>{wsConnected ? 'متصل بالبث' : 'غير متصل'}</span>
-            {!isStreaming && (
-              <button onClick={handleStartStream} className="px-3 py-1 text-sm rounded bg-blue-600 hover:bg-blue-700 text-white">بدء البث الحي</button>
-            )}
-            {isStreaming && (
-              <button onClick={handleStopStream} className="px-3 py-1 text-sm rounded bg-red-600 hover:bg-red-700 text-white">إيقاف البث الحي</button>
-            )}
+            <span className="px-3 py-1 text-sm rounded bg-blue-600/20 text-blue-300 border border-blue-600/30">البث تلقائي</span>
           </div>
           {error && (
             <div className="mt-3 flex items-center gap-2 p-3 rounded-md border border-red-500/30 bg-red-500/10 text-red-300">

@@ -277,6 +277,15 @@ async function setupDependencies() {
         const liveStreamWSServer = new LiveStreamWebSocketServer(server);
         dependencies.liveStreamWSServer = liveStreamWSServer;
 
+        try {
+          if (!liveStreamingService.isStreaming) {
+            liveStreamingService.startStreaming();
+            console.log('📡 Live stream started automatically.');
+          }
+        } catch (e) {
+          console.warn('⚠️ Failed to auto-start live stream:', e?.message || String(e));
+        }
+
         return dependencies;
     } catch (error) {
         console.error('❌ Could not initialize dependencies. Aborting startup.', error);
