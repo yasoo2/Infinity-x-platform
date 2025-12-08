@@ -58,7 +58,10 @@ export default function PreviewScreen({ currentStep, progress, actionResult, isP
       >
         <div className="flex items-center gap-2">
           <div className={`w-2 h-2 rounded-full ${isProcessing ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`} />
-          <span className="text-sm font-semibold">JOE Preview</span>
+          <span className="text-sm font-semibold">
+            <span className="mx-1 inline-flex items-baseline font-semibold tracking-wide"><span>J</span><span>o</span><span className="text-yellow-500">e</span></span>
+            Preview
+          </span>
         </div>
         <div className="flex items-center gap-2">
           {isProcessing && (

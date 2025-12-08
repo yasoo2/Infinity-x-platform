@@ -54,7 +54,7 @@
               <FormItem>
                 <FormLabel className="text-textDim flex items-center gap-2">
                   <MessageSquareText className="h-4 w-4" />
-                  الأمر إلى جو / النظام
+                  الأمر إلى <span className="mx-1 inline-flex items-baseline font-semibold tracking-wide"><span>J</span><span>o</span><span className="text-yellow-500">e</span></span> / النظام
                 </FormLabel>
                 <FormControl>
                   <Textarea

@@ -58,7 +58,12 @@ const JoeDesktopView = ({ isProcessing, progress, wsLog, onVoiceInput }) => {
       <div className="flex items-center justify-between p-3 bg-gradient-to-r from-gray-800/70 to-gray-900/70 border-b border-cyan-500/50">
         <div className="flex items-center gap-3">
           {getStatusIcon()}
-          <span className="text-sm font-bold text-white">جو - سطح المكتب (JOE Desktop)</span>
+          <span className="text-sm font-bold text-white">
+            <span className="mx-1 inline-flex items-baseline font-semibold tracking-wide text-gray-100"><span>J</span><span>o</span><span className="text-yellow-500">e</span></span>
+            - سطح المكتب (
+            <span className="mx-1 inline-flex items-baseline font-semibold tracking-wide text-gray-100"><span>J</span><span>o</span><span className="text-yellow-500">e</span></span>
+            Desktop)
+          </span>
         </div>
 
         <div className="flex items-center gap-2">

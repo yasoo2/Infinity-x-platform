@@ -145,13 +145,15 @@ const chatReducer = (state, action) => {
                 convo = { id: convoId, title: firstTitle, messages: [], lastModified: Date.now(), pinned: false };
             }
             const lastMessage = convo.messages[convo.messages.length - 1];
+            const normalizeJoeLine = (s) => String(s || '').split('\n').map(l => l.replace(/^\s*joe\b[\s:–-]*?/i, '')).join('\n');
+            const incomingContent = action.payload.type === 'joe' ? normalizeJoeLine(action.payload.content) : action.payload.content;
             let updatedMessages;
             if (lastMessage && lastMessage.type === 'joe' && action.payload.type === 'joe') {
-                updatedMessages = [...convo.messages.slice(0, -1), { ...lastMessage, content: lastMessage.content + action.payload.content }];
+                updatedMessages = [...convo.messages.slice(0, -1), { ...lastMessage, content: lastMessage.content + incomingContent }];
             } else {
                 const now = Date.now();
                 const createdAt = action.payload.type === 'joe' ? now + 1 : now;
-                updatedMessages = [...convo.messages, { type: action.payload.type, content: action.payload.content, id: uuidv4(), createdAt }];
+                updatedMessages = [...convo.messages, { type: action.payload.type, content: incomingContent, id: uuidv4(), createdAt }];
             }
             const updatedConvo = { ...convo, messages: updatedMessages };
             const nextConversations = { ...conversations, [convoId]: updatedConvo };
@@ -548,7 +550,7 @@ export const useJoeChat = () => {
     }
     const lang = getLang();
   const en = `Welcome to Joe AI Assistant! 👋\n\nYour AI-powered engineering partner with ${toolsCount} tools and functions.\n\nI can help you with:\n💬 Chat & Ask - Get instant answers and explanations\n🛠️ Build & Create - Generate projects and applications\n🔍 Analyze & Process - Work with data and generate insights\n\nStart by typing an instruction below, attaching a file, or using your voice.`;
-    const ar = `مرحبًا بك في مساعد جو الذكي! 👋\n\nشريكك الهندسي المدعوم بالذكاء مع ${toolsCount} أداة ووظيفة.\n\nأستطيع مساعدتك في:\n💬 المحادثة والسؤال - إجابات وشروحات فورية\n🛠️ البناء والإنشاء - توليد مشاريع وتطبيقات\n🔍 التحليل والمعالجة - العمل مع البيانات وتوليد رؤى\n\nابدأ بكتابة تعليماتك أدناه أو إرفاق ملف أو استخدام الصوت.`;
+    const ar = `مرحبًا بك في مساعد Joe الذكي! 👋\n\nشريكك الهندسي المدعوم بالذكاء مع ${toolsCount} أداة ووظيفة.\n\nأستطيع مساعدتك في:\n💬 المحادثة والسؤال - إجابات وشروحات فورية\n🛠️ البناء والإنشاء - توليد مشاريع وتطبيقات\n🔍 التحليل والمعالجة - العمل مع البيانات وتوليد رؤى\n\nابدأ بكتابة تعليماتك أدناه أو إرفاق ملف أو استخدام الصوت.`;
     const msg = lang === 'ar' ? ar : en;
     const newId = uuidv4();
     dispatch({ type: 'NEW_CONVERSATION', payload: { selectNew, welcomeMessage: msg, id: newId } });

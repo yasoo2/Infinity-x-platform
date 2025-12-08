@@ -100,6 +100,25 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
     plan
   } = useJoeChatContext();
 
+  const StyledJoe = ({ className = '' }) => (
+    <span className={`mx-1 inline-flex items-baseline font-semibold tracking-wide text-gray-100 ${className}`}>
+      <span>J</span>
+      <span>o</span>
+      <span className="text-yellow-500">e</span>
+    </span>
+  );
+  StyledJoe.propTypes = { className: PropTypes.string };
+
+  const JoeBadge = ({ size = 'sm' }) => {
+    const cls = size === 'md' ? 'w-7 h-7 text-[12px]' : 'w-5 h-5 text-[10px]';
+    return (
+      <span className={`inline-flex items-center justify-center ${cls} rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 border border-yellow-300 shadow-lg shadow-yellow-500/30`}> 
+        <span className="font-black text-gray-900 drop-shadow-sm">J</span>
+      </span>
+    );
+  };
+  JoeBadge.propTypes = { size: PropTypes.oneOf(['sm','md']) };
+
   const lastContent = messages[messages.length - 1]?.content || '';
   
   const scrollToBottomIfNeeded = () => {
@@ -626,9 +645,9 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
             <div className="text-sm text-gray-300">لوحة التحكم</div>
             <div className="p-2 rounded-lg bg-gray-800 border border-gray-700">
               <div className="flex items-center gap-2">
-                <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-yellow-500 text-black font-bold">J</span>
+                <JoeBadge size="md" />
                 <div>
-                  <div className="text-xs text-gray-200">JOE Agent</div>
+                  <div className="text-xs text-gray-200"><StyledJoe /> Agent</div>
                   <div className={`text-[11px] ${wsConnected? 'text-green-300':'text-red-300'}`}>{wsConnected? (lang==='ar'?'متصل':'Online') : (lang==='ar'?'غير متصل':'Offline')}</div>
                 </div>
               </div>
@@ -741,10 +760,27 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                       let idx = 0;
                       let mm;
                       const input = String(str || '');
+                      const renderJoe = (chunk) => {
+                        const out = [];
+                        const re = /\bJoe\b/g;
+                        let li = 0;
+                        let nm;
+                        while ((nm = re.exec(chunk)) !== null) {
+                          const i = nm.index;
+                          if (i > li) out.push(chunk.slice(li, i));
+                          out.push(<StyledJoe key={`joe-${i}`} />);
+                          li = i + nm[0].length;
+                        }
+                        if (li < chunk.length) out.push(chunk.slice(li));
+                        return out;
+                      };
                       while ((mm = brandPattern.exec(input)) !== null) {
                         const i = mm.index;
                         const w = mm[0];
-                        if (i > idx) nodes.push(input.slice(idx, i));
+                        if (i > idx) {
+                          const pre = renderJoe(input.slice(idx, i));
+                          for (const p of pre) nodes.push(p);
+                        }
                         nodes.push(
                           <a
                             key={`brand-${i}-${w}`}
@@ -757,7 +793,10 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                         );
                         idx = i + w.length;
                       }
-                      if (idx < input.length) nodes.push(input.slice(idx));
+                      if (idx < input.length) {
+                        const tail = renderJoe(input.slice(idx));
+                        for (const t of tail) nodes.push(t);
+                      }
                       return nodes;
                     };
                     return parts.map((p, i) => typeof p === 'string' ? renderBrands(p) : (
@@ -788,12 +827,13 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                       {segments.map((seg, idx) => seg.type === 'code' ? (
                         <div key={`blk-${idx}`} className="mt-2">
                           <div className="relative group">
-                            <pre className="bg-gray-950 border border-gray-800 rounded-lg p-3 text-[12px] overflow-x-auto" style={{ direction: 'ltr', textAlign: 'left' }}><code>{seg.content}</code></pre>
+                            <pre className="bg-gray-900/70 backdrop-blur-sm border border-gray-700 rounded-2xl p-4 text-[12px] overflow-x-auto shadow-inner" style={{ direction: 'ltr', textAlign: 'left' }}><code>{seg.content}</code></pre>
                             <button
                               onClick={() => { try { navigator.clipboard.writeText(seg.content); } catch { /* noop */ } }}
-                              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-[11px] px-2 py-1 rounded bg-gray-800 text-gray-200 border border-gray-700"
+                              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded bg-gray-700 text-gray-200 border border-gray-600 hover:bg-gray-600"
+                              title={lang==='ar' ? 'نسخ' : 'Copy'}
                             >
-                              Copy
+                              <FiCopy size={14} />
                             </button>
                           </div>
                         </div>
@@ -850,8 +890,8 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 text-xs text-gray-300 mb-2">
-                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-yellow-500 text-black font-bold">J</span>
-                          <span className="uppercase tracking-wide">JOE</span>
+                          <JoeBadge size="sm" />
+                          <StyledJoe className="tracking-wide" />
                         </div>
                       )}
                       <div className={`${String(msg.content||'').length > 1200 && !expandedIds.has(msg.id) ? 'max-h-80 overflow-hidden relative' : ''}`}>
@@ -895,7 +935,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                     <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" style={{ animationDelay: '0ms' }} />
                     <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" style={{ animationDelay: '140ms' }} />
                     <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" style={{ animationDelay: '280ms' }} />
-                    <span className="text-xs ml-2">{(() => { const hasThought = Array.isArray(plan) && plan.slice(-5).some(s => s?.type === 'thought'); return lang==='ar' ? (hasThought ? 'جو يفكر الآن…' : 'جو يكتب الآن…') : (hasThought ? 'Joe is thinking…' : 'Joe is typing…'); })()}</span>
+                    <span className="text-xs ml-2">{(() => { const hasThought = Array.isArray(plan) && plan.slice(-5).some(s => s?.type === 'thought'); return lang==='ar' ? (<><StyledJoe /> {hasThought ? 'يفكر الآن…' : 'يكتب الآن…'}</>) : (<><StyledJoe /> {hasThought ? 'is thinking…' : 'is typing…'}</>); })()}</span>
                   </div>
                 </div>
               )}
@@ -933,7 +973,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
       {/* Input Area - Fixed at Bottom, Centered and Spacious */}
       <div className="border-t border-gray-800 bg-gray-900/98 backdrop-blur-sm" ref={inputAreaRef}>
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-3">
-            <div className={`flex items-end gap-3 bg-gray-900/90 border border-gray-700 rounded-2xl px-5 py-4 transition-all relative brand-ring ${dragActive ? 'ring-2 ring-yellow-500/70' : 'focus-within:ring-2 focus-within:ring-yellow-500'}`}
+            <div className={`flex items-end gap-3 bg-gray-900/70 backdrop-blur-sm border border-gray-700/80 rounded-2xl px-5 py-4 shadow-xl transition-all relative brand-ring ${dragActive ? 'ring-2 ring-yellow-500/70' : 'focus-within:ring-2 focus-within:ring-yellow-500'}`}
             onDragEnter={(e) => { e.preventDefault(); setDragActive(true); }}
             onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
             onDragLeave={(e) => { if (e.currentTarget.contains(e.relatedTarget)) return; setDragActive(false); }}
@@ -960,8 +1000,8 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                   handleSend();
                 }
               }}
-              placeholder="Message Joe... (Shift+Enter for new line)"
-              className="flex-1 bg-transparent outline-none resize-none text-white placeholder-gray-500 text-sm leading-relaxed border border-gray-700 rounded-md px-3"
+              placeholder={lang==='ar' ? 'اكتب رسالة لـ Joe… (Shift+Enter سطر جديد)' : 'Message Joe... (Shift+Enter for new line)'}
+              className="flex-1 bg-gray-900/40 outline-none resize-none text-white placeholder-gray-500 text-sm leading-relaxed border border-gray-700 rounded-xl px-4 focus:bg-gray-900/50 focus:border-yellow-500"
               rows={1}
               style={{ height: '42px', minHeight: '42px', maxHeight: '42px' }}
               
@@ -1052,7 +1092,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                 <button 
                   onClick={() => { okPulse('send','success'); handleSend(); }} 
                   disabled={!input.trim()} 
-                  className="p-2 text-black bg-yellow-600 hover:bg-yellow-700 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="p-2 text-black bg-gradient-to-br from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 rounded-lg shadow-lg shadow-yellow-500/30 transition-colors active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
                   title="Send Message"
                 >
                   <FiSend size={16} />

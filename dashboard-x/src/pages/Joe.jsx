@@ -508,7 +508,17 @@ const JoeContent = () => {
             {robotActive && (
               <div className="absolute" style={{ bottom: robotCorner.includes('b') ? robotSize.h + 8 : undefined, top: robotCorner.includes('t') ? robotSize.h + 8 : undefined, left: robotCorner.includes('l') ? 0 : undefined, right: robotCorner.includes('r') ? 0 : undefined }}>
                 <div className="min-w-[200px] max-w-[240px] p-3 rounded-xl bg-gray-900 border border-yellow-600 text-white shadow-2xl">
-                  <div className="text-sm mb-2">{lang === 'ar' ? 'مساعد جو — اختصر الوقت:' : 'Joe Assistant — quick actions:'}</div>
+                  <div className="text-sm mb-2">
+                    {lang === 'ar' ? (
+                      <>
+                        مساعد <span className="mx-1 inline-flex items-baseline font-semibold tracking-wide"><span>J</span><span>o</span><span className="text-yellow-500">e</span></span> — اختصر الوقت:
+                      </>
+                    ) : (
+                      <>
+                        <span className="mx-1 inline-flex items-baseline font-semibold tracking-wide"><span>J</span><span>o</span><span className="text-yellow-500">e</span></span> Assistant — quick actions:
+                      </>
+                    )}
+                  </div>
                   <div className="grid grid-cols-2 gap-2">
                     <button onClick={(e)=>{ e.stopPropagation(); setInput(prev=>prev ? prev+"\n\n— رجاءً قدّم ملخصًا واضحًا." : '— رجاءً قدّم ملخصًا واضحًا.'); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'تلخيص':'Summarize'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); setInput('اقترح أوامر مفيدة بحسب السياق الحالي'); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'اقتراح أوامر':'Suggest cmds'}</button>

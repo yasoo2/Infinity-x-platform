@@ -489,7 +489,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
                             onClick={() => { try { window.dispatchEvent(new CustomEvent('joe:browser-data', { detail: { serpResults } })); } catch { /* noop */ } }}
                             className="px-2 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white"
                           >
-                            إرسال إلى جو
+                            إرسال إلى <span className="mx-1 inline-flex items-baseline font-semibold tracking-wide"><span>J</span><span>o</span><span className="text-yellow-500">e</span></span>
                           </button>
                         </div>
                         <div className="space-y-1 max-h-40 overflow-auto">
@@ -514,7 +514,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
                             onClick={() => { try { window.dispatchEvent(new CustomEvent('joe:browser-data', { detail: { pageText } })); } catch { /* noop */ } }}
                             className="px-2 py-1 rounded bg-purple-600 hover:bg-purple-500 text-white"
                           >
-                            إرسال إلى جو
+                            إرسال إلى <span className="mx-1 inline-flex items-baseline font-semibold tracking-wide"><span>J</span><span>o</span><span className="text-yellow-500">e</span></span>
                           </button>
                         </div>
                         <div className="text-gray-300 whitespace-pre-wrap break-words max-h-40 overflow-auto">
