@@ -40,6 +40,35 @@ class DeveloperAgent {
   }
 }
 
+class DataAnalysisAgent {
+  async execute(task) {
+    const text = String(task.description || '').toLowerCase();
+    try {
+      if (/\.csv\b/.test(text)) {
+        const input = (text.match(/([A-Za-z0-9_\-./]+\.csv)/) || [])[1] || '';
+        const output = input ? input.replace(/\.csv$/, '.out.csv') : `./analysis-${Date.now()}.csv`;
+        const opMatch = text.match(/aggregate|filter|sort|transform/);
+        const op = (opMatch ? opMatch[0] : 'AGGREGATE').toUpperCase();
+        let details = '';
+        if (op === 'AGGREGATE') details = 'group_by=category, sum=sales';
+        else if (op === 'FILTER') details = 'column=status, value=active';
+        else if (op === 'SORT') details = 'by=created_at, order=desc';
+        else details = 'op=pass';
+        const r = await toolManager.execute('processCSV', { inputFilePath: input, outputFilePath: output, operation: op, operationDetails: details });
+        return { agent: 'dataAnalyst', result: r };
+      }
+      if (/https?:\/\//.test(text)) {
+        const url = (text.match(/https?:\/\/\S+/) || [])[0] || '';
+        const r = await toolManager.execute('navigateAndExtract', { url, selectors: ['h1','title'], context: 'web-data' });
+        return { agent: 'dataAnalyst', result: r };
+      }
+      return { agent: 'dataAnalyst', result: { success: false, error: 'NO_MATCH' } };
+    } catch (e) {
+      return { agent: 'dataAnalyst', result: { success: false, error: e?.message || String(e) } };
+    }
+  }
+}
+
 // ... (other specialist agents can be defined here)
 
 // --- Coordinator and Planner ---
@@ -49,6 +78,7 @@ class AgentTeam {
     this.agents = {
       architect: new ArchitectAgent(),
       developer: new DeveloperAgent(),
+      dataAnalyst: new DataAnalysisAgent(),
       // ... (initialize other agents)
     };
     this.llm = openai;
@@ -154,6 +184,7 @@ class AgentTeam {
     const agents = [];
     if (analysis.skills.includes('architecture')) agents.push('architect');
     if (analysis.skills.includes('coding')) agents.push('developer');
+    if (analysis.skills.includes('data_analysis')) agents.push('dataAnalyst');
     // ... (add other skills)
     return agents;
   }
