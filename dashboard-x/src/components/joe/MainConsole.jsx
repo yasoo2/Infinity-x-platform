@@ -90,6 +90,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   const [browserAutoOpenFirst, setBrowserAutoOpenFirst] = React.useState(false);
   const galleryPanelRef = useRef(null);
   const [viewMode, setViewMode] = React.useState('chat');
+  const [expandedIds, setExpandedIds] = React.useState(new Set());
 
   const { 
     messages, isProcessing, progress, currentStep, 
@@ -836,7 +837,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                     className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
                     <div 
-                      className={`max-w-[90%] sm:max-w-[85%] md:max-w-[75%] rounded-2xl px-5 py-4 ${
+                      className={`relative max-w-[90%] sm:max-w-[85%] md:max-w-[75%] rounded-2xl px-5 py-4 ${
                         msg.type === 'user' 
                           ? 'bg-gray-800 text-gray-100 border border-yellow-500/40 shadow-md' 
                           : 'bg-gray-800/85 text-gray-100 border border-gray-700 shadow-md'
@@ -853,10 +854,56 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                           <span className="uppercase tracking-wide">JOE</span>
                         </div>
                       )}
-                      {renderContent(msg.content)}
+                      <div className={`${String(msg.content||'').length > 1200 && !expandedIds.has(msg.id) ? 'max-h-80 overflow-hidden relative' : ''}`}>
+                        {renderContent(msg.content)}
+                        {String(msg.content||'').length > 1200 && !expandedIds.has(msg.id) && (
+                          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-gray-900/90 to-transparent flex items-end justify-center pb-2">
+                            <button
+                              onClick={() => setExpandedIds(prev => { const next = new Set(prev); next.add(msg.id); return next; })}
+                              className="px-3 py-1.5 text-[12px] rounded bg-gray-700 text-gray-200 border border-gray-600 hover:bg-gray-600"
+                            >
+                              {lang==='ar' ? 'عرض المزيد' : 'Show more'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      <div className="absolute top-2 right-2 flex items-center gap-2">
+                        {expandedIds.has(msg.id) && (
+                          <button
+                            onClick={() => setExpandedIds(prev => { const next = new Set(prev); next.delete(msg.id); return next; })}
+                            className="px-2 py-1 text-[11px] rounded bg-gray-700 text-gray-200 border border-gray-600 hover:bg-gray-600"
+                          >
+                            {lang==='ar' ? 'إخفاء' : 'Collapse'}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => { try { navigator.clipboard.writeText(String(msg.content||'')); } catch { /* noop */ } }}
+                          className="px-2 py-1 text-[11px] rounded bg-gray-700 text-gray-200 border border-gray-600 hover:bg-gray-600"
+                        >
+                          {lang==='ar' ? 'نسخ' : 'Copy'}
+                        </button>
+                      </div>
                     </div>
                   </div>
-              ));
+                ));
+              })()}
+
+              {(() => {
+                try {
+                  const last = messages[messages.length - 1];
+                  if (!last || last.type !== 'user') return null;
+                  if (!isProcessing) return null;
+                  return (
+                    <div className="flex justify-start">
+                      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-gray-800/85 text-gray-200 border border-gray-700">
+                        <span className="w-2 h-2 rounded-full bg-yellow-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <span className="w-2 h-2 rounded-full bg-yellow-500 animate-bounce" style={{ animationDelay: '120ms' }} />
+                        <span className="w-2 h-2 rounded-full bg-yellow-500 animate-bounce" style={{ animationDelay: '240ms' }} />
+                        <span className="text-xs ml-2">{lang==='ar' ? 'جو يكتب الآن…' : 'Joe is typing…'}</span>
+                      </div>
+                    </div>
+                  );
+                } catch { return null; }
               })()}
               
               {/* Progress Bar */}
