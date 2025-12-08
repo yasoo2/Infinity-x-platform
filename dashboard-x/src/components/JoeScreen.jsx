@@ -496,19 +496,26 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
                             onWheel={handleWheel}
                             style={{ pointerEvents: isTakeoverActive ? 'auto' : 'none' }}
                           />
-                          {isTakeoverActive && (
-                            <div className="absolute top-2 left-2 bg-purple-500/90 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
+                          {isTakeoverActive && !embedded && (
+                            <div className="absolute top-2 left-2 bg-purple-500/90 text-white text-xs px-2 py-1 rounded flex items-center gap-1 pointer-events-none">
                               <MousePointer className="w-3 h-3" />
                               <span>Control Active</span>
                             </div>
                           )}
                           {isLoading && (
-                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                              <div className="bg-gray-800 px-4 py-2 rounded-lg flex items-center gap-2">
-                                <RefreshCw className="w-4 h-4 text-purple-400 animate-spin" />
-                                <span className="text-white text-sm">Loading...</span>
+                            embedded ? (
+                              <div className="absolute top-2 right-2 bg-gray-800/90 text-white text-xs px-2 py-1 rounded flex items-center gap-1 pointer-events-none">
+                                <RefreshCw className="w-3 h-3 text-purple-400 animate-spin" />
+                                <span>Loading...</span>
                               </div>
-                            </div>
+                            ) : (
+                              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                <div className="bg-gray-800 px-4 py-2 rounded-lg flex items-center gap-2">
+                                  <RefreshCw className="w-4 h-4 text-purple-400 animate-spin" />
+                                  <span className="text-white text-sm">Loading...</span>
+                                </div>
+                              </div>
+                            )
                           )}
                         </div>
                       ) : (
