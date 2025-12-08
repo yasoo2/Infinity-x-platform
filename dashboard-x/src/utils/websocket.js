@@ -63,49 +63,20 @@ export const connectWebSocket = (onMessage, onOpen, onClose) => {
     }
   } catch { /* noop */ }
   let baseWsUrl = '';
-  try {
-    const baseCandidate = String(envWs).trim().length > 0 ? String(envWs).trim() : String(httpBase);
-    const urlObj = new URL(baseCandidate);
-    const host = urlObj.host;
-    const proto = urlObj.protocol === 'https:' ? 'wss' : 'ws';
-    baseWsUrl = `${proto}://${host}`;
-  } catch {
-    const origin = (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
-    const urlObj = new URL(String(origin));
-    const proto = urlObj.protocol === 'https:' ? 'wss' : 'ws';
-    baseWsUrl = `${proto}://${urlObj.host}`;
-  }
-
-  const rebuildBase = () => {
+  const computeBaseWsUrl = () => {
     try {
-      const envWs2 = (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_WS_BASE_URL || import.meta.env?.VITE_WS_URL)) || '';
-      const envApi2 = (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL || import.meta.env?.VITE_EXPLICIT_API_BASE)) || '';
-      let httpBase2 = typeof apiClient?.defaults?.baseURL === 'string'
-        ? apiClient.defaults.baseURL
-        : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
-      try { if (String(envApi2).trim().length > 0) { httpBase2 = envApi2; } } catch { /* noop */ }
-      try {
-        if (!envApi2 && typeof window !== 'undefined') {
-          const h = window.location.hostname;
-          if (h === 'www.xelitesolutions.com' || h === 'xelitesolutions.com') {
-            httpBase2 = 'https://api.xelitesolutions.com';
-          }
-        }
-      } catch { /* noop */ }
-      const baseCandidate2 = String(envWs2).trim().length > 0 ? String(envWs2).trim() : String(httpBase2);
-      const urlObj2 = new URL(baseCandidate2);
-      const host2 = urlObj2.host;
-      const proto2 = urlObj2.protocol === 'https:' ? 'wss' : 'ws';
-      baseWsUrl = `${proto2}://${host2}`;
+      const candidate = String(envWs).trim().length > 0 ? String(envWs).trim() : (typeof apiClient?.defaults?.baseURL === 'string' ? apiClient.defaults.baseURL : String(httpBase));
+      const u = new URL(candidate);
+      const proto = u.protocol === 'https:' ? 'wss' : 'ws';
+      return `${proto}://${u.host}`;
     } catch {
-      try {
-        const origin2 = (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
-        const urlObj2 = new URL(String(origin2));
-        const proto2 = urlObj2.protocol === 'https:' ? 'wss' : 'ws';
-        baseWsUrl = `${proto2}://${urlObj2.host}`;
-      } catch { /* noop */ }
+      const origin = (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
+      const u2 = new URL(String(origin));
+      const proto2 = u2.protocol === 'https:' ? 'wss' : 'ws';
+      return `${proto2}://${u2.host}`;
     }
   };
+  baseWsUrl = computeBaseWsUrl();
 
   const scheduleReconnect = () => {
     failedAttempts++;
@@ -214,6 +185,7 @@ export const connectWebSocket = (onMessage, onOpen, onClose) => {
     } catch { void 0; }
   };
 
+  // Listen for API base URL resets and reconnect with new base
   const onApiReset = () => {
     try { clearTimeout(reconnectInterval); } catch { /* noop */ }
     try { if (ws) ws.close(); } catch { /* noop */ }
@@ -221,13 +193,20 @@ export const connectWebSocket = (onMessage, onOpen, onClose) => {
     failedAttempts = 0;
     wsFailures = 0;
     ioFailures = 0;
-    rebuildBase();
+    baseWsUrl = computeBaseWsUrl();
     startRace();
   };
-
-  startRace();
   try { window.addEventListener('api:baseurl:reset', onApiReset); } catch { /* noop */ }
 
+  startRace();
+
+  // Cleanup global listener when caller unmounts
+  try {
+    const remove = () => { try { window.removeEventListener('api:baseurl:reset', onApiReset); } catch { /* noop */ } };
+    // attach to close to ensure removal
+    const prevOnClose = onClose;
+    onClose = () => { remove(); if (prevOnClose) prevOnClose(); };
+  } catch { /* noop */ }
   return ws;
 };
 

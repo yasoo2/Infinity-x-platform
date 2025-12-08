@@ -199,8 +199,8 @@
         window.dispatchEvent(new CustomEvent('auth:forbidden', { detail: details }));
       }
 
+      // Network timeout or no status: count and fallback after repeated failures
       if (!status || error.code === 'ECONNABORTED') {
-        // Avoid flipping baseURL in development; rely on Vite proxy
         if (!isDev) {
           const now = Date.now();
           if (!errStart) errStart = now;
@@ -222,7 +222,10 @@
             errStart = now;
           }
         }
-      } else if (!isDev && (status === 502 || status === 503 || status === 504)) {
+      }
+
+      // Explicit 5xx gateway errors: trigger fallback logic similarly
+      if (!isDev && (status === 502 || status === 503 || status === 504)) {
         const now = Date.now();
         if (!errStart) errStart = now;
         errCount += 1;
