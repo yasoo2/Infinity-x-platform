@@ -27,6 +27,18 @@ class BrowserController {
         '--lang=en-US,en'
       ];
       const launchOpts = { headless, args };
+      try {
+        const proxyServer = process.env.PLAYWRIGHT_PROXY_SERVER || process.env.HTTP_PROXY || process.env.http_proxy || '';
+        if (proxyServer) {
+          const proxy = { server: proxyServer };
+          const proxyUser = process.env.PLAYWRIGHT_PROXY_USERNAME || process.env.HTTP_PROXY_USERNAME || '';
+          const proxyPass = process.env.PLAYWRIGHT_PROXY_PASSWORD || process.env.HTTP_PROXY_PASSWORD || '';
+          if (proxyUser) proxy.username = proxyUser;
+          if (proxyPass) proxy.password = proxyPass;
+          launchOpts.proxy = proxy;
+          console.log('🛰️ Using proxy for Playwright:', proxyServer);
+        }
+      } catch { /* noop */ }
       const channel = process.env.PLAYWRIGHT_CHANNEL || '';
       if (channel) launchOpts.channel = channel;
       try {
@@ -39,6 +51,7 @@ class BrowserController {
 
       this.context = await this.browser.newContext({ viewport: { width: 1280, height: 720 }, userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' });
       this.page = await this.context.newPage();
+      try { this.page.setDefaultTimeout(15000); } catch { /* noop */ }
       await this.page.setExtraHTTPHeaders({ 'accept-language': 'en-US,en;q=0.9,ar;q=0.8' });
       try {
         const initialUrl = process.env.BROWSER_INITIAL_URL || 'about:blank';

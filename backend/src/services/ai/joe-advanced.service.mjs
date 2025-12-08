@@ -56,6 +56,7 @@ class JoeEventEmitter extends EventEmitter {
   emitProgress(userId, taskId, progress, message) { this.emit('progress', { type: 'progress', userId, taskId, progress, message, timestamp: new Date() }); }
   emitError(userId, error, context) { this.emit('error', { type: 'error', userId, error: error.message, stack: error.stack, context, timestamp: new Date() }); }
   emitToolUsed(userId, taskId, tool, details) { this.emit('tool_used', { type: 'tool_used', userId, taskId, tool, details, timestamp: new Date() }); }
+  emitThought(userId, taskId, content) { this.emit('thought', { type: 'thought', userId, taskId, content, timestamp: new Date() }); }
 }
 const joeEvents = new JoeEventEmitter();
 
@@ -356,6 +357,7 @@ async function processMessage(userId, message, sessionId, { model = null, lang }
       .map(t => ({ type: 'function', function: { ...t.function, parameters: sanitizeJsonSchemaForOpenAI(t.function.parameters) } }));
     console.log(`🛠️ Discovered ${availableTools.length} tools available for this request.`);
     try { joeEvents.emitProgress(userId, sessionId, 15, 'Tools discovered'); } catch { /* noop */ }
+    try { joeEvents.emitThought(userId, sessionId, (String(lang||'').toLowerCase()==='ar') ? 'تحليل الطلب واختيار الأدوات المناسبة' : 'Analyzing instruction and selecting suitable tools'); } catch { /* noop */ }
 
     let finalContent = 'An error occurred.';
     const toolCalls = [];
@@ -466,7 +468,23 @@ async function processMessage(userId, message, sessionId, { model = null, lang }
           const wantsDeleteFile = /(احذف\s*ملف|delete\s*file)/i.test(lower);
           const wantsListFiles = /(سرد\s*الملفات|list\s*files)/i.test(lower);
           const wantsScreenshot = /(screenshot|لقطة\s*شاشة)/i.test(lower);
-          const wantsAnalyzeImage = /(حلل\s*صورة|analyze\s*image)/i.test(lower);
+        const wantsAnalyzeImage = /(حلل\s*صورة|analyze\s*image)/i.test(lower);
+        try {
+          const planText = (targetLang==='ar')
+            ? `خطة أولية: ${[
+                hasUrl ? 'تصفح موقع' : '',
+                wantsWebSearch ? 'بحث ويب' : '',
+                wantsSecurity ? 'تدقيق أمني' : '',
+                wantsAnalyzeImage ? 'تحليل صورة' : '',
+              ].filter(Boolean).join('، ') || 'تحليل عام'}`
+            : `Initial plan: ${[
+                hasUrl ? 'browse site' : '',
+                wantsWebSearch ? 'web search' : '',
+                wantsSecurity ? 'security audit' : '',
+                wantsAnalyzeImage ? 'image analysis' : '',
+              ].filter(Boolean).join(', ') || 'general analysis'}`;
+          joeEvents.emitThought(userId, sessionId, planText);
+        } catch { /* noop */ }
           const wantsDeploy = /(deploy|نشر)/i.test(lower);
           let pieces = [];
           if (videoUrlMatch) {
@@ -1723,3 +1741,4 @@ console.log('🚀 JOE Advanced Engine v9.0.0 "Gemini-Phoenix" Loaded Successfull
 console.log('🧠 Integrated with Advanced Memory Manager.');
 console.log('🛠️ Now fully dynamic via ToolManager integration.');
 console.log('♊ Capable of running both OpenAI and Gemini models.');
+          

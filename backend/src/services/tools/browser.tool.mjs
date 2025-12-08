@@ -110,6 +110,48 @@ screenshotWebsite.metadata = {
     }
 };
 
+async function simplifyDomOutline({ url }) {
+  try {
+    const html = await getPageContent(url);
+    const $ = cheerio.load(html);
+    $('script, style, nav, footer, header, iframe, noscript, aside, .ad, .advertisement, [role="banner"], [role="contentinfo"]').remove();
+    const headings = [];
+    $('h1, h2, h3').each((i, el) => {
+      const tag = el.tagName?.toLowerCase?.() || (el.name || '').toLowerCase();
+      const text = $(el).text().trim();
+      if (text) headings.push({ tag, text });
+    });
+    const forms = [];
+    $('form').each((i, f) => {
+      const inputs = [];
+      $(f).find('input, textarea, select, button').each((j, el) => {
+        const name = $(el).attr('name') || '';
+        const type = $(el).attr('type') || (el.tagName || el.name || '').toLowerCase();
+        const placeholder = $(el).attr('placeholder') || '';
+        const label = $(el).closest('label').text().trim() || '';
+        inputs.push({ type, name, label, placeholder });
+      });
+      forms.push({ inputsCount: inputs.length, inputs });
+    });
+    const links = [];
+    $('a[href]').slice(0, 30).each((i, a) => {
+      const href = $(a).attr('href');
+      const text = $(a).text().trim();
+      if (href && text) {
+        try { links.push({ text, url: new URL(href, url).href }); } catch { /* noop */ }
+      }
+    });
+    return { success: true, url, headings, forms, links };
+  } catch (error) {
+    return { success: false, error: error?.message || String(error) };
+  }
+}
+simplifyDomOutline.metadata = {
+  name: 'simplifyDomOutline',
+  description: 'Simplify DOM to an outline of headings, forms, and primary links for planning actions.',
+  parameters: { type: 'object', properties: { url: { type: 'string', description: 'Target page URL' } }, required: ['url'] }
+};
+
 
 function extractYouTubeId(url) {
   try {
@@ -268,5 +310,5 @@ export default (dependencies) => {
     parameters: { type: 'object', properties: { url: { type: 'string' }, targetLanguage: { type: 'string' }, sceneSize: { type: 'integer' }, maxScenes: { type: 'integer' } }, required: ['url'] }
   };
 
-  return { browseWebsite, screenshotWebsite, analyzeVideoFromUrl };
+  return { browseWebsite, screenshotWebsite, analyzeVideoFromUrl, simplifyDomOutline };
 };

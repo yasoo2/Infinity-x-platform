@@ -19,7 +19,8 @@ class BrowserAutomationTool {
                 properties: {
                     url: { type: "string", description: "The URL to navigate to." },
                     selectors: { type: "array", items: { type: "string" }, description: "An array of CSS selectors or XPath expressions for the data to extract (e.g., ['#product-name', '.price', '//h1/text()'])."},
-                    context: { type: "string", description: "A brief description of the data being sought (e.g., 'The name and price of the main product')." }
+                    context: { type: "string", description: "A brief description of the data being sought (e.g., 'The name and price of the main product')." },
+                    waitFor: { type: "array", items: { type: "string" }, description: "Optional selectors to wait for before extraction" }
                 },
                 required: ["url", "selectors", "context"]
             }
@@ -51,12 +52,21 @@ class BrowserAutomationTool {
         };
     }
 
-    async navigateAndExtract({ url, selectors, context }) {
+    async navigateAndExtract({ url, selectors, context, waitFor }) {
         let browser
         try {
             browser = await chromium.launch({ headless: true })
             const page = await browser.newPage()
             await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 })
+            try {
+              if (Array.isArray(waitFor)) {
+                for (const w of waitFor) {
+                  const isXPath = String(w||'').trim().startsWith('//')
+                  const sel = isXPath ? `xpath=${w}` : String(w||'')
+                  await page.waitForSelector(sel, { timeout: 10000 }).catch(() => {})
+                }
+              }
+            } catch { /* noop */ }
             const data = []
             for (const s of selectors) {
                 try {
@@ -77,12 +87,21 @@ class BrowserAutomationTool {
         }
     }
 
-    async fillFormAndSubmit({ url, fields, submitSelector }) {
+    async fillFormAndSubmit({ url, fields, submitSelector, waitFor }) {
         let browser
         try {
             browser = await chromium.launch({ headless: true })
             const page = await browser.newPage()
             await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 })
+            try {
+              if (Array.isArray(waitFor)) {
+                for (const w of waitFor) {
+                  const isXPath = String(w||'').trim().startsWith('//')
+                  const sel = isXPath ? `xpath=${w}` : String(w||'')
+                  await page.waitForSelector(sel, { timeout: 10000 }).catch(() => {})
+                }
+              }
+            } catch { /* noop */ }
             for (const f of fields) {
                 const sel = String(f.selector || '').trim()
                 const val = String(f.value || '')

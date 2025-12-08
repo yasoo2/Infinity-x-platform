@@ -1139,6 +1139,17 @@ export const useJoeChat = () => {
 
           if (type === 'tool_used') {
             dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'tool_used', content: data.tool, details: data.details } });
+            try {
+              const stage = String(data?.details?.stage || '').toLowerCase();
+              const args = data?.details?.args || {};
+              const summary = String(data?.details?.summary || '').trim();
+              const ms = typeof data?.details?.ms === 'number' ? data.details.ms : undefined;
+              if (stage === 'start') {
+                dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'action', content: data.tool, details: { args } } });
+              } else if (stage === 'end') {
+                dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'observation', content: data.tool, details: { summary, ms, args } } });
+              }
+            } catch { /* noop */ }
             return;
           }
 

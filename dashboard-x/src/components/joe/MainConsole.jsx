@@ -89,6 +89,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   const [browserInitialSearch, setBrowserInitialSearch] = React.useState('');
   const [browserAutoOpenFirst, setBrowserAutoOpenFirst] = React.useState(false);
   const galleryPanelRef = useRef(null);
+  const [viewMode, setViewMode] = React.useState('chat');
 
   const { 
     messages, isProcessing, progress, currentStep, 
@@ -191,6 +192,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
         setBrowserAutoOpenFirst(Boolean(d?.autoOpenFirst));
         setShowBrowserPanel(true);
         setBrowserPanelMode('mini');
+        setViewMode('agent');
       } catch { /* noop */ }
     };
     const onEndTask = () => {
@@ -583,8 +585,98 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
 
 
   return (
-    <div className="flex flex-col h-full bg-gray-900">
-      {/* Messages Area - Spacious and Centered */}
+    <div className="flex flex-col h-screen min-w-[1024px] bg-gray-900">
+      <div className="flex items-center justify-between px-4 md:px-8 py-2 border-b border-gray-800">
+        <div className="flex items-center gap-2 text-xs text-gray-300">
+          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded ${wsConnected ? 'bg-green-600/20 text-green-300' : 'bg-red-600/20 text-red-300'}`}>{wsConnected ? 'متصل' : 'غير متصل'}</span>
+          {reconnectActive && (
+            <span className="px-2 py-1 rounded bg-yellow-600/20 text-yellow-300">إعادة الاتصال {Math.ceil((reconnectRemainingMs||0)/1000)}s</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setViewMode('chat')} className={`text-xs px-3 py-1 rounded ${viewMode==='chat'?'bg-blue-600 text-white':'bg-gray-800 text-gray-300'}`}>المحادثة</button>
+          <button onClick={() => setViewMode('agent')} className={`text-xs px-3 py-1 rounded ${viewMode==='agent'?'bg-blue-600 text-white':'bg-gray-800 text-gray-300'}`}>وضع الوكيل</button>
+        </div>
+      </div>
+      {viewMode === 'agent' ? (
+        <div className="flex-1 flex gap-4">
+          <div className="w-1/5 border-r border-gray-800 p-3 space-y-3">
+            <div className="text-sm text-gray-300">لوحة التحكم</div>
+            <div className="p-2 rounded-lg bg-gray-800 border border-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-yellow-500 text-black font-bold">J</span>
+                <div>
+                  <div className="text-xs text-gray-200">JOE Agent</div>
+                  <div className={`text-[11px] ${wsConnected? 'text-green-300':'text-red-300'}`}>{wsConnected? (lang==='ar'?'متصل':'Online') : (lang==='ar'?'غير متصل':'Offline')}</div>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <input type="text" value={browserInitialUrl} onChange={(e)=>setBrowserInitialUrl(e.target.value)} placeholder={lang==='ar'? 'رابط' : 'URL'} className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-white placeholder-gray-500" />
+              <button onClick={()=>{ try { window.dispatchEvent(new CustomEvent('joe:open-browser',{ detail: { url: browserInitialUrl } })); } catch { void 0; } }} className="w-full text-xs px-3 py-1 rounded bg-yellow-600 text-black hover:bg-yellow-700">فتح</button>
+            </div>
+            <div className="space-y-2">
+              <input type="text" value={browserInitialSearch} onChange={(e)=>setBrowserInitialSearch(e.target.value)} placeholder={lang==='ar'? 'بحث' : 'Search'} className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-white placeholder-gray-500" />
+              <button onClick={()=>{ try { window.dispatchEvent(new CustomEvent('joe:open-browser',{ detail: { searchQuery: browserInitialSearch, autoOpenFirst: true } })); } catch { void 0; } }} className="w-full text-xs px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700">بحث</button>
+            </div>
+            <div className="space-y-2">
+              <button onClick={()=>setShowBrowserPanel(true)} className="w-full text-xs px-3 py-1 rounded bg-gray-700 text-gray-200 hover:bg-gray-600">عرض المتصفح</button>
+              <div className="flex items-center gap-2">
+                <button onClick={()=>setBrowserPanelMode('mini')} className={`text-xs px-2 py-1 rounded ${browserPanelMode==='mini'?'bg-gray-600 text-white':'bg-gray-800 text-gray-300'}`}>مصغر</button>
+                <button onClick={()=>setBrowserPanelMode('half')} className={`text-xs px-2 py-1 rounded ${browserPanelMode==='half'?'bg-gray-600 text-white':'bg-gray-800 text-gray-300'}`}>نصف</button>
+                <button onClick={()=>setBrowserPanelMode('full')} className={`text-xs px-2 py-1 rounded ${browserPanelMode==='full'?'bg-gray-600 text-white':'bg-gray-800 text-gray-300'}`}>كامل</button>
+              </div>
+            </div>
+          </div>
+          <div className="w-1/2 p-3 overflow-y-auto">
+            <div className="text-sm text-gray-300 mb-2">سجل النشاط</div>
+            <div className="space-y-3">
+              {Array.isArray(plan) && plan.map((ev, i)=>{
+                const t = String(ev?.type||'').toLowerCase();
+                const title = t==='thought' ? (lang==='ar'?'تفكير':'Thought') : (t==='action'? (lang==='ar'?'إجراء':'Action') : (t==='observation' ? (lang==='ar'?'ملاحظة':'Observation') : (lang==='ar'?'أداة':'Tool')));
+                const bgCls = t==='thought' ? 'bg-[#f7f7f7] text-gray-900' : (t==='action' ? 'bg-[#fff3cd] text-gray-900' : (t==='observation' ? 'bg-[#e7f3ff] text-gray-900' : 'bg-gray-900 text-gray-200'));
+                const leftBorderCls = t==='thought' ? 'border-l-4 border-l-gray-500' : (t==='action' ? 'border-l-4 border-l-yellow-400' : (t==='observation' ? 'border-l-4 border-l-blue-600' : 'border-l border-gray-700'));
+                const badgeCls = t==='thought' ? 'bg-gray-600 text-white' : (t==='action' ? 'bg-yellow-500 text-black' : (t==='observation' ? 'bg-blue-600 text-white' : 'bg-gray-500 text-black'));
+                const details = ev?.details || {};
+                const summary = String(details?.summary || '').trim();
+                const ms = typeof details?.ms === 'number' ? `${details.ms}ms` : '';
+                const args = details?.args || ev?.details || null;
+                const argsText = (()=>{ try { if (!args) return ''; const keys = Object.keys(args); if (!keys.length) return ''; return keys.slice(0,3).map(k=>`${k}=${typeof args[k]==='string'?args[k]:JSON.stringify(args[k]).slice(0,60)}`).join(' ');} catch { return ''; } })();
+                return (
+                  <div key={`ev-${i}`} className={`rounded-xl p-3 ${bgCls} ${leftBorderCls}`}> 
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full ${badgeCls} text-xs font-bold`}>{title[0]}</span>
+                        <div className="text-xs">{title}</div>
+                      </div>
+                      {ms && <div className="text-[11px] text-gray-600">{ms}</div>}
+                    </div>
+                    <div className="mt-2 text-sm break-words">{String(ev?.content||'').trim() || String(ev?.tool || '').trim()}</div>
+                    {argsText && <div className="mt-1 text-[11px] text-gray-700">{argsText}</div>}
+                    {summary && <div className="mt-1 text-[12px] text-gray-700">{summary}</div>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div className="w-2/5 border-l border-gray-800 p-3">
+            <div className="text-sm text-gray-300 mb-2">معاينة المتصفح</div>
+            <div className="w-full h-[420px] border border-gray-800 rounded-xl overflow-hidden">
+              <JoeScreen
+                isProcessing={isProcessing}
+                progress={progress}
+                wsLog={[]}
+                onTakeover={() => {}}
+                onClose={() => setShowBrowserPanel(false)}
+                initialUrl={browserInitialUrl}
+                initialSearchQuery={browserInitialSearch}
+                autoOpenOnSearch={browserAutoOpenFirst}
+                embedded={true}
+              />
+            </div>
+          </div>
+        </div>
+      ) : (
       <div className="flex-1 overflow-y-auto relative" ref={scrollContainerRef} style={{ scrollBehavior: 'smooth', overscrollBehavior: 'auto', overflowAnchor: 'auto' }}>
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 border border-gray-800 rounded-xl bg-gray-900/60" style={{ paddingBottom: Math.max(24, inputAreaHeight + 24) }}>
           {messages.length === 0 ? (
@@ -830,6 +922,8 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
             </div>
           )}
       </div>
+      </div>
+      )}
       {/* Scroll To Bottom - Floating Button */}
       <button
           onClick={() => {
@@ -850,78 +944,6 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
             <FiArrowDown size={18} />
           </span>
         </button>
-      </div>
-
-      {/* Embedded Joe Screen Panel */}
-      {showBrowserPanel && (
-        browserPanelMode === 'mini' ? (
-          <Draggable
-            handle=".joe-embedded-header"
-            bounds="body"
-            nodeRef={browserPanelRef}
-            position={browserPanelDrag}
-            onStop={(e, data) => setBrowserPanelDrag({ x: data.x, y: data.y })}
-          >
-            <div className={(() => {
-              const base = 'fixed z-50 bg-gray-900/98 border border-gray-800 rounded-xl shadow-2xl overflow-hidden';
-              return base + ' bottom-4 right-4 w-[400px] h-[280px]';
-            })()} ref={browserPanelRef}>
-              <div className="joe-embedded-header flex items-center justify-between px-3 py-2 bg-gray-800 border-b border-gray-700 cursor-move">
-                <div className="text-xs text-gray-300">{lang==='ar' ? 'شاشة جو المدمجة' : 'Embedded Joe Screen'}</div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setBrowserPanelMode('mini')} className="text-xs px-2 py-1 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-200 border border-gray-600">{lang==='ar' ? 'تصغير' : 'Mini'}</button>
-                  <button onClick={() => setBrowserPanelMode('half')} className="text-xs px-2 py-1 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-200 border border-gray-600">{lang==='ar' ? 'نصف الشاشة' : 'Half'}</button>
-                  <button onClick={() => setBrowserPanelMode('full')} className="text-xs px-2 py-1 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-200 border border-gray-600">{lang==='ar' ? 'ملء الشاشة' : 'Full'}</button>
-                  <button onClick={() => setShowBrowserPanel(false)} className="text-xs px-2 py-1 rounded-md bg-red-700 hover:bg-red-600 text-white border border-red-600">{lang==='ar' ? 'إغلاق' : 'Close'}</button>
-                </div>
-              </div>
-              <div className="w-full h-full">
-                <JoeScreen
-                  isProcessing={isProcessing}
-                  progress={progress}
-                  wsLog={[]}
-                  onTakeover={() => {}}
-                  onClose={() => setShowBrowserPanel(false)}
-                  initialUrl={browserInitialUrl}
-                  initialSearchQuery={browserInitialSearch}
-                  autoOpenOnSearch={browserAutoOpenFirst}
-                />
-              </div>
-            </div>
-          </Draggable>
-        ) : (
-          <div className={(() => {
-            const base = 'fixed z-50 bg-gray-900/98 border border-gray-800 rounded-xl shadow-2xl overflow-hidden';
-            if (browserPanelMode === 'full') return base + ' inset-0';
-            if (browserPanelMode === 'half') return base + ' top-0 right-0 h-full w-1/2';
-            return base;
-          })()}>
-            <div className="joe-embedded-header flex items-center justify-between px-3 py-2 bg-gray-800 border-b border-gray-700">
-              <div className="text-xs text-gray-300">{lang==='ar' ? 'شاشة جو المدمجة' : 'Embedded Joe Screen'}</div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => setBrowserPanelMode('mini')} className="text-xs px-2 py-1 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-200 border border-gray-600">{lang==='ar' ? 'تصغير' : 'Mini'}</button>
-                <button onClick={() => setBrowserPanelMode('half')} className="text-xs px-2 py-1 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-200 border border-gray-600">{lang==='ar' ? 'نصف الشاشة' : 'Half'}</button>
-                <button onClick={() => setBrowserPanelMode('full')} className="text-xs px-2 py-1 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-200 border border-gray-600">{lang==='ar' ? 'ملء الشاشة' : 'Full'}</button>
-                <button onClick={() => setShowBrowserPanel(false)} className="text-xs px-2 py-1 rounded-md bg-red-700 hover:bg-red-600 text-white border border-red-600">{lang==='ar' ? 'إغلاق' : 'Close'}</button>
-              </div>
-            </div>
-            <div className="w-full h-full">
-              <JoeScreen
-                isProcessing={isProcessing}
-                progress={progress}
-                wsLog={[]}
-                onTakeover={() => {}}
-                onClose={() => setShowBrowserPanel(false)}
-                initialUrl={browserInitialUrl}
-                initialSearchQuery={browserInitialSearch}
-                autoOpenOnSearch={browserAutoOpenFirst}
-                embedded={true}
-              />
-            </div>
-          </div>
-        )
-      )}
-      
 
       {/* Conversations strip removed to avoid duplication with left SidePanel */}
 
@@ -1192,8 +1214,9 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
             <p className="text-[10px] text-gray-500 mt-2">{lang==='ar'?'يتطلب صلاحيات ADMIN':'Requires ADMIN role'}</p>
           </div>
         )}
-          
+        
         {/* Robot moved to Joe page and enhanced */}
+        </div>
       </div>
       {/* Reconnect Mini Chip - Fixed at bottom-right */}
       {(!wsConnected && reconnectActive) && (
@@ -1213,7 +1236,6 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
         </div>
       )}
     </div>
-  </div>
   );
 };
 
