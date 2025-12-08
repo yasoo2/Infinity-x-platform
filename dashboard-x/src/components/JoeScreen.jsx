@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Terminal, Cpu, Globe, Monitor, ChevronDown, ChevronUp, RefreshCw, MousePointer, Maximize2, Search, Copy } from 'lucide-react';
+import { Terminal, Cpu, Globe, Monitor, ChevronDown, ChevronUp, RefreshCw, MousePointer, Search, Copy } from 'lucide-react';
 import PropTypes from 'prop-types';
 import useBrowserWebSocket from '../hooks/useBrowserWebSocket';
-import FullScreenBrowser from './FullScreenBrowser';
 import SearchPanel from './SearchPanel';
 import apiClient from '../api/client';
 
@@ -12,12 +11,11 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
   const [browserUrl, setBrowserUrl] = useState('https://www.xelitesolutions.com');
   const [isCollapsed, setIsCollapsed] = useState(false);
   
-  const [isFullScreen, setIsFullScreen] = useState(false);
   const [boxSize, setBoxSize] = useState({ width: 700, height: 500 });
   const [sizeMode, setSizeMode] = useState('medium');
   const [isLogCollapsed, setIsLogCollapsed] = useState(true);
   const imageRef = useRef(null);
-  const [showMiniPreview, setShowMiniPreview] = useState(false);
+  // mini preview removed in embedded-only rebuild
   const [activity, setActivity] = useState([]);
   const addActivity = (text, type = 'info') => {
     try { setActivity((prev) => [...prev, { id: Date.now(), type, text }]); } catch { /* noop */ }
@@ -55,7 +53,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
     // Update URL from page info
     if (pageInfo.url) {
       setBrowserUrl(pageInfo.url);
-      setShowMiniPreview(true);
+      // mini preview removed in embedded rebuild
       addActivity(`Page loaded: ${pageInfo.title || ''} | ${pageInfo.url}`, 'success');
     }
   }, [pageInfo]);
@@ -227,7 +225,6 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
     if (u) {
       setBrowserUrl(u);
       navigateAndLog(u);
-      setShowMiniPreview(true);
     }
   }, [initialUrl]);
 
@@ -256,52 +253,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
 
   return (
     <>
-      {isFullScreen && (
-        <FullScreenBrowser
-          onClose={() => { try { stopStreaming(); } catch { /* noop */ } setIsFullScreen(false) }}
-          screenshot={screenshot}
-          pageInfo={pageInfo}
-          isConnected={isConnected}
-          isLoading={isLoading}
-          navigate={navigate}
-          getScreenshot={getScreenshot}
-          getPageText={getPageText}
-          extractSerp={extractSerp}
-          startStreaming={startStreaming}
-          stopStreaming={stopStreaming}
-          click={click}
-          type={type}
-          scroll={scroll}
-          pressKey={pressKey}
-        />
-      )}
-      {showMiniPreview && !embedded && (
-        <div
-          className="fixed bottom-4 left-4 z-[60]"
-          style={{ width: '1.5cm', height: '1.5cm' }}
-        >
-          <div className="relative w-full h-full border-2 border-purple-500/60 rounded-md overflow-hidden shadow-lg shadow-purple-900/40 bg-black">
-            {screenshot ? (
-              <img
-                src={`data:image/jpeg;base64,${screenshot}`}
-                alt="Mini Browser Preview"
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gray-900">
-                <Globe className="w-4 h-4 text-purple-400" />
-              </div>
-            )}
-            <button
-              onClick={() => setIsFullScreen(true)}
-              title="تكبير"
-              className="absolute top-0.5 right-0.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-sm p-0.5 hover:from-purple-700 hover:to-blue-700"
-            >
-              <Maximize2 className="w-3 h-3" />
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Fullscreen and mini preview removed in embedded-only rebuild */}
       <div
         className={embedded ? 'relative z-50 w-full h-full' : 'absolute bottom-4 right-4 z-50'}
         style={embedded ? undefined : { width: boxSize.width, height: isCollapsed ? 50 : boxSize.height }}
@@ -447,14 +399,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
                       >
                         <RefreshCw className="w-3 h-3" />
                       </button>
-                      <button
-                        onClick={() => setIsFullScreen(true)}
-                        disabled={!isConnected}
-                        className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white text-xs p-1.5 rounded transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-                        title="Open Full Screen Browser"
-                      >
-                        <Maximize2 className="w-3 h-3" />
-                      </button>
+                      {/* Fullscreen trigger removed in embedded-only rebuild */}
                       <div className="w-px h-5 bg-gray-700 mx-2" />
                       <button
                         onClick={() => extractSerp(searchQuery)}
