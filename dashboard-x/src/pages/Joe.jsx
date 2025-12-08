@@ -28,6 +28,7 @@ const JoeContent = () => {
   const [rightWidth, setRightWidth] = useState(320);
   const [dragLeft, setDragLeft] = useState(false);
   const [dragRight, setDragRight] = useState(false);
+  const [overlayActive, setOverlayActive] = useState(false);
 
   useEffect(() => {
     const update = () => setIsMobile(window.innerWidth < 768);
@@ -42,6 +43,17 @@ const JoeContent = () => {
     };
     window.addEventListener('joe:lang', onLang);
     return () => window.removeEventListener('joe:lang', onLang);
+  }, []);
+
+  useEffect(() => {
+    const onOverlayOpen = () => { setOverlayActive(true); };
+    const onOverlayClose = () => { setOverlayActive(false); };
+    window.addEventListener('joe:overlay:open', onOverlayOpen);
+    window.addEventListener('joe:overlay:close', onOverlayClose);
+    return () => {
+      window.removeEventListener('joe:overlay:open', onOverlayOpen);
+      window.removeEventListener('joe:overlay:close', onOverlayClose);
+    };
   }, []);
 
   // تم استبدال وظيفة تبديل اللغة باختصار لوحة المفاتيح Ctrl/Cmd+L أدناه
@@ -338,6 +350,10 @@ const JoeContent = () => {
     };
   }, [dragLeft, dragRight]);
 
+  useEffect(() => {
+    try { findBestCornerRef.current(); } catch { /* noop */ }
+  }, [isSidePanelOpen, isRightPanelOpen, isBottomPanelOpen, leftWidth, rightWidth, isMobile]);
+
   return (
     <div className="h-screen w-screen flex flex-col bg-brand-gradient bg-grid-dark text-white overflow-hidden">
       
@@ -441,7 +457,8 @@ const JoeContent = () => {
         @keyframes pulse { from { fill: #ff4d4d; opacity: 0.5; } to { fill: #ff0000; opacity: 1; } }
       `}</style>
       {(() => {
-        const s = { position: 'fixed', width: `${robotSize.w}px`, height: `${robotSize.h}px`, zIndex: 1000, touchAction: 'none' };
+        const overlayNow = overlayActive || (isRightPanelOpen && isMobile);
+        const s = { position: 'fixed', width: `${robotSize.w}px`, height: `${robotSize.h}px`, zIndex: overlayNow ? 10 : 1000, touchAction: 'none', pointerEvents: (overlayNow || dragLeft || dragRight) ? 'none' : 'auto' };
         if (dragState && typeof dragState.left === 'number' && typeof dragState.top === 'number') {
           Object.assign(s, { left: dragState.left, top: dragState.top });
         } else {

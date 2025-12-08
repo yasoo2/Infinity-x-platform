@@ -22,6 +22,13 @@ const SidePanel = ({ conversations, onConversationSelect, onNewConversation, onD
   };
 
   useEffect(() => {
+    try {
+      const ev = new CustomEvent(openMenuId ? 'joe:overlay:open' : 'joe:overlay:close', { detail: { source: 'sideMenu', open: !!openMenuId } });
+      window.dispatchEvent(ev);
+    } catch { /* noop */ }
+  }, [openMenuId]);
+
+  useEffect(() => {
     const onDocClick = (ev) => {
       if (!openMenuId) return;
       if (menuRef.current && !menuRef.current.contains(ev.target)) {

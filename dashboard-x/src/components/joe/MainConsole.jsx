@@ -190,7 +190,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
         const q = String(d?.searchQuery || '').trim();
         if (q) setBrowserInitialSearch(q);
         setBrowserAutoOpenFirst(Boolean(d?.autoOpenFirst));
-        setShowBrowserPanel(true);
+      setShowBrowserPanel(true);
         setBrowserPanelMode('mini');
         setViewMode('agent');
       } catch { /* noop */ }
@@ -210,6 +210,27 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
       window.removeEventListener('joe:end-browser-task', onEndTask);
     };
   }, []);
+
+  useEffect(() => {
+    try {
+      const ev = new CustomEvent(showBrowserPanel ? 'joe:overlay:open' : 'joe:overlay:close', { detail: { source: 'browserPanel', open: showBrowserPanel } });
+      window.dispatchEvent(ev);
+    } catch { /* noop */ }
+  }, [showBrowserPanel]);
+
+  useEffect(() => {
+    try {
+      const ev = new CustomEvent(showGithub ? 'joe:overlay:open' : 'joe:overlay:close', { detail: { source: 'githubPanel', open: showGithub } });
+      window.dispatchEvent(ev);
+    } catch { /* noop */ }
+  }, [showGithub]);
+
+  useEffect(() => {
+    try {
+      const ev = new CustomEvent(showGallery ? 'joe:overlay:open' : 'joe:overlay:close', { detail: { source: 'galleryPanel', open: showGallery } });
+      window.dispatchEvent(ev);
+    } catch { /* noop */ }
+  }, [showGallery]);
 
   useEffect(() => {
     try { localStorage.setItem('joeBrowserPanelDrag', JSON.stringify(browserPanelDrag)); } catch { /* noop */ }
