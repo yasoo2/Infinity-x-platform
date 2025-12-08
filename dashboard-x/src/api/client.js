@@ -11,7 +11,7 @@
   const origin = typeof window !== 'undefined' ? window.location.origin : null;
   
 
-  if (typeof window !== 'undefined' && isDev) {
+  if (typeof window !== 'undefined' && (isDev || ['localhost','127.0.0.1'].includes(String(window.location.hostname)))) {
     resolvedBase = 'http://localhost:4000';
   } else if (lsBase && String(lsBase).trim().length > 0) {
     // Prefer stored base only if not pointing to www; sanitize if needed
@@ -245,6 +245,32 @@
           errCount = 1;
           errStart = now;
         }
+      }
+
+      // In local preview with production base, repeated 400/404 should fall back to localhost
+      if (!isDev && (status === 400 || status === 404)) {
+        try {
+          const curBase = String(apiClient.defaults.baseURL || '');
+          const host = new URL(curBase).hostname;
+          const isProdApi = host === 'api.xelitesolutions.com';
+          const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+          if (isProdApi && isLocalHost) {
+            const now = Date.now();
+            if (!errStart) errStart = now;
+            errCount += 1;
+            const elapsed = now - errStart;
+            if (errCount >= 3 && elapsed <= 20000) {
+              apiClient.defaults.baseURL = 'http://localhost:4000';
+              try { localStorage.setItem('apiBaseUrl', apiClient.defaults.baseURL); } catch { /* noop */ }
+              errCount = 0;
+              errStart = 0;
+              try { window.dispatchEvent(new CustomEvent('api:baseurl:reset')); } catch { void 0; }
+            } else if (elapsed > 20000) {
+              errCount = 1;
+              errStart = now;
+            }
+          }
+        } catch { /* noop */ }
       }
 
       // Throw normalized error for consistent handling in callers
