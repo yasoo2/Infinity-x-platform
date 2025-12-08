@@ -1,6 +1,6 @@
 import React, { Suspense, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import DashboardLayout from './components/DashboardLayout';
 import useAuth from './hooks/useAuth';
 import { useSessionToken } from './hooks/useSessionToken';
@@ -75,29 +75,11 @@ ProtectedRoute.propTypes = {
   allowedRoles: PropTypes.array,
 };
 
-import JoeScreen from './components/JoeScreen';
+// JoeScreen usage removed from routes
 const SecurityReport = React.lazy(() => import('./pages/SecurityReport'));
 const Knowledge = React.lazy(() => import('./pages/Knowledge'));
 
-const JoeScreenPage = () => {
-  const navigate = useNavigate();
-  const [isProcessing] = React.useState(false);
-  const [progress] = React.useState(0);
-  const [wsLog] = React.useState([]);
-
-  const onTakeover = () => {};
-  const onClose = () => navigate('/dashboard/joe');
-
-  return (
-    <JoeScreen
-      isProcessing={isProcessing}
-      progress={progress}
-      wsLog={wsLog}
-      onTakeover={onTakeover}
-      onClose={onClose}
-    />
-  );
-};
+// Legacy JoeScreenPage removed
 
 
 const AppRoutes = () => {
@@ -139,7 +121,7 @@ const AppRoutes = () => {
           <Route path="build" element={<Build />} />
           <Route path="command" element={<Command />} />
           <Route path="monitoring" element={<MonitoringPage />} />
-          <Route path="joe-screen" element={<JoeScreenPage />} />
+          {/* Removed legacy joe-screen route */}
           
           <Route path="security" element={<SecurityReport />} />
           <Route path="knowledge" element={<Knowledge />} />
