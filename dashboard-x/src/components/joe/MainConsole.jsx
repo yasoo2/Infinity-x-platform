@@ -716,59 +716,100 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                 const renderContent = (text) => {
                   const t = String(text || '');
                   const urlRe = /((https?:\/\/)?(?:www\.)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s)]+)?)/gi;
-                  const parts = [];
-                  let lastIndex = 0;
-                  let m;
-                  while ((m = urlRe.exec(t)) !== null) {
-                    const i = m.index;
-                    const raw = m[0];
-                    const hasScheme = !!m[2];
-                    const target = hasScheme ? raw : `https://${raw}`;
-                    if (i > lastIndex) parts.push(t.slice(lastIndex, i));
-                    parts.push({ href: target, display: raw });
-                    lastIndex = i + raw.length;
-                  }
-                  if (lastIndex < t.length) parts.push(t.slice(lastIndex));
                   const brands = ['google','جوجل','غوغل','youtube','يوتيوب','facebook','فيسبوك','instagram','انستقرام','tiktok','تيك توك','twitter','x','snapchat','سناب شات','linkedin','لينكدان','netflix','نيتفلكس','amazon','أمازون','apple','آبل','microsoft','مايكروسوفت','github','جيت هب','gitlab','جيت لاب','stackoverflow','ستاك أوفر فلو'];
                   const brandPattern = new RegExp(`\\b(?:${brands.map(b=>b.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&')).join('|')})\\b`,'gi');
-                  const renderTextWithBrands = (s) => {
-                    const nodes = [];
-                    let idx = 0;
-                    let mm;
-                    while ((mm = brandPattern.exec(s)) !== null) {
-                      const i = mm.index;
-                      const w = mm[0];
-                      if (i > idx) nodes.push(s.slice(idx, i));
-                      nodes.push(
-                        <a
-                          key={`brand-${i}-${w}`}
-                          href="#"
-                          onClick={(e) => { e.preventDefault(); try { window.dispatchEvent(new CustomEvent('joe:open-browser', { detail: { searchQuery: w } })); } catch { /* noop */ } }}
-                          className="underline text-blue-400"
-                        >
-                          {w}
-                        </a>
-                      );
-                      idx = i + w.length;
+                  const renderRich = (s) => {
+                    const parts = [];
+                    let lastIndex = 0;
+                    let m;
+                    while ((m = urlRe.exec(s)) !== null) {
+                      const i = m.index;
+                      const raw = m[0];
+                      const hasScheme = !!m[2];
+                      const target = hasScheme ? raw : `https://${raw}`;
+                      if (i > lastIndex) parts.push(s.slice(lastIndex, i));
+                      parts.push({ href: target, display: raw });
+                      lastIndex = i + raw.length;
                     }
-                    if (idx < s.length) nodes.push(s.slice(idx));
-                    return nodes;
+                    if (lastIndex < s.length) parts.push(s.slice(lastIndex));
+                    const renderBrands = (str) => {
+                      const nodes = [];
+                      let idx = 0;
+                      let mm;
+                      const input = String(str || '');
+                      while ((mm = brandPattern.exec(input)) !== null) {
+                        const i = mm.index;
+                        const w = mm[0];
+                        if (i > idx) nodes.push(input.slice(idx, i));
+                        nodes.push(
+                          <a
+                            key={`brand-${i}-${w}`}
+                            href="#"
+                            onClick={(e) => { e.preventDefault(); try { window.dispatchEvent(new CustomEvent('joe:open-browser', { detail: { searchQuery: w } })); } catch { /* noop */ } }}
+                            className="underline text-blue-400"
+                          >
+                            {w}
+                          </a>
+                        );
+                        idx = i + w.length;
+                      }
+                      if (idx < input.length) nodes.push(input.slice(idx));
+                      return nodes;
+                    };
+                    return parts.map((p, i) => typeof p === 'string' ? renderBrands(p) : (
+                      <a
+                        key={`lnk-${i}`}
+                        href={p.href}
+                        onClick={(e) => { e.preventDefault(); try { window.dispatchEvent(new CustomEvent('joe:open-browser', { detail: { url: p.href } })); } catch { /* noop */ } }}
+                        className="underline text-yellow-400 break-all"
+                      >
+                        {p.display || p.href}
+                      </a>
+                    ));
                   };
+                  const segments = [];
+                  const codeRe = /```([\s\S]*?)```/g;
+                  let last = 0;
+                  let cm;
+                  while ((cm = codeRe.exec(t)) !== null) {
+                    const i = cm.index;
+                    if (i > last) segments.push({ type: 'text', content: t.slice(last, i) });
+                    segments.push({ type: 'code', content: cm[1] });
+                    last = i + cm[0].length;
+                  }
+                  if (last < t.length) segments.push({ type: 'text', content: t.slice(last) });
                   const imageUrls = Array.from(new Set((t.match(/https?:\/\/[^\s)]+/g) || []).filter(u => /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(u))));
                   return (
                     <>
-                      <p className="text-base leading-relaxed whitespace-pre-wrap break-words">
-                        {parts.map((p, i) => typeof p === 'string' ? renderTextWithBrands(p) : (
-                          <a
-                            key={`lnk-${i}`}
-                            href={p.href}
-                            onClick={(e) => { e.preventDefault(); try { window.dispatchEvent(new CustomEvent('joe:open-browser', { detail: { url: p.href } })); } catch { /* noop */ } }}
-                            className="underline text-yellow-400 break-all"
-                          >
-                            {p.display || p.href}
-                          </a>
-                        ))}
-                      </p>
+                      {segments.map((seg, idx) => seg.type === 'code' ? (
+                        <div key={`blk-${idx}`} className="mt-2">
+                          <div className="relative group">
+                            <pre className="bg-gray-950 border border-gray-800 rounded-lg p-3 text-[12px] overflow-x-auto"><code>{seg.content}</code></pre>
+                            <button
+                              onClick={() => { try { navigator.clipboard.writeText(seg.content); } catch { /* noop */ } }}
+                              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-[11px] px-2 py-1 rounded bg-gray-800 text-gray-200 border border-gray-700"
+                            >
+                              Copy
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        String(seg.content || '').split(/\n{2,}/).map((para, pi) => {
+                          const lines = String(para).split(/\n/);
+                          const isList = lines.every(l => /^\s*(-|•)\s+/.test(l)) && lines.length > 1;
+                          return isList ? (
+                            <ul key={`ul-${idx}-${pi}`} className="text-sm md:text-base leading-relaxed list-disc pl-5 text-gray-200">
+                              {lines.map((l, li) => (
+                                <li key={`li-${idx}-${pi}-${li}`}>{renderRich(l.replace(/^\s*(-|•)\s+/, ''))}</li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p key={`p-${idx}-${pi}`} className="text-sm md:text-base leading-relaxed whitespace-pre-wrap break-words text-gray-200">
+                              {renderRich(para)}
+                            </p>
+                          );
+                        })
+                      ))}
                       {imageUrls.length > 0 && (
                         <div className="mt-3 flex flex-wrap gap-3">
                           {imageUrls.slice(0, 4).map((src, i) => (
@@ -778,7 +819,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                               onClick={(e) => { e.preventDefault(); try { window.dispatchEvent(new CustomEvent('joe:open-browser', { detail: { url: src } })); } catch { /* noop */ } }}
                               className="block"
                             >
-                              <img src={src} alt="image" className="max-h-56 rounded-lg border border-gray-700"/>
+                              <img src={src} alt="image" className="max-h-56 rounded-lg border border-gray-700" />
                             </a>
                           ))}
                         </div>
@@ -794,19 +835,24 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                     <div 
                       className={`max-w-[90%] sm:max-w-[85%] md:max-w-[75%] rounded-2xl px-5 py-4 ${
                         msg.type === 'user' 
-                          ? 'bg-gradient-to-br from-yellow-500 to-yellow-600 text-black border border-yellow-600 ring-1 ring-yellow-600/30 shadow-xl' 
-                          : 'bg-gradient-to-br from-blue-900 to-gray-900 text-gray-100 border border-blue-800 ring-1 ring-blue-700/40 shadow-xl backdrop-blur-sm'
+                          ? 'bg-gray-800 text-gray-100 border border-yellow-500/40 shadow-md' 
+                          : 'bg-gray-800/85 text-gray-100 border border-gray-700 shadow-md'
                       }`}
                     >
-                    {msg.type !== 'user' && (
-                      <div className="flex items-center gap-2 text-xs text-gray-300 mb-2">
-                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-yellow-500 text-black font-bold">J</span>
-                        <span className="uppercase tracking-wide">JOE</span>
-                      </div>
-                    )}
-                    {renderContent(msg.content)}
+                      {msg.type === 'user' ? (
+                        <div className="flex items-center gap-2 text-xs text-gray-300 mb-2">
+                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-600 text-white font-bold">أ</span>
+                          <span className="tracking-wide">{lang==='ar' ? 'أنت' : 'You'}</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 text-xs text-gray-300 mb-2">
+                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-yellow-500 text-black font-bold">J</span>
+                          <span className="uppercase tracking-wide">JOE</span>
+                        </div>
+                      )}
+                      {renderContent(msg.content)}
+                    </div>
                   </div>
-                </div>
               ));
               })()}
               
