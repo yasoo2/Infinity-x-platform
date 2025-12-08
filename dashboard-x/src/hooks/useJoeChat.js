@@ -930,9 +930,16 @@ export const useJoeChat = () => {
         } catch { /* noop */ }
         sioUrl = `${sioBase}/joe-agent`;
         
+        const isProdHost = (typeof window !== 'undefined') && (/xelitesolutions\.com$/.test(String(window.location.hostname || '')));
+        if (isProdHost) {
+          // على الإنتاج: نتجنب Socket.IO تمامًا، ونستخدم WebSocket الأصلي لضمان التوافق مع البروكسي
+          try { openNativeWs(); } catch { /* noop */ }
+          isConnectingRef.current = false;
+          return;
+        }
+
         let pathPref = '/socket.io/';
         try { const saved = localStorage.getItem('joeSioPath'); if (saved === '/socket.io' || saved === '/socket.io/' || saved === '/ws/socket.io' || saved === '/ws/socket.io/') { pathPref = saved; } } catch { /* noop */ }
-        const isProdHost = (typeof window !== 'undefined') && (/xelitesolutions\.com$/.test(String(window.location.hostname || '')));
         const initialTransports = isProdHost ? ['polling'] : ['polling','websocket'];
         const socket = io(sioUrl, {
           auth: { token: sessionToken },
@@ -976,7 +983,7 @@ export const useJoeChat = () => {
                 const next = cur === '/socket.io/' ? '/socket.io' : '/socket.io/';
                 socket.io.opts.path = next;
                 try { localStorage.setItem('joeSioPath', next); } catch { /* noop */ }
-                socket.io.opts.transports = ['websocket'];
+                // لا نحاول التحويل إلى WebSocket تلقائيًا هنا؛ نترك Socket.IO كما هو
                 socket.connect();
               } catch { /* noop */ }
             }
@@ -992,13 +999,8 @@ export const useJoeChat = () => {
             try {
               const cur = String(socket.io.opts.path || '/socket.io/');
               let next;
-              if (cur.startsWith('/ws/')) {
-                next = cur.endsWith('/') ? '/ws/socket.io' : '/ws/socket.io/';
-              } else if (cur.startsWith('/socket.io')) {
-                next = cur.endsWith('/') ? '/ws/socket.io' : '/ws/socket.io/';
-              } else {
-                next = '/ws/socket.io/';
-              }
+              // أبقِ المسار القياسي لـ Socket.IO لتجنب تعارض المسارات مع البروكسي
+              next = cur.endsWith('/') ? '/socket.io' : '/socket.io/';
               socket.io.opts.path = next;
               try { localStorage.setItem('joeSioPath', next); } catch { /* noop */ }
               socket.io.opts.transports = ['polling'];

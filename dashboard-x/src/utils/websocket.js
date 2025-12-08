@@ -170,9 +170,8 @@ export const connectWebSocket = (onMessage, onOpen, onClose) => {
       await ensureToken();
       try { raceStart = typeof performance !== 'undefined' ? performance.now() : Date.now(); } catch { raceStart = Date.now(); }
       if (!isDev) {
-        // Prefer native WebSocket first in production; only try Socket.IO if not connected within 1.5s
+        // في الإنتاج: استخدم WebSocket الأصلي فقط لتجنب مشاكل البروكسي مع Socket.IO
         tryNative();
-        setTimeout(() => { if (!isConnected) { trySocketIO().catch(() => { /* ignore */ }); } }, 1500);
       } else {
         if (wsFailures >= 2 && ioFailures === 0) {
           trySocketIO().catch(() => { tryNative(); });

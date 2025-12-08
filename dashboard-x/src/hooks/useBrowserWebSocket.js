@@ -49,14 +49,16 @@ const useBrowserWebSocket = () => {
       } else {
         const onReady = () => { try { const s2 = window.__joeSocket || null; if (s2) { attach(s2); } } catch { /* noop */ } };
         try { window.addEventListener('joe:socket-ready', onReady, { once: true }); } catch { /* noop */ }
-        setTimeout(async () => {
-          try { const s3 = window.__joeSocket || null; if (s3) { attach(s3); return; } } catch { /* noop */ }
-          const { io } = await import('socket.io-client');
-          const ioUrl = httpBase.replace(/\/$/, '');
-          const optsA = { path: '/socket.io/', auth: { token }, transports: ['polling','websocket'], upgrade: true, reconnection: true };
-          const optsB = { path: '/ws/socket.io/', auth: { token }, transports: ['polling','websocket'], upgrade: true, reconnection: true };
-          try { attach(io(`${ioUrl}/joe-agent`, optsA)); } catch { attach(io(`${ioUrl}/joe-agent`, optsB)); }
-        }, 1500);
+        const isProdHost = typeof window !== 'undefined' && (/xelitesolutions\.com$/.test(String(window.location.hostname || '')));
+        if (!isProdHost) {
+          setTimeout(async () => {
+            try { const s3 = window.__joeSocket || null; if (s3) { attach(s3); return; } } catch { /* noop */ }
+            const { io } = await import('socket.io-client');
+            const ioUrl = httpBase.replace(/\/$/, '');
+            const optsA = { path: '/socket.io/', auth: { token }, transports: ['polling','websocket'], upgrade: true, reconnection: true };
+            try { attach(io(`${ioUrl}/joe-agent`, optsA)); } catch { /* noop */ }
+          }, 1500);
+        }
       }
     };
 
