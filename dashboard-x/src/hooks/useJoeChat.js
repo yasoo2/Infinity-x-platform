@@ -401,6 +401,34 @@ export const useJoeChat = () => {
   }, []);
 
   useEffect(() => {
+    const cur = state.currentConversationId;
+    const convs = state.conversations || {};
+    const ids = Object.keys(convs);
+    if (cur || ids.length === 0) return;
+    let bestId = ids[0];
+    let bestPinned = !!convs[bestId]?.pinned;
+    let bestTs = (() => {
+      const ms = convs[bestId]?.messages || [];
+      const last = ms[ms.length - 1];
+      const t1 = typeof last?.createdAt === 'number' ? last.createdAt : 0;
+      const t2 = typeof convs[bestId]?.lastModified === 'number' ? convs[bestId].lastModified : 0;
+      return Math.max(t1, t2);
+    })();
+    for (const id of ids) {
+      const c = convs[id];
+      const pinned = !!c?.pinned;
+      const ms = c?.messages || [];
+      const last = ms[ms.length - 1];
+      const t1 = typeof last?.createdAt === 'number' ? last.createdAt : 0;
+      const t2 = typeof c?.lastModified === 'number' ? c.lastModified : 0;
+      const ts = Math.max(t1, t2);
+      const better = (pinned && !bestPinned) || (pinned === bestPinned && ts > bestTs);
+      if (better) { bestId = id; bestPinned = pinned; bestTs = ts; }
+    }
+    selectConversationSafe(bestId, 'auto');
+  }, [state.currentConversationId, state.conversations, selectConversationSafe]);
+
+  useEffect(() => {
     const c = globalThis && globalThis.console ? globalThis.console : null;
     const origLog = c && c['log'] ? c['log'] : null;
     const origWarn = c && c['warn'] ? c['warn'] : null;
