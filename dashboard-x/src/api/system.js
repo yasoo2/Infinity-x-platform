@@ -138,36 +138,35 @@ export const activateAIProvider = (provider, opts) =>
     call(() => apiClient.post(v1('/ai/activate'), { provider }, { signal: opts?.signal, timeout: 30000, _noRedirect401: true }));
 
 export const getChatSessions = (opts) =>
-  call(() => apiClient.get(chatHistory('/sessions'), { signal: opts?.signal }));
+  call(() => apiClient.get(chatHistory('/sessions'), { signal: opts?.signal, _noRedirect401: true }));
 
 export const getChatSessionById = (id, opts) =>
-  call(() => apiClient.get(chatHistory(`/sessions/${id}`), { signal: opts?.signal }));
+  call(() => apiClient.get(chatHistory(`/sessions/${id}`), { signal: opts?.signal, _noRedirect401: true }));
 
 export const deleteChatSession = (id, opts) =>
-  call(() => apiClient.delete(chatHistory(`/sessions/${id}`), { signal: opts?.signal, timeout: opts?.timeout ?? 12000 }));
+  call(() => apiClient.delete(chatHistory(`/sessions/${id}`), { signal: opts?.signal, timeout: opts?.timeout ?? 12000, _noRedirect401: true }));
 
 export const getUserContext = (params) =>
-  call(() => apiClient.get(chatHistory('/user-context'), { params: { limit: params?.limit }, signal: params?.signal }));
+  call(() => apiClient.get(chatHistory('/user-context'), { params: { limit: params?.limit }, signal: params?.signal, _noRedirect401: true }));
 
 // Guest token issuance
 export const getGuestToken = (opts) =>
   call(() => apiClient.post(v1('/auth/guest-token'), undefined, { signal: opts?.signal }));
 
 export const createChatSession = (title, opts) =>
-  call(() => apiClient.post(chatHistory('/sessions'), { title }, { signal: opts?.signal }));
+  call(() => apiClient.post(chatHistory('/sessions'), { title }, { signal: opts?.signal, _noRedirect401: true }));
 
 export const updateChatSession = (id, patch, opts) =>
-  call(() => apiClient.put(chatHistory(`/sessions/${id}`), patch, { signal: opts?.signal }));
+  call(() => apiClient.put(chatHistory(`/sessions/${id}`), patch, { signal: opts?.signal, _noRedirect401: true }));
 
 export const getChatMessages = (id, opts) =>
   call(async () => {
     try {
-      return await apiClient.get(chatHistory(`/sessions/${id}/messages`), { signal: opts?.signal });
+      return await apiClient.get(chatHistory(`/sessions/${id}/messages`), { signal: opts?.signal, _noRedirect401: true });
     } catch (e) {
-      const err = /** @type {any} */ (e);
-      const status = err?.status ?? err?.response?.status;
+      const status = e?.status ?? e?.response?.status;
       if (status === 405 || status === 404) {
-        const res = await apiClient.get(chatHistory(`/sessions/${id}`), { signal: opts?.signal });
+        const res = await apiClient.get(chatHistory(`/sessions/${id}`), { signal: opts?.signal, _noRedirect401: true });
         const messages = Array.isArray(res?.data?.messages) ? res.data.messages : [];
         return { data: { success: true, messages } };
       }
@@ -176,10 +175,10 @@ export const getChatMessages = (id, opts) =>
   });
 
 export const addChatMessage = (id, payload, opts) =>
-  call(() => apiClient.post(chatHistory(`/sessions/${id}/messages`), payload, { signal: opts?.signal }));
+  call(() => apiClient.post(chatHistory(`/sessions/${id}/messages`), payload, { signal: opts?.signal, _noRedirect401: true }));
 
 export const deleteChatMessage = (id, messageId, opts) =>
-  call(() => apiClient.delete(chatHistory(`/sessions/${id}/messages/${messageId}`), { signal: opts?.signal }));
+  call(() => apiClient.delete(chatHistory(`/sessions/${id}/messages/${messageId}`), { signal: opts?.signal, _noRedirect401: true }));
 
 // User uploads (images)
 export const listUserUploads = (opts) =>

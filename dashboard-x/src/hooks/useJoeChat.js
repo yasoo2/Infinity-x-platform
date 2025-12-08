@@ -1508,7 +1508,7 @@ export const useJoeChat = () => {
           try {
             const ctx = { sessionId: sid || undefined, lang };
             if (selectedModel) ctx.model = selectedModel;
-            const { data } = await apiClient.post('/api/v1/joe/execute', { instruction: inputText, context: ctx });
+            const { data } = await apiClient.post('/api/v1/joe/execute', { instruction: inputText, context: ctx }, { _noRedirect401: true });
             const text = sanitizeCompetitors(String(data?.response || data?.message || '').trim());
             if (text) dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
             try {
@@ -1692,7 +1692,7 @@ export const useJoeChat = () => {
             const selectedModel = activeModelRef.current || localStorage.getItem('aiSelectedModel') || null;
             const ctx2 = { sessionId: sidToUse || undefined, lang };
             if (selectedModel) ctx2.model = selectedModel;
-            const { data } = await apiClient.post('/api/v1/joe/execute', { instruction: inputText, context: ctx2 });
+            const { data } = await apiClient.post('/api/v1/joe/execute', { instruction: inputText, context: ctx2 }, { _noRedirect401: true });
             const text = sanitizeCompetitors(String(data?.response || data?.message || '').trim());
             if (text) {
               dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
@@ -1742,7 +1742,7 @@ export const useJoeChat = () => {
           const { data } = await apiClient.post('/api/v1/joe/execute', {
             instruction: inputText,
             context: (() => { const c = { sessionId: sidToUse || undefined, lang }; if (selectedModel) c.model = selectedModel; return c; })()
-          });
+          }, { _noRedirect401: true });
           const text = sanitizeCompetitors(String(data?.response || data?.message || '').trim());
           if (text) {
             dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
