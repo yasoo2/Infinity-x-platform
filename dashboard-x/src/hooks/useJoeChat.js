@@ -3,7 +3,7 @@ import { useReducer, useEffect, useCallback, useRef } from 'react';
 import { io } from 'socket.io-client';
 import apiClient from '../api/client';
 import { v4 as uuidv4 } from 'uuid';
-import { getChatSessions, getChatSessionById, getGuestToken, getSystemStatus, createChatSession, updateChatSession, addChatMessage, getChatMessages, deleteChatSession } from '../api/system';
+import { getChatSessions, getChatSessionById, getGuestToken, getSystemStatus, createChatSession, updateChatSession, addChatMessage, getChatMessages, deleteChatSession, executeJoe } from '../api/system';
 
 const JOE_CHAT_HISTORY = 'joeChatHistory';
 
@@ -1529,7 +1529,7 @@ export const useJoeChat = () => {
           try {
             const ctx = { sessionId: sid || undefined, lang };
             if (selectedModel) ctx.model = selectedModel;
-            const { data } = await apiClient.post('/api/v1/joe/execute', { instruction: inputText, context: ctx }, { _noRedirect401: true });
+            const data = await executeJoe(inputText, ctx, {});
             const text = sanitizeCompetitors(String(data?.response || data?.message || '').trim());
             if (text) dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
             try {
@@ -1553,7 +1553,7 @@ export const useJoeChat = () => {
         try {
           const ctx2 = { sessionId: sid || undefined, lang };
           if (selectedModel) ctx2.model = selectedModel;
-          const { data } = await apiClient.post('/api/v1/joe/execute', { instruction: inputText, context: ctx2 });
+          const data = await executeJoe(inputText, ctx2, {});
           const text = sanitizeCompetitors(String(data?.response || data?.message || '').trim());
           if (text) dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
           try {
@@ -1656,7 +1656,7 @@ export const useJoeChat = () => {
             const selectedModel = activeModelRef.current || localStorage.getItem('aiSelectedModel') || null;
             const ctx = { sessionId: sidToUse || undefined, lang };
             if (selectedModel) ctx.model = selectedModel;
-            const { data } = await apiClient.post('/api/v1/joe/execute', { instruction: inputText, context: ctx });
+            const data = await executeJoe(inputText, ctx, {});
             const text = sanitizeCompetitors(String(data?.response || data?.message || '').trim());
             if (text) {
               try {
@@ -1717,7 +1717,7 @@ export const useJoeChat = () => {
             const selectedModel = activeModelRef.current || localStorage.getItem('aiSelectedModel') || null;
             const ctx2 = { sessionId: sidToUse || undefined, lang };
             if (selectedModel) ctx2.model = selectedModel;
-            const { data } = await apiClient.post('/api/v1/joe/execute', { instruction: inputText, context: ctx2 }, { _noRedirect401: true });
+            const data = await executeJoe(inputText, ctx2, {});
             const text = sanitizeCompetitors(String(data?.response || data?.message || '').trim());
             if (text) {
               dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
@@ -1764,10 +1764,8 @@ export const useJoeChat = () => {
         const conv = state.conversations[convId] || null;
         const sidToUse = conv?.sessionId || sid || null;
         try {
-          const { data } = await apiClient.post('/api/v1/joe/execute', {
-            instruction: inputText,
-            context: (() => { const c = { sessionId: sidToUse || undefined, lang }; if (selectedModel) c.model = selectedModel; return c; })()
-          }, { _noRedirect401: true });
+          const ctx = (() => { const c = { sessionId: sidToUse || undefined, lang }; if (selectedModel) c.model = selectedModel; return c; })();
+          const data = await executeJoe(inputText, ctx, { _noRedirect401: true });
           const text = sanitizeCompetitors(String(data?.response || data?.message || '').trim());
           if (text) {
             dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });

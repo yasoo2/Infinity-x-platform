@@ -180,6 +180,28 @@ export const addChatMessage = (id, payload, opts) =>
 export const deleteChatMessage = (id, messageId, opts) =>
   call(() => apiClient.delete(chatHistory(`/sessions/${id}/messages/${messageId}`), { signal: opts?.signal, _noRedirect401: true }));
 
+export const executeJoe = async (instruction, ctx, opts) => {
+  const payload = { instruction, lang: ctx?.lang, model: ctx?.model, sessionId: ctx?.sessionId, provider: ctx?.provider, apiKey: ctx?.apiKey };
+  try {
+    const { data } = await apiClient.post(v1('/joe/execute'), payload, { signal: opts?.signal, _noRedirect401: true });
+    return data;
+  } catch (e) {
+    const status = e?.status ?? e?.response?.status;
+    if (status === 405) {
+      const params = new URLSearchParams();
+      params.set('instruction', instruction);
+      if (payload.lang) params.set('lang', String(payload.lang));
+      if (payload.model) params.set('model', String(payload.model));
+      if (payload.sessionId) params.set('sessionId', String(payload.sessionId));
+      if (payload.provider) params.set('provider', String(payload.provider));
+      if (payload.apiKey) params.set('apiKey', String(payload.apiKey));
+      const { data } = await apiClient.get(`${v1('/joe/execute')}?${params.toString()}`, { signal: opts?.signal, _noRedirect401: true });
+      return data;
+    }
+    throw e;
+  }
+};
+
 // User uploads (images)
 export const listUserUploads = (opts) =>
   call(() => apiClient.get(v1('/file/uploads/list'), { signal: opts?.signal }));

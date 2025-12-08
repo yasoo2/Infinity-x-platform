@@ -89,10 +89,17 @@ const joeRouterFactory = ({ requireRole, optionalAuth, db }) => {
     }
   });
 
-  // POST /api/v1/joe/execute - Analyze instruction and auto-run relevant tools
-  router.post('/execute', async (req, res) => {
+  // Unified handler for /api/v1/joe/execute (supports POST and GET)
+  const handleExecute = async (req, res) => {
     try {
-      const { instruction, lang, model, sessionId: providedSessionId, provider, apiKey } = req.body || {};
+      const isPost = req.method === 'POST';
+      const src = isPost ? (req.body || {}) : (req.query || {});
+      const instruction = src.instruction;
+      const lang = src.lang;
+      const model = src.model;
+      const providedSessionId = src.sessionId;
+      const provider = src.provider;
+      const apiKey = src.apiKey;
       if (!instruction) {
         return res.status(400).json({ success: false, error: 'MISSING_INSTRUCTION' });
       }
@@ -133,7 +140,9 @@ const joeRouterFactory = ({ requireRole, optionalAuth, db }) => {
       console.error('❌ /api/joe/execute error', err);
       return res.status(500).json({ success: false, error: 'SERVER_ERROR', message: err.message });
     }
-  });
+  };
+  router.post('/execute', handleExecute);
+  router.get('/execute', handleExecute);
 
   // POST /api/v1/joe/suggestions/decision - Approve or deny a suggestion
   router.post('/suggestions/decision', requireRole('ADMIN'), async (req, res) => {
