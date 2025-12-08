@@ -1756,6 +1756,7 @@ export const useJoeChat = () => {
         return;
       }
       (async () => {
+        try { localStorage.setItem('joeTransport', 'rest'); } catch { /* noop */ }
         let selectedModel = activeModelRef.current || localStorage.getItem('aiSelectedModel');
         if (!selectedModel) {
           selectedModel = null;
