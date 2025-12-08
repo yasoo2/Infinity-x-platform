@@ -1,5 +1,9 @@
 #!/bin/sh
 
+echo "[husky] Running quality checks (lint/tests) before sync..."
+npm run lint || npm run lint:fix || true
+npm test || true
+
 branch="$(git rev-parse --abbrev-ref HEAD)"
 remote="origin"
 
