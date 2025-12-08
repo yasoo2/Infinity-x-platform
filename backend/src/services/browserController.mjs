@@ -26,7 +26,9 @@ class BrowserController {
           '--disable-accelerated-2d-canvas',
           '--no-first-run',
           '--no-zygote',
-          '--disable-gpu'
+          '--disable-gpu',
+          '--disable-blink-features=AutomationControlled',
+          '--lang=en-US,en'
         ],
       };
       const projectCache = path.join(process.cwd(), '.cache', 'puppeteer');
@@ -76,6 +78,14 @@ class BrowserController {
       this.page = await this.browser.newPage();
       await this.page.setViewport({ width: 1280, height: 720 });
       await this.page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+      await this.page.setExtraHTTPHeaders({ 'accept-language': 'en-US,en;q=0.9,ar;q=0.8' });
+      await this.page.evaluate(() => {
+        Object.defineProperty(navigator, 'webdriver', { get: () => false });
+        // eslint-disable-next-line no-undef
+        window.chrome = window.chrome || { runtime: {} };
+        Object.defineProperty(navigator, 'plugins', { get: () => [1,2,3] });
+        Object.defineProperty(navigator, 'languages', { get: () => ['en-US','en','ar'] });
+      });
       try {
         const initialUrl = process.env.BROWSER_INITIAL_URL || 'about:blank';
         await this.page.goto(initialUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
@@ -98,10 +108,22 @@ class BrowserController {
       if (!url.startsWith('http://') && !url.startsWith('https://')) {
         url = 'https://' + url;
       }
-      await this.page.goto(url, {
+      const target = url;
+      await this.page.goto(target, {
         waitUntil: 'domcontentloaded',
         timeout: 15000
       });
+      try {
+        const host = new URL(target).hostname;
+        if (/google\./i.test(host)) {
+          await this.page.evaluate(() => {
+            const btn = Array.from(document.querySelectorAll('button, input[type="submit"]')).find(b => /agree|accept|أوافق|موافقة/i.test(((b && (b.textContent || '')) + (b && (b.value || '')))));
+            if (btn) btn.click();
+          });
+          await new Promise(r => setTimeout(r, 800));
+          try { await this.page.waitForSelector('input[name="q"]', { timeout: 3000 }); } catch { /* noop */ }
+        }
+      } catch { /* noop */ }
       
       return { success: true, url: this.page.url() };
     } catch (error) {
@@ -221,9 +243,9 @@ class BrowserController {
     try {
       if (query && String(query).trim().length > 0) {
         const q = encodeURIComponent(String(query).trim());
-        await this.navigate(`https://www.google.com/search?q=${q}`);
+        await this.navigate(`https://www.google.com/search?q=${q}&hl=en`);
       }
-      const results = await this.page.evaluate(() => {
+      let results = await this.page.evaluate(() => {
         const items = [];
         const containers = document.querySelectorAll('#search .g, #search .MjjYud');
         containers.forEach((c) => {
@@ -247,6 +269,24 @@ class BrowserController {
         }
         return items.slice(0, 20);
       });
+      if (!Array.isArray(results) || results.length === 0) {
+        try {
+          const q2 = encodeURIComponent(String(query).trim());
+          await this.navigate(`https://duckduckgo.com/?q=${q2}`);
+          results = await this.page.evaluate(() => {
+            const items = [];
+            document.querySelectorAll('.result').forEach(r => {
+              const a = r.querySelector('.result__a');
+              const s = r.querySelector('.result__snippet');
+              const url = a && a.href ? a.href : '';
+              const title = a && a.textContent ? a.textContent : '';
+              const snippet = s && s.textContent ? s.textContent : '';
+              if (url && title) items.push({ title, url, snippet });
+            });
+            return items.slice(0, 20);
+          });
+        } catch { /* noop */ }
+      }
       return { success: true, results };
     } catch (error) {
       console.error('Extract SERP error:', error);
