@@ -2,7 +2,7 @@
 
 echo "[husky] Running quality checks (lint/tests) before sync..."
 npm run lint || npm run lint:fix || true
-npm test || true
+(cd backend && npm test) || npm --prefix backend test || true
 
 branch="$(git rev-parse --abbrev-ref HEAD)"
 remote="origin"
