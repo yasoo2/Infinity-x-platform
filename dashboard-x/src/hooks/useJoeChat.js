@@ -249,6 +249,19 @@ const chatReducer = (state, action) => {
             return { ...state, conversations: { ...state.conversations, [id]: updated } };
         }
 
+        case 'REBASE_CONVERSATION': {
+            const { oldId, newId } = action.payload;
+            if (!oldId || !newId || oldId === newId) return state;
+            const convo = state.conversations[oldId];
+            if (!convo) return state;
+            const rest = { ...state.conversations };
+            delete rest[oldId];
+            const rebased = { ...convo, id: newId };
+            rest[newId] = rebased;
+            const cur = state.currentConversationId === oldId ? newId : state.currentConversationId;
+            return { ...state, conversations: rest, currentConversationId: cur };
+        }
+
         case 'SET_MESSAGES_FOR_CONVERSATION': {
             const { id, messages } = action.payload;
             const convo = state.conversations[id];
@@ -461,7 +474,10 @@ export const useJoeChat = () => {
         const created = await createChatSession('New Conversation');
         const s = created?.session;
         const sid = s?._id || s?.id || null;
-        if (sid) dispatch({ type: 'SET_SESSION_ID', payload: { id: newId, sessionId: sid } });
+        if (sid) {
+          dispatch({ type: 'REBASE_CONVERSATION', payload: { oldId: newId, newId: sid } });
+          dispatch({ type: 'SET_SESSION_ID', payload: { id: sid, sessionId: sid } });
+        }
       } catch { /* ignore */ }
     })();
   }, []);
@@ -1492,7 +1508,10 @@ export const useJoeChat = () => {
           const created = await createChatSession(normalizeTitle(inputText));
           const s = created?.session;
           sid = s?._id || s?.id || null;
-          if (sid) dispatch({ type: 'SET_SESSION_ID', payload: { id: convId, sessionId: sid } });
+          if (sid) {
+            dispatch({ type: 'REBASE_CONVERSATION', payload: { oldId: convId, newId: sid } });
+            dispatch({ type: 'SET_SESSION_ID', payload: { id: sid, sessionId: sid } });
+          }
         } else {
           await updateChatSession(sid, { title: normalizeTitle(inputText) }).catch(() => {});
         }
@@ -1580,7 +1599,11 @@ export const useJoeChat = () => {
         const created = await createChatSession(normalizeTitle(inputText));
         const s = created?.session;
         sid = s?._id || s?.id || null;
-        if (sid) dispatch({ type: 'SET_SESSION_ID', payload: { id: convId, sessionId: sid } });
+        if (sid) {
+          dispatch({ type: 'REBASE_CONVERSATION', payload: { oldId: convId, newId: sid } });
+          convId = sid;
+          dispatch({ type: 'SET_SESSION_ID', payload: { id: sid, sessionId: sid } });
+        }
       } else {
         await updateChatSession(sid, { title: normalizeTitle(inputText) }).catch(() => {});
       }
