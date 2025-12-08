@@ -44,9 +44,32 @@ class BrowserController {
       try {
         this.browser = await chromium.launch(launchOpts);
       } catch (e1) {
-        const hint = 'Playwright failed to launch. Install browsers: npx playwright install --with-deps';
-        console.error('Playwright launch failed:', e1?.message || String(e1), '\nHint:', hint);
-        throw new Error(hint);
+        let AdvancedBrowserManager;
+        try {
+          const mod = await import('../browser/AdvancedBrowserManager.mjs');
+          AdvancedBrowserManager = mod.default || mod.AdvancedBrowserManager;
+        } catch (e2) {
+          const hint = 'Playwright failed to launch. Install browsers: npx playwright install --with-deps';
+          console.error('Playwright launch failed:', e1?.message || String(e1), '\nHint:', hint);
+          throw new Error(hint);
+        }
+        const mgr = new AdvancedBrowserManager({});
+        await mgr.initialize();
+        const { sessionId } = await mgr.createSession();
+        const session = mgr.pages.get(sessionId);
+        this.browser = mgr.browser;
+        this.context = null;
+        this.page = session?.page;
+        try { await this.page.setViewport({ width: 1280, height: 720 }); } catch { /* noop */ }
+        try { this.page.setDefaultTimeout?.(15000); } catch { /* noop */ }
+        try { await this.page.setExtraHTTPHeaders?.({ 'accept-language': 'en-US,en;q=0.9,ar;q=0.8' }); } catch { /* noop */ }
+        try {
+          const initialUrl = process.env.BROWSER_INITIAL_URL || 'about:blank';
+          await this.page.goto(initialUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
+        } catch { /* noop */ }
+        this.isInitialized = true;
+        console.log('✅ Browser initialized successfully (puppeteer fallback via AdvancedBrowserManager)');
+        return;
       }
 
       this.context = await this.browser.newContext({ viewport: { width: 1280, height: 720 }, userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' });
