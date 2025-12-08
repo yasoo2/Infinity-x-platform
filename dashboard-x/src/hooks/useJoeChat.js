@@ -24,6 +24,15 @@ const getLang = () => {
   }
 };
 
+const detectLangFromText = (text) => {
+  try {
+    const s = String(text || '');
+    return /[\u0600-\u06FF]/.test(s) ? 'ar' : 'en';
+  } catch {
+    return getLang();
+  }
+};
+
 const normalizeTitle = (text) => {
     if (!text) return 'New Conversation';
     const cleaned = String(text).trim().replace(/\s+/g, ' ');
@@ -1436,7 +1445,8 @@ export const useJoeChat = () => {
 
           if (type === 'error') {
             flushStreamBuffer();
-            dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `[ERROR]: ${data.message}` } });
+            const prefix = getLang() === 'ar' ? '[خطأ]:' : '[ERROR]:';
+            dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `${prefix} ${data.message}` } });
             try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
             dispatch({ type: 'STOP_PROCESSING' });
             return;
@@ -1636,6 +1646,13 @@ export const useJoeChat = () => {
   const handleSend = useCallback(async () => {
     const inputText = state.input.trim();
     if (!inputText) return;
+    try {
+      const detected = detectLangFromText(inputText);
+      localStorage.setItem('lang', detected);
+      document.documentElement.setAttribute('lang', detected);
+      try { window.dispatchEvent(new CustomEvent('joe:lang', { detail: { lang: detected } })); } catch { /* noop */ }
+      try { window.dispatchEvent(new CustomEvent('global:lang', { detail: { lang: detected } })); } catch { /* noop */ }
+    } catch { /* noop */ }
     let convId = state.currentConversationId;
 	    // 1. Update UI state immediately (append message, clear input, start processing)
 	    dispatch({ type: 'SEND_MESSAGE', payload: inputText });
@@ -1901,7 +1918,8 @@ export const useJoeChat = () => {
       ws.current.send(JSON.stringify({ action: 'cancel' }));
     }
     dispatch({ type: 'STOP_PROCESSING' }); // This now also clears the plan
-    dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: 'Processing stopped by user.' }});
+    const m = getLang() === 'ar' ? 'تم إيقاف المعالجة بواسطة المستخدم.' : 'Processing stopped by user.';
+    dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: m }});
   }, []);
 
   const handleConversationSelect = useCallback((id) => {
@@ -2025,6 +2043,13 @@ export const useJoeChat = () => {
     appendUserMessage: (text) => {
       const content = String(text || '').trim();
       if (!content) return;
+      try {
+        const detected = detectLangFromText(content);
+        localStorage.setItem('lang', detected);
+        document.documentElement.setAttribute('lang', detected);
+        try { window.dispatchEvent(new CustomEvent('joe:lang', { detail: { lang: detected } })); } catch { /* noop */ }
+        try { window.dispatchEvent(new CustomEvent('global:lang', { detail: { lang: detected } })); } catch { /* noop */ }
+      } catch { /* noop */ }
       dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'user', content } });
     },
   };
