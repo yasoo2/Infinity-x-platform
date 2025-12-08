@@ -82,7 +82,7 @@ const chatReducer = (state, action) => {
                 };
             }
             const title = (!conv?.title || conv?.title === 'New Conversation') ? normalizeTitle(action.payload) : conv.title;
-            const updatedConvo = { ...conv, title, lastModified: Date.now() };
+            const updatedConvo = { ...conv, title };
             const nextConversations = { ...conversations, [convId]: updatedConvo };
             return {
                 ...state,
@@ -115,7 +115,7 @@ const chatReducer = (state, action) => {
             const title = (!convo?.title || convo?.title === 'New Conversation') ? normalizeTitle(inputText) : convo.title;
             nextState.conversations = {
                 ...nextState.conversations,
-                [convoId]: { ...convo, messages: updatedMessages, title, lastModified: Date.now() },
+                [convoId]: { ...convo, messages: updatedMessages, title },
             };
             nextState.input = '';
             nextState.lastSentEcho = newMessage;
@@ -144,7 +144,7 @@ const chatReducer = (state, action) => {
                 const createdAt = action.payload.type === 'joe' ? now + 1 : now;
                 updatedMessages = [...convo.messages, { type: action.payload.type, content: action.payload.content, id: uuidv4(), createdAt }];
             }
-            const updatedConvo = { ...convo, messages: updatedMessages, lastModified: Date.now() };
+            const updatedConvo = { ...convo, messages: updatedMessages };
             const nextConversations = { ...conversations, [convoId]: updatedConvo };
             return { ...state, conversations: nextConversations, currentConversationId: convoId };
         }
@@ -237,7 +237,7 @@ const chatReducer = (state, action) => {
             const { id, title } = action.payload;
             const convo = state.conversations[id];
             if (!convo) return state;
-            const updated = { ...convo, title: normalizeTitle(title), lastModified: Date.now() };
+            const updated = { ...convo, title: normalizeTitle(title) };
             return { ...state, conversations: { ...state.conversations, [id]: updated } };
         }
 
@@ -245,7 +245,7 @@ const chatReducer = (state, action) => {
             const { id, sessionId } = action.payload;
             const convo = state.conversations[id];
             if (!convo) return state;
-            const updated = { ...convo, sessionId, lastModified: Date.now() };
+            const updated = { ...convo, sessionId };
             return { ...state, conversations: { ...state.conversations, [id]: updated } };
         }
 
@@ -274,7 +274,7 @@ const chatReducer = (state, action) => {
               const wb = b.type === 'user' ? 0 : 1;
               return wa - wb;
             });
-            const updated = { ...convo, messages: sorted, lastModified: Date.now() };
+            const updated = { ...convo, messages: sorted };
             return { ...state, conversations: { ...state.conversations, [id]: updated } };
         }
 
@@ -298,7 +298,7 @@ const chatReducer = (state, action) => {
             const { id } = action.payload;
             const convo = state.conversations[id];
             if (!convo) return state;
-            const updated = { ...convo, pinned: !convo.pinned, lastModified: Date.now() };
+            const updated = { ...convo, pinned: !convo.pinned };
             return { ...state, conversations: { ...state.conversations, [id]: updated } };
         }
 
@@ -307,7 +307,7 @@ const chatReducer = (state, action) => {
             const source = state.conversations[id];
             if (!source) return state;
             const newId = uuidv4();
-            const copy = { ...source, id: newId, title: normalizeTitle(`${source.title} (copy)`), lastModified: Date.now() };
+            const copy = { ...source, id: newId, title: normalizeTitle(`${source.title} (copy)`) };
             return { ...state, conversations: { ...state.conversations, [newId]: copy }, currentConversationId: newId };
         }
 
@@ -315,7 +315,7 @@ const chatReducer = (state, action) => {
             const { id } = action.payload;
             const convo = state.conversations[id];
             if (!convo) return state;
-            const cleared = { ...convo, messages: [], lastModified: Date.now() };
+            const cleared = { ...convo, messages: [] };
             return { ...state, conversations: { ...state.conversations, [id]: cleared } };
         }
 
