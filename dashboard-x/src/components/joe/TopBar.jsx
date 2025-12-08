@@ -58,15 +58,23 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
         const offlineReady = Boolean(data?.offlineReady);
         const mode = String(data?.mode || 'online');
         const stage = String(data?.stage || '');
-        
         const modelPath = String(data?.modelPath || '');
         setOfflineReady(offlineReady);
         setRuntimeMode(mode);
         setRuntimeStage(stage);
-        
         if (data?.version) setVersion(String(data.version));
         try { window.__joeRuntimeStatus = { offlineReady, mode, hasProvider: Boolean(data?.hasProvider), stage, modelPath }; } catch { /* noop */ }
-      } catch (e) { void e; }
+      } catch (e) {
+        try {
+          const { data } = await apiClient.get('/api/v1/health');
+          const mode = String(data?.mode || 'online');
+          setRuntimeMode(mode);
+          setOfflineReady(Boolean(data?.offlineReady));
+          if (data?.ai?.activeProvider) {
+            setRuntimeStage('online');
+          }
+        } catch { /* noop */ }
+      }
     })();
   }, []);
 
@@ -81,7 +89,13 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
           setRuntimeStage(String(data?.stage || ''));
           
           setRuntimeMode(String(data?.mode || 'online'));
-        } catch { /* noop */ }
+        } catch {
+          try {
+            const { data } = await apiClient.get('/api/v1/health');
+            setRuntimeMode(String(data?.mode || 'online'));
+            setOfflineReady(Boolean(data?.offlineReady));
+          } catch { /* noop */ }
+        }
       }, 1200);
     }
     return () => { if (timer) clearInterval(timer); };
