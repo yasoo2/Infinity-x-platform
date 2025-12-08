@@ -2,6 +2,8 @@
  * 🌐 BrowserAutomationTool - Enables JOE to perform complex, multi-step web interactions.
  * This tool is an advanced version of the existing browser tool, focusing on transactional tasks.
  */
+import { chromium } from 'playwright'
+
 class BrowserAutomationTool {
     constructor(dependencies) {
         this.dependencies = dependencies;
@@ -50,22 +52,61 @@ class BrowserAutomationTool {
     }
 
     async navigateAndExtract({ url, selectors, context }) {
-        // Placeholder for Playwright/Puppeteer logic
-        return {
-            success: true,
-            message: `Successfully navigated to ${url} and attempted to extract data for: ${context}.`,
-            extractedData: selectors.map(s => ({ selector: s, value: `Mock Data for ${s}` })),
-            note: "Actual extraction requires a running browser instance (Playwright/Puppeteer)."
-        };
+        let browser
+        try {
+            browser = await chromium.launch({ headless: true })
+            const page = await browser.newPage()
+            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 })
+            const data = []
+            for (const s of selectors) {
+                try {
+                    const isXPath = s.trim().startsWith('//')
+                    const locator = isXPath ? page.locator(`xpath=${s}`) : page.locator(s)
+                    const handle = await locator.first()
+                    const text = await handle.textContent()
+                    data.push({ selector: s, value: (text || '').trim() })
+                } catch (e) {
+                    data.push({ selector: s, error: e?.message || String(e) })
+                }
+            }
+            return { success: true, message: `Extracted ${data.length} items for: ${context}`, extractedData: data }
+        } catch (error) {
+            return { success: false, error: error?.message || String(error) }
+        } finally {
+            if (browser) await browser.close()
+        }
     }
 
     async fillFormAndSubmit({ url, fields, submitSelector }) {
-        // Placeholder for Playwright/Puppeteer logic
-        return {
-            success: true,
-            message: `Successfully navigated to ${url}, filled ${fields.length} fields, and clicked the submit button: ${submitSelector}.`,
-            note: "Actual form submission requires a running browser instance (Playwright/Puppeteer)."
-        };
+        let browser
+        try {
+            browser = await chromium.launch({ headless: true })
+            const page = await browser.newPage()
+            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 })
+            for (const f of fields) {
+                const sel = String(f.selector || '').trim()
+                const val = String(f.value || '')
+                if (!sel) continue
+                const isXPath = sel.startsWith('//')
+                const locator = isXPath ? page.locator(`xpath=${sel}`) : page.locator(sel)
+                const h = await locator.first()
+                await h.fill(val)
+            }
+            if (submitSelector) {
+                const isXPath = submitSelector.trim().startsWith('//')
+                const locator = isXPath ? page.locator(`xpath=${submitSelector}`) : page.locator(submitSelector)
+                const h = await locator.first()
+                await h.click()
+                await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {})
+            }
+            const finalUrl = page.url()
+            const title = await page.title()
+            return { success: true, message: `Submitted form`, url: finalUrl, title }
+        } catch (error) {
+            return { success: false, error: error?.message || String(error) }
+        } finally {
+            if (browser) await browser.close()
+        }
     }
 }
 

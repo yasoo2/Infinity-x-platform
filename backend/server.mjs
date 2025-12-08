@@ -204,15 +204,13 @@ async function setupDependencies() {
     let schedulingSystem = null;
     try {
         try {
-            const hasMongoEnv = !!(process.env.MONGODB_URI || process.env.MONGO_URI);
-            if (hasMongoEnv) {
-                db = await initMongo();
-                await connectDB(); // Initialize Mongoose connection
-                await setupSuperAdmin(() => Promise.resolve(db));
-            } else {
-                throw new Error('MONGO_ENV_MISSING');
-            }
+            db = await initMongo();
+            await connectDB(); // Initialize Mongoose connection
+            await setupSuperAdmin(() => Promise.resolve(db));
         } catch (e) {
+            if (process.env.NODE_ENV === 'test') {
+                throw e;
+            }
             console.warn('⚠️ Database unavailable. Continuing in degraded mode without MongoDB.', e?.message || String(e));
             db = null;
         }
