@@ -700,9 +700,11 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
       ) : (
       <div className="flex-1 overflow-y-auto relative" ref={scrollContainerRef} style={{ scrollBehavior: 'smooth', overscrollBehavior: 'auto', overflowAnchor: 'auto' }}>
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 border border-gray-800 rounded-xl bg-gray-900/60" style={{ paddingBottom: Math.max(24, inputAreaHeight + 24) }}>
-          {messages.length === 0 ? (
-            <WelcomeScreen toolsCount={toolsCount} />
-          ) : (
+          {(() => {
+            const hasActivity = (messages && messages.length > 0) || isProcessing || (typeof input === 'string' && input.trim().length > 0) || (typeof transcript === 'string' && transcript.trim().length > 0) || (Array.isArray(plan) && plan.length > 0);
+            return !hasActivity ? (
+              <WelcomeScreen toolsCount={toolsCount} />
+            ) : (
             <div className="space-y-5">
               {(() => {
                 const ordered = [...messages].sort((a, b) => {
@@ -987,7 +989,8 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
               
               <div ref={messagesEndRef} />
             </div>
-          )}
+            );
+          })()}
       </div>
       </div>
       )}
