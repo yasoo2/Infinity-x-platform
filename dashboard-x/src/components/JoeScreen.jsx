@@ -6,7 +6,7 @@ import FullScreenBrowser from './FullScreenBrowser';
 import SearchPanel from './SearchPanel';
 import apiClient from '../api/client';
 
-const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initialUrl, initialSearchQuery, autoOpenOnSearch }) => {
+const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initialUrl, initialSearchQuery, autoOpenOnSearch, embedded = false }) => {
   const [isTakeoverActive, setIsTakeoverActive] = useState(false);
   const [activeTab, setActiveTab] = useState('browser'); // 'terminal' or 'browser'
   const [browserUrl, setBrowserUrl] = useState('https://www.xelitesolutions.com');
@@ -275,7 +275,7 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
           pressKey={pressKey}
         />
       )}
-      {showMiniPreview && (
+      {showMiniPreview && !embedded && (
         <div
           className="fixed bottom-4 left-4 z-[60]"
           style={{ width: '1.5cm', height: '1.5cm' }}
@@ -303,17 +303,19 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
         </div>
       )}
       <div
-        className="absolute bottom-4 right-4 z-50"
-        style={{ width: boxSize.width, height: isCollapsed ? 50 : boxSize.height }}
+        className={embedded ? 'relative z-50 w-full h-full' : 'absolute bottom-4 right-4 z-50'}
+        style={embedded ? undefined : { width: boxSize.width, height: isCollapsed ? 50 : boxSize.height }}
       >
-        <div className="w-full h-full flex flex-col bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border-2 border-purple-500/30 rounded-xl shadow-2xl shadow-purple-900/50 overflow-hidden">
+        <div className={embedded ? 'w-full h-full flex flex-col bg-gray-900 border border-gray-800 rounded-xl overflow-hidden' : 'w-full h-full flex flex-col bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border-2 border-purple-500/30 rounded-xl shadow-2xl shadow-purple-900/50 overflow-hidden'}>
           {/* Header */}
-          <div className="flex items-center justify-between p-3 bg-gradient-to-r from-gray-800/90 to-gray-900/90 border-b-2 border-purple-500/30 flex-shrink-0">
+          <div className={embedded ? 'flex items-center justify-between p-2 bg-gray-800 border-b border-gray-700 flex-shrink-0' : 'flex items-center justify-between p-3 bg-gradient-to-r from-gray-800/90 to-gray-900/90 border-b-2 border-purple-500/30 flex-shrink-0'}>
             <div className="flex items-center gap-3 handle cursor-move">
               {getStatusIcon()}
-              <span className="text-sm font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-                JOE&apos;s Computer
-              </span>
+              {!embedded && (
+                <span className="text-sm font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                  JOE&apos;s Computer
+                </span>
+              )}
               <div className="flex items-center gap-1 ml-4 text-gray-400">
                 <Monitor className="w-3 h-3" />
                 <span className="text-xs">
@@ -321,31 +323,35 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
                 </span>
               </div>
             </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-400">{getStatusText()}</span>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-400">{getStatusText()}</span>
+              <div className="flex items-center gap-1">
+              {!embedded && (
+                <>
+                  <button
+                    onClick={() => setSizeMode('small')}
+                    className={`px-1.5 py-0.5 text-[10px] rounded ${sizeMode==='small'?'bg-gray-700 text-white border border-purple-500/50':'bg-gray-800 text-gray-400 border border-gray-700'}`}
+                    title="حجم صغير"
+                  >S</button>
+                  <button
+                    onClick={() => setSizeMode('medium')}
+                    className={`px-1.5 py-0.5 text-[10px] rounded ${sizeMode==='medium'?'bg-gray-700 text-white border border-purple-500/50':'bg-gray-800 text-gray-400 border border-gray-700'}`}
+                    title="حجم متوسط"
+                  >M</button>
+                  <button
+                    onClick={() => setSizeMode('large')}
+                    className={`px-1.5 py-0.5 text-[10px] rounded ${sizeMode==='large'?'bg-gray-700 text-white border border-purple-500/50':'bg-gray-800 text-gray-400 border border-gray-700'}`}
+                    title="حجم كبير"
+                  >L</button>
+                </>
+              )}
+              </div>
               <button
-                onClick={() => setSizeMode('small')}
-                className={`px-1.5 py-0.5 text-[10px] rounded ${sizeMode==='small'?'bg-gray-700 text-white border border-purple-500/50':'bg-gray-800 text-gray-400 border border-gray-700'}`}
-                title="حجم صغير"
-              >S</button>
-              <button
-                onClick={() => setSizeMode('medium')}
-                className={`px-1.5 py-0.5 text-[10px] rounded ${sizeMode==='medium'?'bg-gray-700 text-white border border-purple-500/50':'bg-gray-800 text-gray-400 border border-gray-700'}`}
-                title="حجم متوسط"
-              >M</button>
-              <button
-                onClick={() => setSizeMode('large')}
-                className={`px-1.5 py-0.5 text-[10px] rounded ${sizeMode==='large'?'bg-gray-700 text-white border border-purple-500/50':'bg-gray-800 text-gray-400 border border-gray-700'}`}
-                title="حجم كبير"
-              >L</button>
-            </div>
-            <button
-              onClick={() => setIsCollapsed(!isCollapsed)}
-              className="text-gray-400 hover:text-white transition-colors"
-              title={isCollapsed ? "Expand" : "Collapse"}
-            >
-                {isCollapsed ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                onClick={() => setIsCollapsed(!isCollapsed)}
+                className="text-gray-400 hover:text-white transition-colors"
+                title={isCollapsed ? "Expand" : "Collapse"}
+              >
+                  {isCollapsed ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
               <button
                 onClick={handleEndTask}
@@ -713,9 +719,10 @@ JoeScreen.propTypes = {
   isProcessing: PropTypes.bool.isRequired,
   progress: PropTypes.number.isRequired,
   wsLog: PropTypes.array.isRequired,
-  onTakeover: PropTypes.func.isRequired,
+  onTakeover: PropTypes.func,
   onClose: PropTypes.func.isRequired,
   initialUrl: PropTypes.string,
   initialSearchQuery: PropTypes.string,
   autoOpenOnSearch: PropTypes.bool,
+  embedded: PropTypes.bool
 };

@@ -915,6 +915,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                 initialUrl={browserInitialUrl}
                 initialSearchQuery={browserInitialSearch}
                 autoOpenOnSearch={browserAutoOpenFirst}
+                embedded={true}
               />
             </div>
           </div>
