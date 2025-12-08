@@ -30,6 +30,7 @@ import { setupSuperAdmin } from './src/core/setup-admin.mjs';
 import PlanningSystem from './src/planning/PlanningSystem.mjs';
 import SchedulingSystem from './src/scheduling/SchedulingSystem.mjs';
 import { setupAuth, requireRole, optionalAuth } from './src/middleware/auth.mjs';
+import { getMode } from './src/core/runtime-mode.mjs';
 import eventBus from './src/core/event-bus.mjs';
 
 // --- Services ---
@@ -338,6 +339,16 @@ async function startServer({ dependencyInitializer = setupDependencies, exit = p
     } catch { /* noop */ }
     setupAuth(dependencies.db);
     await applyRoutes(dependencies);
+
+    // Lightweight runtime-mode status endpoint expected by frontend
+    app.get('/api/v1/runtime-mode/status', (_req, res) => {
+      try {
+        const mode = getMode();
+        res.json({ success: true, mode, offlineReady: false, stage: '', version: '2.0.4' });
+      } catch (e) {
+        res.status(500).json({ success: false, error: 'RUNTIME_STATUS_FAILED', message: e?.message || String(e) });
+      }
+    });
 
     app.use('/api/v1', rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false }));
     

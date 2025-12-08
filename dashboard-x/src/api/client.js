@@ -12,7 +12,7 @@
   
 
   if (typeof window !== 'undefined' && isDev) {
-    resolvedBase = window.location.origin;
+    resolvedBase = 'http://localhost:4000';
   } else if (lsBase && String(lsBase).trim().length > 0) {
     // Prefer stored base only if not pointing to www; sanitize if needed
     try {
