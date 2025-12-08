@@ -954,8 +954,7 @@ export const useJoeChat = () => {
           return;
         }
 
-        let pathPref = '/socket.io/';
-        try { const saved = localStorage.getItem('joeSioPath'); if (saved === '/socket.io' || saved === '/socket.io/' || saved === '/ws/socket.io' || saved === '/ws/socket.io/') { pathPref = saved; } } catch { /* noop */ }
+        const pathPref = '/socket.io';
         const initialTransports = isProdHost ? ['polling'] : ['polling','websocket'];
         const socket = io(sioUrl, {
           auth: { token: sessionToken },
@@ -994,14 +993,8 @@ export const useJoeChat = () => {
           try {
             const msg = String(reason || '').toLowerCase();
             if (/transport error/i.test(msg)) {
-              try {
-                const cur = String(socket.io.opts.path || '/socket.io/');
-                const next = cur === '/socket.io/' ? '/socket.io' : '/socket.io/';
-                socket.io.opts.path = next;
-                try { localStorage.setItem('joeSioPath', next); } catch { /* noop */ }
-                // لا نحاول التحويل إلى WebSocket تلقائيًا هنا؛ نترك Socket.IO كما هو
-                socket.connect();
-              } catch { /* noop */ }
+              try { socket.io.opts.transports = ['polling']; socket.io.opts.upgrade = false; } catch { /* noop */ }
+              try { socket.connect(); } catch { /* noop */ }
             }
           } catch { /* noop */ }
         });
@@ -1013,12 +1006,7 @@ export const useJoeChat = () => {
           }
           if (/xhr poll error|transport error|bad request|400/i.test(msg)) {
             try {
-              const cur = String(socket.io.opts.path || '/socket.io/');
-              let next;
-              // أبقِ المسار القياسي لـ Socket.IO لتجنب تعارض المسارات مع البروكسي
-              next = cur.endsWith('/') ? '/socket.io' : '/socket.io/';
-              socket.io.opts.path = next;
-              try { localStorage.setItem('joeSioPath', next); } catch { /* noop */ }
+              socket.io.opts.path = '/socket.io';
               socket.io.opts.transports = ['polling'];
               socket.io.opts.upgrade = false;
               socket.connect();
@@ -1032,6 +1020,10 @@ export const useJoeChat = () => {
             const shouldFallbackWs = c >= 3 || /400|bad request/i.test(msg);
             if (shouldFallbackWs && (!ws.current || ws.current.readyState !== WebSocket.OPEN)) {
               openNativeWs();
+            }
+            const shouldFallbackRest = c >= 6;
+            if (shouldFallbackRest) {
+              try { localStorage.setItem('joeTransport', 'rest'); } catch { /* noop */ }
             }
           } catch { /* noop */ }
           if (/INVALID_TOKEN|NO_TOKEN/i.test(msg)) {
