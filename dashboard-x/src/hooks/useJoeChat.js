@@ -919,14 +919,14 @@ export const useJoeChat = () => {
         sioUrl = `${sioBase}/joe-agent`;
         
         let pathPref = '/socket.io/';
-        try { const saved = localStorage.getItem('joeSioPath'); if (saved === '/socket.io' || saved === '/socket.io/') { pathPref = saved; } } catch { /* noop */ }
+        try { const saved = localStorage.getItem('joeSioPath'); if (saved === '/socket.io' || saved === '/socket.io/' || saved === '/ws/socket.io' || saved === '/ws/socket.io/') { pathPref = saved; } } catch { /* noop */ }
         const isProdHost = (typeof window !== 'undefined') && (/xelitesolutions\.com$/.test(String(window.location.hostname || '')));
         const initialTransports = isProdHost ? ['polling'] : ['polling','websocket'];
         const socket = io(sioUrl, {
           auth: { token: sessionToken },
           path: pathPref,
           transports: initialTransports,
-          upgrade: true,
+          upgrade: !isProdHost,
           reconnection: true,
           reconnectionAttempts: 1000000,
           reconnectionDelay: 500,
@@ -976,13 +976,21 @@ export const useJoeChat = () => {
             try { socket.io.opts.transports = ['polling']; socket.connect(); } catch { /* noop */ }
             return;
           }
-          if (/xhr poll error|transport error/i.test(msg)) {
+          if (/xhr poll error|transport error|bad request|400/i.test(msg)) {
             try {
               const cur = String(socket.io.opts.path || '/socket.io/');
-              const next = cur === '/socket.io/' ? '/socket.io' : '/socket.io/';
+              let next;
+              if (cur.startsWith('/ws/')) {
+                next = cur.endsWith('/') ? '/ws/socket.io' : '/ws/socket.io/';
+              } else if (cur.startsWith('/socket.io')) {
+                next = cur.endsWith('/') ? '/ws/socket.io' : '/ws/socket.io/';
+              } else {
+                next = '/ws/socket.io/';
+              }
               socket.io.opts.path = next;
               try { localStorage.setItem('joeSioPath', next); } catch { /* noop */ }
               socket.io.opts.transports = ['polling'];
+              socket.io.opts.upgrade = false;
               socket.connect();
             } catch { /* noop */ }
             return;
@@ -991,7 +999,7 @@ export const useJoeChat = () => {
           try {
             const c = (sioErrorCountRef.current || 0) + 1;
             sioErrorCountRef.current = c;
-            const shouldFallbackWs = c >= 2 || /400|bad request/i.test(msg);
+            const shouldFallbackWs = c >= 3 || /400|bad request/i.test(msg);
             if (shouldFallbackWs && (!ws.current || ws.current.readyState !== WebSocket.OPEN)) {
               openNativeWs();
             }
