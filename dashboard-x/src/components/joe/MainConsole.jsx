@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import Draggable from 'react-draggable';
 import PropTypes from 'prop-types';
 import { FiMic, FiPaperclip, FiSend, FiStopCircle, FiCompass, FiArrowDown, FiLink, FiGitBranch, FiImage, FiTrash2, FiCopy } from 'react-icons/fi';
 import { useJoeChatContext } from '../../context/JoeChatContext.jsx';
@@ -75,6 +76,14 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   const [uploadsLoading, setUploadsLoading] = React.useState(false);
   const [showBrowserPanel, setShowBrowserPanel] = React.useState(false);
   const [browserPanelMode, setBrowserPanelMode] = React.useState('mini');
+  const [browserPanelDrag, setBrowserPanelDrag] = React.useState(() => {
+    try {
+      const s = localStorage.getItem('joeBrowserPanelDrag');
+      return s ? JSON.parse(s) : { x: 0, y: 0 };
+    } catch {
+      return { x: 0, y: 0 };
+    }
+  });
   const [browserInitialUrl, setBrowserInitialUrl] = React.useState('');
   const [browserInitialSearch, setBrowserInitialSearch] = React.useState('');
   const [browserAutoOpenFirst, setBrowserAutoOpenFirst] = React.useState(false);
@@ -198,6 +207,10 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
       window.removeEventListener('joe:end-browser-task', onEndTask);
     };
   }, []);
+
+  useEffect(() => {
+    try { localStorage.setItem('joeBrowserPanelDrag', JSON.stringify(browserPanelDrag)); } catch { /* noop */ }
+  }, [browserPanelDrag]);
 
   
 
@@ -840,34 +853,70 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
 
       {/* Embedded Joe Screen Panel */}
       {showBrowserPanel && (
-        <div className={(() => {
-          const base = 'fixed z-50 bg-gray-900/98 border border-gray-800 rounded-xl shadow-2xl overflow-hidden';
-          if (browserPanelMode === 'full') return base + ' inset-0';
-          if (browserPanelMode === 'half') return base + ' top-0 right-0 h-full w-1/2';
-          return base + ' bottom-4 right-4 w-[400px] h-[280px]';
-        })()}>
-          <div className="flex items-center justify-between px-3 py-2 bg-gray-800 border-b border-gray-700">
-            <div className="text-xs text-gray-300">{lang==='ar' ? 'شاشة جو المدمجة' : 'Embedded Joe Screen'}</div>
-            <div className="flex items-center gap-2">
-              <button onClick={() => setBrowserPanelMode('mini')} className="text-xs px-2 py-1 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-200 border border-gray-600">{lang==='ar' ? 'تصغير' : 'Mini'}</button>
-              <button onClick={() => setBrowserPanelMode('half')} className="text-xs px-2 py-1 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-200 border border-gray-600">{lang==='ar' ? 'نصف الشاشة' : 'Half'}</button>
-              <button onClick={() => setBrowserPanelMode('full')} className="text-xs px-2 py-1 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-200 border border-gray-600">{lang==='ar' ? 'ملء الشاشة' : 'Full'}</button>
-              <button onClick={() => setShowBrowserPanel(false)} className="text-xs px-2 py-1 rounded-md bg-red-700 hover:bg-red-600 text-white border border-red-600">{lang==='ar' ? 'إغلاق' : 'Close'}</button>
+        browserPanelMode === 'mini' ? (
+          <Draggable
+            handle=".joe-embedded-header"
+            bounds="body"
+            position={browserPanelDrag}
+            onStop={(e, data) => setBrowserPanelDrag({ x: data.x, y: data.y })}
+          >
+            <div className={(() => {
+              const base = 'fixed z-50 bg-gray-900/98 border border-gray-800 rounded-xl shadow-2xl overflow-hidden';
+              return base + ' bottom-4 right-4 w-[400px] h-[280px]';
+            })()}>
+              <div className="joe-embedded-header flex items-center justify-between px-3 py-2 bg-gray-800 border-b border-gray-700 cursor-move">
+                <div className="text-xs text-gray-300">{lang==='ar' ? 'شاشة جو المدمجة' : 'Embedded Joe Screen'}</div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setBrowserPanelMode('mini')} className="text-xs px-2 py-1 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-200 border border-gray-600">{lang==='ar' ? 'تصغير' : 'Mini'}</button>
+                  <button onClick={() => setBrowserPanelMode('half')} className="text-xs px-2 py-1 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-200 border border-gray-600">{lang==='ar' ? 'نصف الشاشة' : 'Half'}</button>
+                  <button onClick={() => setBrowserPanelMode('full')} className="text-xs px-2 py-1 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-200 border border-gray-600">{lang==='ar' ? 'ملء الشاشة' : 'Full'}</button>
+                  <button onClick={() => setShowBrowserPanel(false)} className="text-xs px-2 py-1 rounded-md bg-red-700 hover:bg-red-600 text-white border border-red-600">{lang==='ar' ? 'إغلاق' : 'Close'}</button>
+                </div>
+              </div>
+              <div className="w-full h-full">
+                <JoeScreen
+                  isProcessing={isProcessing}
+                  progress={progress}
+                  wsLog={[]}
+                  onTakeover={() => {}}
+                  onClose={() => setShowBrowserPanel(false)}
+                  initialUrl={browserInitialUrl}
+                  initialSearchQuery={browserInitialSearch}
+                  autoOpenOnSearch={browserAutoOpenFirst}
+                />
+              </div>
+            </div>
+          </Draggable>
+        ) : (
+          <div className={(() => {
+            const base = 'fixed z-50 bg-gray-900/98 border border-gray-800 rounded-xl shadow-2xl overflow-hidden';
+            if (browserPanelMode === 'full') return base + ' inset-0';
+            if (browserPanelMode === 'half') return base + ' top-0 right-0 h-full w-1/2';
+            return base;
+          })()}>
+            <div className="joe-embedded-header flex items-center justify-between px-3 py-2 bg-gray-800 border-b border-gray-700">
+              <div className="text-xs text-gray-300">{lang==='ar' ? 'شاشة جو المدمجة' : 'Embedded Joe Screen'}</div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setBrowserPanelMode('mini')} className="text-xs px-2 py-1 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-200 border border-gray-600">{lang==='ar' ? 'تصغير' : 'Mini'}</button>
+                <button onClick={() => setBrowserPanelMode('half')} className="text-xs px-2 py-1 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-200 border border-gray-600">{lang==='ar' ? 'نصف الشاشة' : 'Half'}</button>
+                <button onClick={() => setBrowserPanelMode('full')} className="text-xs px-2 py-1 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-200 border border-gray-600">{lang==='ar' ? 'ملء الشاشة' : 'Full'}</button>
+                <button onClick={() => setShowBrowserPanel(false)} className="text-xs px-2 py-1 rounded-md bg-red-700 hover:bg-red-600 text-white border border-red-600">{lang==='ar' ? 'إغلاق' : 'Close'}</button>
+              </div>
+            </div>
+            <div className="w-full h-full">
+              <JoeScreen
+                isProcessing={isProcessing}
+                progress={progress}
+                wsLog={[]}
+                onTakeover={() => {}}
+                onClose={() => setShowBrowserPanel(false)}
+                initialUrl={browserInitialUrl}
+                initialSearchQuery={browserInitialSearch}
+                autoOpenOnSearch={browserAutoOpenFirst}
+              />
             </div>
           </div>
-          <div className="w-full h-full">
-            <JoeScreen
-              isProcessing={isProcessing}
-              progress={progress}
-              wsLog={[]}
-              onTakeover={() => {}}
-              onClose={() => setShowBrowserPanel(false)}
-              initialUrl={browserInitialUrl}
-              initialSearchQuery={browserInitialSearch}
-              autoOpenOnSearch={browserAutoOpenFirst}
-            />
-          </div>
-        </div>
+        )
       )}
       
 
