@@ -742,11 +742,16 @@ export const useJoeChat = () => {
         }
         let sioUrl;
         const envApi = (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL || import.meta.env?.VITE_EXPLICIT_API_BASE)) || '';
-        const httpBase2 = (String(envApi).trim().length > 0)
-          ? envApi
-          : (typeof apiClient?.defaults?.baseURL === 'string'
+        const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+        const httpBase2 = isLocalHost
+          ? (typeof apiClient?.defaults?.baseURL === 'string'
               ? apiClient.defaults.baseURL
-              : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000'));
+              : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000'))
+          : ((String(envApi).trim().length > 0)
+              ? envApi
+              : (typeof apiClient?.defaults?.baseURL === 'string'
+                  ? apiClient.defaults.baseURL
+                  : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000')));
         const sanitizedHttp = String(httpBase2).replace(/\/+$/, '');
         let sioBase = sanitizedHttp;
         try {

@@ -46,16 +46,19 @@ export const connectWebSocket = (onMessage, onOpen, onClose) => {
   const isDev = typeof import.meta !== 'undefined' && import.meta.env?.MODE !== 'production';
   const envWs = (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_WS_BASE_URL || import.meta.env?.VITE_WS_URL)) || '';
   const envApi = (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL || import.meta.env?.VITE_EXPLICIT_API_BASE)) || '';
-  let httpBase = typeof apiClient?.defaults?.baseURL === 'string'
-    ? apiClient.defaults.baseURL
-    : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
+  const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  let httpBase = isLocalHost
+    ? 'http://localhost:4000'
+    : (typeof apiClient?.defaults?.baseURL === 'string'
+        ? apiClient.defaults.baseURL
+        : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000'));
   try {
-    if (String(envApi).trim().length > 0) {
+    if (!isLocalHost && String(envApi).trim().length > 0) {
       httpBase = envApi;
     }
   } catch { /* noop */ }
   try {
-    if (!envApi && typeof window !== 'undefined') {
+    if (!isLocalHost && !envApi && typeof window !== 'undefined') {
       const h = window.location.hostname;
       if (h === 'www.xelitesolutions.com' || h === 'xelitesolutions.com') {
         httpBase = 'https://api.xelitesolutions.com';
@@ -65,6 +68,9 @@ export const connectWebSocket = (onMessage, onOpen, onClose) => {
   let baseWsUrl = '';
   const computeBaseWsUrl = () => {
     try {
+      if (isLocalHost) {
+        return 'ws://localhost:4000';
+      }
       const candidate = String(envWs).trim().length > 0 ? String(envWs).trim() : (typeof apiClient?.defaults?.baseURL === 'string' ? apiClient.defaults.baseURL : String(httpBase));
       const u = new URL(candidate);
       const proto = u.protocol === 'https:' ? 'wss' : 'ws';
