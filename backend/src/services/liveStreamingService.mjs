@@ -10,8 +10,8 @@ export class LiveStreamingService extends EventEmitter {
     super();
     this.isStreaming = false;
     this.captureProcess = null;
-    this.frameRate = 2; // عدد الإطارات في الثانية
-    this.quality = 70; // جودة الصورة (1-100)
+    this.frameRate = 10;
+    this.quality = 70;
     this.width = 1280;
     this.height = 720;
     this.lastFrameTime = 0;
@@ -39,6 +39,8 @@ export class LiveStreamingService extends EventEmitter {
     this.isStreaming = true;
     this.stats.startTime = Date.now();
     this.emit('stream-started');
+
+    try { this.autoTuneDefaults(); } catch { /* noop */ }
 
     // محاكاة التقاط الشاشة
     this.captureScreenLoop();
@@ -84,6 +86,9 @@ export class LiveStreamingService extends EventEmitter {
 
       // تحديث الإحصائيات
       this.updateStats();
+
+      // ضبط تكيّفي بسيط بحسب عدد المشتركين وعرض النطاق
+      try { this.adjustOnLoad(); } catch { /* noop */ }
 
       // انتظر قليلاً قبل الإطار التالي
       await new Promise(resolve => setTimeout(resolve, 50));
@@ -279,6 +284,7 @@ export class LiveStreamingService extends EventEmitter {
   setFrameRate(fps) {
     this.frameRate = Math.max(1, Math.min(30, fps));
     this.frameInterval = 1000 / this.frameRate;
+    return this.frameRate;
   }
 
   /**
@@ -286,6 +292,7 @@ export class LiveStreamingService extends EventEmitter {
    */
   setQuality(quality) {
     this.quality = Math.max(1, Math.min(100, quality));
+    return this.quality;
   }
 
   /**
@@ -294,6 +301,59 @@ export class LiveStreamingService extends EventEmitter {
   setResolution(width, height) {
     this.width = width;
     this.height = height;
+    return { width: this.width, height: this.height };
+  }
+
+  /**
+   * إرجاع آخر إطار خام
+   */
+  getCurrentFrame() {
+    return this.currentScreen;
+  }
+
+  /**
+   * ضبط افتراضي تكيّفي متوازن لمعظم الأجهزة والشاشات
+   */
+  autoTuneDefaults() {
+    const subs = this.subscribers.size;
+    if (subs > 20) {
+      this.setFrameRate(6);
+      this.setQuality(60);
+      this.setResolution(854, 480);
+    } else if (subs > 5) {
+      this.setFrameRate(8);
+      this.setQuality(65);
+      this.setResolution(1280, 720);
+    } else {
+      this.setFrameRate(10);
+      this.setQuality(70);
+      this.setResolution(1280, 720);
+    }
+  }
+
+  /**
+   * تكييف بسيط يعتمد على الحمل وعرض النطاق أثناء التشغيل
+   */
+  adjustOnLoad() {
+    const subs = this.subscribers.size;
+    const bytesPerSec = Math.round(this.stats.bandwidth / Math.max(1, (this.stats.uptime / 1000)));
+    if (subs > 30 || bytesPerSec > 3_000_000) {
+      this.setFrameRate(5);
+      this.setQuality(55);
+      this.setResolution(640, 360);
+    } else if (subs > 10 || bytesPerSec > 1_500_000) {
+      this.setFrameRate(7);
+      this.setQuality(60);
+      this.setResolution(854, 480);
+    } else if (subs > 3 || bytesPerSec > 800_000) {
+      this.setFrameRate(9);
+      this.setQuality(65);
+      this.setResolution(1280, 720);
+    } else {
+      this.setFrameRate(10);
+      this.setQuality(70);
+      this.setResolution(1280, 720);
+    }
   }
 }
 
