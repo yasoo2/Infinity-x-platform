@@ -132,8 +132,7 @@ class BrowserController {
 
     try {
       await this.page.mouse.click(x, y);
-      // Wait a bit for the page to respond
-      await this.page.waitForTimeout(500);
+      await new Promise(r => setTimeout(r, 500));
       return { success: true };
     } catch (error) {
       console.error('Click error:', error);
@@ -163,8 +162,7 @@ class BrowserController {
     try {
       await this.page.evaluate((dy) => { window.scrollBy(0, dy); }, deltaY);
       
-      // Wait for scroll to complete
-      await this.page.waitForTimeout(300);
+      await new Promise(r => setTimeout(r, 300));
       return { success: true };
     } catch (error) {
       console.error('Scroll error:', error);
@@ -179,7 +177,7 @@ class BrowserController {
 
     try {
       await this.page.keyboard.press(key);
-      await this.page.waitForTimeout(200);
+      await new Promise(r => setTimeout(r, 200));
       return { success: true };
     } catch (error) {
       console.error('Press key error:', error);
