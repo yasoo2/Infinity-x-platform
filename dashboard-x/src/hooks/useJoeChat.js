@@ -348,6 +348,38 @@ export const useJoeChat = () => {
   const initialLoadDoneRef = useRef(false);
   const lastSelectionRef = useRef({ id: null, ts: 0 });
   const sioErrorCountRef = useRef(0);
+  const streamBufferRef = useRef('');
+  const streamFlushTimerRef = useRef(null);
+  const appendStreamChunk = useCallback((text) => {
+    try {
+      const t = sanitizeCompetitors(String(text || '').trim());
+      if (!t) return;
+      streamBufferRef.current = String(streamBufferRef.current || '') + t;
+      if (!streamFlushTimerRef.current) {
+        streamFlushTimerRef.current = setTimeout(() => {
+          try {
+            const buf = String(streamBufferRef.current || '');
+            if (buf) {
+              dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: buf } });
+              streamBufferRef.current = '';
+            }
+          } catch { /* noop */ } finally {
+            streamFlushTimerRef.current = null;
+          }
+        }, 180);
+      }
+    } catch { /* noop */ }
+  }, [appendStreamChunk, flushStreamBuffer]);
+  const flushStreamBuffer = useCallback(() => {
+    try {
+      if (streamFlushTimerRef.current) { clearTimeout(streamFlushTimerRef.current); streamFlushTimerRef.current = null; }
+      const buf = String(streamBufferRef.current || '');
+      if (buf) {
+        dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: buf } });
+        streamBufferRef.current = '';
+      }
+    } catch { /* noop */ }
+  }, []);
 
   const [state, dispatch] = useReducer(chatReducer, {
     conversations: {},
@@ -929,8 +961,9 @@ export const useJoeChat = () => {
               data.done === true ||
               data.final === true
             );
-            if (type === 'stream') { const c = sanitizeCompetitors(String(data?.content || '').trim()); if (c) dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: c } }); }
+            if (type === 'stream') { if (typeof data?.content === 'string') { appendStreamChunk(data.content); } }
             if (type === 'response' && typeof data?.response === 'string') {
+              flushStreamBuffer();
               const text = sanitizeCompetitors(String(data.response || '').trim());
               if (text) { dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } }); }
             }
@@ -940,6 +973,7 @@ export const useJoeChat = () => {
               dispatch({ type: 'SET_PROGRESS', payload: { progress: p, step } });
             }
             if (isCompleteEvent) {
+              flushStreamBuffer();
               dispatch({ type: 'STOP_PROCESSING' });
               dispatch({ type: 'REMOVE_PENDING_LOGS' });
               if (syncRef.current) syncRef.current();
@@ -1089,9 +1123,10 @@ export const useJoeChat = () => {
           }
           if (name) dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'tool_used', content: name, details } });
         });
-        socket.on('stream', (d) => { if (typeof d?.content === 'string') { const c = sanitizeCompetitors(d.content); if (c) dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: c } }); } });
+        socket.on('stream', (d) => { if (typeof d?.content === 'string') { appendStreamChunk(d.content); } });
         socket.on('progress', (d) => { const p = Number(d?.progress || d?.pct || 0); const step = d?.step || d?.status || ''; dispatch({ type: 'SET_PROGRESS', payload: { progress: p, step } }); });
         socket.on('response', (d) => {
+          flushStreamBuffer();
           const text = sanitizeCompetitors(String(d?.response || '').trim());
           if (text) {
             try {
@@ -1132,6 +1167,7 @@ export const useJoeChat = () => {
           if (syncRef.current) syncRef.current();
         });
         socket.on('task_complete', () => {
+          flushStreamBuffer();
           dispatch({ type: 'STOP_PROCESSING' });
           dispatch({ type: 'REMOVE_PENDING_LOGS' });
           try {
@@ -1146,6 +1182,7 @@ export const useJoeChat = () => {
         });
         socket.on('session_updated', () => { if (syncRef.current) syncRef.current(); });
         socket.on('error', (e) => {
+          flushStreamBuffer();
           const msg = typeof e === 'string' ? e : (e?.message || 'ERROR');
           dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `[ERROR]: ${msg}` } });
           dispatch({ type: 'STOP_PROCESSING' });
@@ -1311,9 +1348,7 @@ export const useJoeChat = () => {
           );
 
           if (type === 'stream') {
-            if (typeof data.content === 'string') {
-              dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: data.content } });
-            }
+            if (typeof data.content === 'string') { appendStreamChunk(data.content); }
             return;
           }
 
@@ -1325,6 +1360,7 @@ export const useJoeChat = () => {
           }
 
           if (type === 'response' || typeof data.response === 'string') {
+            flushStreamBuffer();
             const text = String(data.response || '').trim();
             if (text) {
               dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
@@ -1399,6 +1435,7 @@ export const useJoeChat = () => {
           }
 
           if (type === 'error') {
+            flushStreamBuffer();
             dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `[ERROR]: ${data.message}` } });
             try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
             dispatch({ type: 'STOP_PROCESSING' });
@@ -1406,6 +1443,7 @@ export const useJoeChat = () => {
           }
 
           if (isCompleteEvent) {
+            flushStreamBuffer();
             dispatch({ type: 'STOP_PROCESSING' });
             dispatch({ type: 'REMOVE_PENDING_LOGS' });
             if (syncRef.current) syncRef.current();

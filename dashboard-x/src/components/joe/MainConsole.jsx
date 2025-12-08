@@ -701,7 +701,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
       <div className="flex-1 overflow-y-auto relative" ref={scrollContainerRef} style={{ scrollBehavior: 'smooth', overscrollBehavior: 'auto', overflowAnchor: 'auto' }}>
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 border border-gray-800 rounded-xl bg-gray-900/60" style={{ paddingBottom: Math.max(24, inputAreaHeight + 24) }}>
           {(() => {
-            const hasActivity = (messages && messages.length > 0) || isProcessing || (typeof input === 'string' && input.trim().length > 0) || (typeof transcript === 'string' && transcript.trim().length > 0) || (Array.isArray(plan) && plan.length > 0);
+            const hasActivity = (messages && messages.length > 0) || isProcessing || (Array.isArray(plan) && plan.length > 0);
             return !hasActivity ? (
               <WelcomeScreen toolsCount={toolsCount} />
             ) : (
@@ -720,6 +720,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                   const urlRe = /((https?:\/\/)?(?:www\.)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s)]+)?)/gi;
                   const brands = ['google','جوجل','غوغل','youtube','يوتيوب','facebook','فيسبوك','instagram','انستقرام','tiktok','تيك توك','twitter','x','snapchat','سناب شات','linkedin','لينكدان','netflix','نيتفلكس','amazon','أمازون','apple','آبل','microsoft','مايكروسوفت','github','جيت هب','gitlab','جيت لاب','stackoverflow','ستاك أوفر فلو'];
                   const brandPattern = new RegExp(`\\b(?:${brands.map(b=>b.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&')).join('|')})\\b`,'gi');
+                  const isRTL = (lang === 'ar');
                   const renderRich = (s) => {
                     const parts = [];
                     let lastIndex = 0;
@@ -786,7 +787,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                       {segments.map((seg, idx) => seg.type === 'code' ? (
                         <div key={`blk-${idx}`} className="mt-2">
                           <div className="relative group">
-                            <pre className="bg-gray-950 border border-gray-800 rounded-lg p-3 text-[12px] overflow-x-auto"><code>{seg.content}</code></pre>
+                            <pre className="bg-gray-950 border border-gray-800 rounded-lg p-3 text-[12px] overflow-x-auto" style={{ direction: 'ltr', textAlign: 'left' }}><code>{seg.content}</code></pre>
                             <button
                               onClick={() => { try { navigator.clipboard.writeText(seg.content); } catch { /* noop */ } }}
                               className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-[11px] px-2 py-1 rounded bg-gray-800 text-gray-200 border border-gray-700"
@@ -800,13 +801,13 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                           const lines = String(para).split(/\n/);
                           const isList = lines.every(l => /^\s*(-|•)\s+/.test(l)) && lines.length > 1;
                           return isList ? (
-                            <ul key={`ul-${idx}-${pi}`} className="text-sm md:text-base leading-relaxed list-disc pl-5 text-gray-200">
+                            <ul key={`ul-${idx}-${pi}`} className={`text-sm md:text-base leading-relaxed list-disc ${isRTL ? 'pr-5 text-right' : 'pl-5 text-left'} text-gray-200`} style={{ direction: isRTL ? 'rtl' : 'ltr' }}>
                               {lines.map((l, li) => (
                                 <li key={`li-${idx}-${pi}-${li}`}>{renderRich(l.replace(/^\s*(-|•)\s+/, ''))}</li>
                               ))}
                             </ul>
                           ) : (
-                            <p key={`p-${idx}-${pi}`} className="text-sm md:text-base leading-relaxed whitespace-pre-wrap break-words text-gray-200">
+                            <p key={`p-${idx}-${pi}`} className={`text-sm md:text-base leading-relaxed whitespace-pre-wrap break-words text-gray-200 ${isRTL ? 'text-right' : 'text-left'}`} style={{ direction: isRTL ? 'rtl' : 'ltr' }}>
                               {renderRich(para)}
                             </p>
                           );
