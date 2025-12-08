@@ -603,8 +603,16 @@ export const useJoeChat = () => {
       if (Object.keys(convs).length > 0) {
         dispatch({ type: 'SET_CONVERSATIONS', payload: convs });
         const ids = Object.keys(convs).sort((a, b) => (convs[b].lastModified || 0) - (convs[a].lastModified || 0));
-        if (!state.currentConversationId) {
+        const curId = stateRef.current?.currentConversationId || state.currentConversationId;
+        if (!curId) {
           dispatch({ type: 'SELECT_CONVERSATION', payload: ids[0] });
+        } else if (!convs[curId]) {
+          const prev = stateRef.current?.conversations?.[curId];
+          const prevSid = prev?.sessionId;
+          if (prevSid && convs[prevSid]) {
+            dispatch({ type: 'SELECT_CONVERSATION', payload: prevSid });
+          }
+          // إذا لم يتم إيجاد مطابقة، لا نقوم بتغيير المحادثة الحالية لتجنب القفز بين الجلسات
         }
       }
     } catch (e) {
