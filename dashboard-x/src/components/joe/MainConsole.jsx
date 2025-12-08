@@ -76,6 +76,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   const [uploadsLoading, setUploadsLoading] = React.useState(false);
   const [showBrowserPanel, setShowBrowserPanel] = React.useState(false);
   const [browserPanelMode, setBrowserPanelMode] = React.useState('mini');
+  const browserPanelRef = useRef(null);
   const [browserPanelDrag, setBrowserPanelDrag] = React.useState(() => {
     try {
       const s = localStorage.getItem('joeBrowserPanelDrag');
@@ -857,13 +858,14 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
           <Draggable
             handle=".joe-embedded-header"
             bounds="body"
+            nodeRef={browserPanelRef}
             position={browserPanelDrag}
             onStop={(e, data) => setBrowserPanelDrag({ x: data.x, y: data.y })}
           >
             <div className={(() => {
               const base = 'fixed z-50 bg-gray-900/98 border border-gray-800 rounded-xl shadow-2xl overflow-hidden';
               return base + ' bottom-4 right-4 w-[400px] h-[280px]';
-            })()}>
+            })()} ref={browserPanelRef}>
               <div className="joe-embedded-header flex items-center justify-between px-3 py-2 bg-gray-800 border-b border-gray-700 cursor-move">
                 <div className="text-xs text-gray-300">{lang==='ar' ? 'شاشة جو المدمجة' : 'Embedded Joe Screen'}</div>
                 <div className="flex items-center gap-2">
