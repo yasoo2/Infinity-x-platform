@@ -932,9 +932,9 @@ export const useJoeChat = () => {
         
         const isProdHost = (typeof window !== 'undefined') && (/xelitesolutions\.com$/.test(String(window.location.hostname || '')));
         if (isProdHost) {
-          // على الإنتاج: نتجنب Socket.IO تمامًا، ونستخدم WebSocket الأصلي لضمان التوافق مع البروكسي
-          try { openNativeWs(); } catch { /* noop */ }
+          // على الإنتاج: نتجنب الاتصالات الفورية كليًا ونستخدم REST فقط
           isConnectingRef.current = false;
+          try { localStorage.setItem('joeTransport', 'rest'); } catch { /* noop */ }
           return;
         }
 
