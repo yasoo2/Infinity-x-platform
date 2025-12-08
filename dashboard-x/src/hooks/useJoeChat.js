@@ -917,6 +917,11 @@ export const useJoeChat = () => {
           sioBase = `${u.protocol}//${host}`;
         } catch { /* noop */ }
         sioUrl = `${sioBase}/joe-agent`;
+        const shouldUseNativeWsOnly = (!isLocalHost) && (typeof window !== 'undefined') && (/xelitesolutions\.com$/.test(String(window.location.hostname || '')));
+        if (shouldUseNativeWsOnly) {
+          openNativeWs();
+          return;
+        }
         let pathPref = '/socket.io/';
         try { const saved = localStorage.getItem('joeSioPath'); if (saved === '/socket.io' || saved === '/socket.io/') { pathPref = saved; } } catch { /* noop */ }
         const initialTransports = ['polling','websocket'];
