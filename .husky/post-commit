@@ -4,5 +4,7 @@ branch="$(git rev-parse --abbrev-ref HEAD)"
 remote="origin"
 
 if [ -n "$branch" ]; then
-  git push "$remote" "$branch"
+  git fetch "$remote" "$branch" || true
+  git pull --rebase --autostash "$remote" "$branch" || { git rebase --abort || true; git pull --rebase -X ours "$remote" "$branch" || true; }
+  git push "$remote" "$branch" || git push --force-with-lease "$remote" "$branch"
 fi
