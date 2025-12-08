@@ -334,6 +334,7 @@ export const useJoeChat = () => {
   const pendingDeleteIdsRef = useRef(new Map());
   const initialLoadDoneRef = useRef(false);
   const lastSelectionRef = useRef({ id: null, ts: 0 });
+  const sioErrorCountRef = useRef(0);
 
   const [state, dispatch] = useReducer(chatReducer, {
     conversations: {},
@@ -740,6 +741,155 @@ export const useJoeChat = () => {
           isConnectingRef.current = false;
           return;
         }
+        const openNativeWs = () => {
+          let wsUrl;
+          const envWs = (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_WS_BASE_URL || import.meta.env?.VITE_WS_URL)) || '';
+          const envApi2 = (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL || import.meta.env?.VITE_EXPLICIT_API_BASE)) || '';
+          const baseCandidate = (String(envWs).trim().length > 0)
+            ? envWs
+            : ((String(envApi2).trim().length > 0)
+                ? envApi2
+                : (typeof apiClient?.defaults?.baseURL === 'string'
+                    ? apiClient.defaults.baseURL
+                    : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000')));
+          let wsBase;
+          try {
+            const u = new URL(String(baseCandidate).replace(/\/(api.*)?$/, '').replace(/\/+$/, ''));
+            const isLocal = (u.hostname === 'localhost' || u.hostname === '127.0.0.1');
+            const devPorts = new Set(['4173','5173','3000']);
+            let host = u.host;
+            if (isLocal && devPorts.has(u.port || '')) {
+              host = `${u.hostname}:4000`;
+            } else if (u.hostname === 'www.xelitesolutions.com' || u.hostname === 'xelitesolutions.com') {
+              host = 'api.xelitesolutions.com';
+            }
+            const proto = u.protocol === 'https:' ? 'wss' : 'ws';
+            wsBase = `${proto}://${host}`;
+          } catch {
+            let origin = (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
+            try {
+              const u2 = new URL(String(origin));
+              let host2 = u2.host;
+              if (u2.hostname === 'www.xelitesolutions.com' || u2.hostname === 'xelitesolutions.com') {
+                host2 = 'api.xelitesolutions.com';
+              }
+              const proto2 = u2.protocol === 'https:' ? 'wss' : 'ws';
+              wsBase = `${proto2}://${host2}`;
+            } catch {
+              wsBase = 'ws://localhost:4000';
+            }
+          }
+          wsUrl = `${wsBase}/ws/joe-agent`;
+          if (sessionToken) wsUrl += `?token=${sessionToken}`;
+          let isValidWs = false;
+          try {
+            const u3 = new URL(wsUrl);
+            isValidWs = (u3.protocol === 'ws:' || u3.protocol === 'wss:') && !!u3.host;
+          } catch { isValidWs = false; }
+          if (!isValidWs) {
+            const hostFallback = (() => {
+              try {
+                const h = typeof window !== 'undefined' ? window.location.hostname : '';
+                return h && !(/localhost|127\.0\.0\.1/.test(h)) ? 'api.xelitesolutions.com' : 'localhost:4000';
+              } catch {
+                return 'localhost:4000';
+              }
+            })();
+            const protoFallback = (() => {
+              try { return (typeof window !== 'undefined' && window.location.protocol === 'https:') ? 'wss' : 'ws'; } catch { return 'ws'; }
+            })();
+            wsUrl = `${protoFallback}://${hostFallback}/ws/joe-agent?token=${sessionToken}`;
+          }
+          ws.current = new WebSocket(wsUrl);
+          const connectionTimeout = setTimeout(() => {
+            if (ws.current && ws.current.readyState !== WebSocket.OPEN) {
+              try { ws.current.close(); } catch { void 0; }
+            }
+          }, 10000);
+          ws.current.onopen = () => {
+            clearTimeout(connectionTimeout);
+            reconnectAttempts.current = 0;
+            isConnectingRef.current = false;
+            if (reconnectTimer.current) { clearTimeout(reconnectTimer.current); reconnectTimer.current = null; }
+            if (reconnectCountdownInterval.current) { clearInterval(reconnectCountdownInterval.current); reconnectCountdownInterval.current = null; }
+            dispatch({ type: 'SET_WS_CONNECTED', payload: true });
+            dispatch({ type: 'SET_RECONNECT_STATE', payload: { active: false, attempt: 0, delayMs: 0, etaTs: 0 } });
+            dispatch({ type: 'ADD_WS_LOG', payload: '[WS] Connection established' });
+            try { localStorage.setItem('joeTransport', 'ws'); } catch { /* noop */ }
+            try {
+              if (Array.isArray(pendingQueueRef.current) && pendingQueueRef.current.length) {
+                const q = pendingQueueRef.current.slice();
+                pendingQueueRef.current = [];
+                for (const p of q) { ws.current.send(JSON.stringify(p)); }
+              }
+            } catch { /* noop */ }
+          };
+          ws.current.onclose = (e) => {
+            clearTimeout(connectionTimeout);
+            isConnectingRef.current = false;
+            const code = e?.code;
+            const reason = e?.reason || '';
+            dispatch({ type: 'ADD_WS_LOG', payload: `[WS] Connection closed (code=${code} reason=${reason}). Reconnecting...` });
+            try {
+              const shouldDisableWs = (code === 1006) || /policy violation|origin not allowed|invalid token|malformed|signature/i.test(String(reason||''));
+              if (shouldDisableWs) { localStorage.removeItem('joeUseWS'); }
+            } catch { /* noop */ }
+            const shouldResetToken = code === 1008 || /invalid token|malformed|signature/i.test(reason);
+            if (shouldResetToken) { try { localStorage.removeItem('sessionToken'); } catch { void 0; } }
+            dispatch({ type: 'SET_WS_CONNECTED', payload: false });
+            dispatch({ type: 'STOP_PROCESSING' });
+            const attempt = (reconnectAttempts.current || 0) + 1;
+            reconnectAttempts.current = attempt;
+            try { if (attempt >= 3) { localStorage.removeItem('joeUseWS'); } } catch { /* noop */ }
+            const jitter = Math.floor(Math.random() * 500);
+            let delay = Math.min(30000, 1000 * Math.pow(2, attempt)) + jitter;
+            if (typeof navigator !== 'undefined' && navigator.onLine === false) { delay = Math.max(delay, 5000); }
+            const eta = Date.now() + delay;
+            dispatch({ type: 'SET_RECONNECT_STATE', payload: { active: true, attempt, delayMs: delay, etaTs: eta } });
+            if (reconnectCountdownInterval.current) clearInterval(reconnectCountdownInterval.current);
+            reconnectCountdownInterval.current = setInterval(() => {
+              const remaining = Math.max(0, eta - Date.now());
+              dispatch({ type: 'SET_RECONNECT_REMAINING', payload: remaining });
+            }, 250);
+            if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+            reconnectTimer.current = setTimeout(async () => { connect(); }, delay);
+          };
+          ws.current.onerror = (err) => {
+            dispatch({ type: 'ADD_WS_LOG', payload: `[WS] Error: ${err.message}` });
+            const m = String(err?.message || '').toLowerCase();
+            if (m.includes('invalid') || m.includes('malformed') || m.includes('signature')) { try { localStorage.removeItem('sessionToken'); } catch { void 0; } }
+          };
+          ws.current.onmessage = async (event) => {
+            const data = JSON.parse(event.data);
+            dispatch({ type: 'ADD_WS_LOG', payload: `[WS] Received: ${event.data}` });
+            const type = data.type || data.event || '';
+            const isCompleteEvent = (
+              type === 'task_complete' ||
+              type === 'complete' ||
+              type === 'completed' ||
+              type === 'finished' ||
+              type === 'finish' ||
+              type === 'end' ||
+              data.done === true ||
+              data.final === true
+            );
+            if (type === 'stream') { const c = sanitizeCompetitors(String(data?.content || '').trim()); if (c) dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: c } }); }
+            if (type === 'response' && typeof data?.response === 'string') {
+              const text = sanitizeCompetitors(String(data.response || '').trim());
+              if (text) { dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } }); }
+            }
+            if (type === 'progress') {
+              const p = Number(data?.progress || data?.pct || 0);
+              const step = data?.step || data?.status || '';
+              dispatch({ type: 'SET_PROGRESS', payload: { progress: p, step } });
+            }
+            if (isCompleteEvent) {
+              dispatch({ type: 'STOP_PROCESSING' });
+              dispatch({ type: 'REMOVE_PENDING_LOGS' });
+              if (syncRef.current) syncRef.current();
+            }
+          };
+        };
         let sioUrl;
         const envApi = (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL || import.meta.env?.VITE_EXPLICIT_API_BASE)) || '';
         const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
@@ -836,8 +986,14 @@ export const useJoeChat = () => {
             return;
           }
           dispatch({ type: 'ADD_WS_LOG', payload: `[SIO] Connect error: ${msg}` });
-          // Keep SIO; do not auto-switch to native WS in production
-          
+          try {
+            const c = (sioErrorCountRef.current || 0) + 1;
+            sioErrorCountRef.current = c;
+            const shouldFallbackWs = c >= 2 || /400|bad request/i.test(msg);
+            if (shouldFallbackWs && (!ws.current || ws.current.readyState !== WebSocket.OPEN)) {
+              openNativeWs();
+            }
+          } catch { /* noop */ }
           if (/INVALID_TOKEN|NO_TOKEN/i.test(msg)) {
             try { localStorage.removeItem('sessionToken'); } catch { /* noop */ }
             try { socket.auth = {}; socket.connect(); } catch { /* noop */ }
@@ -937,10 +1093,8 @@ export const useJoeChat = () => {
         });
         sioRef.current = socket;
         try { window.__joeSocket = socket; window.dispatchEvent(new Event('joe:socket-ready')); } catch { /* noop */ }
-        const useWs = false;
-        if (!useWs) {
-          return;
-        }
+        const __useWsImmediately = false;
+        if (!__useWsImmediately) { return; }
         let wsUrl;
         const envWs = (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_WS_BASE_URL || import.meta.env?.VITE_WS_URL)) || '';
         const envApi2 = (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL || import.meta.env?.VITE_EXPLICIT_API_BASE)) || '';
