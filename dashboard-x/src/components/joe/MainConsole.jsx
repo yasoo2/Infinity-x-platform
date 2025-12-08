@@ -700,7 +700,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
         </div>
       ) : (
       <div className="flex-1 overflow-y-auto relative" ref={scrollContainerRef} style={{ scrollBehavior: 'smooth', overscrollBehavior: 'auto', overflowAnchor: 'auto' }}>
-        <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 border border-gray-800 rounded-xl bg-gray-900/60" style={{ paddingBottom: Math.max(24, inputAreaHeight + 24) }}>
+        <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 border border-gray-700 rounded-2xl bg-gray-900/40 backdrop-blur-sm shadow-xl" style={{ paddingBottom: Math.max(24, inputAreaHeight + 24) }}>
           {(() => {
             const hasActivity = (messages && messages.length > 0) || isProcessing || (Array.isArray(plan) && plan.length > 0);
             return !hasActivity ? (
@@ -834,13 +834,13 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                 return ordered.map((msg, index) => (
                   <div 
                     key={msg.id || index} 
-                    className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                    className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'} mb-4`}
                   >
                     <div 
                       className={`relative max-w-[90%] sm:max-w-[85%] md:max-w-[75%] rounded-2xl px-5 py-4 ${
                         msg.type === 'user' 
-                          ? 'bg-gray-800 text-gray-100 border border-yellow-500/40 shadow-md' 
-                          : 'bg-gray-800/85 text-gray-100 border border-gray-700 shadow-md'
+                          ? 'bg-gradient-to-br from-gray-800 to-gray-900 text-gray-100 border border-yellow-500/40 shadow-lg' 
+                          : 'bg-gradient-to-br from-gray-800/80 to-gray-900/80 text-gray-100 border border-gray-700 shadow-lg'
                       }`}
                     >
                       {msg.type === 'user' ? (
@@ -878,9 +878,10 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                         )}
                         <button
                           onClick={() => { try { navigator.clipboard.writeText(String(msg.content||'')); } catch { /* noop */ } }}
-                          className="px-2 py-1 text-[11px] rounded bg-gray-700 text-gray-200 border border-gray-600 hover:bg-gray-600"
+                          className="p-1.5 rounded bg-gray-700 text-gray-200 border border-gray-600 hover:bg-gray-600"
+                          title={lang==='ar' ? 'نسخ' : 'Copy'}
                         >
-                          {lang==='ar' ? 'نسخ' : 'Copy'}
+                          <FiCopy size={14} />
                         </button>
                       </div>
                     </div>
@@ -890,10 +891,10 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
 
               {isProcessing && (
                 <div className="flex justify-start">
-                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-gray-800/85 text-gray-200 border border-gray-700">
-                    <span className="w-2 h-2 rounded-full bg-yellow-500 animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-2 h-2 rounded-full bg-yellow-500 animate-bounce" style={{ animationDelay: '120ms' }} />
-                    <span className="w-2 h-2 rounded-full bg-yellow-500 animate-bounce" style={{ animationDelay: '240ms' }} />
+                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-gray-800/70 backdrop-blur-sm text-gray-200 border border-gray-700 shadow-lg">
+                    <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" style={{ animationDelay: '0ms' }} />
+                    <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" style={{ animationDelay: '140ms' }} />
+                    <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" style={{ animationDelay: '280ms' }} />
                     <span className="text-xs ml-2">{(() => { const hasThought = Array.isArray(plan) && plan.slice(-5).some(s => s?.type === 'thought'); return lang==='ar' ? (hasThought ? 'جو يفكر الآن…' : 'جو يكتب الآن…') : (hasThought ? 'Joe is thinking…' : 'Joe is typing…'); })()}</span>
                   </div>
                 </div>
