@@ -1,7 +1,5 @@
-import puppeteer from 'puppeteer';
-import fs from 'fs';
-import path from 'path';
-import { spawnSync } from 'child_process';
+import { chromium } from 'playwright';
+ 
 
 class BrowserController {
   constructor() {
@@ -17,75 +15,31 @@ class BrowserController {
     }
 
     try {
-      const launchBase = {
-        headless: (process.env.PUPPETEER_HEADLESS_MODE || 'true') === 'true' ? 'new' : false,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--no-first-run',
-          '--no-zygote',
-          '--disable-gpu',
-          '--disable-blink-features=AutomationControlled',
-          '--lang=en-US,en'
-        ],
-      };
-      const projectCache = path.join(process.cwd(), '.cache', 'puppeteer');
-      const execCandidates = [];
-      const scanCache = async () => {
-        const found = [];
-        try {
-          const chromiumDir = path.join(projectCache, 'chromium');
-          const entries = await fs.promises.readdir(chromiumDir).catch(() => []);
-          for (const entry of entries) {
-            const candidate = path.join(
-              chromiumDir,
-              entry,
-              process.platform === 'darwin'
-                ? 'chrome-mac/Chromium.app/Contents/MacOS/Chromium'
-                : 'chrome'
-            );
-            if (fs.existsSync(candidate)) found.push(candidate);
-          }
-        } catch { /* noop */ }
-        return found;
-      };
-      execCandidates.push(...(await scanCache()));
-      if (execCandidates.length === 0) {
-        const env = { ...process.env, PUPPETEER_CACHE_DIR: projectCache };
-        spawnSync('npx', ['puppeteer', 'browsers', 'install', 'chromium'], { env, stdio: 'ignore' });
-        execCandidates.push(...(await scanCache()));
-      }
-      const foundPath = execCandidates.find(p => {
-        try { return fs.existsSync(p); } catch { return false; }
-      });
-      if (foundPath) launchBase.executablePath = foundPath;
-
+      const headless = (process.env.PLAYWRIGHT_HEADLESS_MODE || 'true') === 'true';
+      const args = [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu',
+        '--lang=en-US,en'
+      ];
+      const launchOpts = { headless, args };
+      const channel = process.env.PLAYWRIGHT_CHANNEL || '';
+      if (channel) launchOpts.channel = channel;
       try {
-        this.browser = await puppeteer.launch(launchBase);
+        this.browser = await chromium.launch(launchOpts);
       } catch (e1) {
-        try {
-          this.browser = await puppeteer.launch({ ...launchBase, headless: 'new', args: launchBase.args.filter(a => a !== '--disable-gpu') });
-        } catch (e2) {
-          const err = e2 || e1;
-          const hint = 'Chrome/Chromium not found. Set PUPPETEER_EXECUTABLE_PATH to your Chrome binary or run: npx puppeteer browsers install chrome';
-          console.error('Puppeteer launch failed:', err?.message || String(err), '\nHint:', hint);
-          throw new Error(hint);
-        }
+        const hint = 'Playwright failed to launch. Install browsers: npx playwright install --with-deps';
+        console.error('Playwright launch failed:', e1?.message || String(e1), '\nHint:', hint);
+        throw new Error(hint);
       }
 
-      this.page = await this.browser.newPage();
-      await this.page.setViewport({ width: 1280, height: 720 });
-      await this.page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+      this.context = await this.browser.newContext({ viewport: { width: 1280, height: 720 }, userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' });
+      this.page = await this.context.newPage();
       await this.page.setExtraHTTPHeaders({ 'accept-language': 'en-US,en;q=0.9,ar;q=0.8' });
-      await this.page.evaluate(() => {
-        Object.defineProperty(navigator, 'webdriver', { get: () => false });
-        // eslint-disable-next-line no-undef
-        window.chrome = window.chrome || { runtime: {} };
-        Object.defineProperty(navigator, 'plugins', { get: () => [1,2,3] });
-        Object.defineProperty(navigator, 'languages', { get: () => ['en-US','en','ar'] });
-      });
       try {
         const initialUrl = process.env.BROWSER_INITIAL_URL || 'about:blank';
         await this.page.goto(initialUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
@@ -298,6 +252,8 @@ class BrowserController {
     if (this.browser) {
       await this.browser.close();
       this.isInitialized = false;
+      this.page = null;
+      this.context = null;
       console.log('Browser closed');
     }
   }
