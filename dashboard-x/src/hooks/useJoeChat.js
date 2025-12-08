@@ -332,6 +332,8 @@ export const useJoeChat = () => {
   const pendingQueueRef = useRef([]);
   const heartbeatIntervalRef = useRef(null);
   const pendingDeleteIdsRef = useRef(new Map());
+  const initialLoadDoneRef = useRef(false);
+  const lastSelectionRef = useRef({ id: null, ts: 0 });
 
   const [state, dispatch] = useReducer(chatReducer, {
     conversations: {},
@@ -357,6 +359,16 @@ export const useJoeChat = () => {
 
   const stateRef = useRef(state);
   useEffect(() => { stateRef.current = state; }, [state]);
+  const selectConversationSafe = useCallback((id, source = 'auto') => {
+    const cur = stateRef.current?.currentConversationId || null;
+    if (!id || id === cur) return;
+    const now = Date.now();
+    const lastTs = lastSelectionRef.current?.ts || 0;
+    const isManual = source === 'manual';
+    if (!isManual && (now - lastTs) < 800) return;
+    lastSelectionRef.current = { id, ts: now };
+    dispatch({ type: 'SELECT_CONVERSATION', payload: id });
+  }, []);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -498,7 +510,7 @@ export const useJoeChat = () => {
       await handleNewConversation(true);
     } catch { /* ignore */ }
     try { if (syncRef.current) syncRef.current(); } catch { /* ignore */ }
-  }, [handleNewConversation]);
+  }, [handleNewConversation, selectConversationSafe]);
 
   useEffect(() => {
     try {
@@ -509,7 +521,7 @@ export const useJoeChat = () => {
         if (normalized && Object.keys(normalized).length > 0) {
           dispatch({ type: 'SET_CONVERSATIONS', payload: normalized });
           const sortedIds = Object.keys(normalized).sort((a, b) => (normalized[b].lastModified || 0) - (normalized[a].lastModified || 0));
-          dispatch({ type: 'SELECT_CONVERSATION', payload: parsed?.currentConversationId || sortedIds[0] });
+          selectConversationSafe(parsed?.currentConversationId || sortedIds[0], 'init');
         } else {
           handleNewConversation();
         }
@@ -520,6 +532,7 @@ export const useJoeChat = () => {
       console.error("Failed to load chat history:", error);
       handleNewConversation();
     }
+    initialLoadDoneRef.current = true;
   }, [handleNewConversation]);
 
   const mapSessionToConversation = useCallback((session) => {
@@ -605,12 +618,12 @@ export const useJoeChat = () => {
         const ids = Object.keys(convs).sort((a, b) => (convs[b].lastModified || 0) - (convs[a].lastModified || 0));
         const curId = stateRef.current?.currentConversationId || state.currentConversationId;
         if (!curId) {
-          dispatch({ type: 'SELECT_CONVERSATION', payload: ids[0] });
+          selectConversationSafe(ids[0], 'sync');
         } else if (!convs[curId]) {
           const prev = stateRef.current?.conversations?.[curId];
           const prevSid = prev?.sessionId;
           if (prevSid && convs[prevSid]) {
-            dispatch({ type: 'SELECT_CONVERSATION', payload: prevSid });
+            selectConversationSafe(prevSid, 'sync');
           }
           // إذا لم يتم إيجاد مطابقة، لا نقوم بتغيير المحادثة الحالية لتجنب القفز بين الجلسات
         }
@@ -647,7 +660,8 @@ export const useJoeChat = () => {
   }, [state.conversations, state.currentConversationId, state.isProcessing, mapSessionToConversation]);
 
   useEffect(() => {
-    syncBackendSessions();
+    const t = setTimeout(() => { try { syncBackendSessions(); } catch { /* noop */ } }, initialLoadDoneRef.current ? 0 : 600);
+    return () => { try { clearTimeout(t); } catch { /* noop */ } };
   }, [syncBackendSessions]);
 
   useEffect(() => {
@@ -1628,8 +1642,8 @@ export const useJoeChat = () => {
   }, []);
 
   const handleConversationSelect = useCallback((id) => {
-    dispatch({ type: 'SELECT_CONVERSATION', payload: id });
-  }, []);
+    selectConversationSafe(id, 'manual');
+  }, [selectConversationSafe]);
 
   const handleVoiceInput = useCallback(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
