@@ -135,7 +135,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
           <circle cx="32" cy="32" r="22" fill="none" stroke={`url(#${gradId})`} strokeWidth="3">
             {state !== 'ready' && state !== 'offline' && (<animate attributeName="stroke-opacity" values="1;0.6;1" dur="1.4s" repeatCount="indefinite" />)}
           </circle>
-          <rect x="20" y="20" width="24" height="24" rx="10" fill="#0b1220" opacity="0.95" />
+          <rect x="19" y="19" width="26" height="26" rx="11" fill="#0b1220" opacity="0.95" />
           <g>
             <ellipse cx="28" cy="32" rx="4.5" ry="3" fill="#ffffff">
               <animate attributeName="ry" values="3;1.2;3" dur="2.6s" repeatCount="indefinite" />
