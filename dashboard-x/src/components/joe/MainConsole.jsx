@@ -4,7 +4,6 @@ import { FiMic, FiPaperclip, FiSend, FiStopCircle, FiCompass, FiArrowDown, FiLin
 import { useJoeChatContext } from '../../context/JoeChatContext.jsx';
 import apiClient from '../../api/client';
 import { getSystemStatus, listUserUploads, deleteUserUpload } from '../../api/system';
-import JoeScreen from '../JoeScreen.jsx';
 
 const WelcomeScreen = ({ toolsCount }) => (
   <div className="flex flex-col items-center justify-center h-full text-center px-6">
@@ -74,26 +73,12 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   const [showGallery, setShowGallery] = React.useState(false);
   const [uploads, setUploads] = React.useState([]);
   const [uploadsLoading, setUploadsLoading] = React.useState(false);
-  const [showBrowserPanel, setShowBrowserPanel] = React.useState(false);
-  const [browserPanelMode, setBrowserPanelMode] = React.useState('mini');
-  const [browserPanelDrag] = React.useState(() => {
-    try {
-      const s = localStorage.getItem('joeBrowserPanelDrag');
-      return s ? JSON.parse(s) : { x: 0, y: 0 };
-    } catch {
-      return { x: 0, y: 0 };
-    }
-  });
-  const [browserInitialUrl, setBrowserInitialUrl] = React.useState('');
-  const [browserInitialSearch, setBrowserInitialSearch] = React.useState('');
-  const [browserAutoOpenFirst, setBrowserAutoOpenFirst] = React.useState(false);
+  
   const galleryPanelRef = useRef(null);
   const [viewMode, setViewMode] = React.useState('chat');
   const [expandedIds, setExpandedIds] = React.useState(new Set());
 
-  useEffect(() => {
-    try { window.dispatchEvent(new CustomEvent('joe:browser:visible', { detail: { visible: showBrowserPanel } })); } catch { /* noop */ }
-  }, [showBrowserPanel]);
+  
 
   useEffect(() => {
     const vv = window.visualViewport;
@@ -140,7 +125,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   StyledJoe.propTypes = { className: PropTypes.string };
 
   const JoeBadge = ({ size = 'sm', state = 'ready' }) => {
-    const px = size === 'lg' ? 36 : (size === 'md' ? 28 : 20);
+    const px = size === 'lg' ? 44 : (size === 'md' ? 34 : 24);
     const gradId = React.useMemo(() => `joeHexGrad-${Math.random().toString(36).slice(2)}`, []);
     const hatGradId = React.useMemo(() => `joeHatGrad-${Math.random().toString(36).slice(2)}`, []);
     const palette = (() => {
@@ -163,10 +148,10 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
               <stop offset="100%" stopColor="#f59e0b" />
             </linearGradient>
           </defs>
-          <circle cx="32" cy="32" r="22" fill="none" stroke={`url(#${gradId})`} strokeWidth="3">
+          <circle cx="32" cy="32" r="23" fill="none" stroke={`url(#${gradId})`} strokeWidth="3">
             {state !== 'ready' && state !== 'offline' && (<animate attributeName="stroke-opacity" values="1;0.6;1" dur="1.4s" repeatCount="indefinite" />)}
           </circle>
-          <rect x="19" y="19" width="26" height="26" rx="11" fill="#0b1220" opacity="0.95" />
+          <rect x="17" y="17" width="30" height="30" rx="12" fill="#0b1220" opacity="0.95" />
           <g>
             <ellipse cx="28" cy="32" rx="4.5" ry="3" fill="#ffffff">
               <animate attributeName="ry" values="3;1.2;3" dur="2.6s" repeatCount="indefinite" />
@@ -297,42 +282,9 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
     return () => window.removeEventListener('joe:lang', onLang);
   }, []);
 
-  useEffect(() => {
-    const onOpenBrowser = (e) => {
-      try {
-        const d = e && e.detail ? e.detail : {};
-        const url = String(d?.url || '').trim();
-        if (url) setBrowserInitialUrl(url);
-        const q = String(d?.searchQuery || '').trim();
-        if (q) setBrowserInitialSearch(q);
-        setBrowserAutoOpenFirst(Boolean(d?.autoOpenFirst));
-      setShowBrowserPanel(true);
-        setBrowserPanelMode('mini');
-        setViewMode('agent');
-      } catch { /* noop */ }
-    };
-    const onEndTask = () => {
-      try {
-        setShowBrowserPanel(false);
-        setBrowserInitialUrl('');
-        setBrowserInitialSearch('');
-        setBrowserAutoOpenFirst(false);
-      } catch { /* noop */ }
-    };
-    window.addEventListener('joe:open-browser', onOpenBrowser);
-    window.addEventListener('joe:end-browser-task', onEndTask);
-    return () => {
-      window.removeEventListener('joe:open-browser', onOpenBrowser);
-      window.removeEventListener('joe:end-browser-task', onEndTask);
-    };
-  }, []);
+  
 
-  useEffect(() => {
-    try {
-      const ev = new CustomEvent(showBrowserPanel ? 'joe:overlay:open' : 'joe:overlay:close', { detail: { source: 'browserPanel', open: showBrowserPanel } });
-      window.dispatchEvent(ev);
-    } catch { /* noop */ }
-  }, [showBrowserPanel]);
+  
 
   useEffect(() => {
     try {
@@ -348,9 +300,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
     } catch { /* noop */ }
   }, [showGallery]);
 
-  useEffect(() => {
-    try { localStorage.setItem('joeBrowserPanelDrag', JSON.stringify(browserPanelDrag)); } catch { /* noop */ }
-  }, [browserPanelDrag]);
+  
 
   
 
@@ -751,18 +701,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
 
   return (
     <div className="flex flex-col h-screen min-w-0 w-full bg-gray-900">
-      <div className="flex items-center justify-between px-4 md:px-8 py-2 border-b border-gray-800">
-        <div className="flex items-center gap-2 text-xs text-gray-300">
-          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded ${wsConnected ? 'bg-green-600/20 text-green-300' : 'bg-red-600/20 text-red-300'}`}>{wsConnected ? 'متصل' : 'غير متصل'}</span>
-          {reconnectActive && (
-            <span className="px-2 py-1 rounded bg-yellow-600/20 text-yellow-300">إعادة الاتصال {Math.ceil((reconnectRemainingMs||0)/1000)}s</span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => setViewMode('chat')} className={`text-xs px-3 py-1 rounded ${viewMode==='chat'?'bg-blue-600 text-white':'bg-gray-800 text-gray-300'}`}>المحادثة</button>
-          <button onClick={() => setViewMode('agent')} className={`text-xs px-3 py-1 rounded ${viewMode==='agent'?'bg-blue-600 text-white':'bg-gray-800 text-gray-300'}`}>وضع الوكيل</button>
-        </div>
-      </div>
+      <div className="flex items-center justify-end px-4 md:px-8 py-2 border-b border-gray-800"></div>
       {viewMode === 'agent' ? (
         <div className="flex-1 flex gap-4">
           <div className="w-1/5 border-r border-gray-800 p-3 space-y-3">
@@ -774,22 +713,6 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                   <div className="text-xs text-gray-200"><StyledJoe /> Agent</div>
                   <div className={`text-[11px] ${wsConnected? 'text-green-300':'text-red-300'}`}>{wsConnected? (lang==='ar'?'متصل':'Online') : (lang==='ar'?'غير متصل':'Offline')}</div>
                 </div>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <input type="text" value={browserInitialUrl} onChange={(e)=>setBrowserInitialUrl(e.target.value)} placeholder={lang==='ar'? 'رابط' : 'URL'} className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-white placeholder-gray-500" />
-              <button onClick={()=>{ try { window.dispatchEvent(new CustomEvent('joe:open-browser',{ detail: { url: browserInitialUrl } })); } catch { void 0; } }} className="w-full text-xs px-3 py-1 rounded bg-yellow-600 text-black hover:bg-yellow-700">فتح</button>
-            </div>
-            <div className="space-y-2">
-              <input type="text" value={browserInitialSearch} onChange={(e)=>setBrowserInitialSearch(e.target.value)} placeholder={lang==='ar'? 'بحث' : 'Search'} className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-white placeholder-gray-500" />
-              <button onClick={()=>{ try { window.dispatchEvent(new CustomEvent('joe:open-browser',{ detail: { searchQuery: browserInitialSearch, autoOpenFirst: true } })); } catch { void 0; } }} className="w-full text-xs px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700">بحث</button>
-            </div>
-            <div className="space-y-2">
-              <button onClick={()=>setShowBrowserPanel(true)} className="w-full text-xs px-3 py-1 rounded bg-gray-700 text-gray-200 hover:bg-gray-600">عرض المتصفح</button>
-              <div className="flex items-center gap-2">
-                <button onClick={()=>setBrowserPanelMode('mini')} className={`text-xs px-2 py-1 rounded ${browserPanelMode==='mini'?'bg-gray-600 text-white':'bg-gray-800 text-gray-300'}`}>مصغر</button>
-                <button onClick={()=>setBrowserPanelMode('half')} className={`text-xs px-2 py-1 rounded ${browserPanelMode==='half'?'bg-gray-600 text-white':'bg-gray-800 text-gray-300'}`}>نصف</button>
-                <button onClick={()=>setBrowserPanelMode('full')} className={`text-xs px-2 py-1 rounded ${browserPanelMode==='full'?'bg-gray-600 text-white':'bg-gray-800 text-gray-300'}`}>كامل</button>
               </div>
             </div>
           </div>
@@ -824,22 +747,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
               })}
             </div>
           </div>
-          <div className="w-2/5 border-l border-gray-800 p-3">
-            <div className="text-sm text-gray-300 mb-2">معاينة المتصفح</div>
-            <div className="w-full h-[420px] border border-gray-800 rounded-xl overflow-hidden">
-              <JoeScreen
-                isProcessing={isProcessing}
-                progress={progress}
-                wsLog={[]}
-                onTakeover={() => {}}
-                onClose={() => setShowBrowserPanel(false)}
-                initialUrl={browserInitialUrl}
-                initialSearchQuery={browserInitialSearch}
-                autoOpenOnSearch={browserAutoOpenFirst}
-                embedded={true}
-              />
-            </div>
-          </div>
+          
         </div>
       ) : (
       <div className="flex-1 overflow-y-auto relative" ref={scrollContainerRef} style={{ scrollBehavior: 'smooth', overscrollBehavior: 'contain', overflowAnchor: 'none' }}>
