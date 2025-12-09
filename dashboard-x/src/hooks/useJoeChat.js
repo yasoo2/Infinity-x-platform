@@ -15,6 +15,15 @@ const sanitizeCompetitors = (text) => {
   } catch { return String(text || ''); }
 };
 
+const isLegacyWelcome = (s) => {
+  try {
+    const t = String(s || '');
+    return /(Your AI-powered engineering partner|Chat & Ask|Build & Create|Analyze & Process|Welcome to Joe AI Assistant|مرحبًا بك في مساعد Joe الذكي|شريكك الهندسي المدعوم|المحادثة والسؤال|البناء والإنشاء|التحليل والمعالجة)/i.test(t);
+  } catch {
+    return false;
+  }
+};
+
 const getLang = () => {
   try {
     const v = localStorage.getItem('lang');
@@ -147,6 +156,11 @@ const chatReducer = (state, action) => {
             const lastMessage = convo.messages[convo.messages.length - 1];
             const normalizeJoeLine = (s) => String(s || '').split('\n').map(l => l.replace(/^\s*joe\b[\s:–-]*?/i, '')).join('\n');
             const incomingContent = action.payload.type === 'joe' ? normalizeJoeLine(action.payload.content) : action.payload.content;
+            if (action.payload.type === 'joe' && isLegacyWelcome(incomingContent)) {
+                const updatedConvo = { ...convo };
+                const nextConversations = { ...conversations, [convoId]: updatedConvo };
+                return { ...state, conversations: nextConversations, currentConversationId: convoId };
+            }
             let updatedMessages;
             if (lastMessage && lastMessage.type === 'joe' && action.payload.type === 'joe') {
                 updatedMessages = [...convo.messages.slice(0, -1), { ...lastMessage, content: lastMessage.content + incomingContent }];
@@ -167,6 +181,10 @@ const chatReducer = (state, action) => {
             if (!convo) { convo = { id: convoId, title: 'New Conversation', messages: [], lastModified: Date.now(), pinned: false }; }
             const normalizeJoeLine = (s) => String(s || '').split('\n').map(l => l.replace(/^\s*joe\b[\s:–-]*?/i, '')).join('\n');
             const content = normalizeJoeLine(action.payload || '');
+            if (isLegacyWelcome(content)) {
+                const nextConversations = { ...conversations, [convoId]: { ...convo } };
+                return { ...state, conversations: nextConversations, currentConversationId: convoId };
+            }
             const lastMessage = convo.messages[convo.messages.length - 1];
             let updatedMessages;
             if (lastMessage && lastMessage.type === 'joe') {
@@ -295,7 +313,8 @@ const chatReducer = (state, action) => {
             const { id, messages } = action.payload;
             const convo = state.conversations[id];
             if (!convo) return state;
-            const sorted = [...messages].sort((a, b) => {
+            const filtered = [...messages].filter((m) => !(m?.type === 'joe' && isLegacyWelcome(m?.content)));
+            const sorted = filtered.sort((a, b) => {
               const ta = typeof a.createdAt === 'number' ? a.createdAt : 0;
               const tb = typeof b.createdAt === 'number' ? b.createdAt : 0;
               if (ta !== tb) return ta - tb;
@@ -625,10 +644,6 @@ export const useJoeChat = () => {
       if (savedHistory) {
         const parsed = JSON.parse(savedHistory);
         const normalized = normalizeConversationsData(parsed?.conversations);
-        const isLegacyWelcome = (s) => {
-          const t = String(s || '');
-          return /(Your AI-powered engineering partner|Chat & Ask|Build & Create|Analyze & Process|Welcome to Joe AI Assistant|مرحبًا بك في مساعد Joe الذكي|شريكك الهندسي المدعوم|المحادثة والسؤال|البناء والإنشاء|التحليل والمعالجة)/i.test(t);
-        };
         const cleaned = (() => {
           const out = {};
           for (const [id, convo] of Object.entries(normalized || {})) {
@@ -663,7 +678,7 @@ export const useJoeChat = () => {
         try { return i?.metadata?.timestamp ? new Date(i.metadata.timestamp).getTime() : Date.now(); } catch { return Date.now(); }
       })();
       if (i?.command) messages.push({ type: 'user', content: i.command, id: uuidv4(), createdAt: ts + (seq++) });
-      if (i?.result) messages.push({ type: 'joe', content: i.result, id: uuidv4(), createdAt: ts + (seq++) });
+      if (i?.result && !isLegacyWelcome(i.result)) messages.push({ type: 'joe', content: i.result, id: uuidv4(), createdAt: ts + (seq++) });
     }
     const sid = session._id || session.id;
     const prev = sid ? (stateRef.current?.conversations?.[sid] || null) : null;
