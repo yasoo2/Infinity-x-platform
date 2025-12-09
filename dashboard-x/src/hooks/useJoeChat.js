@@ -569,10 +569,12 @@ export const useJoeChat = () => {
   }, [state.currentConversationId, state.conversations, selectConversationSafe]);
 
   useEffect(() => {
-    const c = globalThis && globalThis.console ? globalThis.console : null;
-    const origLog = c && c['log'] ? c['log'] : null;
-    const origWarn = c && c['warn'] ? c['warn'] : null;
-    const origError = c && c['error'] ? c['error'] : null;
+    const isDev = Boolean(import.meta?.env?.DEV);
+    if (!isDev) return () => {};
+    let c = globalThis && globalThis.console ? globalThis.console : null;
+    let origLog = c && c['log'] ? c['log'] : null;
+    let origWarn = c && c['warn'] ? c['warn'] : null;
+    let origError = c && c['error'] ? c['error'] : null;
     if (c && origLog) c['log'] = (...args) => {
       try { dispatch({ type: 'ADD_WS_LOG', payload: { id: Date.now(), type: 'info', text: args.map(a=>typeof a==='string'?a:JSON.stringify(a)).join(' ') } }); } catch { void 0; }
       return args.length, undefined;
@@ -619,18 +621,22 @@ export const useJoeChat = () => {
     };
     const onAuthUnauthorized = () => { try { dispatch({ type: 'ADD_WS_LOG', payload: { id: Date.now(), type: 'warning', text: 'Unauthorized: redirecting to login' } }); } catch { void 0; } };
     const onAuthForbidden = (ev) => { try { dispatch({ type: 'ADD_WS_LOG', payload: { id: Date.now(), type: 'warning', text: `Forbidden: ${JSON.stringify(ev.detail||{})}` } }); } catch { void 0; } };
-    window.addEventListener('error', onWindowError);
-    window.addEventListener('unhandledrejection', onRejection);
-    window.addEventListener('auth:unauthorized', onAuthUnauthorized);
-    window.addEventListener('auth:forbidden', onAuthForbidden);
+    if (isDev) {
+      window.addEventListener('error', onWindowError);
+      window.addEventListener('unhandledrejection', onRejection);
+      window.addEventListener('auth:unauthorized', onAuthUnauthorized);
+      window.addEventListener('auth:forbidden', onAuthForbidden);
+    }
     return () => {
-      if (c && origLog) c['log'] = origLog;
-      if (c && origWarn) c['warn'] = origWarn;
-      if (c && origError) c['error'] = origError;
-      window.removeEventListener('error', onWindowError);
-      window.removeEventListener('unhandledrejection', onRejection);
-      window.removeEventListener('auth:unauthorized', onAuthUnauthorized);
-      window.removeEventListener('auth:forbidden', onAuthForbidden);
+      if (isDev) {
+        if (c && origLog) c['log'] = origLog;
+        if (c && origWarn) c['warn'] = origWarn;
+        if (c && origError) c['error'] = origError;
+        window.removeEventListener('error', onWindowError);
+        window.removeEventListener('unhandledrejection', onRejection);
+        window.removeEventListener('auth:unauthorized', onAuthUnauthorized);
+        window.removeEventListener('auth:forbidden', onAuthForbidden);
+      }
     };
   });
 
