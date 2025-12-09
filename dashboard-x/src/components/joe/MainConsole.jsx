@@ -764,6 +764,23 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                     Number(prev.createdAt || 0) === Number(m.createdAt || 0)
                   );
                 });
+                const coalesced = [];
+                for (const m of orderedDedup) {
+                  const last = coalesced[coalesced.length - 1];
+                  const dt = Math.abs(Number(m.createdAt || 0) - Number(last?.createdAt || 0));
+                  const sameSender = !!(last && last.type === m.type);
+                  const isJoe = String(m.type || '') !== 'user';
+                  const sCurr = String(m.content || '');
+                  const sPrev = String(last?.content || '');
+                  const similar = sameSender && isJoe && dt <= 3000 && (sCurr.startsWith(sPrev) || sPrev.startsWith(sCurr));
+                  if (similar) {
+                    const longer = sCurr.length >= sPrev.length ? sCurr : sPrev;
+                    const merged = { ...m, content: longer, id: m.id || last.id, createdAt: Math.max(Number(m.createdAt || 0), Number(last.createdAt || 0)) };
+                    coalesced[coalesced.length - 1] = merged;
+                  } else {
+                    coalesced.push(m);
+                  }
+                }
                 const renderContent = (text) => {
                   const t = String(text || '');
                   const urlRe = /((https?:\/\/)?(?:www\.)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s)]+)?)/gi;
@@ -900,9 +917,9 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                     </>
                   );
                 };
-                return orderedDedup.map((msg, index) => (
+                return coalesced.map((msg, index) => (
                   <div 
-                    key={msg.id || index} 
+                    key={msg.id || `${msg.createdAt||0}-${index}`} 
                     className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'} items-start gap-3 mb-4`}
                   >
                     {msg.type !== 'user' && (
@@ -1297,9 +1314,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
             </div>
             <span className="text-[10px] text-gray-400">#{reconnectAttempt}</span>
           </div>
-        </div>
       )}
-    </div>
     </div>
   );
 };
