@@ -385,7 +385,6 @@ const JoeContent = () => {
             onPinToggle={pinToggle}
             onDuplicate={duplicateConversation}
             onClear={clearMessages}
-            onToggleCollapse={toggleSidePanel}
             lang={lang}
           />
           <div
