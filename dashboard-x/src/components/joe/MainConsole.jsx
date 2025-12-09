@@ -47,6 +47,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   const contentRef = useRef(null);
   const showScrollRef = useRef(false);
   const [showScrollButton, setShowScrollButton] = React.useState(false);
+  const [isUserPinned, setIsUserPinned] = React.useState(false);
   const inputAreaRef = useRef(null);
   const [inputAreaHeight, setInputAreaHeight] = React.useState(0);
   const [lang, setLang] = React.useState(() => {
@@ -217,14 +218,14 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
       const delta = newH - prevH;
       if (!wasAtBottom && delta > 0) {
         runWithAutoScroll((node) => { node.scrollTop = prevTop + delta; });
-      } else if (wasAtBottom) {
+      } else if (wasAtBottom && !isUserPinned) {
         runWithAutoScroll((node) => { node.scrollTop = node.scrollHeight; });
         setShowScrollButton(false);
       }
       lastScrollHeightRef.current = el.scrollHeight;
       lastScrollTopRef.current = el.scrollTop;
     });
-  }, [messages.length, lastContent, inputAreaHeight]);
+  }, [messages.length, lastContent, inputAreaHeight, isUserPinned]);
 
   // عند تبديل المحادثة، انتقل دائماً إلى آخر رسالة
   useEffect(() => {
@@ -239,32 +240,18 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   useEffect(() => {
     if (messages.length > prevMsgCountRef.current) {
       const last = messages[messages.length - 1];
-      if (last?.type === 'user') {
+      if (!isUserPinned) {
         requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            const el = scrollContainerRef.current;
-            if (!el) return;
-            runWithAutoScroll((node) => { node.scrollTop = node.scrollHeight; });
-            setShowScrollButton(false);
-          });
+          const el = scrollContainerRef.current;
+          if (!el) return;
+          runWithAutoScroll((node) => { node.scrollTop = node.scrollHeight; });
+          setShowScrollButton(false);
         });
-      }
-      if (last?.type !== 'user') {
-        const el = scrollContainerRef.current;
-        if (el) {
-          const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
-          if (distance <= 300) {
-            requestAnimationFrame(() => {
-              runWithAutoScroll((node) => { node.scrollTop = node.scrollHeight; });
-              setShowScrollButton(false);
-            });
-          }
-        }
       }
       prevMsgCountRef.current = messages.length;
       lastSenderRef.current = last?.type;
     }
-  }, [messages]);
+  }, [messages, isUserPinned]);
 
   
 
@@ -432,6 +419,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
     showScrollRef.current = !atBottom;
     setShowScrollButton(!atBottom);
+    setIsUserPinned(!atBottom);
     lastScrollTopRef.current = el.scrollTop;
     lastScrollHeightRef.current = el.scrollHeight;
   };
@@ -458,7 +446,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
       const delta = newH - prevH;
       if (!wasAtBottom && delta > 0) {
         runWithAutoScroll((node) => { node.scrollTop = prevTop + delta; });
-      } else if (wasAtBottom) {
+      } else if (wasAtBottom && !isUserPinned) {
         runWithAutoScroll((node) => { node.scrollTop = node.scrollHeight; });
         setShowScrollButton(false);
       }
@@ -767,6 +755,15 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                   const wb = b.type === 'user' ? 0 : 1;
                   return wa - wb;
                 });
+                const orderedDedup = ordered.filter((m, i) => {
+                  if (i === 0) return true;
+                  const prev = ordered[i - 1];
+                  return !(
+                    prev.type === m.type &&
+                    String(prev.content || '') === String(m.content || '') &&
+                    Number(prev.createdAt || 0) === Number(m.createdAt || 0)
+                  );
+                });
                 const renderContent = (text) => {
                   const t = String(text || '');
                   const urlRe = /((https?:\/\/)?(?:www\.)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s)]+)?)/gi;
@@ -903,7 +900,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                     </>
                   );
                 };
-                return ordered.map((msg, index) => (
+                return orderedDedup.map((msg, index) => (
                   <div 
                     key={msg.id || index} 
                     className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'} items-start gap-3 mb-4`}
