@@ -24,7 +24,7 @@ const JoeContent = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [panelStyles, setPanelStyles] = useState({ left: { color: '#1f2937', width: 1, radius: 0 }, right: { color: '#1f2937', width: 1, radius: 0 } });
   const toggleBottomPanel = () => setIsBottomPanelOpen(!isBottomPanelOpen);
-  const [leftWidth, setLeftWidth] = useState(288);
+  const [leftWidth, setLeftWidth] = useState(240);
   const [rightWidth, setRightWidth] = useState(320);
   const [dragLeft, setDragLeft] = useState(false);
   const [dragRight, setDragRight] = useState(false);
@@ -371,7 +371,7 @@ const JoeContent = () => {
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
         {/* Removed ActivityBar to free space and use TopBar toggles */}
-        <div className={`relative z-0 bg-gray-900 flex-shrink-0 ${panelStyles.left.width === 0 ? 'border-r border-gray-800' : ''}`} style={{ ...leftStyle, width: isMobile ? Math.min(leftWidth, 360) : leftWidth }}>
+        <div className={`relative z-0 bg-gray-900 flex-shrink-0 ${panelStyles.left.width === 0 ? 'border-r border-gray-800' : ''}`} style={{ ...leftStyle, width: isMobile ? Math.min(leftWidth, 320) : leftWidth }}>
           <SidePanel 
             conversations={conversationsList} 
             currentConversationId={currentConversationId}
