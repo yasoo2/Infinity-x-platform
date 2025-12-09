@@ -108,26 +108,42 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   );
   StyledJoe.propTypes = { className: PropTypes.string };
 
-  const JoeBadge = ({ size = 'sm' }) => {
+  const JoeBadge = ({ size = 'sm', state = 'ready' }) => {
     const px = size === 'lg' ? 36 : (size === 'md' ? 28 : 20);
+    const gradId = React.useMemo(() => `joeHexGrad-${Math.random().toString(36).slice(2)}`, []);
+    const palette = (() => {
+      if (state === 'thinking') return ['#a78bfa', '#7c3aed', '#6d28d9'];
+      if (state === 'typing') return ['#60a5fa', '#3b82f6', '#2563eb'];
+      if (state === 'deploy') return ['#fcd34d', '#f59e0b', '#d97706'];
+      if (state === 'offline') return ['#9ca3af', '#6b7280', '#374151'];
+      return ['#fde047', '#f59e0b', '#eab308'];
+    })();
+    const strokeColor = state === 'offline' ? '#ef4444' : palette[2];
     return (
       <span className="inline-flex items-center justify-center" style={{ width: px, height: px }}>
         <svg viewBox="0 0 64 64" width="100%" height="100%" style={{ display: 'block' }}>
           <defs>
-            <linearGradient id="joeHexGrad" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#fde047" />
-              <stop offset="60%" stopColor="#f59e0b" />
-              <stop offset="100%" stopColor="#eab308" />
+            <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor={palette[0]} />
+              <stop offset="60%" stopColor={palette[1]} />
+              <stop offset="100%" stopColor={palette[2]} />
             </linearGradient>
           </defs>
-          <polygon points="32,6 52,18 52,46 32,58 12,46 12,18" fill="url(#joeHexGrad)" stroke="#fbbf24" strokeWidth="2" />
-          <circle cx="32" cy="32" r="18" fill="#0b1220" opacity="0.85" />
-          <text x="32" y="39" textAnchor="middle" fontSize="28" fontWeight="900" fill="#eab308">J</text>
+          <polygon points="32,6 52,18 52,46 32,58 12,46 12,18" fill={`url(#${gradId})`} stroke={strokeColor} strokeWidth="2">
+            {state === 'thinking' && (<animateTransform attributeName="transform" type="rotate" from="0 32 32" to="360 32 32" dur="12s" repeatCount="indefinite" />)}
+            {state === 'typing' && (<animate attributeName="opacity" values="1;0.85;1" dur="1.8s" repeatCount="indefinite" />)}
+            {state === 'deploy' && (<animate attributeName="opacity" values="1;0.9;1" dur="1.2s" repeatCount="indefinite" />)}
+          </polygon>
+          <circle cx="32" cy="32" r="18" fill="#0b1220" opacity="0.85">
+            {state === 'typing' && (<animate attributeName="opacity" values="0.85;0.7;0.85" dur="1.8s" repeatCount="indefinite" />)}
+            {state === 'deploy' && (<animate attributeName="opacity" values="0.85;0.75;0.85" dur="1.2s" repeatCount="indefinite" />)}
+          </circle>
+          <text x="32" y="39" textAnchor="middle" fontSize="28" fontWeight="900" fill={strokeColor}>J</text>
         </svg>
       </span>
     );
   };
-  JoeBadge.propTypes = { size: PropTypes.oneOf(['sm','md','lg']) };
+  JoeBadge.propTypes = { size: PropTypes.oneOf(['sm','md','lg']), state: PropTypes.oneOf(['ready','thinking','typing','deploy','offline']) };
 
   const lastContent = messages[messages.length - 1]?.content || '';
   const lastScrollHeightRef = useRef(0);
@@ -705,7 +721,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
             <div className="text-sm text-gray-300">لوحة التحكم</div>
             <div className="p-2 rounded-lg bg-gray-800 border border-gray-700">
               <div className="flex items-center gap-2">
-                <JoeBadge size="lg" />
+                {(() => { const hasThought = Array.isArray(plan) && plan.slice(-5).some(s => s?.type === 'thought'); const hasDeploy = Array.isArray(plan) && plan.slice(-5).some(s => { const t = String(s?.type||'').toLowerCase(); const txt = String(s?.title||s?.step||s?.content||''); return t==='deploy' || /deploy|push|publish|run|execute|start/i.test(txt); }); const badgeState = !wsConnected ? 'offline' : (isProcessing ? (hasDeploy ? 'deploy' : (hasThought ? 'thinking' : 'typing')) : 'ready'); return (<JoeBadge size="lg" state={badgeState} />); })()}
                 <div>
                   <div className="text-xs text-gray-200"><StyledJoe /> Agent</div>
                   <div className={`text-[11px] ${wsConnected? 'text-green-300':'text-red-300'}`}>{wsConnected? (lang==='ar'?'متصل':'Online') : (lang==='ar'?'غير متصل':'Offline')}</div>
@@ -950,7 +966,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 text-xs text-gray-300 mb-2">
-                          <JoeBadge size="sm" />
+                          {(() => { const hasThought = Array.isArray(plan) && plan.slice(-5).some(s => s?.type === 'thought'); const hasDeploy = Array.isArray(plan) && plan.slice(-5).some(s => { const t = String(s?.type||'').toLowerCase(); const txt = String(s?.title||s?.step||s?.content||''); return t==='deploy' || /deploy|push|publish|run|execute|start/i.test(txt); }); const badgeState = !wsConnected ? 'offline' : (isProcessing ? (hasDeploy ? 'deploy' : (hasThought ? 'thinking' : 'typing')) : 'ready'); return (<JoeBadge size="sm" state={badgeState} />); })()}
                           <StyledJoe className="tracking-wide" />
                         </div>
                       )}
