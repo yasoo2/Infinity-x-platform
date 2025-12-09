@@ -128,8 +128,14 @@ const chatReducer = (state, action) => {
 	        nextState.currentConversationId = convoId;
 	    }
 	    const convo = nextState.conversations[convoId];
-	    const newMessage = { type: 'user', content: inputText, id: uuidv4(), createdAt: Date.now() };
-	    const updatedMessages = [...(convo?.messages || []), newMessage];
+            const lastMsg = Array.isArray(convo?.messages) ? convo.messages[convo.messages.length - 1] : null;
+            const normUser = (s) => String(s || '').replace(/\s+/g, ' ').trim();
+            // Guard against duplicate user sends (e.g., button + Enter or HMR)
+            if (lastMsg && lastMsg.type === 'user' && normUser(lastMsg.content) === normUser(inputText)) {
+                return nextState;
+            }
+            const newMessage = { type: 'user', content: inputText, id: uuidv4(), createdAt: Date.now() };
+            const updatedMessages = [...(convo?.messages || []), newMessage];
             const title = (!convo?.title || convo?.title === 'New Conversation') ? normalizeTitle(inputText) : convo.title;
             nextState.conversations = {
                 ...nextState.conversations,
@@ -159,6 +165,12 @@ const chatReducer = (state, action) => {
             if (action.payload.type === 'joe' && isLegacyWelcome(incomingContent)) {
                 const updatedConvo = { ...convo };
                 const nextConversations = { ...conversations, [convoId]: updatedConvo };
+                return { ...state, conversations: nextConversations, currentConversationId: convoId };
+            }
+            const norm = (s) => String(s || '').replace(/\s+/g, ' ').trim();
+            // Sequential duplicate guard for both user and joe
+            if (lastMessage && lastMessage.type === action.payload.type && norm(lastMessage.content) === norm(incomingContent)) {
+                const nextConversations = { ...conversations, [convoId]: { ...convo } };
                 return { ...state, conversations: nextConversations, currentConversationId: convoId };
             }
             let updatedMessages;
@@ -322,7 +334,14 @@ const chatReducer = (state, action) => {
               const wb = b.type === 'user' ? 0 : 1;
               return wa - wb;
             });
-            const updated = { ...convo, messages: sorted };
+            const norm = (s) => String(s || '').replace(/\s+/g, ' ').trim();
+            const dedup = [];
+            for (const m of sorted) {
+              const last = dedup[dedup.length - 1];
+              if (last && last.type === m.type && norm(last.content) === norm(m.content)) continue;
+              dedup.push(m);
+            }
+            const updated = { ...convo, messages: dedup };
             return { ...state, conversations: { ...state.conversations, [id]: updated } };
         }
 
@@ -414,6 +433,8 @@ export const useJoeChat = () => {
   const sioErrorCountRef = useRef(0);
   const streamBufferRef = useRef('');
   const streamFlushTimerRef = useRef(null);
+  const sendLockRef = useRef(false);
+  const lastSentTextRef = useRef({ text: '', ts: 0 });
   const appendStreamChunk = useCallback((text) => {
     try {
       const t = sanitizeCompetitors(String(text || '').trim());
@@ -1792,6 +1813,13 @@ export const useJoeChat = () => {
   const handleSend = useCallback(async () => {
     const inputText = state.input.trim();
     if (!inputText) return;
+    const nowTs = Date.now();
+    if (sendLockRef.current) return;
+    const last = lastSentTextRef.current || { text: '', ts: 0 };
+    if (last.text && last.text.replace(/\s+/g,' ').trim() === inputText.replace(/\s+/g,' ').trim() && (nowTs - last.ts) < 1200) {
+      return;
+    }
+    sendLockRef.current = true;
     try {
       const detected = detectLangFromText(inputText);
       localStorage.setItem('lang', detected);
@@ -2062,7 +2090,10 @@ export const useJoeChat = () => {
         }
       })();
     };
+    
     trySend();
+    lastSentTextRef.current = { text: inputText, ts: Date.now() };
+    sendLockRef.current = false;
   }, [state.input, state.currentConversationId, state.conversations]);
 
   useEffect(() => {
