@@ -239,7 +239,9 @@ const chatReducer = (state, action) => {
             const explicitId = (typeof action.payload === 'object' && action.payload.id) ? action.payload.id : null;
             const newId = explicitId || uuidv4();
             console.warn('[NEW_CONVERSATION] Creating new conversation with ID:', newId);
-            const dynamicText = typeof action.payload === 'object' && action.payload.welcomeMessage ? action.payload.welcomeMessage : 'Welcome to Joe AI Assistant! 👋';
+            const lang = getLang();
+            const defaultText = lang === 'ar' ? 'مرحبًا بك في مساعد Joe الذكي! 👋' : 'Welcome to Joe AI Assistant! 👋';
+            const dynamicText = typeof action.payload === 'object' && action.payload.welcomeMessage ? action.payload.welcomeMessage : defaultText;
             const welcomeMessage = { type: 'joe', content: dynamicText, id: uuidv4(), createdAt: Date.now() };
             const newConversations = {
                 ...conversations,
