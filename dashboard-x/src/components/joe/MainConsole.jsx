@@ -973,6 +973,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
             </div>
             );
           })()}
+        </div>
       </div>
       )}
       {/* Scroll To Bottom - Floating Button */}
@@ -1275,24 +1276,9 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
         
         {/* Robot moved to Joe page and enhanced */}
       </div>
-      {/* Reconnect Mini Chip - Fixed at bottom-right */}
-      {(!wsConnected && reconnectActive) && (
-        <div className="fixed right-6 z-50 select-none pointer-events-none" style={{ bottom: Math.max(12, inputAreaHeight + 12) }}>
-          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-gray-900/85 border border-yellow-500/40 shadow-lg backdrop-blur-sm">
-            <span className="text-[10px] font-medium text-yellow-300">
-              {lang==='ar' ? 'إعادة الاتصال' : 'Reconnect'} {Math.ceil((reconnectRemainingMs||0)/1000)}s
-            </span>
-            <div className="w-16 h-1 bg-gray-700 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-yellow-500 transition-all"
-                style={{ width: `${Math.max(0, Math.min(100, 100 - ((reconnectRemainingMs||0) / Math.max(1, reconnectDelayMs||1))*100))}%` }}
-              />
-            </div>
-            <span className="text-[10px] text-gray-400">#{reconnectAttempt}</span>
-          </div>
-        </div>
-      )}
-    </div>
+      </div>
+      </div>
+      </div>
   );
 };
 
