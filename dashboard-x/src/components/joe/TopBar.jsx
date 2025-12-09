@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiMaximize2, FiLogOut, FiSidebar, FiActivity, FiUsers, FiTerminal } from 'react-icons/fi';
+import { FiMaximize2, FiLogOut, FiUsers, FiTerminal } from 'react-icons/fi';
 import { Sparkles, Key, ExternalLink, Search as SearchIcon } from 'lucide-react';
 import { getAIProviders, validateAIKey, activateAIProvider } from '../../api/system';
 import apiClient from '../../api/client';
@@ -18,7 +18,7 @@ import PropTypes from 'prop-types';
 import { useSessionToken } from '../../hooks/useSessionToken';
 import { useNavigate } from 'react-router-dom';
 
-const TopBar = ({ onToggleStatus, isStatusOpen, onToggleBorderSettings, isBorderSettingsOpen, isSuperAdmin, onToggleRight: _onToggleRight, isRightOpen: _isRightOpen, onToggleLogs, isLogsOpen }) => {
+const TopBar = ({ onToggleBorderSettings, isBorderSettingsOpen, isSuperAdmin, onToggleLogs, isLogsOpen }) => {
   const { clearToken } = useSessionToken();
   const navigate = useNavigate();
   const [userMenuOpen, setUserMenuOpen] = React.useState(false);
@@ -334,21 +334,7 @@ const TopBar = ({ onToggleStatus, isStatusOpen, onToggleBorderSettings, isBorder
         
 
 
-        {/* Toggle System Status Panel */}
-        <div className="relative inline-flex items-center">
-        <button
-          onClick={() => { okPulse('status','toggle'); onToggleStatus(); }}
-          className={`p-1.5 w-7 h-7 inline-flex items-center justify-center rounded-lg transition-colors ${
-            isStatusOpen 
-              ? 'bg-yellow-600 text-black hover:bg-yellow-700' 
-              : 'bg-gray-800 text-gray-300 hover:bg-gray-700 border border-yellow-600/40'
-          }`}
-          title={isStatusOpen ? (lang==='ar'?'إخفاء حالة النظام':'Hide System Status') : (lang==='ar'?'إظهار حالة النظام':'Show System Status')}
-        >
-          <FiActivity size={14} />
-        </button>
-        {okKey==='status' && (<span className={`absolute -top-1 -right-1 text-[10px] px-1 py-0.5 rounded-full ${okKind==='toggle' ? 'bg-yellow-500 border-yellow-400' : 'bg-green-600 border-green-500'} text-black shadow-sm`}>✓</span>)}
-        </div>
+        
 
         <div className="relative inline-flex items-center">
         <button
@@ -463,10 +449,6 @@ const TopBar = ({ onToggleStatus, isStatusOpen, onToggleBorderSettings, isBorder
 };
 
 TopBar.propTypes = {
-  onToggleRight: PropTypes.func.isRequired,
-  isRightOpen: PropTypes.bool.isRequired,
-  onToggleStatus: PropTypes.func.isRequired,
-  isStatusOpen: PropTypes.bool.isRequired,
   onToggleBorderSettings: PropTypes.func.isRequired,
   onToggleLogs: PropTypes.func.isRequired,
   isLogsOpen: PropTypes.bool.isRequired,
