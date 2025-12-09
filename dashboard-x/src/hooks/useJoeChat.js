@@ -3,7 +3,7 @@ import { useReducer, useEffect, useCallback, useRef } from 'react';
 import { io } from 'socket.io-client';
 import apiClient from '../api/client';
 import { v4 as uuidv4 } from 'uuid';
-import { getChatSessions, getChatSessionById, getGuestToken, getSystemStatus, createChatSession, updateChatSession, addChatMessage, getChatMessages, deleteChatSession, executeJoe } from '../api/system';
+import { getChatSessions, getChatSessionById, getGuestToken, createChatSession, updateChatSession, addChatMessage, getChatMessages, deleteChatSession, executeJoe } from '../api/system';
 
 const JOE_CHAT_HISTORY = 'joeChatHistory';
 
@@ -393,7 +393,7 @@ export const useJoeChat = () => {
   const heartbeatIntervalRef = useRef(null);
   const pendingDeleteIdsRef = useRef(new Map());
   const initialLoadDoneRef = useRef(false);
-  const newConversationGuardRef = useRef({ ts: 0, sig: '' });
+  
   const lastSelectionRef = useRef({ id: null, ts: 0 });
   const sioErrorCountRef = useRef(0);
   const streamBufferRef = useRef('');
