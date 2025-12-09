@@ -61,7 +61,7 @@ const SidePanel = ({ conversations, onConversationSelect, onNewConversation, cur
       <div 
         key={convo.id}
         onClick={() => { setLastViewed(convo.id, Date.now()); onConversationSelect(convo.id); }}
-        className={`relative px-5 py-3.5 mx-2 my-2 rounded-2xl cursor-pointer transition-all duration-300 border hover:-translate-y-0.5 ${
+        className={`relative px-5 py-3.5 mx-2 my-2 rounded-2xl cursor-pointer transition-colors duration-200 border ${
           currentConversationId === convo.id 
             ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black border-yellow-600 shadow-lg' 
             : 'bg-gray-800/60 text-gray-200 hover:bg-gray-700/60 border-gray-700 ring-1 ring-white/10 backdrop-blur-sm'

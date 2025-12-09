@@ -941,8 +941,8 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                     <div 
                       className={`relative max-w-[88%] sm:max-w-[80%] md:max-w-[70%] rounded-3xl px-6 py-5 ${
                         msg.type === 'user' 
-                          ? 'bg-gradient-to-br from-[#0f172a] to-[#0b1220] text-gray-100 border border-yellow-500/40 shadow-lg backdrop-blur-sm ring-1 ring-yellow-500/30 transition-all hover:shadow-xl hover:-translate-y-0.5' 
-                          : 'bg-gradient-to-br from-[#0f172a]/80 to-[#0b1220]/80 text-gray-100 border border-gray-700 shadow-lg backdrop-blur-sm ring-1 ring-white/10 transition-all hover:shadow-xl hover:-translate-y-0.5'
+                          ? 'bg-gradient-to-br from-[#0f172a] to-[#0b1220] text-gray-100 border border-yellow-500/40 shadow-lg backdrop-blur-sm ring-1 ring-yellow-500/30 transition-colors hover:shadow-xl' 
+                          : 'bg-gradient-to-br from-[#0f172a]/80 to-[#0b1220]/80 text-gray-100 border border-gray-700 shadow-lg backdrop-blur-sm ring-1 ring-white/10 transition-colors hover:shadow-xl'
                       }`}
                     >
                       {msg.type === 'user' ? (
