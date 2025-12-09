@@ -82,24 +82,28 @@ const Knowledge = React.lazy(() => import('./pages/Knowledge'));
 // Legacy JoeScreenPage removed
 
 
-const AppRoutes = () => {
-  class ErrorBoundary extends React.Component {
-    constructor(props) { super(props); this.state = { hasError: false, error: null }; }
-    static getDerivedStateFromError(error) { return { hasError: true, error }; }
-    componentDidCatch(error) { try { console.error('UI Error:', error); } catch { /* noop */ } }
-    render() {
-      if (this.state.hasError) {
-        const msg = String(this.state.error?.message || 'Unexpected error');
-        return (
-          <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: '#0B1220' }}>
-            <div style={{ padding: 24, borderRadius: 12, border: '1px solid #334155', background: '#111827', color: '#e2e8f0', maxWidth: 600, width: '90%' }}>
-              <div style={{ fontSize: 18, fontWeight: 700, color: '#38bdf8', marginBottom: 8 }}>حدث خطأ في الواجهة</div>
-              <div style={{ fontSize: 14, marginBottom: 12 }}>{msg}</div>
-              <button onClick={() => location.reload()} style={{ background: '#0ea5e9', color: 'white', padding: '8px 12px', borderRadius: 8 }}>إعادة التحميل</button>
+  const AppRoutes = () => {
+    class ErrorBoundary extends React.Component {
+      constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+      static getDerivedStateFromError(error) { return { hasError: true, error }; }
+      componentDidCatch(error) { try { console.error('UI Error:', error); } catch { /* noop */ } }
+      render() {
+        if (this.state.hasError) {
+          const msg = String(this.state.error?.message || 'Unexpected error');
+          const stack = String(this.state.error?.stack || '').trim();
+          return (
+            <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: '#0B1220' }}>
+              <div style={{ padding: 24, borderRadius: 12, border: '1px solid #334155', background: '#111827', color: '#e2e8f0', maxWidth: 600, width: '90%' }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: '#38bdf8', marginBottom: 8 }}>حدث خطأ في الواجهة</div>
+                <div style={{ fontSize: 14, marginBottom: 12 }}>{msg}</div>
+                {stack && (
+                  <pre style={{ fontSize: 12, lineHeight: 1.4, background: '#0b1220', padding: 12, borderRadius: 8, border: '1px solid #334155', overflowX: 'auto', maxHeight: 240 }}>{stack}</pre>
+                )}
+                <button onClick={() => location.reload()} style={{ background: '#0ea5e9', color: 'white', padding: '8px 12px', borderRadius: 8 }}>إعادة التحميل</button>
+              </div>
             </div>
-          </div>
-        );
-      }
+          );
+        }
       return this.props.children;
     }
   }
