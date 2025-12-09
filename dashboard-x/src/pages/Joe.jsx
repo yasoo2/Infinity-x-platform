@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { FiCheckCircle, FiActivity, FiZap } from 'react-icons/fi';
+import { getAIProviders } from '../api/system';
 import { useNavigate } from 'react-router-dom';
 import TopBar from '../components/joe/TopBar';
 import apiClient from '../api/client';
@@ -115,11 +116,17 @@ const JoeContent = () => {
 
   const [miniHealth, setMiniHealth] = useState(null);
   const [miniRuntime, setMiniRuntime] = useState(null);
+  const [miniProvider, setMiniProvider] = useState(null);
   useEffect(() => {
     let mounted = true;
     const load = async () => {
       try { const { data } = await apiClient.get('/api/v1/health'); if (mounted) setMiniHealth(data); } catch { /* noop */ }
       try { const { data } = await apiClient.get('/api/v1/runtime-mode/status'); if (mounted) setMiniRuntime(data); } catch { /* noop */ }
+      try {
+        const prov = await getAIProviders();
+        const ap = prov?.activeProvider || null;
+        if (mounted) setMiniProvider(ap);
+      } catch { /* noop */ }
     };
     load();
     const id = setInterval(load, 6000);
@@ -151,6 +158,7 @@ const JoeContent = () => {
   const [dragState, setDragState] = useState(null);
   const wasDragging = React.useRef(false);
   const ROBOT_MARGIN = 16;
+  const [browserVisible, setBrowserVisible] = useState(false);
   useEffect(() => {
     const onMouseMove = (e) => {
       const el = robotRef.current;
@@ -168,6 +176,14 @@ const JoeContent = () => {
     };
     window.addEventListener('mousemove', onMouseMove);
     return () => window.removeEventListener('mousemove', onMouseMove);
+  }, []);
+
+  useEffect(() => {
+    const onBrowserVisible = (e) => {
+      try { setBrowserVisible(Boolean(e?.detail?.visible)); } catch { setBrowserVisible(false); }
+    };
+    window.addEventListener('joe:browser:visible', onBrowserVisible);
+    return () => window.removeEventListener('joe:browser:visible', onBrowserVisible);
   }, []);
 
   const computeRobotSize = useCallback(() => {
@@ -398,8 +414,31 @@ const JoeContent = () => {
           )}
         </div>
 
-        <div className={`fixed right-2 md:right-3 lg:right-4 ${isMobile ? 'bottom-16' : 'md:top-1/2 md:-translate-y-1/2'} z-40`} style={{ pointerEvents: 'none' }}>
+        <div className={`fixed ${browserVisible ? 'left-2 md:left-3 lg:left-4' : 'right-2 md:right-3 lg:right-4'} top-20 md:top-24 lg:top-28 z-40`} style={{ pointerEvents: 'none' }}>
           <div className="flex flex-col items-center gap-2 md:gap-2.5">
+            {(() => {
+              const map = {
+                openai: { name: 'OpenAI', logo: 'https://logo.clearbit.com/openai.com' },
+                gemini: { name: 'Google', logo: 'https://logo.clearbit.com/google.com' },
+                anthropic: { name: 'Anthropic', logo: 'https://logo.clearbit.com/anthropic.com' },
+                mistral: { name: 'Mistral', logo: 'https://logo.clearbit.com/mistral.ai' },
+                cohere: { name: 'Cohere', logo: 'https://logo.clearbit.com/cohere.com' },
+                groq: { name: 'Groq', logo: 'https://logo.clearbit.com/groq.com' },
+                openrouter: { name: 'OpenRouter', logo: 'https://logo.clearbit.com/openrouter.ai' },
+              };
+              const id = miniProvider || (miniRuntime?.activeProvider) || null;
+              const p = id ? map[String(id)] : null;
+              const title = lang==='ar' ? 'مزود الذكاء الصناعي النشط' : 'Active AI Provider';
+              return (
+                <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl border bg-white/90 text-black shadow-md grid place-items-center overflow-hidden" title={title} style={{ pointerEvents: 'auto' }}>
+                  {p?.logo ? (
+                    <img src={p.logo} alt={p.name||'AI'} className="w-full h-full object-cover"/>
+                  ) : (
+                    <span className="text-[11px] md:text-xs font-semibold">AI</span>
+                  )}
+                </div>
+              );
+            })()}
             {(() => {
               const ok = wsConnected === true;
               const cls = ok ? 'bg-emerald-500 text-black border-emerald-400' : 'bg-red-500 text-black border-red-400';

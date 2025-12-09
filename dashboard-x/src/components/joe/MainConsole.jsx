@@ -91,6 +91,10 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   const [viewMode, setViewMode] = React.useState('chat');
   const [expandedIds, setExpandedIds] = React.useState(new Set());
 
+  useEffect(() => {
+    try { window.dispatchEvent(new CustomEvent('joe:browser:visible', { detail: { visible: showBrowserPanel } })); } catch { /* noop */ }
+  }, [showBrowserPanel]);
+
   const { 
     messages, isProcessing, progress, 
     input, setInput, isListening, handleSend, stopProcessing,
@@ -719,7 +723,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
 
 
   return (
-    <div className="flex flex-col h-screen min-w-[1024px] bg-gray-900">
+    <div className="flex flex-col h-screen min-w-0 w-full bg-gray-900">
       <div className="flex items-center justify-between px-4 md:px-8 py-2 border-b border-gray-800">
         <div className="flex items-center gap-2 text-xs text-gray-300">
           <span className={`inline-flex items-center gap-1 px-2 py-1 rounded ${wsConnected ? 'bg-green-600/20 text-green-300' : 'bg-red-600/20 text-red-300'}`}>{wsConnected ? 'متصل' : 'غير متصل'}</span>
@@ -1065,14 +1069,14 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
 
       {/* Conversations strip removed to avoid duplication with left SidePanel */}
 
-      {/* Input Area - Fixed at Bottom, Centered and Spacious */}
-      <div className="border-t border-gray-800 bg-gray-900/98 backdrop-blur-sm" ref={inputAreaRef}>
+      {/* Input Area - Bottom, Centered, Responsive, Safe-area aware */}
+      <div className="sticky bottom-0 z-30 border-t border-gray-800 bg-gray-900/98 backdrop-blur-sm" ref={inputAreaRef} style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-3">
-            <div className={`flex items-end gap-3 bg-gray-900/70 backdrop-blur-sm border border-gray-700/80 rounded-2xl px-5 py-4 shadow-xl transition-all relative brand-ring ${dragActive ? 'ring-2 ring-yellow-500/70' : 'focus-within:ring-2 focus-within:ring-yellow-500'}`}
-            onDragEnter={(e) => { e.preventDefault(); setDragActive(true); }}
-            onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
-            onDragLeave={(e) => { if (e.currentTarget.contains(e.relatedTarget)) return; setDragActive(false); }}
-            onDrop={onDropFiles}
+          <div className={`flex items-end gap-3 bg-gray-900/70 backdrop-blur-sm border border-gray-700/80 rounded-2xl px-5 py-4 shadow-xl transition-all relative brand-ring ${dragActive ? 'ring-2 ring-yellow-500/70' : 'focus-within:ring-2 focus-within:ring-yellow-500'}`}
+          onDragEnter={(e) => { e.preventDefault(); setDragActive(true); }}
+          onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+          onDragLeave={(e) => { if (e.currentTarget.contains(e.relatedTarget)) return; setDragActive(false); }}
+          onDrop={onDropFiles}
           >
             {dragActive && (
               <div className="absolute inset-0 rounded-2xl border-2 border-yellow-500/60 bg-yellow-500/5 flex items-center justify-center text-xs text-yellow-300 pointer-events-none">
@@ -1084,6 +1088,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
               ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              onInput={(e) => { try { const ta = e.currentTarget; ta.style.height = 'auto'; const maxH = 160; ta.style.height = Math.min(maxH, ta.scrollHeight) + 'px'; } catch { /* noop */ } }}
               onKeyDown={(e) => {
                 const composing = e.isComposing || (e.nativeEvent && e.nativeEvent.isComposing) || e.keyCode === 229;
                 if (composing) return;
@@ -1097,8 +1102,8 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
               }}
               placeholder={lang==='ar' ? 'اكتب رسالة لـ Joe… (Shift+Enter سطر جديد)' : 'Message Joe... (Shift+Enter for new line)'}
               className="flex-1 bg-gray-900/40 outline-none resize-none text-white placeholder-gray-500 text-sm leading-relaxed border border-gray-700 rounded-xl px-4 focus:bg-gray-900/50 focus:border-yellow-500"
-              rows={1}
-              style={{ height: '42px', minHeight: '42px', maxHeight: '42px' }}
+              rows={2}
+              style={{ minHeight: '44px', maxHeight: '160px' }}
               
             />
 
