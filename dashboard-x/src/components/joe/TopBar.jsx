@@ -408,8 +408,8 @@ const TopBar = ({ onToggleBorderSettings, isBorderSettingsOpen, isSuperAdmin, on
 
         {/* Mascot Size Slider removed as requested */}
 
-        <div className="hidden md:flex items-center gap-2 px-2 py-1 bg-gray-800 text-gray-300 border border-yellow-600/40 rounded-lg" title={lang==='ar'?'حالة الأوفلاين':'Offline State'}>
-          <span className={`${offlineReady ? 'text-green-400' : 'text-gray-400'} text-xs`}>{offlineReady ? (lang==='ar'?'جاهز':'Ready') : (lang==='ar'?'غير جاهز':'Not Ready')}</span>
+        <div className="hidden md:flex items-center gap-2 px-2 py-1 bg-gray-800 text-gray-300 border border-yellow-600/40 rounded-lg" title={lang==='ar'?'حالة النظام':'System State'}>
+          <span className="text-green-400 text-xs">{lang==='ar'?'جاهز':'Ready'}</span>
         </div>
 
         
