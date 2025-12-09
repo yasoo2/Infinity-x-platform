@@ -16,7 +16,7 @@ const JoeContent = () => {
   const [lang, setLang] = useState(() => {
     try { return localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'; } catch { return 'en'; }
   });
-  const [isSidePanelOpen, setIsSidePanelOpen] = useState(true);
+  
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
   const [isBottomPanelOpen, setIsBottomPanelOpen] = useState(false);
   const [isBottomCollapsed, setIsBottomCollapsed] = useState(false);
@@ -60,7 +60,6 @@ const JoeContent = () => {
 
   useEffect(() => {
     if (isMobile) {
-      setIsSidePanelOpen(false);
       setIsRightPanelOpen(false);
     }
   }, [isMobile]);
@@ -299,7 +298,6 @@ const JoeContent = () => {
     try { localStorage.setItem('joeRobotPos', robotPos ? JSON.stringify(robotPos) : ''); } catch { void 0; }
   }, [robotPos]);
 
-  const toggleSidePanel = () => setIsSidePanelOpen(!isSidePanelOpen);
   const toggleRightPanel = () => setIsRightPanelOpen(!isRightPanelOpen);
   
   const toggleStatusPanel = () => {
@@ -352,7 +350,7 @@ const JoeContent = () => {
 
   useEffect(() => {
     try { findBestCornerRef.current(); } catch { /* noop */ }
-  }, [isSidePanelOpen, isRightPanelOpen, isBottomPanelOpen, leftWidth, rightWidth, isMobile]);
+  }, [isRightPanelOpen, isBottomPanelOpen, leftWidth, rightWidth, isMobile]);
 
   return (
     <div className="h-screen w-screen flex flex-col bg-brand-gradient bg-grid-dark text-white overflow-hidden">
@@ -361,8 +359,6 @@ const JoeContent = () => {
       <TopBar 
         onToggleRight={toggleRightPanel}
         isRightOpen={isRightPanelOpen}
-        onToggleLeft={toggleSidePanel}
-        isLeftOpen={isSidePanelOpen}
         onToggleStatus={toggleStatusPanel}
         isStatusOpen={isStatusPanelOpen}
         onToggleBorderSettings={toggleBorderSettings}
@@ -375,28 +371,20 @@ const JoeContent = () => {
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
         {/* Removed ActivityBar to free space and use TopBar toggles */}
-        {isSidePanelOpen && (
-          <div className={`relative z-0 bg-gray-900 flex-shrink-0 ${panelStyles.left.width === 0 ? 'border-r border-gray-800' : ''}`} style={{ ...leftStyle, width: isMobile ? Math.min(leftWidth, 360) : leftWidth }}>
-        <SidePanel 
-          conversations={conversationsList} 
-          currentConversationId={currentConversationId}
-          onConversationSelect={handleConversationSelect}
-          onNewConversation={handleNewConversation}
-          onDeleteAllConversations={deleteAllConversations}
-          onRenameConversation={renameConversation}
-          onDeleteConversation={deleteConversation}
-          onPinToggle={pinToggle}
-          onDuplicate={duplicateConversation}
-          onClear={clearMessages}
-          lang={lang}
-        />
-            <div
-              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setDragLeft(true); }}
-              className="absolute top-0 right-0 h-full cursor-col-resize z-20 select-none"
-              style={{ width: '2px', background: 'rgba(107,114,128,0.5)' }}
-            />
-          </div>
-        )}
+        <div className={`relative z-0 bg-gray-900 flex-shrink-0 ${panelStyles.left.width === 0 ? 'border-r border-gray-800' : ''}`} style={{ ...leftStyle, width: isMobile ? Math.min(leftWidth, 360) : leftWidth }}>
+          <SidePanel 
+            conversations={conversationsList} 
+            currentConversationId={currentConversationId}
+            onConversationSelect={handleConversationSelect}
+            onNewConversation={handleNewConversation}
+            lang={lang}
+          />
+          <div
+            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setDragLeft(true); }}
+            className="absolute top-0 right-0 h-full cursor-col-resize z-20 select-none"
+            style={{ width: '2px', background: 'rgba(107,114,128,0.5)' }}
+          />
+        </div>
         {/* Main Console - Center (Flexible) */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className={`flex-1 overflow-hidden ${isBottomPanelOpen ? '' : 'h-full'}`}>
