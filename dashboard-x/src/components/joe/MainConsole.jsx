@@ -186,7 +186,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
       const delta = newH - prevH;
       if (!wasAtBottom && delta > 0) {
         runWithAutoScroll((node) => { node.scrollTop = prevTop + delta; });
-      } else if (wasAtBottom && !isUserPinned) {
+      } else if (wasAtBottom) {
         runWithAutoScroll((node) => { node.scrollTop = node.scrollHeight; });
         setShowScrollButton(false);
       }
