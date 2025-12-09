@@ -4,7 +4,7 @@ import TopBar from '../components/joe/TopBar';
 import apiClient from '../api/client';
 import SidePanel from '../components/joe/SidePanel';
 import MainConsole from '../components/joe/MainConsole';
-import RightPanel from '../components/joe/RightPanel';
+ 
 import BottomPanel from '../components/joe/BottomPanel';
 import { JoeChatProvider, useJoeChatContext } from '../context/JoeChatContext';
 import useAuth from '../hooks/useAuth';
@@ -17,18 +17,14 @@ const JoeContent = () => {
     try { return localStorage.getItem('lang') === 'ar' ? 'ar' : 'en'; } catch { return 'en'; }
   });
   
-  const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
   const [isBottomPanelOpen, setIsBottomPanelOpen] = useState(false);
   const [isBottomCollapsed, setIsBottomCollapsed] = useState(false);
-  const [isStatusPanelOpen, setIsStatusPanelOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [panelStyles, setPanelStyles] = useState({ left: { color: '#1f2937', width: 1, radius: 0 }, right: { color: '#1f2937', width: 1, radius: 0 } });
   const toggleBottomPanel = () => setIsBottomPanelOpen(!isBottomPanelOpen);
   const toggleSidePanel = () => setLeftWidth((w) => (w === 0 ? 240 : 0));
   const [leftWidth, setLeftWidth] = useState(240);
-  const [rightWidth, setRightWidth] = useState(320);
   const [dragLeft, setDragLeft] = useState(false);
-  const [dragRight, setDragRight] = useState(false);
   const [overlayActive, setOverlayActive] = useState(false);
 
   useEffect(() => {
@@ -59,11 +55,7 @@ const JoeContent = () => {
 
   // تم استبدال وظيفة تبديل اللغة باختصار لوحة المفاتيح Ctrl/Cmd+L أدناه
 
-  useEffect(() => {
-    if (isMobile) {
-      setIsRightPanelOpen(false);
-    }
-  }, [isMobile]);
+  
 
   useEffect(() => {
     try {
@@ -87,16 +79,15 @@ const JoeContent = () => {
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed?.left) setLeftWidth(parsed.left);
-        if (parsed?.right) setRightWidth(parsed.right);
       }
     } catch { void 0; }
   }, []);
 
   useEffect(() => {
     try {
-      localStorage.setItem('joePanelWidths', JSON.stringify({ left: leftWidth, right: rightWidth }));
+      localStorage.setItem('joePanelWidths', JSON.stringify({ left: leftWidth }));
     } catch { void 0; }
-  }, [leftWidth, rightWidth]);
+  }, [leftWidth]);
 
   useEffect(() => {
     try { localStorage.setItem('joeBottomOpen', String(isBottomPanelOpen)); } catch { void 0; }
@@ -299,22 +290,13 @@ const JoeContent = () => {
     try { localStorage.setItem('joeRobotPos', robotPos ? JSON.stringify(robotPos) : ''); } catch { void 0; }
   }, [robotPos]);
 
-  const toggleRightPanel = () => setIsRightPanelOpen(!isRightPanelOpen);
   
-  const toggleStatusPanel = () => {
-    setIsRightPanelOpen(prev => {
-      const next = !prev;
-      setIsStatusPanelOpen(next);
-      return next;
-    });
-  };
   const toggleBorderSettings = () => navigate('/dashboard/users');
   const { user } = useAuth();
 
  
 
   const leftStyle = { borderRight: `${panelStyles.left.width}px solid ${panelStyles.left.color}`, borderRadius: panelStyles.left.radius };
-  const rightStyle = { borderLeft: `${panelStyles.right.width}px solid ${panelStyles.right.color}`, borderRadius: panelStyles.right.radius };
   
   
 
@@ -326,16 +308,11 @@ const JoeContent = () => {
         const w = Math.max(min, Math.min(max, e.clientX));
         setLeftWidth(w);
       }
-      if (dragRight) {
-        const w = Math.max(min, Math.min(max, window.innerWidth - e.clientX));
-        setRightWidth(w);
-      }
     };
     const onUp = () => {
       setDragLeft(false);
-      setDragRight(false);
     };
-    if (dragLeft || dragRight) {
+    if (dragLeft) {
       window.addEventListener('mousemove', onMove);
       window.addEventListener('mouseup', onUp);
       document.body.style.userSelect = 'none';
@@ -347,21 +324,17 @@ const JoeContent = () => {
       document.body.style.userSelect = '';
       document.body.style.cursor = '';
     };
-  }, [dragLeft, dragRight]);
+  }, [dragLeft]);
 
   useEffect(() => {
     try { findBestCornerRef.current(); } catch { /* noop */ }
-  }, [isRightPanelOpen, isBottomPanelOpen, leftWidth, rightWidth, isMobile]);
+  }, [isBottomPanelOpen, leftWidth, isMobile]);
 
   return (
     <div className="h-screen w-screen flex flex-col bg-brand-gradient bg-grid-dark text-white overflow-hidden">
       
         {/* Top Bar - Enhanced */}
       <TopBar 
-        onToggleRight={toggleRightPanel}
-        isRightOpen={isRightPanelOpen}
-        onToggleStatus={toggleStatusPanel}
-        isStatusOpen={isStatusPanelOpen}
         onToggleBorderSettings={toggleBorderSettings}
         isBorderSettingsOpen={false}
         isSuperAdmin={(user?.role === 'super_admin')}
@@ -413,24 +386,7 @@ const JoeContent = () => {
           )}
         </div>
 
-        {/* Right Panel - Plan & Tools (Collapsible) */}
-        {isRightPanelOpen && !isMobile && (
-          <div className="relative z-10 bg-gray-900 flex-shrink-0" style={{ ...rightStyle, width: rightWidth }}>
-            <RightPanel isProcessing={isProcessing} plan={plan} forceStatus={isStatusPanelOpen} wsConnected={wsConnected} />
-            <div
-              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setDragRight(true); }}
-              className="absolute top-0 left-0 h-full cursor-col-resize z-20 select-none"
-              style={{ width: '2px', background: 'rgba(107,114,128,0.5)' }}
-            />
-          </div>
-        )}
-        {isRightPanelOpen && isMobile && (
-          <div className="fixed inset-0 z-40" onClick={()=>setIsRightPanelOpen(false)}>
-            <div className="absolute right-0 top-14 bottom-0 w-[85%] max-w-xs bg-gray-900" style={rightStyle} onClick={(e)=>e.stopPropagation()}>
-              <RightPanel isProcessing={isProcessing} plan={plan} forceStatus={isStatusPanelOpen} wsConnected={wsConnected} />
-            </div>
-          </div>
-        )}
+        
       </div>
       <style>{`
         #joe-container { position: fixed; cursor: pointer; z-index: 1000; transition: transform 0.3s ease; }
@@ -451,8 +407,8 @@ const JoeContent = () => {
         @keyframes pulse { from { fill: #ff4d4d; opacity: 0.5; } to { fill: #ff0000; opacity: 1; } }
       `}</style>
       {(() => {
-        const overlayNow = overlayActive || (isRightPanelOpen && isMobile);
-        const s = { position: 'fixed', width: `${robotSize.w}px`, height: `${robotSize.h}px`, zIndex: overlayNow ? 10 : 1000, touchAction: 'none', pointerEvents: (overlayNow || dragLeft || dragRight) ? 'none' : 'auto' };
+        const overlayNow = overlayActive;
+        const s = { position: 'fixed', width: `${robotSize.w}px`, height: `${robotSize.h}px`, zIndex: overlayNow ? 10 : 1000, touchAction: 'none', pointerEvents: (overlayNow || dragLeft) ? 'none' : 'auto' };
         if (dragState && typeof dragState.left === 'number' && typeof dragState.top === 'number') {
           Object.assign(s, { left: dragState.left, top: dragState.top });
         } else {
@@ -526,7 +482,7 @@ const JoeContent = () => {
                     <button onClick={(e)=>{ e.stopPropagation(); setRobotScale(1.0); setRobotSize(computeRobotSize()); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'حجم متوسط':'Medium'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); setRobotScale(1.25); setRobotSize(computeRobotSize()); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'حجم كبير':'Large'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); toggleSidePanel(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'لوحة اليسار':'Left Panel'}</button>
-                    <button onClick={(e)=>{ e.stopPropagation(); toggleRightPanel(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'لوحة اليمين':'Right Panel'}</button>
+                    
                     <button onClick={(e)=>{ e.stopPropagation(); toggleBottomPanel(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'سجلّ النظام':'Logs'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); handleNewConversation(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'جلسة جديدة':'New Chat'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); if (currentConversationId) clearMessages(currentConversationId); }} className="px-2 py-1 rounded bg-gray-700 hover:bg-gray-600 text-white text-xs">{lang==='ar'?'مسح الرسائل':'Clear msgs'}</button>
