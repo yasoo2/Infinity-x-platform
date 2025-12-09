@@ -113,7 +113,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
     const gradId = React.useMemo(() => `joeHexGrad-${Math.random().toString(36).slice(2)}`, []);
     const palette = (() => {
       if (state === 'offline') return ['#9ca3af', '#6b7280', '#374151'];
-      if (state === 'ready') return ['#34d399', '#10b981', '#059669'];
+      if (state === 'ready') return ['#fde047', '#f59e0b', '#eab308'];
       return ['#f87171', '#ef4444', '#dc2626'];
     })();
     const strokeColor = palette[2];
