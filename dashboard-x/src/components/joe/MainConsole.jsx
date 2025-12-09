@@ -1311,5 +1311,5 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
 export default MainConsole;
 MainConsole.propTypes = {
   isBottomPanelOpen: PropTypes.bool,
-  isBottomCollapsed: PropTypes.bool,
+  isBottomCollapsed: PropTypes.bool
 };
