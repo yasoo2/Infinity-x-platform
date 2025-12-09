@@ -7,6 +7,11 @@ npm run lint || npm run lint:fix || true
 branch="$(git rev-parse --abbrev-ref HEAD)"
 remote="origin"
 
+if [ "$branch" != "main" ]; then
+  echo "[husky] Skipping push: non-main branch '$branch'"
+  exit 0
+fi
+
 if [ -n "$branch" ]; then
   git fetch "$remote" "$branch" || true
   git pull --rebase --autostash "$remote" "$branch" || { git rebase --abort || true; git pull --rebase -X ours "$remote" "$branch" || true; }
