@@ -7,17 +7,24 @@ const LoginForm = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const { login } = useAuth();
+  const [remember, setRemember] = useState(true);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     try {
-      const success = await login(email, password);
+      const success = await login(email, password, remember);
       if (success) {
         navigate('/dashboard/joe');
       } else {
-        setError('Login failed. Please check your credentials.');
+        try {
+          const offline = localStorage.getItem('apiOffline') === '1';
+          if (offline) setError('الخادم غير متاح حاليًا. يرجى المحاولة لاحقًا.');
+          else setError('فشل تسجيل الدخول. تحقق من بيانات الاعتماد.');
+        } catch {
+          setError('Login failed. Please check your credentials.');
+        }
       }
     } catch (err) {
       setError(err.message || 'An unexpected error occurred.');
@@ -51,11 +58,15 @@ const LoginForm = () => {
             required
           />
         </div>
+        <div className="flex items-center mb-6">
+          <input id="remember" type="checkbox" checked={remember} onChange={(e)=>setRemember(e.target.checked)} className="mr-2 accent-blue-600" />
+          <label htmlFor="remember" className="text-gray-300 text-sm">تذكر هذا المستخدم</label>
+        </div>
         <button
           type="submit"
           className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
         >
-          Login
+          تسجيل الدخول
         </button>
       </form>
     </div>

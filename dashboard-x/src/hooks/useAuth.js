@@ -22,9 +22,10 @@ const useAuth = () => {
         if (offline) return false;
       } catch { /* noop */ }
       const { data } = await apiClient.post('/api/v1/auth/login', { email, password });
-      if (data?.token) {
+      const token = data?.token || data?.sessionToken || data?.jwt || data?.access_token;
+      if (token) {
         try {
-          localStorage.setItem('sessionToken', data.token);
+          localStorage.setItem('sessionToken', token);
         } catch { void 0; }
         const usr = { email: data.user?.email, role: data.user?.role, id: data.user?.id };
         setUser(usr);
@@ -34,11 +35,14 @@ const useAuth = () => {
             const identifier = usr.email || email || usr.id || '';
             const mapRaw = localStorage.getItem('rememberedSessions');
             const map = mapRaw ? JSON.parse(mapRaw) : {};
-            map[String(identifier).toLowerCase()] = data.token;
+            map[String(identifier).toLowerCase()] = token;
             localStorage.setItem('rememberedSessions', JSON.stringify(map));
           } catch { void 0; }
         }
         return true;
+      }
+      if (data?.ok === false && typeof data?.message === 'string') {
+        throw new Error(data.message);
       }
     } catch {
       return false;
