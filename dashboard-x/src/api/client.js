@@ -138,6 +138,20 @@
   // Simple in-flight flag for auth redirect throttling
   let isRedirecting = false;
 
+  // Helper: compute safe fallback base URL
+  const computeFallbackBase = () => {
+    try {
+      if (typeof window !== 'undefined') {
+        const h = String(window.location.hostname || '');
+        const isLocalHost = (h === 'localhost' || h === '127.0.0.1');
+        if (isLocalHost) return 'http://localhost:4000';
+        if (h === 'www.xelitesolutions.com' || h === 'xelitesolutions.com') return 'https://api.xelitesolutions.com';
+        return String(window.location.origin || BASE_URL).replace(/\/+$/, '');
+      }
+    } catch { /* noop */ }
+    return BASE_URL;
+  };
+
   // Response interceptor
   apiClient.interceptors.response.use(
     (response) => {
@@ -207,11 +221,7 @@
           errCount += 1;
           const elapsed = now - errStart;
           if (errCount >= 3 && elapsed <= 20000) {
-            const fallback = typeof window !== 'undefined'
-              ? ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-                  ? 'http://localhost:4000'
-                  : window.location.origin)
-              : apiClient.defaults.baseURL;
+            const fallback = computeFallbackBase();
             apiClient.defaults.baseURL = String(fallback).replace(/\/+$/, '');
             try { localStorage.setItem('apiBaseUrl', apiClient.defaults.baseURL); } catch { /* noop */ }
             errCount = 0;
@@ -231,11 +241,7 @@
         errCount += 1;
         const elapsed = now - errStart;
         if (errCount >= 3 && elapsed <= 20000) {
-          const fallback = typeof window !== 'undefined'
-            ? ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-                ? 'http://localhost:4000'
-                : window.location.origin)
-            : apiClient.defaults.baseURL;
+          const fallback = computeFallbackBase();
           apiClient.defaults.baseURL = String(fallback).replace(/\/+$/, '');
           try { localStorage.setItem('apiBaseUrl', apiClient.defaults.baseURL); } catch { /* noop */ }
           errCount = 0;
@@ -260,7 +266,7 @@
             errCount += 1;
             const elapsed = now - errStart;
             if (errCount >= 3 && elapsed <= 20000) {
-              apiClient.defaults.baseURL = 'http://localhost:4000';
+              apiClient.defaults.baseURL = computeFallbackBase();
               try { localStorage.setItem('apiBaseUrl', apiClient.defaults.baseURL); } catch { /* noop */ }
               errCount = 0;
               errStart = 0;
