@@ -61,16 +61,16 @@ const SidePanel = ({ conversations, onConversationSelect, onNewConversation, cur
       <div 
         key={convo.id}
         onClick={() => { setLastViewed(convo.id, Date.now()); onConversationSelect(convo.id); }}
-        className={`relative px-4 py-2.5 mx-2 my-1 rounded-lg cursor-pointer transition-colors duration-200 border ${
+        className={`relative px-5 py-3.5 mx-2 my-2 rounded-2xl cursor-pointer transition-all duration-300 border hover:-translate-y-0.5 ${
           currentConversationId === convo.id 
-            ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black border-yellow-600 shadow-md' 
-            : 'bg-gray-800/80 text-gray-200 hover:bg-gray-700/80 border-gray-700'
+            ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black border-yellow-600 shadow-lg' 
+            : 'bg-gray-800/60 text-gray-200 hover:bg-gray-700/60 border-gray-700 ring-1 ring-white/10 backdrop-blur-sm'
         }`}
       >
-        <div className="flex items-center">
-          <FiMessageSquare className="mr-3 flex-shrink-0" size={16} />
+        <div className="flex items-center gap-3">
+          <FiMessageSquare className="flex-shrink-0 text-yellow-300" size={18} />
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium truncate">{convo.title || (lang==='ar'?'جلسة جديدة':'New Session')}</div>
+            <div className="text-[13px] font-semibold truncate">{convo.title || (lang==='ar'?'جلسة جديدة':'New Session')}</div>
             {renderSnippet(convo)}
           </div>
           <div className="ml-3 flex items-center gap-2">
@@ -87,7 +87,7 @@ const SidePanel = ({ conversations, onConversationSelect, onNewConversation, cur
           </div>
         </div>
         {openMenuId === convo.id && (
-          <div ref={menuRef} className="fixed z-40 w-44 bg-gray-900 text-white border border-yellow-600 rounded-lg shadow-2xl" style={{ top: menuPos.top, left: menuPos.left }} onClick={(e)=>e.stopPropagation()}>
+          <div ref={menuRef} className="fixed z-[1000] w-44 bg-gray-900/90 backdrop-blur-sm text-white border border-yellow-600/60 rounded-lg shadow-2xl" style={{ top: menuPos.top, left: menuPos.left }} onClick={(e)=>e.stopPropagation()}>
             <button onClick={(e)=>{ e.stopPropagation(); onPinToggle(convo.id); setOpenMenuId(null); }} className="w-full text-right px-3 py-2 hover:bg-yellow-600 hover:text-black text-sm">{lang === 'ar' ? (convo.pinned ? 'إلغاء التثبيت' : 'تثبيت') : (convo.pinned ? 'Unpin' : 'Pin')}</button>
             <button onClick={(e)=>{ e.stopPropagation(); const t = prompt(lang === 'ar' ? 'إعادة تسمية الجلسة' : 'Rename session', convo.title || ''); if (t!=null) onRenameConversation(convo.id, t); setOpenMenuId(null); }} className="w-full text-right px-3 py-2 hover:bg-yellow-600 hover:text-black text-sm">{lang === 'ar' ? 'إعادة تسمية' : 'Rename'}</button>
             <button onClick={(e)=>{ e.stopPropagation(); onDuplicate(convo.id); setOpenMenuId(null); }} className="w-full text-right px-3 py-2 hover:bg-yellow-600 hover:text-black text-sm">{lang === 'ar' ? 'نسخ' : 'Duplicate'}</button>
@@ -203,7 +203,7 @@ const SidePanel = ({ conversations, onConversationSelect, onNewConversation, cur
   }, [openMenuId]);
 
   return (
-    <div className="bg-gradient-to-br from-gray-900 to-gray-950 w-full flex-shrink-0 p-3 flex flex-col border border-gray-800 rounded-xl ring-1 ring-yellow-600/10" style={{ gridArea: 'side' }}>
+    <div className="relative z-10 bg-gradient-to-br from-[#0b1220] to-[#0f172a] w-full flex-shrink-0 p-3 flex flex-col border border-gray-800/80 rounded-xl ring-1 ring-yellow-600/10 backdrop-blur-sm shadow-xl" style={{ gridArea: 'side' }}>
       <div className="flex items-center justify-between mb-4 px-2">
         <h2 className="text-sm font-semibold text-yellow-400 tracking-wider">{lang === 'ar' ? 'جلسات الدردشة' : 'Chat Sessions'}</h2>
         <div className="flex items-center gap-2">

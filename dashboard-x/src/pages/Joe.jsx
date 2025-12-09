@@ -24,8 +24,8 @@ const JoeContent = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [panelStyles, setPanelStyles] = useState({ left: { color: '#1f2937', width: 1, radius: 0 }, right: { color: '#1f2937', width: 1, radius: 0 } });
   const toggleBottomPanel = () => setIsBottomPanelOpen(!isBottomPanelOpen);
-  const toggleSidePanel = () => setLeftWidth((w) => (w === 0 ? 240 : 0));
-  const [leftWidth, setLeftWidth] = useState(240);
+  const toggleSidePanel = () => setLeftWidth((w) => (w === 0 ? 320 : 0));
+  const [leftWidth, setLeftWidth] = useState(320);
   const [dragLeft, setDragLeft] = useState(false);
   const [overlayActive, setOverlayActive] = useState(false);
 
@@ -330,8 +330,8 @@ const JoeContent = () => {
 
   useEffect(() => {
     const onMove = (e) => {
-      const min = 200;
-      const max = 600;
+      const min = 260;
+      const max = 520;
       if (dragLeft) {
         const w = Math.max(min, Math.min(max, e.clientX));
         setLeftWidth(w);
@@ -359,7 +359,8 @@ const JoeContent = () => {
   }, [isBottomPanelOpen, leftWidth, isMobile]);
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-brand-gradient bg-grid-dark text-white overflow-hidden">
+    <div className="h-screen w-screen flex flex-col relative text-white overflow-hidden bg-gradient-to-br from-[#080e1a] via-[#0a1530] to-[#0b1220]">
+      <div className="pointer-events-none absolute inset-0 opacity-[0.35]" style={{backgroundImage:'radial-gradient(600px 300px at 20% 20%, rgba(124,58,237,0.14) 0%, transparent 60%), radial-gradient(600px 300px at 80% 80%, rgba(34,197,94,0.12) 0%, transparent 60%)'}} />
       
         {/* Top Bar - Enhanced */}
       <TopBar 
@@ -373,7 +374,7 @@ const JoeContent = () => {
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
         {/* Removed ActivityBar to free space and use TopBar toggles */}
-        <div className={`relative z-0 bg-gray-900 flex-shrink-0 ${panelStyles.left.width === 0 ? 'border-r border-gray-800' : ''}`} style={{ ...leftStyle, width: isMobile ? Math.min(leftWidth, 320) : leftWidth }}>
+        <div className={`relative z-0 bg-gray-900/80 backdrop-blur-sm flex-shrink-0 ${panelStyles.left.width === 0 ? 'border-r border-gray-800' : ''}`} style={{ ...leftStyle, width: isMobile ? Math.min(leftWidth, 320) : leftWidth }}>
           <SidePanel 
             conversations={conversationsList} 
             currentConversationId={currentConversationId}
@@ -401,7 +402,7 @@ const JoeContent = () => {
 
           {/* Bottom Panel - Logs (Collapsible) */}
           {isBottomPanelOpen && (
-            <div className={`${isBottomCollapsed ? 'h-0' : 'h-[50vh]'} border-t border-gray-800 bg-gray-900 flex-shrink-0 overflow-hidden`
+            <div className={`${isBottomCollapsed ? 'h-0' : 'h-[50vh]'} border-t border-gray-800 bg-gray-900/85 backdrop-blur-sm flex-shrink-0 overflow-hidden`
             }>
               <BottomPanel 
                 logs={wsLog} 

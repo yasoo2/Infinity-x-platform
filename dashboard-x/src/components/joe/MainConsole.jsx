@@ -717,9 +717,36 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
         </div>
       ) : (
       <div className="flex-1 overflow-y-auto relative" ref={scrollContainerRef} style={{ scrollBehavior: 'smooth', overscrollBehavior: 'contain', overflowAnchor: 'none' }}>
-        <div ref={contentRef} className="max-w-5xl mx-auto px-4 md:px-8 py-6 border border-gray-700 rounded-2xl bg-gray-900/40 backdrop-blur-sm shadow-xl" style={{ paddingBottom: Math.max(24, inputAreaHeight + 24) }}>
+        <div ref={contentRef} className="max-w-5xl mx-auto px-4 md:px-8 py-8 rounded-3xl ring-1 ring-gray-700/50 bg-gray-900/40 backdrop-blur-sm shadow-xl" style={{ paddingBottom: Math.max(24, inputAreaHeight + 24) }}>
           {(() => {
             const hasActivity = (messages && messages.length > 0) || isProcessing || (Array.isArray(plan) && plan.length > 0);
+            if (!hasActivity) {
+              return (
+                <div className="space-y-8">
+                  <div className="text-center">
+                    <div className="text-5xl md:text-6xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-amber-500">JOE</div>
+                    <p className="mt-3 text-sm md:text-base text-gray-300">{lang==='ar' ? 'شريكك الذكي لبناء وتحليل وتنفيذ المشاريع التقنية.' : 'Your intelligent partner to build, analyze, and execute tech.'}</p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="p-4 rounded-2xl bg-gray-900/60 border border-gray-800 shadow">
+                      <div className="flex items-center gap-2 text-yellow-300 mb-2"><FiCompass size={16} /><span className="text-xs">{lang==='ar'?'المحادثة والبحث':'Chat & Explore'}</span></div>
+                      <p className="text-[12px] text-gray-300">{lang==='ar'?'اسأل جو عن أي شيء تقني ويعطيك روابط وأكواد.':'Ask Joe anything. Get links, code, and steps.'}</p>
+                    </div>
+                    <div className="p-4 rounded-2xl bg-gray-900/60 border border-gray-800 shadow">
+                      <div className="flex items-center gap-2 text-yellow-300 mb-2"><FiGitBranch size={16} /><span className="text-xs">{lang==='ar'?'البناء والتنفيذ':'Build & Execute'}</span></div>
+                      <p className="text-[12px] text-gray-300">{lang==='ar'?'حلول جاهزة وإجراءات تلقائية داخل مشروعك.':'Ready solutions and automated actions in your project.'}</p>
+                    </div>
+                    <div className="p-4 rounded-2xl bg-gray-900/60 border border-gray-800 shadow">
+                      <div className="flex items-center gap-2 text-yellow-300 mb-2"><FiImage size={16} /><span className="text-xs">{lang==='ar'?'الوسائط والملفات':'Media & Files'}</span></div>
+                      <p className="text-[12px] text-gray-300">{lang==='ar'?'ارفع صورك وملفاتك واستخدمها مباشرة.':'Upload media and use it instantly.'}</p>
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <span className="inline-block px-4 py-2 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 text-black text-xs">{lang==='ar'?'ابدأ برسالة لـ Joe هنا':'Start by typing a message to Joe'}</span>
+                  </div>
+                </div>
+              );
+            }
             return (
               <div className="space-y-5">
               {(() => {
@@ -904,10 +931,10 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                       </span>
                     )}
                     <div 
-                      className={`relative max-w-[90%] sm:max-w-[85%] md:max-w-[75%] rounded-2xl px-5 py-4 ${
+                      className={`relative max-w-[88%] sm:max-w-[80%] md:max-w-[70%] rounded-3xl px-6 py-5 ${
                         msg.type === 'user' 
-                          ? 'bg-gradient-to-br from-gray-800 to-gray-900 text-gray-100 border border-yellow-500/40 shadow-lg' 
-                          : 'bg-gradient-to-br from-gray-800/80 to-gray-900/80 text-gray-100 border border-gray-700 shadow-lg'
+                          ? 'bg-gradient-to-br from-[#0f172a] to-[#0b1220] text-gray-100 border border-yellow-500/40 shadow-lg backdrop-blur-sm ring-1 ring-yellow-500/30 transition-all hover:shadow-xl hover:-translate-y-0.5' 
+                          : 'bg-gradient-to-br from-[#0f172a]/80 to-[#0b1220]/80 text-gray-100 border border-gray-700 shadow-lg backdrop-blur-sm ring-1 ring-white/10 transition-all hover:shadow-xl hover:-translate-y-0.5'
                       }`}
                     >
                       {msg.type === 'user' ? (
@@ -992,7 +1019,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
             left: 'var(--joe-input-left, 16px)'
           }}
         >
-          <span className="w-10 h-10 inline-flex items-center justify-center rounded-full bg-yellow-600 text-black hover:bg-yellow-700 border border-yellow-600 shadow-lg">
+          <span className="w-10 h-10 inline-flex items:center justify-center rounded-full bg-yellow-600 text-black hover:bg-yellow-700 border border-yellow-600 shadow-lg">
             <FiArrowDown size={18} />
           </span>
         </button>
@@ -1013,11 +1040,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                 {lang==='ar' ? 'اسحب الملفات وافلت هنا' : 'Drop files here'}
               </div>
             )}
-            <div className="w-full flex items-center justify-center sm:justify-start gap-2 text-[11px] text-gray-400">
-              <span>{lang==='ar' ? 'اكتب سطر جديد لـ جو' : 'Write a new line for Joe'}</span>
-              <span className="hidden sm:inline-block">•</span>
-              <span className="hidden sm:inline-block">Shift+Enter</span>
-            </div>
+            <div className="hidden" />
             <div className="flex items-end gap-3 w-full">
             {/* Textarea */}
             <textarea
@@ -1036,7 +1059,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                   handleSend();
                 }
               }}
-              placeholder={lang==='ar' ? 'اكتب رسالة لـ Joe… (Shift+Enter سطر جديد)' : 'Message Joe... (Shift+Enter for new line)'}
+              placeholder={lang==='ar' ? 'اكتب رسالة لـ Joe…' : 'Message Joe...'}
               className="flex-1 bg-gray-900/40 outline-none resize-none text-white placeholder-gray-500 text-sm leading-relaxed border border-gray-700 rounded-xl px-4 focus:bg-gray-900/50 focus:border-yellow-500"
               rows={2}
               style={{ minHeight: '44px', maxHeight: '160px' }}
@@ -1128,7 +1151,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                 <button 
                   onClick={() => { okPulse('send','success'); handleSend(); }} 
                   disabled={!input.trim()} 
-                  className="p-2 text-black bg-gradient-to-br from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 rounded-lg shadow-lg shadow-yellow-500/30 transition-colors active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="px-4 py-2 text-black bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 rounded-xl shadow-lg shadow-yellow-500/30 transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
                   title="Send Message"
                 >
                   <FiSend size={16} />

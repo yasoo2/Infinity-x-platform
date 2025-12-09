@@ -398,7 +398,7 @@ const TopBar = ({ onToggleBorderSettings, isBorderSettingsOpen, isSuperAdmin, on
         <div className="relative inline-flex items-center">
         <button
           onClick={() => { okPulse('lang','toggle'); toggleLang(); }}
-          className="p-1.5 w-7 h-7 inline-flex items-center justify-center rounded-lg bg-yellow-600 hover:bg-yellow-700 text-black border border-yellow-600 transition-colors"
+          className="p-2 w-8 h-8 inline-flex items-center justify-center rounded-xl bg-yellow-600 hover:bg-yellow-700 text-black border border-yellow-600 transition-colors"
           title={lang === 'ar' ? 'AR' : 'EN'}
         >
           <span className="text-[11px] font-semibold">{lang === 'ar' ? 'AR' : 'EN'}</span>
@@ -408,7 +408,7 @@ const TopBar = ({ onToggleBorderSettings, isBorderSettingsOpen, isSuperAdmin, on
 
         {/* Mascot Size Slider removed as requested */}
 
-        <div className="hidden md:flex items-center gap-2 px-2 py-1 bg-gray-800 text-gray-300 border border-yellow-600/40 rounded-lg" title={lang==='ar'?'حالة النظام':'System State'}>
+        <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-gray-800/80 backdrop-blur-sm text-gray-300 border border-yellow-500/40 rounded-xl" title={lang==='ar'?'حالة النظام':'System State'}>
           <span className="text-green-400 text-xs">{lang==='ar'?'جاهز':'Ready'}</span>
         </div>
 
@@ -425,7 +425,7 @@ const TopBar = ({ onToggleBorderSettings, isBorderSettingsOpen, isSuperAdmin, on
               document.documentElement.requestFullscreen();
             }
           }}
-          className="p-1.5 w-7 h-7 inline-flex items-center justify-center rounded-lg bg-gray-800 text-gray-300 hover:bg-gray-700 border border-yellow-600/40 transition-colors"
+          className="p-2 w-8 h-8 inline-flex items-center justify-center rounded-xl bg-gray-800 text-gray-300 hover:bg-gray-700 border border-yellow-500/40 transition-colors"
           title={lang==='ar'?'ملء الشاشة':'Toggle Fullscreen'}
         >
           <FiMaximize2 size={14} />

@@ -34,7 +34,7 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
   };
 
   return (
-    <div className="h-full flex flex-col bg-gray-950 p-5 border border-gray-800 rounded-t-xl">
+    <div className="h-full flex flex-col bg-gray-950/90 backdrop-blur-sm p-5 border border-gray-800 rounded-t-xl shadow-xl">
       {/* Header */}
       <div className="flex items-center justify-between mb-4 border-b border-gray-800 pb-3">
         <div className="flex items-center gap-3">
@@ -59,7 +59,7 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
           <div className="relative inline-flex items-center">
           <button
             onClick={() => { okPulse('addAll'); onAddAllLogs && onAddAllLogs(); }}
-            className="px-2 py-1 rounded border border-yellow-600/40 bg-yellow-600 text-black text-[11px] hover:bg-yellow-700"
+            className="px-2 py-1 rounded border border-violet-600/40 bg-violet-600 text-white text-[11px] hover:bg-violet-700"
             title="إضافة كل اللوجز للمحادثة"
           >
             Add All to Chat
@@ -75,7 +75,7 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
               }).join('\n');
               try { navigator.clipboard.writeText(text); } catch { /* noop */ }
             }}
-            className="px-2 py-1 rounded border border-yellow-600/40 bg-yellow-600 text-black text-[11px] hover:bg-yellow-700 flex items-center gap-1"
+            className="px-2 py-1 rounded border border-violet-600/40 bg-violet-600 text-white text-[11px] hover:bg-violet-700 flex items-center gap-1"
             title="نسخ جميع اللوجز"
           >
             <FiCopy size={12} /> <span>نسخ الكل</span>
@@ -99,7 +99,7 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
       ) : (
         <div 
           ref={scrollRef} 
-          className="joe-logs-scroll flex-1 overflow-y-auto bg-gray-900 rounded-lg border border-gray-800 p-4 font-mono text-sm"
+          className="joe-logs-scroll flex-1 overflow-y-auto bg-gray-900/80 backdrop-blur-sm rounded-lg border border-gray-800 p-4 font-mono text-sm ring-1 ring-white/5"
           style={{ overscrollBehavior: 'contain', overflowAnchor: 'none' }}
         >
           {logs && logs.length > 0 ? (
@@ -132,7 +132,7 @@ const BottomPanel = ({ logs, collapsed, onToggleCollapse, onAddLogToChat, onAddA
                           const value = typeof log === 'string' ? log : (log?.text || JSON.stringify(log));
                           try { navigator.clipboard.writeText(value); } catch { /* noop */ }
                         }}
-                        className="px-2 py-1 rounded border border-yellow-600/40 bg-yellow-600 text-black text-[11px] hover:bg-yellow-700 flex items-center gap-1"
+                        className="px-2 py-1 rounded border border-violet-600/40 bg-violet-600 text-white text-[11px] hover:bg-violet-700 flex items-center gap-1"
                         title="نسخ هذا اللوج"
                       >
                         <FiCopy size={12} /> <span>نسخ</span>
