@@ -625,9 +625,22 @@ export const useJoeChat = () => {
       if (savedHistory) {
         const parsed = JSON.parse(savedHistory);
         const normalized = normalizeConversationsData(parsed?.conversations);
-        if (normalized && Object.keys(normalized).length > 0) {
-          dispatch({ type: 'SET_CONVERSATIONS', payload: normalized });
-          const sortedIds = Object.keys(normalized).sort((a, b) => (normalized[b].lastModified || 0) - (normalized[a].lastModified || 0));
+        const isLegacyWelcome = (s) => {
+          const t = String(s || '');
+          return /(Your AI-powered engineering partner|Chat & Ask|Build & Create|Analyze & Process|Welcome to Joe AI Assistant|مرحبًا بك في مساعد Joe الذكي|شريكك الهندسي المدعوم|المحادثة والسؤال|البناء والإنشاء|التحليل والمعالجة)/i.test(t);
+        };
+        const cleaned = (() => {
+          const out = {};
+          for (const [id, convo] of Object.entries(normalized || {})) {
+            const msgs = Array.isArray(convo?.messages) ? convo.messages : [];
+            const filtered = msgs.filter((m) => !(m?.type === 'joe' && isLegacyWelcome(m?.content)));
+            out[id] = { ...convo, messages: filtered };
+          }
+          return out;
+        })();
+        if (cleaned && Object.keys(cleaned).length > 0) {
+          dispatch({ type: 'SET_CONVERSATIONS', payload: cleaned });
+          const sortedIds = Object.keys(cleaned).sort((a, b) => (cleaned[b].lastModified || 0) - (cleaned[a].lastModified || 0));
           selectConversationSafe(parsed?.currentConversationId || sortedIds[0], 'init');
         } else {
           handleNewConversation();
