@@ -112,13 +112,11 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
     const px = size === 'lg' ? 36 : (size === 'md' ? 28 : 20);
     const gradId = React.useMemo(() => `joeHexGrad-${Math.random().toString(36).slice(2)}`, []);
     const palette = (() => {
-      if (state === 'thinking') return ['#a78bfa', '#7c3aed', '#6d28d9'];
-      if (state === 'typing') return ['#60a5fa', '#3b82f6', '#2563eb'];
-      if (state === 'deploy') return ['#fcd34d', '#f59e0b', '#d97706'];
       if (state === 'offline') return ['#9ca3af', '#6b7280', '#374151'];
-      return ['#fde047', '#f59e0b', '#eab308'];
+      if (state === 'ready') return ['#34d399', '#10b981', '#059669'];
+      return ['#f87171', '#ef4444', '#dc2626'];
     })();
-    const strokeColor = state === 'offline' ? '#ef4444' : palette[2];
+    const strokeColor = palette[2];
     return (
       <span className="inline-flex items-center justify-center" style={{ width: px, height: px }}>
         <svg viewBox="0 0 64 64" width="100%" height="100%" style={{ display: 'block' }}>
