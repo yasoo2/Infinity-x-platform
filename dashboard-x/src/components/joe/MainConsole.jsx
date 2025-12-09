@@ -5,39 +5,7 @@ import { useJoeChatContext } from '../../context/JoeChatContext.jsx';
 import apiClient from '../../api/client';
 import { getSystemStatus, listUserUploads, deleteUserUpload } from '../../api/system';
 
-const WelcomeScreen = ({ toolsCount }) => (
-  <div className="flex flex-col items-center justify-center h-full text-center px-6">
-    <div className="max-w-3xl">
-      <FiCompass size={72} className="mb-6 text-blue-500 mx-auto" />
-      <h1 className="text-3xl font-bold text-white mb-4">Welcome to Joe AI Assistant</h1>
-      <p className="text-lg text-gray-400 mb-8">
-        Your AI-powered engineering partner{typeof toolsCount==='number' && toolsCount>0 ? ` with ${toolsCount} tools and functions` : ''}. 
-        Start by typing an instruction below, attaching a file, or using your voice.
-      </p>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
-        <div className="p-5 bg-gray-800 rounded-xl border border-gray-700 hover:border-blue-500 transition-colors">
-          <div className="text-3xl mb-3">💬</div>
-          <h3 className="font-semibold text-white mb-2">Chat & Ask</h3>
-          <p className="text-sm text-gray-400">Get instant answers and explanations</p>
-        </div>
-        <div className="p-5 bg-gray-800 rounded-xl border border-gray-700 hover:border-blue-500 transition-colors">
-          <div className="text-3xl mb-3">🛠️</div>
-          <h3 className="font-semibold text-white mb-2">Build & Create</h3>
-          <p className="text-sm text-gray-400">Generate projects and applications</p>
-        </div>
-        <div className="p-5 bg-gray-800 rounded-xl border border-gray-700 hover:border-blue-500 transition-colors">
-          <div className="text-3xl mb-3">🔍</div>
-          <h3 className="font-semibold text-white mb-2">Analyze & Process</h3>
-          <p className="text-sm text-gray-400">Work with data and generate insights</p>
-        </div>
-      </div>
-    </div>
-  </div>
-);
-
-WelcomeScreen.propTypes = {
-  toolsCount: PropTypes.number,
-};
+ 
 
 const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   const fileInputRef = useRef(null);
@@ -742,10 +710,8 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
         <div ref={contentRef} className="max-w-5xl mx-auto px-4 md:px-8 py-6 border border-gray-700 rounded-2xl bg-gray-900/40 backdrop-blur-sm shadow-xl" style={{ paddingBottom: Math.max(24, inputAreaHeight + 24) }}>
           {(() => {
             const hasActivity = (messages && messages.length > 0) || isProcessing || (Array.isArray(plan) && plan.length > 0);
-            return !hasActivity ? (
-              <WelcomeScreen toolsCount={toolsCount} />
-            ) : (
-            <div className="space-y-5">
+            return (
+              <div className="space-y-5">
               {(() => {
                 const ordered = [...messages].sort((a, b) => {
                   const ta = typeof a.createdAt === 'number' ? a.createdAt : 0;

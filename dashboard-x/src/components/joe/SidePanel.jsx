@@ -1,9 +1,9 @@
 
 import React from 'react';
 import PropTypes from 'prop-types';
-import { FiPlus, FiMessageSquare, FiMoreVertical, FiStar } from 'react-icons/fi';
+import { FiPlus, FiMessageSquare, FiMoreVertical, FiStar, FiMenu } from 'react-icons/fi';
 
-const SidePanel = ({ conversations, onConversationSelect, onNewConversation, currentConversationId, onRenameConversation, onDeleteConversation, onPinToggle, onDuplicate, onClear, lang = 'ar' }) => {
+const SidePanel = ({ conversations, onConversationSelect, onNewConversation, currentConversationId, onRenameConversation, onDeleteConversation, onPinToggle, onDuplicate, onClear, onToggleCollapse, lang = 'ar' }) => {
   const [openMenuId, setOpenMenuId] = React.useState(null);
   const [menuPos, setMenuPos] = React.useState({ top: 0, left: 0 });
   const menuRef = React.useRef(null);
@@ -214,6 +214,13 @@ const SidePanel = ({ conversations, onConversationSelect, onNewConversation, cur
           >
             <FiPlus size={20} />
           </button>
+          <button 
+            onClick={onToggleCollapse}
+            className="p-2 text-black bg-yellow-600 hover:bg-yellow-700 rounded-md border border-yellow-600/40"
+            title={lang === 'ar' ? 'إظهار/إخفاء القائمة' : 'Toggle List'}
+          >
+            <FiMenu size={20} />
+          </button>
         </div>
       </div>
       
@@ -238,5 +245,5 @@ SidePanel.propTypes = {
   onPinToggle: PropTypes.func.isRequired,
   onDuplicate: PropTypes.func.isRequired,
   onClear: PropTypes.func.isRequired,
-  lang: PropTypes.string,
+  onToggleCollapse: PropTypes.func,
 };

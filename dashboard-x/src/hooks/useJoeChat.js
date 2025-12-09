@@ -317,7 +317,11 @@ const chatReducer = (state, action) => {
             const ids = Object.keys(rest);
             if (ids.length === 0) {
                 const newId = uuidv4();
-                const welcomeMessage = { type: 'joe', content: 'Welcome to Joe AI Assistant! 👋', id: uuidv4() };
+                const lang = getLang();
+                const en = `Welcome to Joe AI Assistant! 👋`;
+                const ar = `مرحبًا بك في مساعد Joe الذكي! 👋`;
+                const msg = lang === 'ar' ? ar : en;
+                const welcomeMessage = { type: 'joe', content: msg, id: uuidv4(), createdAt: Date.now() };
                 const newConversations = { [newId]: { id: newId, title: 'New Conversation', messages: [welcomeMessage], lastModified: Date.now(), pinned: false } };
                 return { ...state, conversations: newConversations, currentConversationId: newId, input: '', isProcessing: false, progress: 0, currentStep: '', plan: [] };
             }
