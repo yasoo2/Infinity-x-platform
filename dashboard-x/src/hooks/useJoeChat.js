@@ -160,6 +160,26 @@ const chatReducer = (state, action) => {
             return { ...state, conversations: nextConversations, currentConversationId: convoId };
         }
 
+        case 'REPLACE_LAST_JOE': {
+            let convoId = currentConversationId;
+            let convo = currentConvo;
+            if (!convoId) { convoId = uuidv4(); }
+            if (!convo) { convo = { id: convoId, title: 'New Conversation', messages: [], lastModified: Date.now(), pinned: false }; }
+            const normalizeJoeLine = (s) => String(s || '').split('\n').map(l => l.replace(/^\s*joe\b[\s:–-]*?/i, '')).join('\n');
+            const content = normalizeJoeLine(action.payload || '');
+            const lastMessage = convo.messages[convo.messages.length - 1];
+            let updatedMessages;
+            if (lastMessage && lastMessage.type === 'joe') {
+                updatedMessages = [...convo.messages.slice(0, -1), { ...lastMessage, content }];
+            } else {
+                const now = Date.now();
+                updatedMessages = [...convo.messages, { type: 'joe', content, id: uuidv4(), createdAt: now + 1 }];
+            }
+            const updatedConvo = { ...convo, messages: updatedMessages };
+            const nextConversations = { ...conversations, [convoId]: updatedConvo };
+            return { ...state, conversations: nextConversations, currentConversationId: convoId };
+        }
+
         case 'STOP_PROCESSING':
             return { ...state, isProcessing: false, progress: 0, currentStep: '', plan: [] }; // CLEAR_PLAN on stop
 
@@ -377,7 +397,7 @@ export const useJoeChat = () => {
           } catch { /* noop */ } finally {
             streamFlushTimerRef.current = null;
           }
-        }, 180);
+        }, 600);
       }
     } catch { /* noop */ }
   }, []);
@@ -1153,16 +1173,7 @@ export const useJoeChat = () => {
         socket.on('response', (d) => {
           flushStreamBuffer();
           const text = sanitizeCompetitors(String(d?.response || '').trim());
-          if (text) {
-            try {
-              const id = stateRef.current.currentConversationId;
-              const msgs = id ? (stateRef.current.conversations[id]?.messages || []) : [];
-              const last = msgs.length ? String(msgs[msgs.length - 1]?.content || '') : '';
-              if (text !== last) {
-                dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
-              }
-            } catch { dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } }); }
-          }
+          if (text) { dispatch({ type: 'REPLACE_LAST_JOE', payload: text }); }
           try {
             const tools = Array.isArray(d?.toolsUsed) ? d.toolsUsed : [];
             for (const t of tools) {
@@ -1388,20 +1399,8 @@ export const useJoeChat = () => {
             flushStreamBuffer();
             const text = String(data.response || '').trim();
             if (text) {
-              dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
+              dispatch({ type: 'REPLACE_LAST_JOE', payload: text });
               dispatch({ type: 'CLEAR_ECHO' });
-              try {
-                const id = stateRef.current.currentConversationId;
-                const conv = stateRef.current.conversations[id];
-                const sid = conv?.sessionId || id;
-                if (sid) {
-                  const r = await getChatMessages(sid);
-                  const exists = (r?.messages || []).some(m => String(m?.content || '') === text && m?.type !== 'user');
-                  if (!exists) {
-                    await addChatMessage(sid, { type: 'joe', content: text });
-                  }
-                }
-              } catch { void 0; }
             }
             try {
               const tools = Array.isArray(data?.toolsUsed) ? data.toolsUsed : [];
@@ -1615,7 +1614,7 @@ export const useJoeChat = () => {
             if (selectedModel) ctx.model = selectedModel;
             const data = await executeJoe(inputText, ctx, {});
             const text = sanitizeCompetitors(String(data?.response || data?.message || '').trim());
-            if (text) dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
+            if (text) dispatch({ type: 'REPLACE_LAST_JOE', payload: text });
             try {
               const tools = Array.isArray(data?.toolsUsed) ? data.toolsUsed : [];
               for (const t of tools) {
@@ -1639,7 +1638,7 @@ export const useJoeChat = () => {
           if (selectedModel) ctx2.model = selectedModel;
           const data = await executeJoe(inputText, ctx2, {});
           const text = sanitizeCompetitors(String(data?.response || data?.message || '').trim());
-          if (text) dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
+          if (text) dispatch({ type: 'REPLACE_LAST_JOE', payload: text });
           try {
             const tools = Array.isArray(data?.toolsUsed) ? data.toolsUsed : [];
             for (const t of tools) {
