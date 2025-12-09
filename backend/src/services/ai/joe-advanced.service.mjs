@@ -871,25 +871,48 @@ ${transcript.slice(0, 8000)}`;
     } else if (!handled && openaiClient) {
         try {
           const modelId = model || 'gpt-4o';
-          const convoLines = (convo || []).slice().reverse().map(m => {
-            const uc = String(m?.command?.content || m?.command || '').trim();
-            const ac = String(m?.result || '').trim();
-            const parts = [];
-            if (uc) parts.push(`User: ${uc}`);
-            if (ac) parts.push(`Assistant: ${ac}`);
-            return parts.join('\n');
-          }).filter(Boolean);
-          const flatPrompt = [
-            MANUS_STYLE_PROMPT,
-            languageDirective,
-            ltmFactsText,
-            ...convoLines,
-            `User: ${message}`
-          ].filter(Boolean).join('\n\n');
-          const resp = await openaiClient.responses.create({ model: modelId, input: flatPrompt });
-          const text = String(resp?.output_text || '').trim();
-          finalContent = text || '';
-          usage = resp?.usage || {};
+          const systemPrompt = { role: 'system', content: `${MANUS_STYLE_PROMPT}\n\n${languageDirective}` };
+          const conversationHistory = Array.isArray(convo) ? convo : [];
+          const userMessage = { role: 'user', content: message };
+          let messages = [systemPrompt, ...conversationHistory.map(item => item.command).reverse(), userMessage];
+          const tools = availableTools;
+          let maxIterations = 4;
+          let responseMessage = null;
+          let lastResp = null;
+
+          // First call with tool_choice auto
+          lastResp = await openaiClient.chat.completions.create({
+            model: modelId,
+            messages,
+            tools,
+            tool_choice: 'auto'
+          });
+          usage = lastResp?.usage || {};
+          responseMessage = lastResp?.choices?.[0]?.message || null;
+          if (responseMessage) messages.push(responseMessage);
+
+          // Handle tool calls loop
+          while (responseMessage && Array.isArray(responseMessage.tool_calls) && responseMessage.tool_calls.length > 0 && maxIterations > 0) {
+            for (const call of responseMessage.tool_calls) {
+              const name = String(call?.function?.name || '').trim();
+              let args = {};
+              try { args = JSON.parse(String(call?.function?.arguments || '{}')); } catch { args = {}; }
+              const result = await executeTool(userId, sessionId, name, args);
+              toolResults.push({ tool: name, args, result });
+              toolCalls.push({ function: { name, arguments: args } });
+              messages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(result) });
+            }
+            maxIterations -= 1;
+            lastResp = await openaiClient.chat.completions.create({ model: modelId, messages, tools, tool_choice: 'auto' });
+            usage = lastResp?.usage || usage;
+            responseMessage = lastResp?.choices?.[0]?.message || null;
+            if (responseMessage) messages.push(responseMessage);
+          }
+
+          const finalText = String(responseMessage?.content || '').trim();
+          finalContent = finalText || '';
+
+          // Optional heuristic: auto-browse if the user asked for a site
           try {
             const preview = String(message || '').trim();
             const m = preview.match(/https?:\/\/[^\s]+/i);
