@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useLayoutEffect } from 'react';
 import PropTypes from 'prop-types';
 import { FiMic, FiPaperclip, FiSend, FiStopCircle, FiCompass, FiArrowDown, FiLink, FiGitBranch, FiImage, FiTrash2, FiCopy } from 'react-icons/fi';
 import { useJoeChatContext } from '../../context/JoeChatContext.jsx';
@@ -45,6 +45,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const scrollContainerRef = useRef(null);
+  const contentRef = useRef(null);
   const showScrollRef = useRef(false);
   const [showScrollButton, setShowScrollButton] = React.useState(false);
   const inputAreaRef = useRef(null);
@@ -118,6 +119,8 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   JoeBadge.propTypes = { size: PropTypes.oneOf(['sm','md','lg']) };
 
   const lastContent = messages[messages.length - 1]?.content || '';
+  const lastScrollHeightRef = useRef(0);
+  const lastScrollTopRef = useRef(0);
   
   const runWithAutoScroll = (fn) => {
     const el = scrollContainerRef.current;
@@ -142,10 +145,26 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   const prevMsgCountRef = useRef(messages.length);
   const lastSenderRef = useRef(messages[messages.length - 1]?.type);
 
-  // Auto-scroll فقط إذا كان المستخدم في الأسفل بالفعل؛ واستخدم ضبط مباشر للتمرير لتقليل الاهتزاز
-  useEffect(() => {
-    scrollToBottomIfNeeded();
-  }, [messages.length, lastContent]);
+  useLayoutEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const prevH = lastScrollHeightRef.current || el.scrollHeight;
+    const prevTop = lastScrollTopRef.current || el.scrollTop;
+    const prevDistance = prevH - prevTop - el.clientHeight;
+    const wasAtBottom = prevDistance <= 20;
+    requestAnimationFrame(() => {
+      const newH = el.scrollHeight;
+      const delta = newH - prevH;
+      if (!wasAtBottom && delta > 0) {
+        runWithAutoScroll((node) => { node.scrollTop = prevTop + delta; });
+      } else if (wasAtBottom) {
+        runWithAutoScroll((node) => { node.scrollTop = node.scrollHeight; });
+        setShowScrollButton(false);
+      }
+      lastScrollHeightRef.current = el.scrollHeight;
+      lastScrollTopRef.current = el.scrollTop;
+    });
+  }, [messages.length, lastContent, inputAreaHeight]);
 
   // عند تبديل المحادثة، انتقل دائماً إلى آخر رسالة
   useEffect(() => {
@@ -388,6 +407,8 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
     showScrollRef.current = !atBottom;
     setShowScrollButton(!atBottom);
+    lastScrollTopRef.current = el.scrollTop;
+    lastScrollHeightRef.current = el.scrollHeight;
   };
 
   useEffect(() => {
@@ -397,6 +418,32 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
     // initial check
     checkScroll();
     return () => el.removeEventListener('scroll', checkScroll);
+  }, []);
+
+  useEffect(() => {
+    const sc = scrollContainerRef.current;
+    const target = contentRef.current;
+    if (!sc || !target) return;
+    const ro = new ResizeObserver(() => {
+      const prevH = lastScrollHeightRef.current || sc.scrollHeight;
+      const prevTop = lastScrollTopRef.current || sc.scrollTop;
+      const prevDistance = prevH - prevTop - sc.clientHeight;
+      const wasAtBottom = prevDistance <= 20;
+      const newH = sc.scrollHeight;
+      const delta = newH - prevH;
+      if (!wasAtBottom && delta > 0) {
+        runWithAutoScroll((node) => { node.scrollTop = prevTop + delta; });
+      } else if (wasAtBottom) {
+        runWithAutoScroll((node) => { node.scrollTop = node.scrollHeight; });
+        setShowScrollButton(false);
+      }
+      lastScrollHeightRef.current = sc.scrollHeight;
+      lastScrollTopRef.current = sc.scrollTop;
+    });
+    ro.observe(target);
+    lastScrollHeightRef.current = sc.scrollHeight;
+    lastScrollTopRef.current = sc.scrollTop;
+    return () => { try { ro.disconnect(); } catch { /* ignore */ } };
   }, []);
 
   const handleFileClick = () => fileInputRef.current.click();
@@ -721,7 +768,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
         </div>
       ) : (
       <div className="flex-1 overflow-y-auto relative" ref={scrollContainerRef} style={{ scrollBehavior: 'smooth', overscrollBehavior: 'contain', overflowAnchor: 'none' }}>
-        <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 border border-gray-700 rounded-2xl bg-gray-900/40 backdrop-blur-sm shadow-xl" style={{ paddingBottom: Math.max(24, inputAreaHeight + 24) }}>
+        <div ref={contentRef} className="max-w-5xl mx-auto px-4 md:px-8 py-6 border border-gray-700 rounded-2xl bg-gray-900/40 backdrop-blur-sm shadow-xl" style={{ paddingBottom: Math.max(24, inputAreaHeight + 24) }}>
           {(() => {
             const hasActivity = (messages && messages.length > 0) || isProcessing || (Array.isArray(plan) && plan.length > 0);
             return !hasActivity ? (
