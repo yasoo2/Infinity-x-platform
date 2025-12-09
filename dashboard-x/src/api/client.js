@@ -91,10 +91,11 @@
         const host = new URL(curBase).hostname;
         const offline = localStorage.getItem('apiOffline') === '1';
         const isAuthPath = /^\/api\/v1\/auth\//.test(urlPath);
-        if (offline && (host === 'localhost' || host === '127.0.0.1') && isAuthPath) {
-          const err = new Error('API offline');
-          err.code = 'ERR_OFFLINE';
-          throw err;
+        if (offline && (host === 'localhost' || host === '127.0.0.1')) {
+          const prod = computePreferredApiBase();
+          apiClient.defaults.baseURL = prod;
+          try { localStorage.setItem('apiBaseUrl', prod); localStorage.removeItem('apiOffline'); } catch { /* noop */ }
+          try { window.dispatchEvent(new CustomEvent('api:baseurl:reset')); window.dispatchEvent(new CustomEvent('api:online')); } catch { /* noop */ }
         }
       } catch { /* noop */ }
       const skipAuth = urlPath === '/api/v1/runtime-mode/status' || urlPath === '/api/v1/integration/health' || urlPath === '/api/v1/health';
@@ -161,6 +162,18 @@
       }
     } catch { /* noop */ }
     return BASE_URL;
+  };
+
+  // Helper: prefer production API when local backend is offline
+  const computePreferredApiBase = () => {
+    try {
+      const explicit = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_EXPLICIT_API_BASE) || '';
+      const envApi = (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL)) || '';
+      if (String(explicit).trim().length > 0) return String(explicit).replace(/\/+$/, '');
+      if (String(envApi).trim().length > 0) return String(envApi).replace(/\/+$/, '');
+      return 'https://api.xelitesolutions.com';
+    } catch { /* noop */ }
+    return 'https://api.xelitesolutions.com';
   };
 
   // Response interceptor
