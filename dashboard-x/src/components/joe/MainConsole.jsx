@@ -716,7 +716,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
           </div>
         </div>
       ) : (
-      <div className="flex-1 overflow-y-auto relative" ref={scrollContainerRef} style={{ scrollBehavior: 'smooth', overscrollBehavior: 'auto', overflowAnchor: 'auto' }}>
+      <div className="flex-1 overflow-y-auto relative" ref={scrollContainerRef} style={{ scrollBehavior: 'smooth', overscrollBehavior: 'contain', overflowAnchor: 'none' }}>
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 border border-gray-700 rounded-2xl bg-gray-900/40 backdrop-blur-sm shadow-xl" style={{ paddingBottom: Math.max(24, inputAreaHeight + 24) }}>
           {(() => {
             const hasActivity = (messages && messages.length > 0) || isProcessing || (Array.isArray(plan) && plan.length > 0);

@@ -1,64 +1,51 @@
 import React, { useState, useRef } from 'react';
 import { Send, Maximize2, Minimize2, ChevronRight, Zap } from 'lucide-react';
-import apiClient from '../api/client';
+import useBrowserWebSocket from '../hooks/useBrowserWebSocket';
 
 export default function EnhancedBrowserControl() {
   const [url, setUrl] = useState('https://www.google.com');
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [command, setCommand] = useState('');
   const [output, setOutput] = useState([]);
   const [history, setHistory] = useState([]);
   const inputRef = useRef(null);
+  const { isConnected, isLoading, navigate, extractSerp, pageInfo, back, forward, refresh } = useBrowserWebSocket();
 
 
-  const handleNavigate = async (targetUrl = url) => {
-    try {
-      setIsLoading(true);
-      const response = await apiClient.post('/api/browser/navigate', {
-        url: targetUrl
-      });
-
-      if (response.data.success) {
-        setUrl(targetUrl);
-        addOutput(`✅ تم الانتقال إلى: ${targetUrl}`, 'success');
-      } else {
-        addOutput(`❌ فشل الانتقال: ${response.data.error}`, 'error');
-      }
-    } catch (error) {
-      addOutput(`❌ خطأ: ${error.message}`, 'error');
-    } finally {
-      setIsLoading(false);
+  const handleNavigate = (targetUrl = url) => {
+    const u = String(targetUrl || '').trim();
+    if (!u) return;
+    if (!isConnected) {
+      addOutput('⚠️ غير متصل بالمتحكم، سيتم المحاولة تلقائيًا…', 'error');
+      return;
     }
+    navigate(u);
+    setUrl(u);
+    addOutput(`✅ تم الانتقال إلى: ${u}`, 'success');
   };
 
   const handleSendCommand = async () => {
-    if (!command.trim()) return;
-
-    try {
-      setIsLoading(true);
-      setHistory([...history, command]);
-      addOutput(`> ${command}`, 'command');
-
-      const response = await apiClient.post('/api/browser/execute', {
-        command: command
-      });
-
-      if (response.data.success) {
-        addOutput(response.data.result || 'تم تنفيذ الأمر بنجاح', 'success');
-      } else {
-        addOutput(`خطأ: ${response.data.error}`, 'error');
-      }
-
-      setCommand('');
-      if (inputRef.current) {
-        inputRef.current.focus();
-      }
-    } catch (error) {
-      addOutput(`خطأ: ${error.message}`, 'error');
-    } finally {
-      setIsLoading(false);
+    const cmd = String(command || '').trim();
+    if (!cmd) return;
+    setHistory(prev => [...prev, cmd]);
+    addOutput(`> ${cmd}`, 'command');
+    if (!isConnected) {
+      addOutput('⚠️ غير متصل بالمتحكم، لا يمكن تنفيذ الأمر الآن.', 'error');
+      return;
     }
+    // بسيط: إذا كان الأمر رابطًا → انتقل، وإلا استخدم بحث SERP
+    if (/^https?:\/\//i.test(cmd)) {
+      handleNavigate(cmd);
+    } else {
+      try {
+        await extractSerp(cmd);
+        addOutput('🔎 تم تنفيذ البحث وإرسال النتائج إلى لوحة المتصفح', 'success');
+      } catch (e) {
+        addOutput(`❌ خطأ في البحث: ${e?.message || e}`, 'error');
+      }
+    }
+    setCommand('');
+    if (inputRef.current) inputRef.current.focus();
   };
 
   const addOutput = (text, type = 'info') => {
@@ -71,9 +58,9 @@ export default function EnhancedBrowserControl() {
 
   const quickCommands = [
     { label: 'الرئيسية', action: () => handleNavigate('https://www.google.com') },
-    { label: 'تحديث', action: () => addOutput('تم تحديث الصفحة', 'success') },
-    { label: 'للخلف', action: () => addOutput('تم الرجوع للخلف', 'success') },
-    { label: 'للأمام', action: () => addOutput('تم الانتقال للأمام', 'success') }
+    { label: 'تحديث', action: () => { if (isConnected) { try { refresh(); addOutput('🔄 تم تحديث الصفحة', 'success'); } catch (e) { addOutput(`❌ فشل التحديث: ${e?.message || e}`,'error'); } } else { addOutput('⚠️ غير متصل', 'error'); } } },
+    { label: 'للخلف', action: () => { if (isConnected) { try { back(); addOutput('⬅️ تم الرجوع صفحة واحدة', 'success'); } catch (e) { addOutput(`❌ فشل الرجوع: ${e?.message || e}`,'error'); } } else { addOutput('⚠️ غير متصل', 'error'); } } },
+    { label: 'للأمام', action: () => { if (isConnected) { try { forward(); addOutput('➡️ تم التقدم صفحة واحدة', 'success'); } catch (e) { addOutput(`❌ فشل التقدم: ${e?.message || e}`,'error'); } } else { addOutput('⚠️ غير متصل', 'error'); } } }
   ];
 
   return (
@@ -94,7 +81,7 @@ export default function EnhancedBrowserControl() {
               />
               <button
                 onClick={() => handleNavigate()}
-                disabled={isLoading}
+                disabled={isLoading || !isConnected}
                 className="p-2 hover:bg-slate-600 rounded-lg transition-colors disabled:opacity-50"
                 title="انتقل"
               >
@@ -103,16 +90,16 @@ export default function EnhancedBrowserControl() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsFullscreen(!isFullscreen)}
-              className="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-cyan-400 transition-colors"
-              title={isFullscreen ? 'تصغير' : 'تكبير'}
-            >
-              {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsFullscreen(!isFullscreen)}
+                className="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-cyan-400 transition-colors"
+                title={isFullscreen ? 'تصغير' : 'تكبير'}
+              >
+                {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+              </button>
+            </div>
           </div>
-        </div>
 
         <div className="flex gap-2 mt-3 flex-wrap">
           {quickCommands.map((cmd, idx) => (
@@ -164,11 +151,11 @@ export default function EnhancedBrowserControl() {
               onKeyPress={(e) => e.key === 'Enter' && handleSendCommand()}
               placeholder="أدخل أمر أو استعلام..."
               className="flex-1 px-3 py-2 bg-slate-700 text-cyan-400 placeholder-gray-500 rounded-lg border border-slate-600 focus:border-cyan-500 outline-none"
-              disabled={isLoading}
+              disabled={isLoading || !isConnected}
             />
             <button
               onClick={handleSendCommand}
-              disabled={isLoading || !command.trim()}
+              disabled={isLoading || !command.trim() || !isConnected}
               className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
             >
               <Send size={18} />
@@ -195,10 +182,8 @@ export default function EnhancedBrowserControl() {
 
       <div className="bg-slate-800/50 border-t border-cyan-500/30 px-4 py-2 flex items-center justify-between text-xs text-gray-400">
         <div className="flex items-center gap-2">
-          <div className={`w-2 h-2 rounded-full ${
-            isLoading ? 'bg-yellow-500 animate-pulse' : 'bg-green-500'
-          }`}></div>
-          <span>{isLoading ? 'جاري المعالجة...' : 'جاهز'}</span>
+          <div className={`w-2 h-2 rounded-full ${isConnected ? (isLoading ? 'bg-yellow-500 animate-pulse' : 'bg-green-500') : 'bg-red-500'}`}></div>
+          <span>{isConnected ? (isLoading ? 'جاري المعالجة...' : (pageInfo?.url ? `جاهز • ${pageInfo.url}` : 'جاهز')) : 'غير متصل'}</span>
         </div>
         <div className="flex items-center gap-2">
           <Zap size={14} />

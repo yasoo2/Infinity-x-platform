@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
-import LandingPage from '../components/landing/LandingPage';
+const LandingPage = React.lazy(() => import('../components/landing/LandingPage'));
 
 export default function Home() {
   const navigate = useNavigate();
@@ -16,7 +16,9 @@ export default function Home() {
 
   return (
     <>
-      <LandingPage />
+      <Suspense fallback={<div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}><div style={{ color: '#0ea5e9', fontWeight: 700 }}>Loading...</div></div>}>
+        <LandingPage />
+      </Suspense>
     </>
   );
 }

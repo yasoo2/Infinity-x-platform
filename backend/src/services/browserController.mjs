@@ -122,6 +122,45 @@ class BrowserController {
     }
   }
 
+  async back() {
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
+    try {
+      await this.page.goBack({ waitUntil: 'domcontentloaded', timeout: 15000 });
+      return { success: true, url: this.page.url() };
+    } catch (error) {
+      console.error('Back navigation error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async forward() {
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
+    try {
+      await this.page.goForward({ waitUntil: 'domcontentloaded', timeout: 15000 });
+      return { success: true, url: this.page.url() };
+    } catch (error) {
+      console.error('Forward navigation error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async refresh() {
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
+    try {
+      await this.page.reload({ waitUntil: 'domcontentloaded', timeout: 15000 });
+      return { success: true, url: this.page.url() };
+    } catch (error) {
+      console.error('Refresh error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
   async getScreenshot() {
     if (!this.isInitialized) {
       await this.initialize();

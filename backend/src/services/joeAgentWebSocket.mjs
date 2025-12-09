@@ -308,6 +308,36 @@ export class JoeAgentWebSocketServer {
           } catch (e) { socket.emit('error', { code: 'NAVIGATE_FAILED', message: String(e?.message || 'Navigation failed') }); }
         });
 
+        socket.on('browser:back', async () => {
+          try {
+            const bc = await getOrCreateBrowser();
+            await bc.back();
+            const screenshot = await bc.getScreenshot();
+            const pageInfo = await bc.getPageInfo();
+            socket.emit('browser:screenshot', { screenshot, pageInfo });
+          } catch (e) { socket.emit('error', { code: 'BACK_FAILED', message: String(e?.message || 'Back navigation failed') }); }
+        });
+
+        socket.on('browser:forward', async () => {
+          try {
+            const bc = await getOrCreateBrowser();
+            await bc.forward();
+            const screenshot = await bc.getScreenshot();
+            const pageInfo = await bc.getPageInfo();
+            socket.emit('browser:screenshot', { screenshot, pageInfo });
+          } catch (e) { socket.emit('error', { code: 'FORWARD_FAILED', message: String(e?.message || 'Forward navigation failed') }); }
+        });
+
+        socket.on('browser:refresh', async () => {
+          try {
+            const bc = await getOrCreateBrowser();
+            await bc.refresh();
+            const screenshot = await bc.getScreenshot();
+            const pageInfo = await bc.getPageInfo();
+            socket.emit('browser:screenshot', { screenshot, pageInfo });
+          } catch (e) { socket.emit('error', { code: 'REFRESH_FAILED', message: String(e?.message || 'Refresh failed') }); }
+        });
+
         socket.on('browser:get_screenshot', async () => {
           try { const bc = await getOrCreateBrowser(); const screenshot = await bc.getScreenshot(); const pageInfo = await bc.getPageInfo(); socket.emit('browser:screenshot', { screenshot, pageInfo }); } catch (e) { socket.emit('error', { code: 'SCREENSHOT_FAILED', message: String(e?.message || 'Screenshot failed') }); }
         });

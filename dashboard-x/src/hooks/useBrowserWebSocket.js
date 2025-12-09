@@ -125,6 +125,27 @@ const useBrowserWebSocket = () => {
     }
   }, []);
 
+  const back = useCallback(() => {
+    if (ioRef.current && ioRef.current.connected) {
+      setIsLoading(true);
+      ioRef.current.emit('browser:back');
+    }
+  }, []);
+
+  const forward = useCallback(() => {
+    if (ioRef.current && ioRef.current.connected) {
+      setIsLoading(true);
+      ioRef.current.emit('browser:forward');
+    }
+  }, []);
+
+  const refresh = useCallback(() => {
+    if (ioRef.current && ioRef.current.connected) {
+      setIsLoading(true);
+      ioRef.current.emit('browser:refresh');
+    }
+  }, []);
+
   const startStreaming = useCallback(() => {
     if (ioRef.current && ioRef.current.connected) {
       ioRef.current.emit('browser:start_streaming');
@@ -152,6 +173,9 @@ const useBrowserWebSocket = () => {
     getScreenshot,
     getPageText,
     extractSerp,
+    back,
+    forward,
+    refresh,
     startStreaming,
     stopStreaming
   };
