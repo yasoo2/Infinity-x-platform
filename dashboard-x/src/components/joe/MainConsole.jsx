@@ -195,20 +195,20 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
     });
   }, [messages.length, lastContent, inputAreaHeight, isUserPinned]);
 
-  // عند تبديل المحادثة، انتقل دائماً إلى آخر رسالة
+  // لا تفرض النزول عند تبديل المحادثة؛ يظل السلوك حرًا
   useEffect(() => {
     const el = scrollContainerRef.current;
     if (!el) return;
-    requestAnimationFrame(() => {
-      runWithAutoScroll((node) => { node.scrollTop = node.scrollHeight; });
-      setShowScrollButton(false);
-    });
+    // تحديث مؤشر الزر فقط
+    checkScroll();
   }, [currentConversation]);
 
   useEffect(() => {
     if (messages.length > prevMsgCountRef.current) {
       const last = messages[messages.length - 1];
-      if (!isUserPinned) {
+      const lastType = last?.type;
+      // لا ننزل تلقائيًا إلا عند إدخال المستخدم لرسالة جديدة
+      if (!isUserPinned && lastType === 'user') {
         requestAnimationFrame(() => {
           const el = scrollContainerRef.current;
           if (!el) return;
@@ -217,9 +217,19 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
         });
       }
       prevMsgCountRef.current = messages.length;
-      lastSenderRef.current = last?.type;
+      lastSenderRef.current = lastType;
     }
   }, [messages, isUserPinned]);
+
+  // عند التحديث/إعادة التحميل الأولي: انزل مرة واحدة إلى أسفل
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    requestAnimationFrame(() => {
+      runWithAutoScroll((node) => { node.scrollTop = node.scrollHeight; });
+      setShowScrollButton(false);
+    });
+  }, []);
 
   
 
