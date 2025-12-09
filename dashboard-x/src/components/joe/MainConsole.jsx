@@ -1,5 +1,4 @@
 import React, { useEffect, useRef } from 'react';
-import Draggable from 'react-draggable';
 import PropTypes from 'prop-types';
 import { FiMic, FiPaperclip, FiSend, FiStopCircle, FiCompass, FiArrowDown, FiLink, FiGitBranch, FiImage, FiTrash2, FiCopy } from 'react-icons/fi';
 import { useJoeChatContext } from '../../context/JoeChatContext.jsx';
@@ -76,8 +75,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   const [uploadsLoading, setUploadsLoading] = React.useState(false);
   const [showBrowserPanel, setShowBrowserPanel] = React.useState(false);
   const [browserPanelMode, setBrowserPanelMode] = React.useState('mini');
-  const browserPanelRef = useRef(null);
-  const [browserPanelDrag, setBrowserPanelDrag] = React.useState(() => {
+  const [browserPanelDrag] = React.useState(() => {
     try {
       const s = localStorage.getItem('joeBrowserPanelDrag');
       return s ? JSON.parse(s) : { x: 0, y: 0 };
@@ -93,7 +91,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   const [expandedIds, setExpandedIds] = React.useState(new Set());
 
   const { 
-    messages, isProcessing, progress, currentStep, 
+    messages, isProcessing, progress, 
     input, setInput, isListening, handleSend, stopProcessing,
     handleVoiceInput, transcript, currentConversation,
     wsConnected, reconnectActive, reconnectAttempt, reconnectRemainingMs, reconnectDelayMs,

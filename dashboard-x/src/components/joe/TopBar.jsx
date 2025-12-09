@@ -64,7 +64,7 @@ const TopBar = ({ onToggleLeft, isLeftOpen, onToggleStatus, isStatusOpen, onTogg
         setRuntimeStage(stage);
         if (data?.version) setVersion(String(data.version));
         try { window.__joeRuntimeStatus = { offlineReady, mode, hasProvider: Boolean(data?.hasProvider), stage, modelPath }; } catch { /* noop */ }
-      } catch (e) {
+      } catch {
         try {
           const { data } = await apiClient.get('/api/v1/health');
           const mode = String(data?.mode || 'online');
@@ -499,7 +499,6 @@ const AIMenuButton = ({ runtimeMode }) => {
   const [valid, setValid] = React.useState({});
   const [validationError, setValidationError] = React.useState({});
   const [activationError, setActivationError] = React.useState({});
-  const [logoError, setLogoError] = React.useState({});
   const [search, setSearch] = React.useState('');
   const [region, setRegion] = React.useState('all');
   const [detailId, setDetailId] = React.useState(null);
