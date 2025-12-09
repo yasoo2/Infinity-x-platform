@@ -24,6 +24,7 @@ const JoeContent = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [panelStyles, setPanelStyles] = useState({ left: { color: '#1f2937', width: 1, radius: 0 }, right: { color: '#1f2937', width: 1, radius: 0 } });
   const toggleBottomPanel = () => setIsBottomPanelOpen(!isBottomPanelOpen);
+  const toggleSidePanel = () => setLeftWidth((w) => (w === 0 ? 240 : 0));
   const [leftWidth, setLeftWidth] = useState(240);
   const [rightWidth, setRightWidth] = useState(320);
   const [dragLeft, setDragLeft] = useState(false);
@@ -527,7 +528,7 @@ const JoeContent = () => {
                     <button onClick={(e)=>{ e.stopPropagation(); toggleSidePanel(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'لوحة اليسار':'Left Panel'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); toggleRightPanel(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'لوحة اليمين':'Right Panel'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); toggleBottomPanel(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'سجلّ النظام':'Logs'}</button>
-                    <button onClick={(e)=>{ e.stopPropagation(); handleNewConversation(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text黑 text-xs">{lang==='ar'?'جلسة جديدة':'New Chat'}</button>
+                    <button onClick={(e)=>{ e.stopPropagation(); handleNewConversation(); }} className="px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-black text-xs">{lang==='ar'?'جلسة جديدة':'New Chat'}</button>
                     <button onClick={(e)=>{ e.stopPropagation(); if (currentConversationId) clearMessages(currentConversationId); }} className="px-2 py-1 rounded bg-gray-700 hover:bg-gray-600 text-white text-xs">{lang==='ar'?'مسح الرسائل':'Clear msgs'}</button>
                     {/* Removed legacy Browser Viewer navigation */}
                     <button onClick={(e)=>{ e.stopPropagation(); navigate('/dashboard/security'); }} className="px-2 py-1 rounded bg-purple-600 hover:bg-purple-700 text-white text-xs">{lang==='ar'?'تقرير الأمان':'Security Report'}</button>
