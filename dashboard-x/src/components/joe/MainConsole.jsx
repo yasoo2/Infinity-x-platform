@@ -111,6 +111,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   const JoeBadge = ({ size = 'sm', state = 'ready' }) => {
     const px = size === 'lg' ? 36 : (size === 'md' ? 28 : 20);
     const gradId = React.useMemo(() => `joeHexGrad-${Math.random().toString(36).slice(2)}`, []);
+    const hatGradId = React.useMemo(() => `joeHatGrad-${Math.random().toString(36).slice(2)}`, []);
     const palette = (() => {
       if (state === 'offline') return ['#9ca3af', '#6b7280', '#374151'];
       if (state === 'ready') return ['#fde047', '#f59e0b', '#eab308'];
@@ -125,6 +126,10 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
               <stop offset="0%" stopColor={palette[0]} />
               <stop offset="60%" stopColor={palette[1]} />
               <stop offset="100%" stopColor={palette[2]} />
+            </linearGradient>
+            <linearGradient id={hatGradId} x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#fde047" />
+              <stop offset="100%" stopColor="#f59e0b" />
             </linearGradient>
           </defs>
           <circle cx="32" cy="32" r="22" fill="none" stroke={`url(#${gradId})`} strokeWidth="3">
@@ -144,6 +149,12 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
             <circle cx="36" cy="32" r="1.5" fill={strokeColor}>
               {state !== 'ready' && state !== 'offline' && (<animate attributeName="cx" values="35.6;36.4;35.6" dur="1.4s" repeatCount="indefinite" />)}
             </circle>
+          </g>
+          <g>
+            <ellipse cx="32" cy="20" rx="12" ry="5" fill={`url(#${hatGradId})`} opacity="0.95">
+              <animateTransform attributeName="transform" type="rotate" values="0 32 20;1.5 32 20;0 32 20;-1.5 32 20;0 32 20" dur="6s" repeatCount="indefinite" />
+            </ellipse>
+            <rect x="22" y="22" width="20" height="2.5" rx="1.25" fill="#eab308" />
           </g>
         </svg>
       </span>
