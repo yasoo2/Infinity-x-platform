@@ -86,6 +86,17 @@
   apiClient.interceptors.request.use(
     (config) => {
       const urlPath = String(config.url || '');
+      try {
+        const curBase = String(apiClient.defaults.baseURL || '');
+        const host = new URL(curBase).hostname;
+        const offline = localStorage.getItem('apiOffline') === '1';
+        const isAuthPath = /^\/api\/v1\/auth\//.test(urlPath);
+        if (offline && (host === 'localhost' || host === '127.0.0.1') && isAuthPath) {
+          const err = new Error('API offline');
+          err.code = 'ERR_OFFLINE';
+          throw err;
+        }
+      } catch { /* noop */ }
       const skipAuth = urlPath === '/api/v1/runtime-mode/status' || urlPath === '/api/v1/integration/health' || urlPath === '/api/v1/health';
       const token = skipAuth ? null : localStorage.getItem('sessionToken');
       if (token) {

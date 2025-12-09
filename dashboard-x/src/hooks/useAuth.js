@@ -17,6 +17,10 @@ const useAuth = () => {
 
   const login = async (email, password, remember = false) => {
     try {
+      try {
+        const offline = localStorage.getItem('apiOffline') === '1';
+        if (offline) return false;
+      } catch { /* noop */ }
       const { data } = await apiClient.post('/api/v1/auth/login', { email, password });
       if (data?.token) {
         try {
@@ -37,7 +41,7 @@ const useAuth = () => {
         return true;
       }
     } catch {
-      void 0;
+      return false;
     }
   };
 

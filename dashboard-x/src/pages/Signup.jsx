@@ -67,6 +67,14 @@ export default function Signup() {
     setLoading(true);
     
     try {
+      try {
+        const offline = localStorage.getItem('apiOffline') === '1';
+        if (offline) {
+          setError('الخادم غير متاح حاليًا (Offline)');
+          setLoading(false);
+          return;
+        }
+      } catch { /* noop */ }
       // استدعاء API للتسجيل
       const response = await apiClient.post('/api/v1/auth/register', {
         email: email,

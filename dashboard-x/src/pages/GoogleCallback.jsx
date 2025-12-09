@@ -27,6 +27,14 @@ export default function GoogleCallback() {
       }
 
       try {
+        try {
+          const offline = localStorage.getItem('apiOffline') === '1';
+          if (offline) {
+            setError('الخادم غير متاح حاليًا');
+            setTimeout(() => navigate('/login'), 3000);
+            return;
+          }
+        } catch { /* noop */ }
         // Send code to backend
         const response = await apiClient.post('/api/v1/auth/google/callback', {
           code,
