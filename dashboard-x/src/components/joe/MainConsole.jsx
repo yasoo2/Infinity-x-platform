@@ -127,21 +127,12 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
               <stop offset="100%" stopColor={palette[2]} />
             </linearGradient>
           </defs>
-          <polygon points="32,6 52,18 52,46 32,58 12,46 12,18" fill={`url(#${gradId})`} stroke={strokeColor} strokeWidth="2">
-            {state === 'thinking' && (<animateTransform attributeName="transform" type="rotate" from="0 32 32" to="360 32 32" dur="10s" repeatCount="indefinite" />)}
-            {state === 'deploy' && (<animate attributeName="opacity" values="1;0.9;1" dur="1.2s" repeatCount="indefinite" />)}
-          </polygon>
-          <g>
-            <circle cx="26" cy="32" r="3" fill="#0b1220">
-              {state === 'typing' && (<animate attributeName="opacity" values="0.4;1;0.4" dur="1.2s" repeatCount="indefinite" />)}
-            </circle>
-            <circle cx="32" cy="32" r="3" fill="#0b1220">
-              {state === 'typing' && (<animate attributeName="opacity" values="0.4;1;0.4" dur="1.2s" begin="0.2s" repeatCount="indefinite" />)}
-            </circle>
-            <circle cx="38" cy="32" r="3" fill="#0b1220">
-              {state === 'typing' && (<animate attributeName="opacity" values="0.4;1;0.4" dur="1.2s" begin="0.4s" repeatCount="indefinite" />)}
-            </circle>
-          </g>
+          <circle cx="32" cy="32" r="22" fill="none" stroke={`url(#${gradId})`} strokeWidth="3">
+            {state !== 'ready' && state !== 'offline' && (<animate attributeName="stroke-opacity" values="1;0.6;1" dur="1.2s" repeatCount="indefinite" />)}
+          </circle>
+          <circle cx="32" cy="32" r="5" fill={strokeColor} opacity={state==='offline' ? 0.6 : 0.9}>
+            {state !== 'ready' && state !== 'offline' && (<animate attributeName="r" values="5;7;5" dur="1.2s" repeatCount="indefinite" />)}
+          </circle>
         </svg>
       </span>
     );
@@ -909,7 +900,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                             <pre className="bg-gray-900/70 backdrop-blur-sm border border-gray-700 rounded-2xl p-4 text-[12px] overflow-x-auto shadow-inner" style={{ direction: 'ltr', textAlign: 'left' }}><code>{seg.content}</code></pre>
                             <button
                               onClick={() => { try { navigator.clipboard.writeText(seg.content); } catch { /* noop */ } }}
-                              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded bg-gray-700 text-gray-200 border border-gray-600 hover:bg-gray-600"
+                              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-0 text-gray-300 hover:text-gray-100"
                               title={lang==='ar' ? 'نسخ' : 'Copy'}
                             >
                               <FiCopy size={14} />
@@ -997,7 +988,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                         )}
                         <button
                           onClick={() => { try { navigator.clipboard.writeText(String(msg.content||'')); } catch { /* noop */ } }}
-                          className="p-1.5 rounded bg-gray-700 text-gray-200 border border-gray-600 hover:bg-gray-600"
+                          className="p-0 text-gray-300 hover:text-gray-100"
                           title={lang==='ar' ? 'نسخ' : 'Copy'}
                         >
                           <FiCopy size={14} />
@@ -1263,7 +1254,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                       <img src={it.absoluteUrl} alt={it.name} className="w-full h-28 object-cover" />
                       <div className="absolute inset-x-0 bottom-0 bg-gray-900/70 text-[11px] text-gray-300 px-2 py-1 truncate">{it.name}</div>
                       <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => handleCopyUrl(it.absoluteUrl)} className="p-1 rounded bg-gray-800 text-gray-200 hover:bg-gray-700" title={lang==='ar'?'نسخ الرابط':'Copy URL'}><FiCopy size={12} /></button>
+                        <button onClick={() => handleCopyUrl(it.absoluteUrl)} className="p-0 text-gray-300 hover:text-gray-100" title={lang==='ar'?'نسخ الرابط':'Copy URL'}><FiCopy size={12} /></button>
                         <button onClick={() => handleDeleteUpload(it.name)} className="p-1 rounded bg-red-700 text-white hover:bg-red-800" title={lang==='ar'?'حذف':'Delete'}><FiTrash2 size={12} /></button>
                       </div>
                     </div>
