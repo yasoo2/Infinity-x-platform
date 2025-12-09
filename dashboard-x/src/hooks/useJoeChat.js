@@ -123,7 +123,7 @@ const chatReducer = (state, action) => {
 	        convoId = uuidv4();
 	        nextState.conversations = {
 	            ...nextState.conversations,
-                [convoId]: { id: convoId, title: 'New Conversation', messages: [], lastModified: Date.now(), pinned: false, sessionId: null, summary: '' },
+                [convoId]: { id: convoId, title: 'New Conversation', messages: [], lastModified: Date.now(), pinned: false, sessionId: null, summary: '', summaryLong: '' },
 	        };
 	        nextState.currentConversationId = convoId;
 	    }
@@ -151,7 +151,7 @@ const chatReducer = (state, action) => {
             }
             if (!convo) {
                 const firstTitle = action.payload.type === 'user' ? normalizeTitle(action.payload.content) : 'New Conversation';
-                convo = { id: convoId, title: firstTitle, messages: [], lastModified: Date.now(), pinned: false, summary: '' };
+                convo = { id: convoId, title: firstTitle, messages: [], lastModified: Date.now(), pinned: false, summary: '', summaryLong: '' };
             }
             const lastMessage = convo.messages[convo.messages.length - 1];
             const normalizeJoeLine = (s) => String(s || '').split('\n').map(l => l.replace(/^\s*joe\b[\s:–-]*?/i, '')).join('\n');
@@ -178,7 +178,7 @@ const chatReducer = (state, action) => {
             let convoId = currentConversationId;
             let convo = currentConvo;
             if (!convoId) { convoId = uuidv4(); }
-            if (!convo) { convo = { id: convoId, title: 'New Conversation', messages: [], lastModified: Date.now(), pinned: false, summary: '' }; }
+            if (!convo) { convo = { id: convoId, title: 'New Conversation', messages: [], lastModified: Date.now(), pinned: false, summary: '', summaryLong: '' }; }
             const normalizeJoeLine = (s) => String(s || '').split('\n').map(l => l.replace(/^\s*joe\b[\s:–-]*?/i, '')).join('\n');
             const content = normalizeJoeLine(action.payload || '');
             if (isLegacyWelcome(content)) {
@@ -259,7 +259,7 @@ const chatReducer = (state, action) => {
             console.warn('[NEW_CONVERSATION] Creating new conversation with ID:', newId);
             const newConversations = {
                 ...conversations,
-                [newId]: { id: newId, title: 'New Conversation', messages: [], lastModified: Date.now(), pinned: false, sessionId: (typeof action.payload === 'object' && action.payload.sessionId) ? action.payload.sessionId : null, summary: '' },
+                [newId]: { id: newId, title: 'New Conversation', messages: [], lastModified: Date.now(), pinned: false, sessionId: (typeof action.payload === 'object' && action.payload.sessionId) ? action.payload.sessionId : null, summary: '', summaryLong: '' },
             };
             const newState = {
                 ...state,
@@ -334,6 +334,14 @@ const chatReducer = (state, action) => {
             return { ...state, conversations: { ...state.conversations, [id]: updated } };
         }
 
+        case 'SET_CONVERSATION_LONG_SUMMARY': {
+            const { id, summaryLong } = action.payload;
+            const convo = state.conversations[id];
+            if (!convo) return state;
+            const updated = { ...convo, summaryLong: String(summaryLong || '').slice(0, 10000) };
+            return { ...state, conversations: { ...state.conversations, [id]: updated } };
+        }
+
         case 'DELETE_CONVERSATION': {
             const { id } = action.payload;
             if (!state.conversations[id]) return state;
@@ -342,7 +350,7 @@ const chatReducer = (state, action) => {
             const ids = Object.keys(rest);
             if (ids.length === 0) {
                 const newId = uuidv4();
-                const newConversations = { [newId]: { id: newId, title: 'New Conversation', messages: [], lastModified: Date.now(), pinned: false, summary: '' } };
+                const newConversations = { [newId]: { id: newId, title: 'New Conversation', messages: [], lastModified: Date.now(), pinned: false, summary: '', summaryLong: '' } };
                 return { ...state, conversations: newConversations, currentConversationId: newId, input: '', isProcessing: false, progress: 0, currentStep: '', plan: [] };
             }
             const nextId = ids.sort((a, b) => (rest[b].lastModified || 0) - (rest[a].lastModified || 0))[0];
@@ -472,10 +480,38 @@ export const useJoeChat = () => {
         const content = String(m.content || '').replace(/\s+/g, ' ').trim().slice(0, 180);
         return `${role}: ${content}`;
       };
-      const lines = msgs.slice(-40).map(mkLine).join('\n');
+      const lines = msgs.slice(-60).map(mkLine).join('\n');
+      const prevLong = String(conv.summaryLong || '').trim();
+      const older = msgs.slice(0, Math.max(0, msgs.length - 60)).slice(-120).map(mkLine).join('\n');
+      const mergedLong = [prevLong, older].filter(Boolean).join('\n');
+      const compactLong = mergedLong.split('\n').filter((x, i, arr) => {
+        const s = x.trim();
+        if (!s) return false;
+        const prev = arr[i-1] || '';
+        return s !== prev.trim();
+      }).join('\n');
       dispatch({ type: 'SET_CONVERSATION_SUMMARY', payload: { id, summary: lines } });
+      dispatch({ type: 'SET_CONVERSATION_LONG_SUMMARY', payload: { id, summaryLong: compactLong.slice(0, 10000) } });
     } catch { /* noop */ }
   }, []);
+
+  useEffect(() => {
+    const id = state.currentConversationId;
+    if (!id) return;
+    const conv = state.conversations[id] || {};
+    const msgs = Array.isArray(conv.messages) ? conv.messages : [];
+    updateSummaryForCurrent();
+    const summary = String(stateRef.current.conversations[id]?.summary || '').trim();
+    const summaryLong = String(stateRef.current.conversations[id]?.summaryLong || '').trim();
+    const sid = conv.sessionId || id;
+    const isObjId = /^[a-f0-9]{24}$/i.test(String(sid));
+    if (!isObjId || (!summary && !summaryLong)) return;
+    try { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); } catch { /* noop */ }
+    saveTimerRef.current = setTimeout(async () => {
+      try { await updateChatSession(sid, { summary, summaryLong }); } catch { /* noop */ }
+    }, 800);
+    return () => { try { if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; } } catch { /* noop */ } };
+  }, [state.currentConversationId, state.conversations]);
 
   const selectConversationSafe = useCallback((id, source = 'auto') => {
     const cur = stateRef.current?.currentConversationId || null;
@@ -1642,12 +1678,12 @@ export const useJoeChat = () => {
       const selectedModel = activeModelRef.current || localStorage.getItem('aiSelectedModel') || null;
       const convMsgs = (() => { const id = stateRef.current.currentConversationId; const c = stateRef.current.conversations[id] || {}; return Array.isArray(c.messages) ? c.messages : []; })();
       const mkLine = (m) => { const role = m.type === 'user' ? (lang === 'ar' ? 'المستخدم' : 'User') : 'Joe'; const content = String(m.content || '').replace(/\s+/g, ' ').trim().slice(0, 300); return `${role}: ${content}`; };
-      const ctxLines = convMsgs.slice(-12).map(mkLine).join('\n');
-      const summaryLines = convMsgs.slice(0, Math.max(0, convMsgs.length - 12)).slice(-24).map(mkLine).join('\n');
+      const ctxLines = convMsgs.slice(-10).map(mkLine).join('\n');
+      const convSummary = String((stateRef.current.conversations[stateRef.current.currentConversationId]?.summary) || '').trim();
       const headerPrev = lang === 'ar' ? 'سياق سابق' : 'Previous context';
       const headerSum = lang === 'ar' ? 'ملخص الجلسة' : 'Session summary';
       const parts = [];
-      if (summaryLines) parts.push(`${headerSum}:\n${summaryLines}`);
+      if (convSummary) parts.push(`${headerSum}:\n${convSummary}`);
       if (ctxLines) parts.push(`${headerPrev}:\n${ctxLines}`);
       const prefix = parts.length ? `${parts.join('\n\n')}\n\n` : '';
       const msgWithContext = `${prefix}${inputText}`;
@@ -1779,14 +1815,16 @@ export const useJoeChat = () => {
       const buildPayload = () => {
         let selectedModel = activeModelRef.current || localStorage.getItem('aiSelectedModel');
         if (!selectedModel) selectedModel = null;
-        const convMsgs = (() => { const id = stateRef.current.currentConversationId; const c = stateRef.current.conversations[id] || {}; return Array.isArray(c.messages) ? c.messages : []; })();
+        const convMsgs = (() => { const c = state.conversations[convId] || {}; return Array.isArray(c.messages) ? c.messages : []; })();
         const mkLine = (m) => { const role = m.type === 'user' ? (lang === 'ar' ? 'المستخدم' : 'User') : 'Joe'; const content = String(m.content || '').replace(/\s+/g, ' ').trim().slice(0, 300); return `${role}: ${content}`; };
-        const ctxLines = convMsgs.slice(-12).map(mkLine).join('\n');
-        const summaryLines = convMsgs.slice(0, Math.max(0, convMsgs.length - 12)).slice(-24).map(mkLine).join('\n');
+        const ctxLines = convMsgs.slice(-10).map(mkLine).join('\n');
+        const convSummary = String((state.conversations[convId]?.summary) || '').trim();
+        const convSummaryLong = String((state.conversations[convId]?.summaryLong) || '').trim();
         const headerPrev = lang === 'ar' ? 'سياق سابق' : 'Previous context';
         const headerSum = lang === 'ar' ? 'ملخص الجلسة' : 'Session summary';
         const parts = [];
-        if (summaryLines) parts.push(`${headerSum}:\n${summaryLines}`);
+        if (convSummaryLong) parts.push(`${(lang==='ar'?'ذاكرة الجلسة':'Session memory')}:\n${convSummaryLong}`);
+        if (convSummary) parts.push(`${headerSum}:\n${convSummary}`);
         if (ctxLines) parts.push(`${headerPrev}:\n${ctxLines}`);
         const prefix = parts.length ? `${parts.join('\n\n')}\n\n` : '';
         const msgWithContext = `${prefix}${inputText}`;
@@ -1805,14 +1843,16 @@ export const useJoeChat = () => {
             const selectedModel = activeModelRef.current || localStorage.getItem('aiSelectedModel') || null;
             const ctx = { sessionId: sidToUse || undefined, lang };
             if (selectedModel) ctx.model = selectedModel;
-            const convMsgs = (() => { const id = stateRef.current.currentConversationId; const c = stateRef.current.conversations[id] || {}; return Array.isArray(c.messages) ? c.messages : []; })();
+            const convMsgs = (() => { const c = state.conversations[convId] || {}; return Array.isArray(c.messages) ? c.messages : []; })();
             const mkLine = (m) => { const role = m.type === 'user' ? (lang === 'ar' ? 'المستخدم' : 'User') : 'Joe'; const content = String(m.content || '').replace(/\s+/g, ' ').trim().slice(0, 300); return `${role}: ${content}`; };
-            const ctxLines = convMsgs.slice(-12).map(mkLine).join('\n');
-            const summaryLines = convMsgs.slice(0, Math.max(0, convMsgs.length - 12)).slice(-24).map(mkLine).join('\n');
+            const ctxLines = convMsgs.slice(-10).map(mkLine).join('\n');
+            const convSummary = String((state.conversations[convId]?.summary) || '').trim();
+            const convSummaryLong = String((state.conversations[convId]?.summaryLong) || '').trim();
             const headerPrev = lang === 'ar' ? 'سياق سابق' : 'Previous context';
             const headerSum = lang === 'ar' ? 'ملخص الجلسة' : 'Session summary';
             const parts = [];
-            if (summaryLines) parts.push(`${headerSum}:\n${summaryLines}`);
+            if (convSummaryLong) parts.push(`${(lang==='ar'?'ذاكرة الجلسة':'Session memory')}:\n${convSummaryLong}`);
+            if (convSummary) parts.push(`${headerSum}:\n${convSummary}`);
             if (ctxLines) parts.push(`${headerPrev}:\n${ctxLines}`);
             const prefix = parts.length ? `${parts.join('\n\n')}\n\n` : '';
             const msgWithContext = `${prefix}${inputText}`;
@@ -1879,12 +1919,14 @@ export const useJoeChat = () => {
             if (selectedModel) ctx2.model = selectedModel;
             const convMsgs2 = (() => { const id = stateRef.current.currentConversationId; const c = stateRef.current.conversations[id] || {}; return Array.isArray(c.messages) ? c.messages : []; })();
             const mkLine2 = (m) => { const role = m.type === 'user' ? (lang === 'ar' ? 'المستخدم' : 'User') : 'Joe'; const content = String(m.content || '').replace(/\s+/g, ' ').trim().slice(0, 300); return `${role}: ${content}`; };
-            const ctxLines2 = convMsgs2.slice(-12).map(mkLine2).join('\n');
-            const summaryLines2 = convMsgs2.slice(0, Math.max(0, convMsgs2.length - 12)).slice(-24).map(mkLine2).join('\n');
+            const ctxLines2 = convMsgs2.slice(-10).map(mkLine2).join('\n');
+            const convSummary2 = String((state.conversations[convId]?.summary) || '').trim();
+            const convSummaryLong2 = String((state.conversations[convId]?.summaryLong) || '').trim();
             const headerPrev2 = lang === 'ar' ? 'سياق سابق' : 'Previous context';
             const headerSum2 = lang === 'ar' ? 'ملخص الجلسة' : 'Session summary';
             const parts2 = [];
-            if (summaryLines2) parts2.push(`${headerSum2}:\n${summaryLines2}`);
+            if (convSummaryLong2) parts2.push(`${(lang==='ar'?'ذاكرة الجلسة':'Session memory')}:\n${convSummaryLong2}`);
+            if (convSummary2) parts2.push(`${headerSum2}:\n${convSummary2}`);
             if (ctxLines2) parts2.push(`${headerPrev2}:\n${ctxLines2}`);
             const prefix2 = parts2.length ? `${parts2.join('\n\n')}\n\n` : '';
             const msgWithContext2 = `${prefix2}${inputText}`;
@@ -2005,6 +2047,13 @@ export const useJoeChat = () => {
           if (!byId.has(fm.id)) merged.push(fm);
         }
         dispatch({ type: 'SET_MESSAGES_FOR_CONVERSATION', payload: { id, messages: merged } });
+        try {
+          const s = await getChatSessionById(sid);
+          const summary = String(s?.summary || s?.session?.summary || '').trim();
+          const summaryLong = String(s?.summaryLong || s?.session?.summaryLong || '').trim();
+          if (summary) dispatch({ type: 'SET_CONVERSATION_SUMMARY', payload: { id, summary } });
+          if (summaryLong) dispatch({ type: 'SET_CONVERSATION_LONG_SUMMARY', payload: { id, summaryLong } });
+        } catch { /* noop */ }
       } catch { void 0; }
     })();
   }, [state.currentConversationId, state.conversations, state.isProcessing]);
