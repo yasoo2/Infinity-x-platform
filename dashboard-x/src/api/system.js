@@ -183,7 +183,7 @@ export const deleteChatMessage = (id, messageId, opts) =>
 export const executeJoe = async (instruction, ctx, opts) => {
   const payload = { instruction, lang: ctx?.lang, model: ctx?.model, sessionId: ctx?.sessionId, provider: ctx?.provider, apiKey: ctx?.apiKey };
   try {
-    const { data } = await apiClient.post(v1('/joe/execute'), payload, { signal: opts?.signal, _noRedirect401: true });
+    const { data } = await apiClient.post(v1('/joe/execute'), payload, { signal: opts?.signal, _noRedirect401: true, timeout: opts?.timeout ?? 45000 });
     return data;
   } catch (e) {
     const status = e?.status ?? e?.response?.status;
@@ -195,7 +195,7 @@ export const executeJoe = async (instruction, ctx, opts) => {
       if (payload.sessionId) params.set('sessionId', String(payload.sessionId));
       if (payload.provider) params.set('provider', String(payload.provider));
       if (payload.apiKey) params.set('apiKey', String(payload.apiKey));
-      const { data } = await apiClient.get(`${v1('/joe/execute')}?${params.toString()}`, { signal: opts?.signal, _noRedirect401: true });
+      const { data } = await apiClient.get(`${v1('/joe/execute')}?${params.toString()}`, { signal: opts?.signal, _noRedirect401: true, timeout: opts?.timeout ?? 45000 });
       return data;
     }
     throw e;
