@@ -377,6 +377,11 @@ const JoeContent = () => {
             currentConversationId={currentConversationId}
             onConversationSelect={handleConversationSelect}
             onNewConversation={handleNewConversation}
+            onRenameConversation={renameConversation}
+            onDeleteConversation={deleteConversation}
+            onPinToggle={pinToggle}
+            onDuplicate={duplicateConversation}
+            onClear={clearMessages}
             lang={lang}
           />
           <div
