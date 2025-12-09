@@ -88,7 +88,7 @@ const SidePanel = ({ conversations, onConversationSelect, onNewConversation, cur
         </div>
         {openMenuId === convo.id && (
           <div ref={menuRef} className="fixed z-40 w-44 bg-gray-900 text-white border border-yellow-600 rounded-lg shadow-2xl" style={{ top: menuPos.top, left: menuPos.left }} onClick={(e)=>e.stopPropagation()}>
-            <button onClick={(e)=>{ e.stopPropagation(); onPinToggle(convo.id); setOpenMenuId(null); }} className="w-full text-right px-3 py-2 hover:bg-yellow-600 hover:text:black text-sm">{lang === 'ar' ? (convo.pinned ? 'إلغاء التثبيت' : 'تثبيت') : (convo.pinned ? 'Unpin' : 'Pin')}</button>
+            <button onClick={(e)=>{ e.stopPropagation(); onPinToggle(convo.id); setOpenMenuId(null); }} className="w-full text-right px-3 py-2 hover:bg-yellow-600 hover:text-black text-sm">{lang === 'ar' ? (convo.pinned ? 'إلغاء التثبيت' : 'تثبيت') : (convo.pinned ? 'Unpin' : 'Pin')}</button>
             <button onClick={(e)=>{ e.stopPropagation(); const t = prompt(lang === 'ar' ? 'إعادة تسمية الجلسة' : 'Rename session', convo.title || ''); if (t!=null) onRenameConversation(convo.id, t); setOpenMenuId(null); }} className="w-full text-right px-3 py-2 hover:bg-yellow-600 hover:text-black text-sm">{lang === 'ar' ? 'إعادة تسمية' : 'Rename'}</button>
             <button onClick={(e)=>{ e.stopPropagation(); onDuplicate(convo.id); setOpenMenuId(null); }} className="w-full text-right px-3 py-2 hover:bg-yellow-600 hover:text-black text-sm">{lang === 'ar' ? 'نسخ' : 'Duplicate'}</button>
             <div className="border-t border-yellow-600/20 my-1" />
