@@ -699,36 +699,64 @@ export const useJoeChat = () => {
   }, [handleNewConversation]);
 
   useEffect(() => {
-    try {
-      const savedHistory = localStorage.getItem(JOE_CHAT_HISTORY);
-      if (savedHistory) {
-        const parsed = JSON.parse(savedHistory);
-        const normalized = normalizeConversationsData(parsed?.conversations);
-        const cleaned = (() => {
-          const out = {};
-          for (const [id, convo] of Object.entries(normalized || {})) {
-            const msgs = Array.isArray(convo?.messages) ? convo.messages : [];
-            const filtered = msgs.filter((m) => !(m?.type === 'joe' && isLegacyWelcome(m?.content)));
-            out[id] = { ...convo, messages: filtered };
+    (async () => {
+      let usedServer = false;
+      try {
+        let token = null;
+        try { token = localStorage.getItem('sessionToken'); } catch { token = null; }
+        if (!token) {
+          try {
+            const r = await getGuestToken();
+            if ((r?.success || r?.ok) && r?.token) {
+              localStorage.setItem('sessionToken', r.token);
+              token = r.token;
+            }
+          } catch { /* noop */ }
+        }
+        if (token) {
+          try {
+            const s = await getChatSessions({});
+            const list = Array.isArray(s?.sessions) ? s.sessions : [];
+            if (list.length > 0) {
+              await syncBackendSessions();
+              usedServer = true;
+            }
+          } catch { /* noop */ }
+        }
+      } catch { /* noop */ }
+      if (!usedServer) {
+        try {
+          const savedHistory = localStorage.getItem(JOE_CHAT_HISTORY);
+          if (savedHistory) {
+            const parsed = JSON.parse(savedHistory);
+            const normalized = normalizeConversationsData(parsed?.conversations);
+            const cleaned = (() => {
+              const out = {};
+              for (const [id, convo] of Object.entries(normalized || {})) {
+                const msgs = Array.isArray(convo?.messages) ? convo.messages : [];
+                const filtered = msgs.filter((m) => !(m?.type === 'joe' && isLegacyWelcome(m?.content)));
+                out[id] = { ...convo, messages: filtered };
+              }
+              return out;
+            })();
+            if (cleaned && Object.keys(cleaned).length > 0) {
+              dispatch({ type: 'SET_CONVERSATIONS', payload: cleaned });
+              const sortedIds = Object.keys(cleaned).sort((a, b) => (cleaned[b].lastModified || 0) - (cleaned[a].lastModified || 0));
+              selectConversationSafe(parsed?.currentConversationId || sortedIds[0], 'init');
+            } else {
+              handleNewConversation();
+            }
+          } else {
+            handleNewConversation();
           }
-          return out;
-        })();
-        if (cleaned && Object.keys(cleaned).length > 0) {
-          dispatch({ type: 'SET_CONVERSATIONS', payload: cleaned });
-          const sortedIds = Object.keys(cleaned).sort((a, b) => (cleaned[b].lastModified || 0) - (cleaned[a].lastModified || 0));
-          selectConversationSafe(parsed?.currentConversationId || sortedIds[0], 'init');
-        } else {
+        } catch (error) {
+          console.error("Failed to load chat history:", error);
           handleNewConversation();
         }
-      } else {
-        handleNewConversation();
       }
-    } catch (error) {
-      console.error("Failed to load chat history:", error);
-      handleNewConversation();
-    }
-    initialLoadDoneRef.current = true;
-  }, [handleNewConversation, selectConversationSafe]);
+      initialLoadDoneRef.current = true;
+    })();
+  }, [syncBackendSessions, handleNewConversation, selectConversationSafe]);
 
   const mapSessionToConversation = useCallback((session) => {
     const messages = [];
@@ -874,6 +902,17 @@ export const useJoeChat = () => {
   useEffect(() => {
     syncRef.current = syncBackendSessions;
   }, [syncBackendSessions]);
+
+  useEffect(() => {
+    const onFocus = () => { try { if (syncRef.current) syncRef.current(); } catch { /* noop */ } };
+    const onVis = () => { try { if (!document.hidden && syncRef.current) syncRef.current(); } catch { /* noop */ } };
+    try { window.addEventListener('focus', onFocus); } catch { /* noop */ }
+    try { document.addEventListener('visibilitychange', onVis); } catch { /* noop */ }
+    return () => {
+      try { window.removeEventListener('focus', onFocus); } catch { /* noop */ }
+      try { document.removeEventListener('visibilitychange', onVis); } catch { /* noop */ }
+    };
+  }, []);
 
 
   
