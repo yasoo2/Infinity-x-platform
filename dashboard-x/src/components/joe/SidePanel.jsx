@@ -66,7 +66,7 @@ const SidePanel = ({ conversations, onConversationSelect, onNewConversation, cur
 
   const exportConversation = (convo, format = 'json') => {
     try {
-      const baseName = String(convo?.title || 'conversation').replace(/[^\p{L}\p{N}\s-_]+/gu, '').trim() || 'conversation';
+      const baseName = String(convo?.title || 'conversation').replace(/[^a-zA-Z0-9\s_-]+/g, '').trim() || 'conversation';
       const ts = new Date().toISOString().replace(/[:.]/g, '-');
       let blob;
       let filename;
@@ -200,7 +200,7 @@ const SidePanel = ({ conversations, onConversationSelect, onNewConversation, cur
                 <button onClick={(e)=>{ e.stopPropagation(); onDuplicate(convo.id); setOpenMenuId(null); }} className="w-full text-right px-3 py-2 hover:bg-yellow-600 hover:text-black text-sm">{lang === 'ar' ? 'نسخ' : 'Duplicate'}</button>
                 <div className="border-t border-yellow-600/20 my-1" />
                 <button onClick={(e)=>{ e.stopPropagation(); exportConversation(convo, 'json'); setOpenMenuId(null); }} className="w-full text-right px-3 py-2 hover:bg-gray-700 text-sm">{lang === 'ar' ? 'تصدير (JSON)' : 'Export (JSON)'}</button>
-                <button onClick={(e)=>{ e.stopPropagation(); exportConversation(convo, 'md'); setOpenMenuId(null); }} className="w-full text-right px-3 py-2 hover:bg.gray-700 text-sm">{lang === 'ar' ? 'تصدير (Markdown)' : 'Export (Markdown)'}</button>
+                <button onClick={(e)=>{ e.stopPropagation(); exportConversation(convo, 'md'); setOpenMenuId(null); }} className="w-full text-right px-3 py-2 hover:bg-gray-700 text-sm">{lang === 'ar' ? 'تصدير (Markdown)' : 'Export (Markdown)'}</button>
                 <button onClick={(e)=>{ e.stopPropagation(); if (confirm(lang === 'ar' ? 'مسح الرسائل؟' : 'Clear messages?')) onClear(convo.id); setOpenMenuId(null); }} className="w-full text-right px-3 py-2 hover:bg-yellow-600 hover:text-black text-sm">{lang === 'ar' ? 'مسح الرسائل' : 'Clear Messages'}</button>
                 <button onClick={(e)=>{ e.stopPropagation(); if (confirm(lang === 'ar' ? 'حذف الجلسة؟' : 'Delete session?')) onDeleteConversation(convo.id); setOpenMenuId(null); }} className="w-full text-right px-3 py-2 hover:bg-red-700 text-sm text-red-300">{lang === 'ar' ? 'حذف' : 'Delete'}</button>
               </div>
