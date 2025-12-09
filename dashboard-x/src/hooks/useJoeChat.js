@@ -239,13 +239,9 @@ const chatReducer = (state, action) => {
             const explicitId = (typeof action.payload === 'object' && action.payload.id) ? action.payload.id : null;
             const newId = explicitId || uuidv4();
             console.warn('[NEW_CONVERSATION] Creating new conversation with ID:', newId);
-            const lang = getLang();
-            const defaultText = lang === 'ar' ? 'مرحبًا بك في مساعد Joe الذكي! 👋' : 'Welcome to Joe AI Assistant! 👋';
-            const dynamicText = typeof action.payload === 'object' && action.payload.welcomeMessage ? action.payload.welcomeMessage : defaultText;
-            const welcomeMessage = { type: 'joe', content: dynamicText, id: uuidv4(), createdAt: Date.now() };
             const newConversations = {
                 ...conversations,
-                [newId]: { id: newId, title: 'New Conversation', messages: [welcomeMessage], lastModified: Date.now(), pinned: false, sessionId: (typeof action.payload === 'object' && action.payload.sessionId) ? action.payload.sessionId : null },
+                [newId]: { id: newId, title: 'New Conversation', messages: [], lastModified: Date.now(), pinned: false, sessionId: (typeof action.payload === 'object' && action.payload.sessionId) ? action.payload.sessionId : null },
             };
             const newState = {
                 ...state,
@@ -319,12 +315,7 @@ const chatReducer = (state, action) => {
             const ids = Object.keys(rest);
             if (ids.length === 0) {
                 const newId = uuidv4();
-                const lang = getLang();
-                const en = `Welcome to Joe AI Assistant! 👋`;
-                const ar = `مرحبًا بك في مساعد Joe الذكي! 👋`;
-                const msg = lang === 'ar' ? ar : en;
-                const welcomeMessage = { type: 'joe', content: msg, id: uuidv4(), createdAt: Date.now() };
-                const newConversations = { [newId]: { id: newId, title: 'New Conversation', messages: [welcomeMessage], lastModified: Date.now(), pinned: false } };
+                const newConversations = { [newId]: { id: newId, title: 'New Conversation', messages: [], lastModified: Date.now(), pinned: false } };
                 return { ...state, conversations: newConversations, currentConversationId: newId, input: '', isProcessing: false, progress: 0, currentStep: '', plan: [] };
             }
             const nextId = ids.sort((a, b) => (rest[b].lastModified || 0) - (rest[a].lastModified || 0))[0];
@@ -566,47 +557,8 @@ export const useJoeChat = () => {
 
   // ... (useEffect for localStorage loading remains the same)
   const handleNewConversation = useCallback(async (selectNew = true) => {
-    let toolsCount = 0;
-    try {
-      const controller = new AbortController();
-      const status = await getSystemStatus({ signal: controller.signal });
-      toolsCount = Number(status?.toolsCount || 0);
-    } catch (err) {
-      const m = String(err?.message || '');
-      if (/canceled|abort(ed)?/i.test(m)) { /* ignore */ } else { toolsCount = 0; }
-    }
-    const lang = getLang();
-  const en = `Welcome to Joe AI Assistant! 👋\n\nYour AI-powered engineering partner with ${toolsCount} tools and functions.\n\nI can help you with:\n💬 Chat & Ask - Get instant answers and explanations\n🛠️ Build & Create - Generate projects and applications\n🔍 Analyze & Process - Work with data and generate insights\n\nStart by typing an instruction below, attaching a file, or using your voice.`;
-    const ar = `مرحبًا بك في مساعد Joe الذكي! 👋\n\nشريكك الهندسي المدعوم بالذكاء مع ${toolsCount} أداة ووظيفة.\n\nأستطيع مساعدتك في:\n💬 المحادثة والسؤال - إجابات وشروحات فورية\n🛠️ البناء والإنشاء - توليد مشاريع وتطبيقات\n🔍 التحليل والمعالجة - العمل مع البيانات وتوليد رؤى\n\nابدأ بكتابة تعليماتك أدناه أو إرفاق ملف أو استخدام الصوت.`;
-    const msg = lang === 'ar' ? ar : en;
-    const now = Date.now();
-    try {
-      const guard = newConversationGuardRef.current || { ts: 0, sig: '' };
-      const within = (now - (guard.ts || 0)) < 2500;
-      const sameSig = String(guard.sig || '') === String(msg);
-      const convs = stateRef.current?.conversations || {};
-      const existingIds = Object.keys(convs);
-      const existingWelcomeId = existingIds.find((id) => {
-        const c = convs[id];
-        const m = Array.isArray(c?.messages) ? c.messages : [];
-        if (m.length !== 1) return false;
-        const only = m[0];
-        const contentEq = String(only?.content || '') === String(msg);
-        const isJoe = only?.type === 'joe';
-        const recent = (now - (typeof only?.createdAt === 'number' ? only.createdAt : 0)) < 5000;
-        return contentEq && isJoe && recent;
-      });
-      if (existingWelcomeId || (within && sameSig)) {
-        const targetId = existingWelcomeId || stateRef.current?.currentConversationId || null;
-        if (targetId) {
-          dispatch({ type: 'SELECT_CONVERSATION', payload: targetId });
-          return;
-        }
-      }
-    } catch { /* noop */ }
     const newId = uuidv4();
-    newConversationGuardRef.current = { ts: now, sig: msg };
-    dispatch({ type: 'NEW_CONVERSATION', payload: { selectNew, welcomeMessage: msg, id: newId } });
+    dispatch({ type: 'NEW_CONVERSATION', payload: { selectNew, id: newId } });
     (async () => {
       try {
         const created = await createChatSession('New Conversation');
