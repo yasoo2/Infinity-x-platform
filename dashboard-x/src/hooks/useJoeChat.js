@@ -1616,7 +1616,11 @@ export const useJoeChat = () => {
         }
       } catch { void 0; }
       const selectedModel = activeModelRef.current || localStorage.getItem('aiSelectedModel') || null;
-      const payload = { action: 'instruct', message: inputText, sessionId: sid || undefined, lang };
+      const convMsgs = (() => { const id = stateRef.current.currentConversationId; const c = stateRef.current.conversations[id] || {}; return Array.isArray(c.messages) ? c.messages : []; })();
+      const ctxLines = convMsgs.slice(-12).map((m) => { const role = m.type === 'user' ? (lang === 'ar' ? 'المستخدم' : 'User') : 'Joe'; const content = String(m.content || '').replace(/\s+/g, ' ').trim().slice(0, 600); return `${role}: ${content}`; }).join('\n');
+      const header = lang === 'ar' ? 'سياق سابق' : 'Previous context';
+      const msgWithContext = ctxLines ? `${header}:\n${ctxLines}\n\n${inputText}` : inputText;
+      const payload = { action: 'instruct', message: msgWithContext, sessionId: sid || undefined, lang };
       if (selectedModel) payload.model = selectedModel;
       if (sioRef.current && sioRef.current.connected) {
         sioRef.current.emit('message', payload);
@@ -1625,7 +1629,7 @@ export const useJoeChat = () => {
           try {
             const ctx = { sessionId: sid || undefined, lang };
             if (selectedModel) ctx.model = selectedModel;
-            const data = await executeJoe(inputText, ctx, {});
+            const data = await executeJoe(msgWithContext, ctx, {});
             const text = sanitizeCompetitors(String(data?.response || data?.message || '').trim());
             if (text) dispatch({ type: 'REPLACE_LAST_JOE', payload: text });
             try {
@@ -1649,7 +1653,7 @@ export const useJoeChat = () => {
         try {
           const ctx2 = { sessionId: sid || undefined, lang };
           if (selectedModel) ctx2.model = selectedModel;
-          const data = await executeJoe(inputText, ctx2, {});
+          const data = await executeJoe(msgWithContext, ctx2, {});
           const text = sanitizeCompetitors(String(data?.response || data?.message || '').trim());
           if (text) dispatch({ type: 'REPLACE_LAST_JOE', payload: text });
           try {
@@ -1744,9 +1748,13 @@ export const useJoeChat = () => {
       const buildPayload = () => {
         let selectedModel = activeModelRef.current || localStorage.getItem('aiSelectedModel');
         if (!selectedModel) selectedModel = null;
+        const convMsgs = (() => { const id = stateRef.current.currentConversationId; const c = stateRef.current.conversations[id] || {}; return Array.isArray(c.messages) ? c.messages : []; })();
+        const ctxLines = convMsgs.slice(-12).map((m) => { const role = m.type === 'user' ? (lang === 'ar' ? 'المستخدم' : 'User') : 'Joe'; const content = String(m.content || '').replace(/\s+/g, ' ').trim().slice(0, 600); return `${role}: ${content}`; }).join('\n');
+        const header = lang === 'ar' ? 'سياق سابق' : 'Previous context';
+        const msgWithContext = ctxLines ? `${header}:\n${ctxLines}\n\n${inputText}` : inputText;
         const base = keyMatch
           ? { action: 'provide_key', provider: keyMatch.provider, apiKey: keyMatch.apiKey, sessionId: sidToUse || undefined, lang }
-          : { action: 'instruct', message: inputText, sessionId: sidToUse || undefined, lang };
+          : { action: 'instruct', message: msgWithContext, sessionId: sidToUse || undefined, lang };
         if (selectedModel) base.model = selectedModel;
         return base;
       };
@@ -1759,7 +1767,11 @@ export const useJoeChat = () => {
             const selectedModel = activeModelRef.current || localStorage.getItem('aiSelectedModel') || null;
             const ctx = { sessionId: sidToUse || undefined, lang };
             if (selectedModel) ctx.model = selectedModel;
-            const data = await executeJoe(inputText, ctx, {});
+            const convMsgs = (() => { const id = stateRef.current.currentConversationId; const c = stateRef.current.conversations[id] || {}; return Array.isArray(c.messages) ? c.messages : []; })();
+            const ctxLines = convMsgs.slice(-12).map((m) => { const role = m.type === 'user' ? (lang === 'ar' ? 'المستخدم' : 'User') : 'Joe'; const content = String(m.content || '').replace(/\s+/g, ' ').trim().slice(0, 600); return `${role}: ${content}`; }).join('\n');
+            const header = lang === 'ar' ? 'سياق سابق' : 'Previous context';
+            const msgWithContext = ctxLines ? `${header}:\n${ctxLines}\n\n${inputText}` : inputText;
+            const data = await executeJoe(msgWithContext, ctx, {});
             const text = sanitizeCompetitors(String(data?.response || data?.message || '').trim());
             if (text) {
               try {
@@ -1820,7 +1832,11 @@ export const useJoeChat = () => {
             const selectedModel = activeModelRef.current || localStorage.getItem('aiSelectedModel') || null;
             const ctx2 = { sessionId: sidToUse || undefined, lang };
             if (selectedModel) ctx2.model = selectedModel;
-            const data = await executeJoe(inputText, ctx2, {});
+            const convMsgs2 = (() => { const id = stateRef.current.currentConversationId; const c = stateRef.current.conversations[id] || {}; return Array.isArray(c.messages) ? c.messages : []; })();
+            const ctxLines2 = convMsgs2.slice(-12).map((m) => { const role = m.type === 'user' ? (lang === 'ar' ? 'المستخدم' : 'User') : 'Joe'; const content = String(m.content || '').replace(/\s+/g, ' ').trim().slice(0, 600); return `${role}: ${content}`; }).join('\n');
+            const header2 = lang === 'ar' ? 'سياق سابق' : 'Previous context';
+            const msgWithContext2 = ctxLines2 ? `${header2}:\n${ctxLines2}\n\n${inputText}` : inputText;
+            const data = await executeJoe(msgWithContext2, ctx2, {});
             const text = sanitizeCompetitors(String(data?.response || data?.message || '').trim());
             if (text) {
               dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
