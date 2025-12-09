@@ -1280,6 +1280,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
             </div>
             <span className="text-[10px] text-gray-400">#{reconnectAttempt}</span>
           </div>
+        </div>
       )}
     </div>
   );
