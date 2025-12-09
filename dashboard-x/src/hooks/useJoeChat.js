@@ -377,6 +377,7 @@ export const useJoeChat = () => {
   const heartbeatIntervalRef = useRef(null);
   const pendingDeleteIdsRef = useRef(new Map());
   const initialLoadDoneRef = useRef(false);
+  const newConversationGuardRef = useRef({ ts: 0, sig: '' });
   const lastSelectionRef = useRef({ id: null, ts: 0 });
   const sioErrorCountRef = useRef(0);
   const streamBufferRef = useRef('');
@@ -572,7 +573,33 @@ export const useJoeChat = () => {
   const en = `Welcome to Joe AI Assistant! 👋\n\nYour AI-powered engineering partner with ${toolsCount} tools and functions.\n\nI can help you with:\n💬 Chat & Ask - Get instant answers and explanations\n🛠️ Build & Create - Generate projects and applications\n🔍 Analyze & Process - Work with data and generate insights\n\nStart by typing an instruction below, attaching a file, or using your voice.`;
     const ar = `مرحبًا بك في مساعد Joe الذكي! 👋\n\nشريكك الهندسي المدعوم بالذكاء مع ${toolsCount} أداة ووظيفة.\n\nأستطيع مساعدتك في:\n💬 المحادثة والسؤال - إجابات وشروحات فورية\n🛠️ البناء والإنشاء - توليد مشاريع وتطبيقات\n🔍 التحليل والمعالجة - العمل مع البيانات وتوليد رؤى\n\nابدأ بكتابة تعليماتك أدناه أو إرفاق ملف أو استخدام الصوت.`;
     const msg = lang === 'ar' ? ar : en;
+    const now = Date.now();
+    try {
+      const guard = newConversationGuardRef.current || { ts: 0, sig: '' };
+      const within = (now - (guard.ts || 0)) < 2500;
+      const sameSig = String(guard.sig || '') === String(msg);
+      const convs = stateRef.current?.conversations || {};
+      const existingIds = Object.keys(convs);
+      const existingWelcomeId = existingIds.find((id) => {
+        const c = convs[id];
+        const m = Array.isArray(c?.messages) ? c.messages : [];
+        if (m.length !== 1) return false;
+        const only = m[0];
+        const contentEq = String(only?.content || '') === String(msg);
+        const isJoe = only?.type === 'joe';
+        const recent = (now - (typeof only?.createdAt === 'number' ? only.createdAt : 0)) < 5000;
+        return contentEq && isJoe && recent;
+      });
+      if (existingWelcomeId || (within && sameSig)) {
+        const targetId = existingWelcomeId || stateRef.current?.currentConversationId || null;
+        if (targetId) {
+          dispatch({ type: 'SELECT_CONVERSATION', payload: targetId });
+          return;
+        }
+      }
+    } catch { /* noop */ }
     const newId = uuidv4();
+    newConversationGuardRef.current = { ts: now, sig: msg };
     dispatch({ type: 'NEW_CONVERSATION', payload: { selectNew, welcomeMessage: msg, id: newId } });
     (async () => {
       try {
