@@ -632,7 +632,7 @@ export const useJoeChat = () => {
       await handleNewConversation(true);
     } catch { /* ignore */ }
     try { if (syncRef.current) syncRef.current(); } catch { /* ignore */ }
-  }, [handleNewConversation, selectConversationSafe]);
+  }, [handleNewConversation]);
 
   useEffect(() => {
     try {
@@ -655,7 +655,7 @@ export const useJoeChat = () => {
       handleNewConversation();
     }
     initialLoadDoneRef.current = true;
-  }, [handleNewConversation]);
+  }, [handleNewConversation, selectConversationSafe]);
 
   const mapSessionToConversation = useCallback((session) => {
     const messages = [];
@@ -791,7 +791,7 @@ export const useJoeChat = () => {
         }
       } catch { /* noop */ }
     }
-  }, [state.conversations, state.currentConversationId, state.isProcessing, mapSessionToConversation]);
+  }, [state.currentConversationId, state.isProcessing, mapSessionToConversation, selectConversationSafe]);
 
   useEffect(() => {
     const t = setTimeout(() => { try { syncBackendSessions(); } catch { /* noop */ } }, initialLoadDoneRef.current ? 0 : 600);
@@ -1525,7 +1525,7 @@ export const useJoeChat = () => {
       }
       try { ws.current?.close(); } catch { void 0; }
     };
-  }, []);
+  }, [appendStreamChunk, flushStreamBuffer]);
 
   useEffect(() => {
     const onForbidden = () => {
