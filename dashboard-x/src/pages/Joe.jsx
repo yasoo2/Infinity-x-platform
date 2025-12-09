@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { FiCheckCircle, FiActivity, FiZap } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import TopBar from '../components/joe/TopBar';
 import apiClient from '../api/client';
@@ -100,6 +101,7 @@ const JoeContent = () => {
     handleNewConversation,
     isProcessing,
     wsLog,
+    wsConnected,
     renameConversation,
     deleteConversation,
     pinToggle,
@@ -110,6 +112,19 @@ const JoeContent = () => {
     addAllLogsToChat,
     clearLogs,
   } = useJoeChatContext();
+
+  const [miniHealth, setMiniHealth] = useState(null);
+  const [miniRuntime, setMiniRuntime] = useState(null);
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try { const { data } = await apiClient.get('/api/v1/health'); if (mounted) setMiniHealth(data); } catch { /* noop */ }
+      try { const { data } = await apiClient.get('/api/v1/runtime-mode/status'); if (mounted) setMiniRuntime(data); } catch { /* noop */ }
+    };
+    load();
+    const id = setInterval(load, 6000);
+    return () => { mounted = false; clearInterval(id); };
+  }, []);
 
   const robotRef = React.useRef(null);
   const pupilLeftRef = React.useRef(null);
@@ -383,7 +398,50 @@ const JoeContent = () => {
           )}
         </div>
 
-        
+        <div className={`fixed right-2 md:right-3 lg:right-4 ${isMobile ? 'bottom-16' : 'md:top-1/2 md:-translate-y-1/2'} z-40`} style={{ pointerEvents: 'none' }}>
+          <div className="flex flex-col items-center gap-2 md:gap-2.5">
+            {(() => {
+              const ok = wsConnected === true;
+              const cls = ok ? 'bg-emerald-500 text-black border-emerald-400' : 'bg-red-500 text-black border-red-400';
+              const title = lang==='ar' ? (ok ? 'الربط المباشر: متصل' : 'الربط المباشر: غير متصل') : (ok ? 'Realtime: Connected' : 'Realtime: Disconnected');
+              return (
+                <div className={`w-9 h-9 md:w-10 md:h-10 rounded-xl border ${cls} shadow-md grid place-items-center`} title={title} style={{ pointerEvents: 'auto' }}>
+                  <FiActivity size={16} />
+                </div>
+              );
+            })()}
+            {(() => {
+              const ok = !!(miniHealth && (miniHealth.success && miniHealth.status === 'ok'));
+              const cls = ok ? 'bg-gray-900 text-emerald-400 border-emerald-500/50' : 'bg-gray-900 text-red-400 border-red-500/40';
+              const title = lang==='ar' ? (ok ? 'الخلفية: تعمل' : 'الخلفية: متوقفة') : (ok ? 'Backend: OK' : 'Backend: Down');
+              return (
+                <div className={`w-9 h-9 md:w-10 md:h-10 rounded-xl border ${cls} shadow-md grid place-items-center`} title={title} style={{ pointerEvents: 'auto' }}>
+                  <FiCheckCircle size={16} />
+                </div>
+              );
+            })()}
+            {(() => {
+              const ok = !!(miniRuntime && miniRuntime.hasProvider);
+              const cls = ok ? 'bg-yellow-500 text-black border-yellow-400' : 'bg-gray-800 text-gray-300 border-yellow-600/40';
+              const title = lang==='ar' ? (ok ? 'مزود الذكاء: نشط' : 'مزود الذكاء: غير نشط') : (ok ? 'AI Provider: Active' : 'AI Provider: Inactive');
+              return (
+                <div className={`w-9 h-9 md:w-10 md:h-10 rounded-xl border ${cls} shadow-md grid place-items-center`} title={title} style={{ pointerEvents: 'auto' }}>
+                  <FiZap size={16} />
+                </div>
+              );
+            })()}
+            {(() => {
+              const count = typeof miniHealth?.toolsCount === 'number' ? miniHealth.toolsCount : null;
+              const label = count != null ? String(count) : (lang==='ar' ? 'أدوات' : 'Tools');
+              const title = lang==='ar' ? `الأدوات: ${count!=null?count:'—'}` : `Tools: ${count!=null?count:'—'}`;
+              return (
+                <div className={`w-9 h-9 md:w-10 md:h-10 rounded-xl border bg-gray-900 text-yellow-300 border-yellow-600/40 shadow-md grid place-items-center`} title={title} style={{ pointerEvents: 'auto' }}>
+                  <span className="text-[11px] md:text-xs font-semibold">{label}</span>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
       </div>
       <style>{`
         #joe-container { position: fixed; cursor: pointer; z-index: 1000; transition: transform 0.3s ease; }
