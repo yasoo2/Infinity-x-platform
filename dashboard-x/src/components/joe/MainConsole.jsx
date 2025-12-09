@@ -119,6 +119,14 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
 
   const lastContent = messages[messages.length - 1]?.content || '';
   
+  const runWithAutoScroll = (fn) => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const prevBehavior = el.style.scrollBehavior;
+    el.style.scrollBehavior = 'auto';
+    try { fn(el); } finally { el.style.scrollBehavior = prevBehavior || 'smooth'; }
+  };
+
   const scrollToBottomIfNeeded = () => {
     const el = scrollContainerRef.current;
     if (!el) return;
@@ -126,8 +134,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
     const atBottom = distance <= 20;
     if (!atBottom) return;
     requestAnimationFrame(() => {
-      el.scrollTop = el.scrollHeight;
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      runWithAutoScroll((node) => { node.scrollTop = node.scrollHeight; });
       setShowScrollButton(false);
     });
   };
@@ -145,8 +152,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
     const el = scrollContainerRef.current;
     if (!el) return;
     requestAnimationFrame(() => {
-      el.scrollTop = el.scrollHeight;
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      runWithAutoScroll((node) => { node.scrollTop = node.scrollHeight; });
       setShowScrollButton(false);
     });
   }, [currentConversation]);
@@ -159,8 +165,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
           requestAnimationFrame(() => {
             const el = scrollContainerRef.current;
             if (!el) return;
-            el.scrollTop = el.scrollHeight;
-            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            runWithAutoScroll((node) => { node.scrollTop = node.scrollHeight; });
             setShowScrollButton(false);
           });
         });
@@ -171,8 +176,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
           const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
           if (distance <= 300) {
             requestAnimationFrame(() => {
-              el.scrollTop = el.scrollHeight;
-              messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+              runWithAutoScroll((node) => { node.scrollTop = node.scrollHeight; });
               setShowScrollButton(false);
             });
           }
