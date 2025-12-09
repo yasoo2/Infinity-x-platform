@@ -889,13 +889,21 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                       ) : (
                         String(seg.content || '').split(/\n{2,}/).map((para, pi) => {
                           const lines = String(para).split(/\n/);
-                          const isList = lines.every(l => /^\s*(-|•)\s+/.test(l)) && lines.length > 1;
-                          return isList ? (
+                          const isBullets = lines.every(l => /^\s*(-|•)\s+/.test(l)) && lines.length > 1; const isNumbers = lines.every(l => /^\s*\d+\.\s+/.test(l)) && lines.length > 1; const isHeading = /^\s*#{1,3}\s+/.test(lines[0]) && lines.length === 1;
+                          return isHeading ? (
+                            (() => { const m = lines[0].match(/^(\s*#{1,3})\s+(.*)$/); const lvl = m && m[1] ? (m[1].trim().length) : 1; const txt = m ? m[2] : lines[0].replace(/^\s*#+\s+/, ''); const size = lvl === 1 ? 'text-2xl md:text-3xl' : (lvl === 2 ? 'text-xl md:text-2xl' : 'text-lg md:text-xl'); return (<div key={`hd-${idx}-${pi}`} className={`mt-1 ${isRTL ? 'text-right' : 'text-left'}`} style={{ direction: isRTL ? 'rtl' : 'ltr' }}><div className={`${size} font-extrabold tracking-tight text-yellow-300`}>{renderRich(txt)}</div></div>); })()
+                          ) : isBullets ? (
                             <ul key={`ul-${idx}-${pi}`} className={`text-sm md:text-base leading-relaxed list-disc ${isRTL ? 'pr-5 text-right' : 'pl-5 text-left'} text-gray-200`} style={{ direction: isRTL ? 'rtl' : 'ltr' }}>
                               {lines.map((l, li) => (
                                 <li key={`li-${idx}-${pi}-${li}`}>{renderRich(l.replace(/^\s*(-|•)\s+/, ''))}</li>
                               ))}
                             </ul>
+                          ) : isNumbers ? (
+                            <ol key={`ol-${idx}-${pi}`} className={`text-sm md:text-base leading-relaxed list-decimal ${isRTL ? 'pr-5 text-right' : 'pl-5 text-left'} text-gray-200`} style={{ direction: isRTL ? 'rtl' : 'ltr' }}>
+                              {lines.map((l, li) => (
+                                <li key={`oli-${idx}-${pi}-${li}`}>{renderRich(l.replace(/^\s*\d+\.\s+/, ''))}</li>
+                              ))}
+                            </ol>
                           ) : (
                             <p key={`p-${idx}-${pi}`} className={`text-sm md:text-base leading-relaxed whitespace-pre-wrap break-words text-gray-200 ${isRTL ? 'text-right' : 'text-left'}`} style={{ direction: isRTL ? 'rtl' : 'ltr' }}>
                               {renderRich(para)}
