@@ -724,8 +724,10 @@ export const useJoeChat = () => {
             const s = await getChatSessions({});
             const list = Array.isArray(s?.sessions) ? s.sessions : [];
             if (list.length > 0) {
-              await syncBackendSessions();
-              usedServer = true;
+              if (syncRef.current) {
+                await syncRef.current();
+                usedServer = true;
+              }
             }
           } catch { /* noop */ }
         }
@@ -762,7 +764,7 @@ export const useJoeChat = () => {
       }
       initialLoadDoneRef.current = true;
     })();
-  }, [syncBackendSessions, handleNewConversation, selectConversationSafe]);
+  }, [handleNewConversation, selectConversationSafe]);
 
   const mapSessionToConversation = useCallback((session) => {
     const messages = [];
@@ -901,9 +903,9 @@ export const useJoeChat = () => {
   }, [state.currentConversationId, state.isProcessing, mapSessionToConversation, selectConversationSafe]);
 
   useEffect(() => {
-    const t = setTimeout(() => { try { syncBackendSessions(); } catch { /* noop */ } }, initialLoadDoneRef.current ? 0 : 600);
+    const t = setTimeout(() => { try { if (syncRef.current) syncRef.current(); } catch { /* noop */ } }, initialLoadDoneRef.current ? 0 : 600);
     return () => { try { clearTimeout(t); } catch { /* noop */ } };
-  }, [syncBackendSessions]);
+  }, []);
 
   useEffect(() => {
     syncRef.current = syncBackendSessions;
