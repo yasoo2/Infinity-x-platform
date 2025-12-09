@@ -79,10 +79,10 @@ const SidePanel = ({ conversations, onConversationSelect, onNewConversation, cur
             {renderUnreadBadge(convo)}
             <button
               onClick={(e) => toggleMenu(e, convo.id)}
-              className={`p-1.5 rounded-md border ${currentConversationId===convo.id ? 'border-black/20 bg-black/10 text-black hover:bg-black/20' : 'border-gray-700 bg-gray-800/80 text-gray-200 hover:bg-gray-700'}`}
+              className={`p-1 ${currentConversationId===convo.id ? 'text-black/70 hover:text-black' : 'text-gray-300 hover:text-gray-100'}`}
               title={lang==='ar'?'خيارات':'Options'}
             >
-              <FiMoreVertical size={16} />
+              <FiMoreVertical size={12} />
             </button>
           </div>
         </div>

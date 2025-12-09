@@ -130,15 +130,20 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
             </linearGradient>
           </defs>
           <polygon points="32,6 52,18 52,46 32,58 12,46 12,18" fill={`url(#${gradId})`} stroke={strokeColor} strokeWidth="2">
-            {state === 'thinking' && (<animateTransform attributeName="transform" type="rotate" from="0 32 32" to="360 32 32" dur="12s" repeatCount="indefinite" />)}
-            {state === 'typing' && (<animate attributeName="opacity" values="1;0.85;1" dur="1.8s" repeatCount="indefinite" />)}
+            {state === 'thinking' && (<animateTransform attributeName="transform" type="rotate" from="0 32 32" to="360 32 32" dur="10s" repeatCount="indefinite" />)}
             {state === 'deploy' && (<animate attributeName="opacity" values="1;0.9;1" dur="1.2s" repeatCount="indefinite" />)}
           </polygon>
-          <circle cx="32" cy="32" r="18" fill="#0b1220" opacity="0.85">
-            {state === 'typing' && (<animate attributeName="opacity" values="0.85;0.7;0.85" dur="1.8s" repeatCount="indefinite" />)}
-            {state === 'deploy' && (<animate attributeName="opacity" values="0.85;0.75;0.85" dur="1.2s" repeatCount="indefinite" />)}
-          </circle>
-          <text x="32" y="39" textAnchor="middle" fontSize="28" fontWeight="900" fill={strokeColor}>J</text>
+          <g>
+            <circle cx="26" cy="32" r="3" fill="#0b1220">
+              {state === 'typing' && (<animate attributeName="opacity" values="0.4;1;0.4" dur="1.2s" repeatCount="indefinite" />)}
+            </circle>
+            <circle cx="32" cy="32" r="3" fill="#0b1220">
+              {state === 'typing' && (<animate attributeName="opacity" values="0.4;1;0.4" dur="1.2s" begin="0.2s" repeatCount="indefinite" />)}
+            </circle>
+            <circle cx="38" cy="32" r="3" fill="#0b1220">
+              {state === 'typing' && (<animate attributeName="opacity" values="0.4;1;0.4" dur="1.2s" begin="0.4s" repeatCount="indefinite" />)}
+            </circle>
+          </g>
         </svg>
       </span>
     );
