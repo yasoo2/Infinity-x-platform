@@ -109,10 +109,21 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   StyledJoe.propTypes = { className: PropTypes.string };
 
   const JoeBadge = ({ size = 'sm' }) => {
-    const cls = size === 'lg' ? 'w-9 h-9 text-[14px]' : (size === 'md' ? 'w-7 h-7 text-[12px]' : 'w-5 h-5 text-[10px]');
+    const px = size === 'lg' ? 36 : (size === 'md' ? 28 : 20);
     return (
-      <span className={`inline-flex items-center justify-center ${cls} rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 border border-yellow-300 shadow-lg shadow-yellow-500/30`}> 
-        <span className="font-black text-gray-900 drop-shadow-sm">J</span>
+      <span className="inline-flex items-center justify-center" style={{ width: px, height: px }}>
+        <svg viewBox="0 0 64 64" width="100%" height="100%" style={{ display: 'block' }}>
+          <defs>
+            <linearGradient id="joeHexGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#fde047" />
+              <stop offset="60%" stopColor="#f59e0b" />
+              <stop offset="100%" stopColor="#eab308" />
+            </linearGradient>
+          </defs>
+          <polygon points="32,6 52,18 52,46 32,58 12,46 12,18" fill="url(#joeHexGrad)" stroke="#fbbf24" strokeWidth="2" />
+          <circle cx="32" cy="32" r="18" fill="#0b1220" opacity="0.85" />
+          <text x="32" y="39" textAnchor="middle" fontSize="28" fontWeight="900" fill="#eab308">J</text>
+        </svg>
       </span>
     );
   };
