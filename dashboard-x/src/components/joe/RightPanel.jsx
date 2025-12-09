@@ -59,26 +59,38 @@ const RightPanel = ({ isProcessing, plan, forceStatus = false, wsConnected = fal
     const { signal } = ac;
     const fetchAll = async () => {
       try {
+        const offline = localStorage.getItem('apiOffline') === '1';
+        if (offline) {
+          setHealth({ success: false, status: 'offline' });
+          setRuntime({ success: false, loading: false });
+          setEngine({ ok: false });
+          return;
+        }
         const h = await apiClient.get('/api/v1/health', { signal });
         setHealth(h.data);
+        try {
+          const r = await apiClient.get('/api/v1/runtime-mode/status', { signal });
+          setRuntime(r.data);
+        } catch { /* noop */ }
+        try {
+          const e = await apiClient.get('/api/v1/ai/engine/status', { signal });
+          setEngine(e.data);
+        } catch { /* noop */ }
       } catch {
         try {
           const p = await apiClient.get('/api/v1/joe/ping', { signal });
           setHealth({ success: true, status: 'ok', uptime: 0, ping: p.data });
-        } catch { void 0; }
+        } catch {
+          setHealth({ success: false, status: 'offline' });
+        }
       }
-      try {
-        const r = await apiClient.get('/api/v1/runtime-mode/status', { signal });
-        setRuntime(r.data);
-      } catch { void 0; }
-      try {
-        const e = await apiClient.get('/api/v1/ai/engine/status', { signal });
-        setEngine(e.data);
-      } catch { void 0; }
-      // Removed providers fetch: state not used in panel
     };
+    const onOffline = () => { try { setHealth({ success: false, status: 'offline' }); setRuntime({ success: false, loading: false }); setEngine({ ok: false }); } catch { /* noop */ } };
+    const onOnline = () => { try { fetchAll(); } catch { /* noop */ } };
+    try { window.addEventListener('api:offline', onOffline); } catch { /* noop */ }
+    try { window.addEventListener('api:online', onOnline); } catch { /* noop */ }
     fetchAll();
-    return () => ac.abort();
+    return () => { ac.abort(); try { window.removeEventListener('api:offline', onOffline); window.removeEventListener('api:online', onOnline); } catch { /* noop */ } };
   }, []);
 
   return (

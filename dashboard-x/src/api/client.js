@@ -160,6 +160,12 @@
         if (newToken) {
           localStorage.setItem('sessionToken', newToken);
         }
+        try {
+          if (localStorage.getItem('apiOffline') === '1') {
+            localStorage.removeItem('apiOffline');
+            window.dispatchEvent(new CustomEvent('api:online'));
+          }
+        } catch { /* noop */ }
       } catch { void 0; }
       return response;
     },
@@ -215,6 +221,14 @@
 
       // Network timeout or no status: count and fallback after repeated failures
       if (!status || error.code === 'ECONNABORTED') {
+        try {
+          const curBase = String(apiClient.defaults.baseURL || '');
+          const host = new URL(curBase).hostname;
+          if (host === 'localhost' || host === '127.0.0.1') {
+            localStorage.setItem('apiOffline', '1');
+            window.dispatchEvent(new CustomEvent('api:offline'));
+          }
+        } catch { /* noop */ }
         if (!isDev) {
           const now = Date.now();
           if (!errStart) errStart = now;
