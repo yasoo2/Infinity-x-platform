@@ -87,7 +87,7 @@ const SidePanel = ({ conversations, onConversationSelect, onNewConversation, cur
           </div>
         </div>
         {openMenuId === convo.id && (
-          <div ref={menuRef} className="fixed z-[1000] w-44 bg-gray-900/90 backdrop-blur-sm text-white border border-yellow-600/60 rounded-lg shadow-2xl" style={{ top: menuPos.top, left: menuPos.left }} onClick={(e)=>e.stopPropagation()}>
+          <div ref={menuRef} className="fixed z-[2000] w-44 bg-gray-900/90 backdrop-blur-sm text-white border border-yellow-600/60 rounded-lg shadow-2xl pointer-events-auto" style={{ top: menuPos.top, left: menuPos.left }} onClick={(e)=>e.stopPropagation()}>
             <button onClick={(e)=>{ e.stopPropagation(); onPinToggle(convo.id); setOpenMenuId(null); }} className="w-full text-right px-3 py-2 hover:bg-yellow-600 hover:text-black text-sm">{lang === 'ar' ? (convo.pinned ? 'إلغاء التثبيت' : 'تثبيت') : (convo.pinned ? 'Unpin' : 'Pin')}</button>
             <button onClick={(e)=>{ e.stopPropagation(); const t = prompt(lang === 'ar' ? 'إعادة تسمية الجلسة' : 'Rename session', convo.title || ''); if (t!=null) onRenameConversation(convo.id, t); setOpenMenuId(null); }} className="w-full text-right px-3 py-2 hover:bg-yellow-600 hover:text-black text-sm">{lang === 'ar' ? 'إعادة تسمية' : 'Rename'}</button>
             <button onClick={(e)=>{ e.stopPropagation(); onDuplicate(convo.id); setOpenMenuId(null); }} className="w-full text-right px-3 py-2 hover:bg-yellow-600 hover:text-black text-sm">{lang === 'ar' ? 'نسخ' : 'Duplicate'}</button>
@@ -186,9 +186,9 @@ const SidePanel = ({ conversations, onConversationSelect, onNewConversation, cur
     if (openMenuId === id) { setOpenMenuId(null); return; }
     const rect = e.currentTarget.getBoundingClientRect();
     const width = 176;
-    const top = rect.bottom + window.scrollY + 6;
-    let left = rect.right + window.scrollX - width;
-    left = Math.max(8, left);
+    const top = rect.bottom + 6;
+    let left = rect.right - width;
+    left = Math.max(8, Math.min(left, (window.innerWidth - width - 8)));
     setMenuPos({ top, left });
     setOpenMenuId(id);
   };
