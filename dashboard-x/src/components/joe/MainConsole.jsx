@@ -128,11 +128,23 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
             </linearGradient>
           </defs>
           <circle cx="32" cy="32" r="22" fill="none" stroke={`url(#${gradId})`} strokeWidth="3">
-            {state !== 'ready' && state !== 'offline' && (<animate attributeName="stroke-opacity" values="1;0.6;1" dur="1.2s" repeatCount="indefinite" />)}
+            {state !== 'ready' && state !== 'offline' && (<animate attributeName="stroke-opacity" values="1;0.6;1" dur="1.4s" repeatCount="indefinite" />)}
           </circle>
-          <circle cx="32" cy="32" r="5" fill={strokeColor} opacity={state==='offline' ? 0.6 : 0.9}>
-            {state !== 'ready' && state !== 'offline' && (<animate attributeName="r" values="5;7;5" dur="1.2s" repeatCount="indefinite" />)}
-          </circle>
+          <rect x="20" y="20" width="24" height="24" rx="10" fill="#0b1220" opacity="0.95" />
+          <g>
+            <ellipse cx="28" cy="32" rx="4.5" ry="3" fill="#ffffff">
+              <animate attributeName="ry" values="3;1.2;3" dur="2.6s" repeatCount="indefinite" />
+            </ellipse>
+            <ellipse cx="36" cy="32" rx="4.5" ry="3" fill="#ffffff">
+              <animate attributeName="ry" values="3;1.2;3" dur="2.6s" begin="0.6s" repeatCount="indefinite" />
+            </ellipse>
+            <circle cx="28" cy="32" r="1.5" fill={strokeColor}>
+              {state !== 'ready' && state !== 'offline' && (<animate attributeName="cx" values="27.6;28.4;27.6" dur="1.4s" repeatCount="indefinite" />)}
+            </circle>
+            <circle cx="36" cy="32" r="1.5" fill={strokeColor}>
+              {state !== 'ready' && state !== 'offline' && (<animate attributeName="cx" values="35.6;36.4;35.6" dur="1.4s" repeatCount="indefinite" />)}
+            </circle>
+          </g>
         </svg>
       </span>
     );
@@ -986,13 +998,15 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                             {lang==='ar' ? 'إخفاء' : 'Collapse'}
                           </button>
                         )}
-                        <button
-                          onClick={() => { try { navigator.clipboard.writeText(String(msg.content||'')); } catch { /* noop */ } }}
-                          className="p-0 text-gray-300 hover:text-gray-100"
-                          title={lang==='ar' ? 'نسخ' : 'Copy'}
-                        >
-                          <FiCopy size={14} />
-                        </button>
+                        {msg.type !== 'user' && (
+                          <button
+                            onClick={() => { try { navigator.clipboard.writeText(String(msg.content||'')); } catch { /* noop */ } }}
+                            className="p-0 text-gray-300 hover:text-gray-100"
+                            title={lang==='ar' ? 'نسخ' : 'Copy'}
+                          >
+                            <FiCopy size={14} />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
