@@ -95,6 +95,33 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
     try { window.dispatchEvent(new CustomEvent('joe:browser:visible', { detail: { visible: showBrowserPanel } })); } catch { /* noop */ }
   }, [showBrowserPanel]);
 
+  useEffect(() => {
+    const vv = window.visualViewport;
+    const update = () => {
+      try {
+        const height = Number(vv?.height || 0);
+        const offsetTop = Number(vv?.offsetTop || 0);
+        const total = Number(window.innerHeight || height);
+        const keyboard = Math.max(0, total - height - offsetTop);
+        document.documentElement.style.setProperty('--joe-keyboard-offset', `${keyboard}px`);
+      } catch { /* noop */ }
+    };
+    update();
+    if (vv) {
+      vv.addEventListener('resize', update);
+      vv.addEventListener('scroll', update, { passive: true });
+    } else {
+      window.addEventListener('resize', update);
+      window.addEventListener('scroll', update, { passive: true });
+    }
+    return () => {
+      try { vv?.removeEventListener('resize', update); } catch { /* noop */ }
+      try { vv?.removeEventListener('scroll', update); } catch { /* noop */ }
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update);
+    };
+  }, []);
+
   const { 
     messages, isProcessing, progress, 
     input, setInput, isListening, handleSend, stopProcessing,
@@ -1058,7 +1085,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
           title={lang==='ar'?'إلى الأسفل':'Scroll to Bottom'}
           className={`fixed z-50 ${showScrollButton ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'} transition-opacity hidden sm:block`}
           style={{ 
-            bottom: `calc(var(--joe-input-h, 56px) + env(safe-area-inset-bottom, 0px) + ${(isBottomPanelOpen && isBottomCollapsed) ? 48 : 16}px)`,
+            bottom: `calc(var(--joe-input-h, 56px) + env(safe-area-inset-bottom, 0px) + var(--joe-keyboard-offset, 0px) + ${(isBottomPanelOpen && isBottomCollapsed) ? 48 : 16}px)`,
             left: 'var(--joe-input-left, 16px)'
           }}
         >
@@ -1070,7 +1097,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
       {/* Conversations strip removed to avoid duplication with left SidePanel */}
 
       {/* Input Area - Bottom, Centered, Responsive, Safe-area aware */}
-      <div className="sticky bottom-0 z-30 border-t border-gray-800 bg-gray-900/98 backdrop-blur-sm" ref={inputAreaRef} style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+      <div className="sticky bottom-0 z-30 border-t border-gray-800 bg-gray-900/98 backdrop-blur-sm" ref={inputAreaRef} style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)', bottom: 'calc(env(safe-area-inset-bottom, 0px) + var(--joe-keyboard-offset, 0px))' }}>
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-3">
           <div className={`flex items-end gap-3 bg-gray-900/70 backdrop-blur-sm border border-gray-700/80 rounded-2xl px-5 py-4 shadow-xl transition-all relative brand-ring ${dragActive ? 'ring-2 ring-yellow-500/70' : 'focus-within:ring-2 focus-within:ring-yellow-500'}`}
           onDragEnter={(e) => { e.preventDefault(); setDragActive(true); }}
