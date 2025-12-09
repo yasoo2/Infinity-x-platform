@@ -125,7 +125,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   StyledJoe.propTypes = { className: PropTypes.string };
 
   const JoeBadge = ({ size = 'sm', state = 'ready' }) => {
-    const px = size === 'lg' ? 44 : (size === 'md' ? 34 : 24);
+    const px = size === 'lg' ? 52 : (size === 'md' ? 40 : 28);
     const gradId = React.useMemo(() => `joeHexGrad-${Math.random().toString(36).slice(2)}`, []);
     const hatGradId = React.useMemo(() => `joeHatGrad-${Math.random().toString(36).slice(2)}`, []);
     const palette = (() => {
@@ -149,7 +149,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
             </linearGradient>
           </defs>
           <circle cx="32" cy="32" r="23" fill="none" stroke={`url(#${gradId})`} strokeWidth="3">
-            {state !== 'ready' && state !== 'offline' && (<animate attributeName="stroke-opacity" values="1;0.6;1" dur="1.4s" repeatCount="indefinite" />)}
+            {state !== 'offline' && (<animate attributeName="stroke-opacity" values="1;0.85;1" dur="3s" repeatCount="indefinite" />)}
           </circle>
           <rect x="17" y="17" width="30" height="30" rx="12" fill="#0b1220" opacity="0.95" />
           <g>
@@ -160,10 +160,10 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
               <animate attributeName="ry" values="3;1.2;3" dur="2.6s" begin="0.6s" repeatCount="indefinite" />
             </ellipse>
             <circle cx="28" cy="32" r="1.5" fill={strokeColor}>
-              {state !== 'ready' && state !== 'offline' && (<animate attributeName="cx" values="27.6;28.4;27.6" dur="1.4s" repeatCount="indefinite" />)}
+              <animate attributeName="cx" values="27.6;28.4;27.6" dur="2.2s" repeatCount="indefinite" />
             </circle>
             <circle cx="36" cy="32" r="1.5" fill={strokeColor}>
-              {state !== 'ready' && state !== 'offline' && (<animate attributeName="cx" values="35.6;36.4;35.6" dur="1.4s" repeatCount="indefinite" />)}
+              <animate attributeName="cx" values="35.6;36.4;35.6" dur="2.2s" begin="0.4s" repeatCount="indefinite" />
             </circle>
           </g>
           <g>
@@ -906,8 +906,13 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                 return ordered.map((msg, index) => (
                   <div 
                     key={msg.id || index} 
-                    className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'} mb-4`}
+                    className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'} items-start gap-3 mb-4`}
                   >
+                    {msg.type !== 'user' && (
+                      <span className="mt-1">
+                        {(() => { const hasThought = Array.isArray(plan) && plan.slice(-5).some(s => s?.type === 'thought'); const badgeState = isProcessing ? 'typing' : (hasThought ? 'thinking' : 'ready'); return (<JoeBadge size="md" state={badgeState} />); })()}
+                      </span>
+                    )}
                     <div 
                       className={`relative max-w-[90%] sm:max-w-[85%] md:max-w-[75%] rounded-2xl px-5 py-4 ${
                         msg.type === 'user' 
@@ -1007,7 +1012,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
       {/* Input Area - Bottom, Centered, Responsive, Safe-area aware */}
       <div className="sticky bottom-0 z-30 border-t border-gray-800 bg-gray-900/98 backdrop-blur-sm" ref={inputAreaRef} style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)', bottom: 'calc(env(safe-area-inset-bottom, 0px) + var(--joe-keyboard-offset, 0px))' }}>
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-3">
-          <div className={`flex items-end gap-3 bg-gray-900/70 backdrop-blur-sm border border-gray-700/80 rounded-2xl px-5 py-4 shadow-xl transition-all relative brand-ring ${dragActive ? 'ring-2 ring-yellow-500/70' : 'focus-within:ring-2 focus-within:ring-yellow-500'}`}
+          <div className={`flex flex-col gap-2 bg-gray-900/70 backdrop-blur-sm border border-gray-700/80 rounded-2xl px-5 py-4 shadow-xl transition-all relative brand-ring ${dragActive ? 'ring-2 ring-yellow-500/70' : 'focus-within:ring-2 focus-within:ring-yellow-500'}`}
           onDragEnter={(e) => { e.preventDefault(); setDragActive(true); }}
           onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
           onDragLeave={(e) => { if (e.currentTarget.contains(e.relatedTarget)) return; setDragActive(false); }}
@@ -1018,6 +1023,12 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                 {lang==='ar' ? 'اسحب الملفات وافلت هنا' : 'Drop files here'}
               </div>
             )}
+            <div className="w-full flex items-center justify-center sm:justify-start gap-2 text-[11px] text-gray-400">
+              <span>{lang==='ar' ? 'اكتب سطر جديد لـ جو' : 'Write a new line for Joe'}</span>
+              <span className="hidden sm:inline-block">•</span>
+              <span className="hidden sm:inline-block">Shift+Enter</span>
+            </div>
+            <div className="flex items-end gap-3 w-full">
             {/* Textarea */}
             <textarea
               ref={textareaRef}
@@ -1133,8 +1144,8 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                   <FiSend size={16} />
                 </button>
               )}
+            </div>
           </div>
-        </div>
         {linkLoading && (
             <div className="absolute right-3 top-3 flex items-center gap-2">
               <span className="w-3 h-3 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin" />
