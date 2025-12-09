@@ -90,10 +90,16 @@
   </div>
   <script>
     const API_BASE = (function(){
-      const o = window.location.origin;
-      if (o.includes('xelitesolutions.com')) return 'https://api.xelitesolutions.com';
-      const p = new URLSearchParams(window.location.search).get('api');
-      return p || o;
+      const origin = window.location.origin;
+      const host = window.location.hostname;
+      const port = (new URL(origin)).port || '';
+      const param = new URLSearchParams(window.location.search).get('api');
+      if (param) return param;
+      if (host === 'localhost' || host === '127.0.0.1') {
+        return port && port !== '4000' ? 'http://localhost:4000' : origin;
+      }
+      if (origin.includes('xelitesolutions.com')) return 'https://api.xelitesolutions.com';
+      return origin;
     })();
     const form = document.getElementById('loginForm');
     const email = document.getElementById('email');
