@@ -984,7 +984,6 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
             );
           })()}
       </div>
-      </div>
       )}
       {/* Scroll To Bottom - Floating Button */}
       <button
@@ -1285,7 +1284,6 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
         )}
         
         {/* Robot moved to Joe page and enhanced */}
-        </div>
       </div>
       {/* Reconnect Mini Chip - Fixed at bottom-right */}
       {(!wsConnected && reconnectActive) && (
@@ -1304,6 +1302,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 };
