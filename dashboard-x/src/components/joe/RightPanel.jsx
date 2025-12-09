@@ -145,13 +145,7 @@ const RightPanel = ({ isProcessing, plan, forceStatus = false, wsConnected = fal
               <p className="text-sm text-gray-400">{typeof health?.toolsCount === 'number' ? `${health.toolsCount} tools loaded` : 'Detecting...'}</p>
             </div>
 
-            {/* Waiting State */}
-            <div className="mt-8 text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-800 border border-gray-700 mb-3">
-                <FiActivity className="text-gray-500 animate-pulse" size={28} />
-              </div>
-              <p className="text-sm text-gray-500">Waiting for your command...</p>
-            </div>
+            {/* Waiting State removed as per request */}
           </div>
         )}
       </div>
