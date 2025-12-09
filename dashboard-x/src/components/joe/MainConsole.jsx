@@ -159,6 +159,18 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
     try { fn(el); } finally { el.style.scrollBehavior = prevBehavior || 'smooth'; }
   };
 
+  function checkScroll() {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const threshold = 160;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
+    showScrollRef.current = !atBottom;
+    setShowScrollButton(!atBottom);
+    setIsUserPinned(!atBottom);
+    lastScrollTopRef.current = el.scrollTop;
+    lastScrollHeightRef.current = el.scrollHeight;
+  }
+
   const scrollToBottomIfNeeded = () => {
     const el = scrollContainerRef.current;
     if (!el) return;
@@ -390,17 +402,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
     };
   }, [inputAreaHeight]);
 
-  const checkScroll = () => {
-    const el = scrollContainerRef.current;
-    if (!el) return;
-    const threshold = 160;
-    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
-    showScrollRef.current = !atBottom;
-    setShowScrollButton(!atBottom);
-    setIsUserPinned(!atBottom);
-    lastScrollTopRef.current = el.scrollTop;
-    lastScrollHeightRef.current = el.scrollHeight;
-  };
+  
 
   useEffect(() => {
     const el = scrollContainerRef.current;
