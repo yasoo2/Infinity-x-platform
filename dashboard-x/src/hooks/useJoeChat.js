@@ -2021,6 +2021,25 @@ export const useJoeChat = () => {
                       }
                     } catch { /* noop */ }
                     try { window.dispatchEvent(new CustomEvent('joe:open-browser', { detail: { url: target || undefined } })); } catch { /* noop */ }
+                  } else if (String(name).toLowerCase() === 'generateimage') {
+                    (async () => {
+                      try {
+                        const r = await listUserUploads();
+                        const items = Array.isArray(r?.items) ? r.items : [];
+                        const latest = items.sort((a,b)=> new Date(b.mtime||0) - new Date(a.mtime||0))[0] || null;
+                        const url = latest?.absoluteUrl || latest?.publicUrl || '';
+                        if (url) {
+                          dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `! \`${url}\`` } });
+                        }
+                      } catch { /* noop */ }
+                    })();
+                  } else if (String(name).toLowerCase() === 'downloadimagefromurl') {
+                    try {
+                      const url = String(details?.args?.absoluteUrl || details?.args?.publicUrl || details?.args?.url || '');
+                      if (url) {
+                        dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `! \`${url}\`` } });
+                      }
+                    } catch { /* noop */ }
                   }
                 }
               }
@@ -2141,6 +2160,26 @@ export const useJoeChat = () => {
               if (name) {
                 dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'tool_used', content: name, details } });
                 try { if (String(name).toLowerCase() === 'browsewebsite') { window.dispatchEvent(new Event('joe:open-browser')); } } catch { /* noop */ }
+                if (String(name).toLowerCase() === 'generateimage') {
+                  (async () => {
+                    try {
+                      const r = await listUserUploads();
+                      const items = Array.isArray(r?.items) ? r.items : [];
+                      const latest = items.sort((a,b)=> new Date(b.mtime||0) - new Date(a.mtime||0))[0] || null;
+                      const url = latest?.absoluteUrl || latest?.publicUrl || '';
+                      if (url) {
+                        dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `! \`${url}\`` } });
+                      }
+                    } catch { /* noop */ }
+                  })();
+                } else if (String(name).toLowerCase() === 'downloadimagefromurl') {
+                  try {
+                    const url = String(details?.args?.absoluteUrl || details?.args?.publicUrl || details?.args?.url || '');
+                    if (url) {
+                      dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `! \`${url}\`` } });
+                    }
+                  } catch { /* noop */ }
+                }
               }
             }
           } catch { /* noop */ }
