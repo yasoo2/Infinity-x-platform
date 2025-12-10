@@ -64,23 +64,34 @@ class AdvancedVisionSystem {
   }
 
   async analyzeImage(imageUrl, options = {}) {
-    const analysisTasks = {
-      basic: this.basicAnalysis(imageUrl),
-      objects: this.detectObjects(imageUrl),
-      text: this.extractText(imageUrl),
-    };
-
-    const results = await Promise.all(Object.values(analysisTasks));
-    const analysis = Object.keys(analysisTasks).reduce((acc, key, index) => {
-      acc[key] = results[index];
-      return acc;
-    }, {});
-
-    if (options.deepAnalysis) {
-      analysis.advanced = await this.advancedAnalysis(imageUrl);
+    try {
+      const analysisTasks = {
+        basic: this.basicAnalysis(imageUrl),
+        objects: this.detectObjects(imageUrl),
+        text: this.extractText(imageUrl),
+      };
+      const results = await Promise.all(Object.values(analysisTasks));
+      const analysis = Object.keys(analysisTasks).reduce((acc, key, index) => {
+        acc[key] = results[index];
+        return acc;
+      }, {});
+      if (options.deepAnalysis) {
+        analysis.advanced = await this.advancedAnalysis(imageUrl);
+      }
+      return analysis;
+    } catch (e) {
+      try {
+        const resp = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+        const tmpName = `vision-${Date.now()}.png`;
+        const tmpPath = path.join(VISION_STORAGE_PATH, tmpName);
+        await fs.writeFile(tmpPath, Buffer.from(resp.data));
+        const tesseract = await import('node-tesseract-ocr');
+        const text = await tesseract.default.recognize(tmpPath).catch(() => '');
+        return { basic: '', objects: {}, text: { text } };
+      } catch (err) {
+        return { basic: '', objects: {}, text: { text: '' }, error: err?.message || String(err) };
+      }
     }
-
-    return analysis;
   }
 
   async basicAnalysis(imageUrl) {

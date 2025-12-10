@@ -525,7 +525,6 @@ export const useJoeChat = () => {
     const id = state.currentConversationId;
     if (!id) return;
     const conv = state.conversations[id] || {};
-    const msgs = Array.isArray(conv.messages) ? conv.messages : [];
     updateSummaryForCurrent();
     const summary = String(stateRef.current.conversations[id]?.summary || '').trim();
     const summaryLong = String(stateRef.current.conversations[id]?.summaryLong || '').trim();

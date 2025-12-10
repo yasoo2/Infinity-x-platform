@@ -53,33 +53,68 @@ class APIIntegrationTool {
     }
 
     async searchAPI({ query }) {
-        // Placeholder for a search engine that specializes in APIs (e.g., RapidAPI, ProgrammableWeb)
-        return {
-            success: true,
-            query: query,
-            mockResults: [
-                { name: "WeatherAPI Pro", url: "https://weatherapi.com/docs", description: "Real-time weather data with 99.9% uptime." },
-                { name: "Stripe Payments", url: "https://stripe.com/docs", description: "Industry-leading payment processing API." }
-            ],
-            note: "The AI should select the best API from the results and use analyzeAPIDocumentation next."
-        };
+        try {
+            const q = String(query || '').trim();
+            if (!q) return { success: false, error: 'QUERY_REQUIRED' };
+            const ddg = 'https://html.duckduckgo.com/html/';
+            const targets = [
+                `site:rapidapi.com ${q}`,
+                `site:github.com openapi ${q}`,
+                `site:swagger.io ${q}`,
+                `site:programmableweb.com ${q}`
+            ];
+            const results = [];
+            for (const tq of targets) {
+                const { data } = await (await import('axios')).default.get(ddg, { params: { q: tq }, headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 12000 });
+                const $ = (await import('cheerio')).load(data);
+                $('.result').each((i, el) => {
+                    const title = $(el).find('.result__a').text().trim();
+                    const snippet = $(el).find('.result__snippet').text().trim();
+                    let url = $(el).find('.result__url').attr('href') || '';
+                    try {
+                        const params = new URLSearchParams(url.substring(url.indexOf('?')));
+                        const decoded = decodeURIComponent(params.get('uddg') || url);
+                        if (/^https?:\/\//.test(decoded)) results.push({ title, url: decoded, snippet });
+                    } catch { /* noop */ }
+                });
+            }
+            const dedup = [];
+            const seen = new Set();
+            for (const r of results) { if (!seen.has(r.url)) { seen.add(r.url); dedup.push(r); } }
+            return { success: true, query: q, items: dedup.slice(0, 10) };
+        } catch (error) {
+            return { success: false, error: error?.message || String(error) };
+        }
     }
 
     async analyzeAPIDocumentation({ documentationSource, targetFunction }) {
-        void documentationSource;
-        // Placeholder for a service that scrapes and analyzes documentation
-        return {
-            success: true,
-            targetFunction: targetFunction,
-            analysis: {
-                endpoint: "/api/v1/users/{id}",
-                method: "GET",
-                requiredHeaders: ["Authorization: Bearer <token>"],
-                requiredParameters: ["id (path parameter)"],
-                responseFormat: "JSON object with user details."
-            },
-            note: "The analysis is complete. Use generateIntegrationCode to write the client code."
-        };
+        try {
+            const src = String(documentationSource || '').trim();
+            const fn = String(targetFunction || '').trim();
+            if (!src || !fn) return { success: false, error: 'SOURCE_AND_FUNCTION_REQUIRED' };
+            const { data } = await (await import('axios')).default.get(src, { timeout: 15000, headers: { 'User-Agent': 'Mozilla/5.0' } });
+            const $ = (await import('cheerio')).load(data);
+            const text = $('body').text().slice(0, 200000);
+            const endpoints = [];
+            const re = /(GET|POST|PUT|PATCH|DELETE)\s+\/?[A-Za-z0-9_\-\/\{\}\.]+/g;
+            let m;
+            while ((m = re.exec(text)) !== null) { endpoints.push(m[0]); }
+            const related = endpoints.filter(e => new RegExp(fn, 'i').test(e));
+            const headers = [];
+            if (/bearer/i.test(text)) headers.push('Authorization: Bearer <token>');
+            if (/x\-api\-key/i.test(text)) headers.push('X-API-Key: <key>');
+            return {
+                success: true,
+                targetFunction: fn,
+                analysis: {
+                    endpoints: endpoints.slice(0, 50),
+                    relatedEndpoints: related.slice(0, 10),
+                    requiredHeaders: headers,
+                }
+            };
+        } catch (error) {
+            return { success: false, error: error?.message || String(error) };
+        }
     }
 
     async generateIntegrationCode({ apiName, endpointURL, method, parameters, authenticationMethod, outputFilePath }) {

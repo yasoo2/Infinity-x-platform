@@ -90,7 +90,6 @@
         const curBase = String(apiClient.defaults.baseURL || '');
         const host = new URL(curBase).hostname;
         const offline = localStorage.getItem('apiOffline') === '1';
-        const isAuthPath = /^\/api\/v1\/auth\//.test(urlPath);
         if (offline && (host === 'localhost' || host === '127.0.0.1')) {
           const prod = computePreferredApiBase();
           apiClient.defaults.baseURL = prod;

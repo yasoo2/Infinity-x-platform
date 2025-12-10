@@ -82,11 +82,25 @@ class MediaGenerationTool {
         if (!out) return { success: false, error: 'OUTPUT_PATH_REQUIRED' };
 
         if (!this._openai) {
-            return {
-                success: false,
-                error: 'OPENAI_API_KEY_MISSING',
-                message: 'Provide OPENAI_API_KEY to enable real image generation.'
-            };
+            try {
+                const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(style ? `${p} ${style}` : p)}`;
+                const res = await (await import('axios')).default.get(url, { responseType: 'arraybuffer', timeout: 20000 });
+                const buf = Buffer.from(res.data, 'binary');
+                try { await fs.mkdir(path.dirname(out), { recursive: true }); } catch { /* noop */ }
+                await fs.writeFile(out, buf);
+                const baseUploads = path.join(process.cwd(), 'public-site', 'uploads');
+                let publicUrl = '';
+                if (out.startsWith(baseUploads)) {
+                    const rel = out.slice(baseUploads.length).replace(/^[/\\]/, '').replace(/\\/g, '/');
+                    publicUrl = ['/uploads', rel].join('/');
+                }
+                const base = process.env.PUBLIC_BASE_URL || 'http://localhost:4000';
+                const absoluteUrl = publicUrl ? `${base}${publicUrl}` : '';
+                const message = absoluteUrl ? `Image saved: ${absoluteUrl}` : 'Image generated';
+                return { success: true, outputFile: out, model: 'pollinations', publicUrl, absoluteUrl, message };
+            } catch (error) {
+                return { success: false, error: error?.message || String(error) };
+            }
         }
 
         try {
