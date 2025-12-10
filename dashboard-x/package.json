@@ -44,7 +44,8 @@
     "uuid": "^9.0.1",
     "socket.io-client": "^4.7.5",
     "zod": "^4.1.12",
-    "prop-types": "^15.8.1"
+    "prop-types": "^15.8.1",
+    "hls.js": "^1.5.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.17",

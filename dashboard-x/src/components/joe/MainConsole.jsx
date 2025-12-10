@@ -4,6 +4,7 @@ import { FiMic, FiPaperclip, FiSend, FiStopCircle, FiCompass, FiArrowDown, FiLin
 import { useJoeChatContext } from '../../context/JoeChatContext.jsx';
 import apiClient from '../../api/client';
 import { getSystemStatus, listUserUploads, deleteUserUpload } from '../../api/system';
+import Hls from 'hls.js';
 
  
 
@@ -111,6 +112,29 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
     );
   };
   SmartImage.propTypes = { src: PropTypes.string.isRequired, alt: PropTypes.string };
+
+  const HlsVideo = ({ src }) => {
+    const ref = React.useRef(null);
+    React.useEffect(() => {
+      const video = ref.current;
+      if (!video) return;
+      let hls;
+      try {
+        if (video.canPlayType('application/vnd.apple.mpegurl')) {
+          video.src = src;
+        } else if (Hls.isSupported()) {
+          hls = new Hls({ maxBufferLength: 10 });
+          hls.loadSource(src);
+          hls.attachMedia(video);
+        } else {
+          video.src = src;
+        }
+      } catch { /* noop */ }
+      return () => { try { hls?.destroy(); } catch { /* noop */ } };
+    }, [src]);
+    return <video ref={ref} controls className="max-h-64 w-full rounded-lg border border-gray-700 bg-black" />;
+  };
+  HlsVideo.propTypes = { src: PropTypes.string.isRequired };
 
   const JoeBadge = ({ size = 'sm', state = 'ready' }) => {
     const px = size === 'lg' ? 52 : (size === 'md' ? 40 : 28);
@@ -964,7 +988,11 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                         <div className="mt-3 flex flex-col gap-3">
                           {videoUrls.slice(0, 2).map((src, i) => (
                             <div key={`vid-${i}`} className="w-full">
-                              <video src={src} controls className="max-h-64 w-full rounded-lg border border-gray-700 bg-black" preload="metadata" />
+                              {/\.m3u8(\?|$)/i.test(src) ? (
+                                <HlsVideo src={src} />
+                              ) : (
+                                <video src={src} controls className="max-h-64 w-full rounded-lg border border-gray-700 bg-black" preload="metadata" />
+                              )}
                             </div>
                           ))}
                         </div>
