@@ -219,9 +219,10 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
     if (!el) return;
     const threshold = 160;
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
-    showScrollRef.current = !atBottom;
-    setShowScrollButton(!atBottom);
-    setIsUserPinned(!atBottom);
+    const nextShow = !atBottom;
+    showScrollRef.current = nextShow;
+    if (showScrollButton !== nextShow) setShowScrollButton(nextShow);
+    if (isUserPinned !== nextShow) setIsUserPinned(nextShow);
     lastScrollTopRef.current = el.scrollTop;
     lastScrollHeightRef.current = el.scrollHeight;
   }
@@ -779,27 +780,27 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
             const hasActivity = (messages && messages.length > 0) || isProcessing || (Array.isArray(plan) && plan.length > 0);
             if (!hasActivity) {
               return (
-                <div className="space-y-8">
+                <div className="space-y-4">
                   <div className="text-center">
-                    <div className="text-5xl md:text-6xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-amber-500">JOE</div>
-                    <p className="mt-3 text-sm md:text-base text-gray-300">{lang==='ar' ? 'شريكك الذكي لبناء وتحليل وتنفيذ المشاريع التقنية.' : 'Your intelligent partner to build, analyze, and execute tech.'}</p>
+                    <div className="text-2xl md:text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-amber-500">JOE</div>
+                    <p className="mt-2 text-[11px] md:text-sm text-gray-300">{lang==='ar' ? 'شريكك الذكي لبناء وتحليل وتنفيذ المشاريع التقنية.' : 'Your intelligent partner to build, analyze, and execute tech.'}</p>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div className="p-4 rounded-2xl bg-gray-900/60 border border-gray-800 shadow">
-                      <div className="flex items-center gap-2 text-yellow-300 mb-2"><FiCompass size={16} /><span className="text-xs">{lang==='ar'?'المحادثة والبحث':'Chat & Explore'}</span></div>
-                      <p className="text-[12px] text-gray-300">{lang==='ar'?'اسأل جو عن أي شيء تقني ويعطيك روابط وأكواد.':'Ask Joe anything. Get links, code, and steps.'}</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                    <div className="p-2 rounded-2xl bg-gray-900/60 border border-gray-800 shadow">
+                      <div className="flex items-center gap-2 text-yellow-300 mb-1"><FiCompass size={14} /><span className="text-[10px]">{lang==='ar'?'المحادثة والبحث':'Chat & Explore'}</span></div>
+                      <p className="text-[11px] text-gray-300">{lang==='ar'?'اسأل جو عن أي شيء تقني ويعطيك روابط وأكواد.':'Ask Joe anything. Get links, code, and steps.'}</p>
                     </div>
-                    <div className="p-4 rounded-2xl bg-gray-900/60 border border-gray-800 shadow">
-                      <div className="flex items-center gap-2 text-yellow-300 mb-2"><FiGitBranch size={16} /><span className="text-xs">{lang==='ar'?'البناء والتنفيذ':'Build & Execute'}</span></div>
-                      <p className="text-[12px] text-gray-300">{lang==='ar'?'حلول جاهزة وإجراءات تلقائية داخل مشروعك.':'Ready solutions and automated actions in your project.'}</p>
+                    <div className="p-2 rounded-2xl bg-gray-900/60 border border-gray-800 shadow">
+                      <div className="flex items-center gap-2 text-yellow-300 mb-1"><FiGitBranch size={14} /><span className="text-[10px]">{lang==='ar'?'البناء والتنفيذ':'Build & Execute'}</span></div>
+                      <p className="text-[11px] text-gray-300">{lang==='ar'?'حلول جاهزة وإجراءات تلقائية داخل مشروعك.':'Ready solutions and automated actions in your project.'}</p>
                     </div>
-                    <div className="p-4 rounded-2xl bg-gray-900/60 border border-gray-800 shadow">
-                      <div className="flex items-center gap-2 text-yellow-300 mb-2"><FiImage size={16} /><span className="text-xs">{lang==='ar'?'الوسائط والملفات':'Media & Files'}</span></div>
-                      <p className="text-[12px] text-gray-300">{lang==='ar'?'ارفع صورك وملفاتك واستخدمها مباشرة.':'Upload media and use it instantly.'}</p>
+                    <div className="p-2 rounded-2xl bg-gray-900/60 border border-gray-800 shadow">
+                      <div className="flex items-center gap-2 text-yellow-300 mb-1"><FiImage size={14} /><span className="text-[10px]">{lang==='ar'?'الوسائط والملفات':'Media & Files'}</span></div>
+                      <p className="text-[11px] text-gray-300">{lang==='ar'?'ارفع صورك وملفاتك واستخدمها مباشرة.':'Upload media and use it instantly.'}</p>
                     </div>
                   </div>
                   <div className="text-center">
-                    <span className="inline-block px-4 py-2 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 text-black text-xs">{lang==='ar'?'ابدأ برسالة لـ Joe هنا':'Start by typing a message to Joe'}</span>
+                    <span className="inline-block px-3 py-1.5 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 text-black text-[11px]">{lang==='ar'?'ابدأ برسالة لـ Joe هنا':'Start by typing a message to Joe'}</span>
                   </div>
                 </div>
               );
@@ -861,6 +862,22 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                       lastIndex = i + raw.length;
                     }
                     if (lastIndex < s.length) parts.push(s.slice(lastIndex));
+                    const renderEnglish = (text) => {
+                      if (!isRTL) return [text];
+                      const s2 = String(text || '');
+                      const nodes = [];
+                      let last = 0;
+                      let mm;
+                      const re = /[A-Za-z][A-Za-z0-9@#._-]*/g;
+                      while ((mm = re.exec(s2)) !== null) {
+                        const i = mm.index;
+                        if (i > last) nodes.push(s2.slice(last, i));
+                        nodes.push(<span key={`ltr-${i}`} dir="ltr" style={{ unicodeBidi: 'isolate', display: 'inline-block' }}>{mm[0]}</span>);
+                        last = i + mm[0].length;
+                      }
+                      if (last < s2.length) nodes.push(s2.slice(last));
+                      return nodes;
+                    };
                     const renderBrands = (str) => {
                       const nodes = [];
                       let idx = 0;
@@ -873,11 +890,17 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                         let nm;
                         while ((nm = re.exec(chunk)) !== null) {
                           const i = nm.index;
-                          if (i > li) out.push(chunk.slice(li, i));
+                          if (i > li) {
+                            const seg = renderEnglish(chunk.slice(li, i));
+                            for (const n of seg) out.push(n);
+                          }
                           out.push(<StyledJoe key={`joe-${i}`} />);
                           li = i + nm[0].length;
                         }
-                        if (li < chunk.length) out.push(chunk.slice(li));
+                        if (li < chunk.length) {
+                          const seg = renderEnglish(chunk.slice(li));
+                          for (const n of seg) out.push(n);
+                        }
                         return out;
                       };
                       while ((mm = brandPattern.exec(input)) !== null) {
@@ -893,6 +916,8 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                             href="#"
                             onClick={(e) => { e.preventDefault(); try { window.dispatchEvent(new CustomEvent('joe:open-browser', { detail: { searchQuery: w } })); } catch { /* noop */ } }}
                             className="underline text-blue-400"
+                            dir={isRTL ? 'ltr' : undefined}
+                            style={{ unicodeBidi: 'isolate', display: 'inline-block' }}
                           >
                             {w}
                           </a>
@@ -911,6 +936,8 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                         href={p.href}
                         onClick={(e) => { e.preventDefault(); try { window.dispatchEvent(new CustomEvent('joe:open-browser', { detail: { url: p.href } })); } catch { /* noop */ } }}
                         className="underline text-yellow-400 break-all"
+                        dir={isRTL ? 'ltr' : undefined}
+                        style={{ unicodeBidi: 'isolate', display: 'inline-block' }}
                       >
                         {p.display || p.href}
                       </a>
