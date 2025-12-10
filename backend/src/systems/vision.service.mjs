@@ -79,7 +79,7 @@ class AdvancedVisionSystem {
         analysis.advanced = await this.advancedAnalysis(imageUrl);
       }
       return analysis;
-    } catch (e) {
+    } catch {
       try {
         const resp = await axios.get(imageUrl, { responseType: 'arraybuffer' });
         const tmpName = `vision-${Date.now()}.png`;
@@ -151,7 +151,7 @@ class AdvancedVisionSystem {
         await fs.writeFile(filePath, buffer);
         const publicUrl = `/${path.relative('public', filePath)}`;
         return { url: publicUrl, revisedPrompt: enhancedPrompt };
-      } catch (e) {
+      } catch {
         return { url: '', revisedPrompt: enhancedPrompt };
       }
     }

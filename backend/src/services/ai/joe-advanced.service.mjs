@@ -469,6 +469,7 @@ async function processMessage(userId, message, sessionId, { model = null, lang }
           const wantsListFiles = /(سرد\s*الملفات|list\s*files)/i.test(lower);
           const wantsScreenshot = /(screenshot|لقطة\s*شاشة)/i.test(lower);
         const wantsAnalyzeImage = /(حلل\s*صورة|analyze\s*image)/i.test(lower);
+        const wantsImage = /(image|صورة|لوغو|شعار|generate\s*image|logo|ايقونة|رمز|رموز)/i.test(lower);
         try {
           const planText = (targetLang==='ar')
             ? `خطة أولية: ${[
@@ -792,6 +793,19 @@ ${transcript.slice(0, 8000)}`;
                 toolCalls.push({ function: { name: 'analyzeImage', arguments: { imageUrl: url } } });
                 pieces.push('Image analysis completed.');
               }
+            } catch { void 0 }
+          }
+          if (wantsImage) {
+            try {
+              const safeUser = String(userId || '').replace(/[^A-Za-z0-9_:-]/g, '_');
+              const fileName = `joe-image-${Date.now()}.png`;
+              const outPath = path.join(process.cwd(), 'public-site', 'uploads', safeUser, fileName);
+              const r = await executeTool(userId, sessionId, 'generateImage', { prompt: preview, style: 'modern', outputFilePath: outPath });
+              toolResults.push({ tool: 'generateImage', args: { prompt: preview, style: 'modern', outputFilePath: outPath }, result: r });
+              toolCalls.push({ function: { name: 'generateImage', arguments: { prompt: preview, style: 'modern', outputFilePath: outPath } } });
+              const link = r?.absoluteUrl || r?.publicUrl || r?.url || '';
+              const msg = targetLang === 'ar' ? (link ? `تم إنشاء الصورة: ${link}` : 'تم إنشاء الصورة.') : (link ? `Image generated: ${link}` : 'Image generated.');
+              pieces.push(msg);
             } catch { void 0 }
           }
           if (wantsDeploy) {
@@ -1438,7 +1452,7 @@ ${transcript.slice(0, 8000)}`;
             const r = await toolManager.execute('generateImage', { prompt: preview, style: 'modern', outputFilePath: outPath });
             toolResults.push({ tool: 'generateImage', args: { prompt: preview, style: 'modern', outputFilePath: outPath }, result: r });
             toolCalls.push({ function: { name: 'generateImage', arguments: { prompt: preview, style: 'modern', outputFilePath: outPath } } });
-            const link = r?.absoluteUrl || r?.publicUrl || '';
+            const link = r?.absoluteUrl || r?.publicUrl || r?.url || '';
             const msg = targetLang === 'ar' ? (link ? `تم إنشاء الصورة: ${link}` : 'تم إنشاء الصورة.') : (link ? `Image generated: ${link}` : 'Image generated.');
             pieces.push(msg);
           } catch { /* noop */ }

@@ -96,13 +96,13 @@ class APIIntegrationTool {
             const $ = (await import('cheerio')).load(data);
             const text = $('body').text().slice(0, 200000);
             const endpoints = [];
-            const re = /(GET|POST|PUT|PATCH|DELETE)\s+\/?[A-Za-z0-9_\-\/\{\}\.]+/g;
+            const re = /(GET|POST|PUT|PATCH|DELETE)\s+\/?[A-Za-z0-9_\-/{}.]+/g;
             let m;
             while ((m = re.exec(text)) !== null) { endpoints.push(m[0]); }
             const related = endpoints.filter(e => new RegExp(fn, 'i').test(e));
             const headers = [];
             if (/bearer/i.test(text)) headers.push('Authorization: Bearer <token>');
-            if (/x\-api\-key/i.test(text)) headers.push('X-API-Key: <key>');
+            if (/x-api-key/i.test(text)) headers.push('X-API-Key: <key>');
             return {
                 success: true,
                 targetFunction: fn,
