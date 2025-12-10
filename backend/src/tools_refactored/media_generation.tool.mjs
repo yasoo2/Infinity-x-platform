@@ -93,6 +93,14 @@ class MediaGenerationTool {
                 if (out.startsWith(baseUploads)) {
                     const rel = out.slice(baseUploads.length).replace(/^[/\\]/, '').replace(/\\/g, '/');
                     publicUrl = ['/uploads', rel].join('/');
+                } else {
+                    const normOut = out.replace(/\\/g, '/');
+                    const marker = '/public-site/uploads/';
+                    const idx = normOut.lastIndexOf(marker);
+                    if (idx >= 0) {
+                        const rel = normOut.slice(idx + marker.length);
+                        publicUrl = `/uploads/${rel}`;
+                    }
                 }
                 const base = process.env.PUBLIC_BASE_URL || 'http://localhost:4000';
                 const absoluteUrl = publicUrl ? `${base}${publicUrl}` : '';
@@ -118,6 +126,14 @@ class MediaGenerationTool {
             if (out.startsWith(baseUploads)) {
                 const rel = out.slice(baseUploads.length).replace(/^[\\/]/, '').replace(/\\/g, '/');
                 publicUrl = ['/uploads', rel].join('/');
+            } else {
+                const normOut = out.replace(/\\/g, '/');
+                const marker = '/public-site/uploads/';
+                const idx = normOut.lastIndexOf(marker);
+                if (idx >= 0) {
+                    const rel = normOut.slice(idx + marker.length);
+                    publicUrl = `/uploads/${rel}`;
+                }
             }
             const base = process.env.PUBLIC_BASE_URL || 'http://localhost:4000';
             const absoluteUrl = publicUrl ? `${base}${publicUrl}` : '';
