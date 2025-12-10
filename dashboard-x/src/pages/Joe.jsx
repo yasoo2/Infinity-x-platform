@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { FiCheckCircle, FiActivity, FiZap } from 'react-icons/fi';
+import { FiCheckCircle, FiActivity, FiZap, FiMenu } from 'react-icons/fi';
 import { getAIProviders } from '../api/system';
 import { useNavigate } from 'react-router-dom';
 import TopBar from '../components/joe/TopBar';
@@ -28,6 +28,9 @@ const JoeContent = () => {
   const [leftWidth, setLeftWidth] = useState(320);
   const [dragLeft, setDragLeft] = useState(false);
   const [overlayActive, setOverlayActive] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(() => {
+    try { return localStorage.getItem('joeWelcomeDismissed') !== 'true'; } catch { return true; }
+  });
 
   useEffect(() => {
     const update = () => setIsMobile(window.innerWidth < 768);
@@ -370,6 +373,17 @@ const JoeContent = () => {
         onToggleLogs={toggleBottomPanel}
         isLogsOpen={isBottomPanelOpen && !isBottomCollapsed}
       />
+      {leftWidth === 0 && (
+        <div className="fixed left-2 md:left-3 lg:left-4 top-20 md:top-24 lg:top-28 z-40">
+          <button
+            onClick={toggleSidePanel}
+            className="p-2 w-10 h-10 grid place-items-center rounded-xl border bg-yellow-600 text-black hover:bg-yellow-700 shadow-md"
+            title={lang==='ar' ? 'إظهار جلسات الدردشة' : 'Show Chat Sessions'}
+          >
+            <FiMenu size={20} />
+          </button>
+        </div>
+      )}
       
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
@@ -396,6 +410,82 @@ const JoeContent = () => {
         {/* Main Console - Center (Flexible) */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className={`flex-1 overflow-hidden ${isBottomPanelOpen ? '' : 'h-full'}`}>
+            {showWelcome && (
+              <div className="absolute inset-0 z-30 grid place-items-center bg-black/60 backdrop-blur-sm pointer-events-none">
+                <div className="w-full max-w-5xl mx-4 pointer-events-auto">
+                  <div className="rounded-3xl border border-yellow-500/30 bg-gradient-to-br from-gray-900 via-gray-800 to-black shadow-2xl overflow-hidden">
+                    <div className="px-8 md:px-12 pt-10 pb-6 text-center">
+                      <div className="inline-flex items-baseline text-4xl md:text-6xl font-extrabold tracking-tight select-none">
+                        <span className="bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-500 bg-clip-text text-transparent">أهلاً بك في عالم 0 A0</span>
+                        <span className="mx-2 inline-flex items-baseline">
+                          <span className="text-white">J</span>
+                          <span className="text-white">o</span>
+                          <span className="text-yellow-400">e</span>
+                        </span>
+                        <span className="text-white">👋</span>
+                      </div>
+                      <p className="mt-4 text-lg md:text-xl text-gray-300">مساعد هندسي ذكي يبني ويحلّل ويؤتمت أعمالك خطوة بخطوة.</p>
+                    </div>
+                    <div className="px-6 md:px-8 pb-8">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                        <div className="p-5 rounded-2xl bg-gray-900/70 border border-gray-700/60">
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 grid place-items-center rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-300"><FiZap /></div>
+                            <div>
+                              <div className="text-white font-semibold">Code & Systems Builder</div>
+                              <div className="text-sm text-gray-400">يبني تطبيقات وخدمات كاملة من الفكرة حتى النشر.</div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="p-5 rounded-2xl bg-gray-900/70 border border-gray-700/60">
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 grid place-items-center rounded-xl bg-cyan-500/20 border border-cyan-400/40 text-cyan-300"><FiCheckCircle /></div>
+                            <div>
+                              <div className="text-white font-semibold">Smart Debugger</div>
+                              <div className="text-sm text-gray-400">يتتبّع مشاكل الأداء والـ CORS والـ WebSocket ويقترح إصلاحات واضحة.</div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="p-5 rounded-2xl bg-gray-900/70 border border-gray-700/60">
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 grid place-items-center rounded-xl bg-purple-500/20 border border-purple-400/40 text-purple-300">📚</div>
+                            <div>
+                              <div className="text-white font-semibold">Repo & Docs Navigator</div>
+                              <div className="text-sm text-gray-400">يتصفّح المستودعات، يفهم بنية المشروع ويولّد تقارير منظمة.</div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="p-5 rounded-2xl bg-gray-900/70 border border-gray-700/60">
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 grid place-items-center rounded-xl bg-pink-500/20 border border-pink-400/40 text-pink-300">🤖</div>
+                            <div>
+                              <div className="text-white font-semibold">Automation & Agents Orchestrator</div>
+                              <div className="text-sm text-gray-400">يربط الأدوات والوكلاء وواجهات API لتحويل عملك لمنظومة ذكية.</div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="p-5 rounded-2xl bg-gray-900/70 border border-gray-700/60 md:col-span-2">
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 grid place-items-center rounded-xl bg-yellow-500/20 border border-yellow-400/40 text-yellow-300">🌱</div>
+                            <div>
+                              <div className="text-white font-semibold">Continuous Learner</div>
+                              <div className="text-sm text-gray-400">يتعلّم من قراراتك ومشاريعك ليحسّن طريقة عمله معك بمرور الوقت.</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-6 md:mt-8">
+                        <div className="text-center text-base md:text-lg text-gray-300">جاهز نبدأ؟ اختر مهمّتك الأولى ودع <span className="inline-flex items-baseline font-semibold"><span>J</span><span>o</span><span className="text-yellow-400">E</span></span> يتولّى التنفيذ. 🚀</div>
+                        <div className="mt-4 flex items-center justify-center gap-3">
+                          <button onClick={() => { try { localStorage.setItem('joeWelcomeDismissed','true'); } catch (_) { void 0; } setShowWelcome(false); setInput(''); }} className="px-6 py-3 rounded-2xl bg-gradient-to-r from-yellow-400 via-amber-400 to-orange-400 text-black font-bold shadow hover:brightness-110">ابدأ الآن</button>
+                          <button onClick={() => { try { localStorage.setItem('joeWelcomeDismissed','true'); } catch (_) { void 0; } setShowWelcome(false); }} className="px-6 py-3 rounded-2xl border border-gray-700 text-white hover:bg-gray-800">لاحقاً</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
             <MainConsole key={currentConversationId} isBottomPanelOpen={isBottomPanelOpen} isBottomCollapsed={isBottomCollapsed} />
           </div>
 
@@ -522,7 +612,6 @@ const JoeContent = () => {
         const cls = (robotActive || isProcessing) ? 'active playful' : '';
         return (
           <div id="joe-container" ref={robotRef} onPointerDown={onRobotPointerDown} onClick={()=>{ if (wasDragging.current) return; setRobotActive(v=>!v); }} className={cls} style={s}>
-            <div className="chat-bubble">{lang === 'ar' ? 'مرحباً! أنا Joe المهندس. هل تحتاج مساعدة في الكود؟' : "Hello! I'm Joe the engineer. Need help with code?"}</div>
             <svg viewBox="0 0 200 240" className={(robotActive || isProcessing) ? 'thinking' : ''}>
               <g className="floating-body">
                 <rect x="40" y="150" width="20" height="50" rx="10" fill="#BDC3C7"/>

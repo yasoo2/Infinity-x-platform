@@ -434,7 +434,6 @@ export const useJoeChat = () => {
   const heartbeatIntervalRef = useRef(null);
   const pendingDeleteIdsRef = useRef(new Map());
   const initialLoadDoneRef = useRef(false);
-  
   const lastSelectionRef = useRef({ id: null, ts: 0 });
   const sioErrorCountRef = useRef(0);
   const streamBufferRef = useRef('');
