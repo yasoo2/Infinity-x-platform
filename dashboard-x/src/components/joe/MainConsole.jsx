@@ -85,6 +85,18 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
     plan
   } = useJoeChatContext();
 
+  const autoRunsRef = useRef(0);
+  useEffect(() => {
+    try {
+      const hasPlan = Array.isArray(plan) && plan.length > 0;
+      if (!isProcessing && hasPlan && autoRunsRef.current < 3) {
+        setInput('تابع تنفيذ المهمة حتى الإتمام، افحص قائمة المهام غير المنجزة وأكملها تلقائيًا، ثم اعرض النتائج النهائية بشكل صحيح ومنسق.');
+        handleSend();
+        autoRunsRef.current += 1;
+      }
+    } catch { /* noop */ }
+  }, [isProcessing, plan.length]);
+
   const StyledJoe = ({ className = '' }) => (
     <span className={`mx-1 inline-flex items-baseline font-semibold tracking-wide text-gray-100 ${className}`}>
       <span>J</span>
@@ -946,7 +958,12 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                           </div>
                         </div>
                       ) : (
-                        String(seg.content || '').split(/\n{2,}/).map((para, pi) => {
+                        String(seg.content || '')
+                          .replace(/!\s*`https?:\/\/[^\s`]+`/g,'')
+                          .replace(/!\[[^\]]*\]\((https?:\/\/[^)]+)\)/g,'')
+                          .replace(/!\s*https?:\/\/\S+/g,'')
+                          .split(/\n{2,}/)
+                          .map((para, pi) => {
                           const lines = String(para).split(/\n/);
                           const isBullets = lines.every(l => /^\s*(-|•)\s+/.test(l)) && lines.length > 1; const isNumbers = lines.every(l => /^\s*\d+\.\s+/.test(l)) && lines.length > 1; const isHeading = /^\s*#{1,3}\s+/.test(lines[0]) && lines.length === 1;
                           return isHeading ? (
@@ -973,14 +990,9 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                       {imageUrls.length > 0 && (
                         <div className="mt-3 flex flex-wrap gap-3">
                           {imageUrls.slice(0, 4).map((src, i) => (
-                            <a
-                              key={`img-${i}`}
-                              href={src}
-                              onClick={(e) => { e.preventDefault(); try { window.dispatchEvent(new CustomEvent('joe:open-browser', { detail: { url: src } })); } catch { /* noop */ } }}
-                              className="block"
-                            >
+                            <div key={`img-${i}`} className="block">
                               <SmartImage src={src} alt="image" />
-                            </a>
+                            </div>
                           ))}
                         </div>
                       )}
@@ -1112,6 +1124,21 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
           onDragLeave={(e) => { if (e.currentTarget.contains(e.relatedTarget)) return; setDragActive(false); }}
           onDrop={onDropFiles}
           >
+            {Array.isArray(plan) && plan.length > 0 && (
+              <div className="mb-2 border border-yellow-500/40 bg-yellow-500/10 rounded-xl p-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-yellow-300">قائمة المهام</span>
+                  <span className="text-[11px] text-yellow-200">{plan.filter(p=>String(p?.type||'').toLowerCase()==='action').length} مهمة</span>
+                </div>
+                <div className="mt-1 max-h-24 overflow-auto space-y-1">
+                  {plan.filter(p=>String(p?.type||'').toLowerCase()==='action').slice(-6).map((p, i) => (
+                    <div key={`task-${i}`} className="text-[12px] text-yellow-100 border border-yellow-500/30 rounded-lg px-2 py-1">
+                      {String(p?.content||p?.title||p?.step||'مهمة').slice(0,120)}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {dragActive && (
               <div className="absolute inset-0 rounded-2xl border-2 border-yellow-500/60 bg-yellow-500/5 flex items-center justify-center text-xs text-yellow-300 pointer-events-none">
                 {lang==='ar' ? 'اسحب الملفات وافلت هنا' : 'Drop files here'}

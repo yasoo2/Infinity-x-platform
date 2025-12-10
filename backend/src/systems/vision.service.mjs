@@ -131,7 +131,18 @@ class AdvancedVisionSystem {
   async generateImage(prompt, options = {}) {
     const enhancedPrompt = await this.enhancePrompt(prompt);
     if (!openai) {
-      return { url: '', revisedPrompt: enhancedPrompt };
+      try {
+        const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}`;
+        const res = await axios.get(url, { responseType: 'arraybuffer' });
+        const buffer = Buffer.from(res.data, 'binary');
+        const filename = `gen-${Date.now()}.png`;
+        const filePath = path.join(VISION_STORAGE_PATH, filename);
+        await fs.writeFile(filePath, buffer);
+        const publicUrl = `/${path.relative('public', filePath)}`;
+        return { url: publicUrl, revisedPrompt: enhancedPrompt };
+      } catch (e) {
+        return { url: '', revisedPrompt: enhancedPrompt };
+      }
     }
     const image = await openai.images.generate({
       model: 'dall-e-3',
