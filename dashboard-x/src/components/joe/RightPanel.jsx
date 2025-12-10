@@ -58,32 +58,29 @@ const RightPanel = ({ isProcessing, plan, forceStatus = false, wsConnected = fal
     const ac = new AbortController();
     const { signal } = ac;
     const fetchAll = async () => {
+      let offline = false;
+      try { offline = localStorage.getItem('apiOffline') === '1'; } catch { offline = false; }
       try {
-        const offline = localStorage.getItem('apiOffline') === '1';
-        if (offline) {
-          setHealth({ success: false, status: 'offline' });
-          setRuntime({ success: false, loading: false });
-          setEngine({ ok: false });
-          return;
-        }
         const h = await apiClient.get('/api/v1/health', { signal });
         setHealth(h.data);
-        try {
-          const r = await apiClient.get('/api/v1/runtime-mode/status', { signal });
-          setRuntime(r.data);
-        } catch { /* noop */ }
-        try {
-          const e = await apiClient.get('/api/v1/ai/engine/status', { signal });
-          setEngine(e.data);
-        } catch { /* noop */ }
+        if (offline) { try { localStorage.removeItem('apiOffline'); window.dispatchEvent(new CustomEvent('api:online')); } catch { /* noop */ } }
       } catch {
         try {
           const p = await apiClient.get('/api/v1/joe/ping', { signal });
           setHealth({ success: true, status: 'ok', uptime: 0, ping: p.data });
+          if (offline) { try { localStorage.removeItem('apiOffline'); window.dispatchEvent(new CustomEvent('api:online')); } catch { /* noop */ } }
         } catch {
           setHealth({ success: false, status: 'offline' });
         }
       }
+      try {
+        const r = await apiClient.get('/api/v1/runtime-mode/status', { signal });
+        setRuntime(r.data);
+      } catch { /* noop */ }
+      try {
+        const e = await apiClient.get('/api/v1/ai/engine/status', { signal });
+        setEngine(e.data);
+      } catch { /* noop */ }
     };
     const onOffline = () => { try { setHealth({ success: false, status: 'offline' }); setRuntime({ success: false, loading: false }); setEngine({ ok: false }); } catch { /* noop */ } };
     const onOnline = () => { try { fetchAll(); } catch { /* noop */ } };
