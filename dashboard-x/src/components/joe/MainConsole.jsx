@@ -899,6 +899,13 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                   const whitelistHosts = ['via.placeholder.com','placekitten.com','picsum.photos','images.unsplash.com'];
                   const hostImgs = rawUrlsAll.filter(u => { try { const h = new URL(u).hostname; return whitelistHosts.includes(h); } catch { return false; } });
                   const imageUrls = Array.from(new Set([...extImgs, ...mdBangBacktick, ...mdImage, ...bangPlain, ...hostImgs]));
+                  const rawVideoAll = rawUrlsAll;
+                  const extVideos = rawVideoAll.filter(u => /\.(mp4|webm|ogg)(\?|$)/i.test(u));
+                  const mdVideo = Array.from(t.matchAll(/!video\[[^\]]*\]\((https?:\/\/[^)]+)\)/gi)).map(m => m[1]);
+                  const bangVideo = Array.from(t.matchAll(/!video\s*(https?:\/\/\S+)/gi)).map(m => m[1]);
+                  const videoWhitelist = ['cdn.discordapp.com','cdn.jsdelivr.net','storage.googleapis.com'];
+                  const hostVideos = rawVideoAll.filter(u => { try { const h = new URL(u).hostname; return videoWhitelist.includes(h); } catch { return false; } });
+                  const videoUrls = Array.from(new Set([...extVideos, ...mdVideo, ...bangVideo, ...hostVideos]));
                   return (
                     <>
                       {segments.map((seg, idx) => seg.type === 'code' ? (
@@ -950,6 +957,15 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                             >
                               <SmartImage src={src} alt="image" />
                             </a>
+                          ))}
+                        </div>
+                      )}
+                      {videoUrls.length > 0 && (
+                        <div className="mt-3 flex flex-col gap-3">
+                          {videoUrls.slice(0, 2).map((src, i) => (
+                            <div key={`vid-${i}`} className="w-full">
+                              <video src={src} controls className="max-h-64 w-full rounded-lg border border-gray-700 bg-black" preload="metadata" />
+                            </div>
                           ))}
                         </div>
                       )}
