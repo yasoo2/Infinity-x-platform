@@ -872,7 +872,14 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                     last = i + cm[0].length;
                   }
                   if (last < t.length) segments.push({ type: 'text', content: t.slice(last) });
-                  const imageUrls = Array.from(new Set((t.match(/https?:\/\/[^\s)]+/g) || []).filter(u => /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(u))));
+                  const rawUrlsAll = (t.match(/https?:\/\/[^\s)]+/g) || []);
+                  const extImgs = rawUrlsAll.filter(u => /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(u));
+                  const mdBangBacktick = Array.from(t.matchAll(/!\s*`(https?:\/\/[^\s`]+)`/g)).map(m => m[1]);
+                  const mdImage = Array.from(t.matchAll(/!\[[^\]]*\]\((https?:\/\/[^)]+)\)/g)).map(m => m[1]);
+                  const bangPlain = Array.from(t.matchAll(/!\s*(https?:\/\/\S+)/g)).map(m => m[1]);
+                  const whitelistHosts = ['via.placeholder.com','placekitten.com','picsum.photos','images.unsplash.com'];
+                  const hostImgs = rawUrlsAll.filter(u => { try { const h = new URL(u).hostname; return whitelistHosts.includes(h); } catch { return false; } });
+                  const imageUrls = Array.from(new Set([...extImgs, ...mdBangBacktick, ...mdImage, ...bangPlain, ...hostImgs]));
                   return (
                     <>
                       {segments.map((seg, idx) => seg.type === 'code' ? (
