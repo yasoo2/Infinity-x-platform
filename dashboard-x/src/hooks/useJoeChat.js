@@ -11,6 +11,9 @@ const sanitizeCompetitors = (text) => {
   try {
     let t = String(text || '');
     t = t.replace(/manus\s*ai/ig, '').replace(/manus/ig, '');
+    t = t.replace(/grammarly(\.js)?/ig, '').replace(/\bgrm\b[^\n]*/ig, '');
+    t = t.replace(/iterable/ig, '');
+    t = t.replace(/Understand this error/ig, '');
     return t;
   } catch { return String(text || ''); }
 };
@@ -445,7 +448,7 @@ export const useJoeChat = () => {
           try {
             const buf = String(streamBufferRef.current || '');
             if (buf) {
-              dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: buf } });
+              dispatch({ type: 'REPLACE_LAST_JOE', payload: buf });
               streamBufferRef.current = '';
             }
           } catch { /* noop */ } finally {
@@ -460,7 +463,7 @@ export const useJoeChat = () => {
       if (streamFlushTimerRef.current) { clearTimeout(streamFlushTimerRef.current); streamFlushTimerRef.current = null; }
       const buf = String(streamBufferRef.current || '');
       if (buf) {
-        dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: buf } });
+        dispatch({ type: 'REPLACE_LAST_JOE', payload: buf });
         streamBufferRef.current = '';
       }
     } catch { /* noop */ }
