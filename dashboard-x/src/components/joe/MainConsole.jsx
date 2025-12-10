@@ -780,33 +780,23 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
             const hasActivity = (messages && messages.length > 0) || isProcessing || (Array.isArray(plan) && plan.length > 0);
             if (!hasActivity) {
               return (
-                <div className="space-y-4">
+                <div className="space-y-2">
                   <div className="text-center">
-                    <div className="text-2xl md:text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-amber-500">JOE</div>
-                    <p className="mt-2 text-[11px] md:text-sm text-gray-300">{lang==='ar' ? 'شريكك الذكي لبناء وتحليل وتنفيذ المشاريع التقنية.' : 'Your intelligent partner to build, analyze, and execute tech.'}</p>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                    <div className="p-2 rounded-2xl bg-gray-900/60 border border-gray-800 shadow">
-                      <div className="flex items-center gap-2 text-yellow-300 mb-1"><FiCompass size={14} /><span className="text-[10px]">{lang==='ar'?'المحادثة والبحث':'Chat & Explore'}</span></div>
-                      <p className="text-[11px] text-gray-300">{lang==='ar'?'اسأل جو عن أي شيء تقني ويعطيك روابط وأكواد.':'Ask Joe anything. Get links, code, and steps.'}</p>
-                    </div>
-                    <div className="p-2 rounded-2xl bg-gray-900/60 border border-gray-800 shadow">
-                      <div className="flex items-center gap-2 text-yellow-300 mb-1"><FiGitBranch size={14} /><span className="text-[10px]">{lang==='ar'?'البناء والتنفيذ':'Build & Execute'}</span></div>
-                      <p className="text-[11px] text-gray-300">{lang==='ar'?'حلول جاهزة وإجراءات تلقائية داخل مشروعك.':'Ready solutions and automated actions in your project.'}</p>
-                    </div>
-                    <div className="p-2 rounded-2xl bg-gray-900/60 border border-gray-800 shadow">
-                      <div className="flex items-center gap-2 text-yellow-300 mb-1"><FiImage size={14} /><span className="text-[10px]">{lang==='ar'?'الوسائط والملفات':'Media & Files'}</span></div>
-                      <p className="text-[11px] text-gray-300">{lang==='ar'?'ارفع صورك وملفاتك واستخدمها مباشرة.':'Upload media and use it instantly.'}</p>
-                    </div>
+                    <div className="text-xl md:text-2xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-amber-500">JOE</div>
+                    <p className="mt-1 text-[10px] md:text-[11px] text-gray-300">{lang==='ar' ? 'شريكك الذكي لبناء وتحليل وتنفيذ المشاريع التقنية.' : 'Your intelligent partner to build, analyze, and execute tech.'}</p>
                   </div>
                   <div className="text-center">
-                    <span className="inline-block px-3 py-1.5 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 text-black text-[11px]">{lang==='ar'?'ابدأ برسالة لـ Joe هنا':'Start by typing a message to Joe'}</span>
+                    <span className="inline-block px-2.5 py-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 text-black text-[10px]">{lang==='ar'?'ابدأ برسالة لـ Joe هنا':'Start by typing a message to Joe'}</span>
                   </div>
                 </div>
               );
             }
             return (
-              <div className="space-y-5">
+              <div className="space-y-4">
+                <div className="text-center">
+                  <div className="text-xl md:text-2xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-amber-500">JOE</div>
+                  <p className="mt-1 text-[10px] md:text-[11px] text-gray-300">{lang==='ar' ? 'شريكك الذكي لبناء وتحليل وتنفيذ المشاريع التقنية.' : 'Your intelligent partner to build, analyze, and execute tech.'}</p>
+                </div>
               {(() => {
                 const ordered = [...messages].sort((a, b) => {
                   const ta = typeof a.createdAt === 'number' ? a.createdAt : 0;
@@ -872,7 +862,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                       while ((mm = re.exec(s2)) !== null) {
                         const i = mm.index;
                         if (i > last) nodes.push(s2.slice(last, i));
-                        nodes.push(<span key={`ltr-${i}`} dir="ltr" style={{ unicodeBidi: 'isolate', display: 'inline-block' }}>{mm[0]}</span>);
+                        nodes.push(<bdi key={`ltr-${i}`} dir="ltr" style={{ unicodeBidi: 'isolate', display: 'inline-block' }}>{mm[0]}</bdi>);
                         last = i + mm[0].length;
                       }
                       if (last < s2.length) nodes.push(s2.slice(last));
@@ -994,21 +984,21 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                           const lines = String(para).split(/\n/);
                           const isBullets = lines.every(l => /^\s*(-|•)\s+/.test(l)) && lines.length > 1; const isNumbers = lines.every(l => /^\s*\d+\.\s+/.test(l)) && lines.length > 1; const isHeading = /^\s*#{1,3}\s+/.test(lines[0]) && lines.length === 1;
                           return isHeading ? (
-                            (() => { const m = lines[0].match(/^(\s*#{1,3})\s+(.*)$/); const lvl = m && m[1] ? (m[1].trim().length) : 1; const txt = m ? m[2] : lines[0].replace(/^\s*#+\s+/, ''); const size = lvl === 1 ? 'text-2xl md:text-3xl' : (lvl === 2 ? 'text-xl md:text-2xl' : 'text-lg md:text-xl'); return (<div key={`hd-${idx}-${pi}`} className={`mt-1 ${isRTL ? 'text-right' : 'text-left'}`} style={{ direction: isRTL ? 'rtl' : 'ltr' }}><div className={`${size} font-extrabold tracking-tight text-yellow-300`}>{renderRich(txt)}</div></div>); })()
+                            (() => { const m = lines[0].match(/^(\s*#{1,3})\s+(.*)$/); const lvl = m && m[1] ? (m[1].trim().length) : 1; const txt = m ? m[2] : lines[0].replace(/^\s*#+\s+/, ''); const size = lvl === 1 ? 'text-2xl md:text-3xl' : (lvl === 2 ? 'text-xl md:text-2xl' : 'text-lg md:text-xl'); return (<div key={`hd-${idx}-${pi}`} className={`mt-1 ${isRTL ? 'text-right' : 'text-left'}`} style={{ direction: isRTL ? 'rtl' : 'ltr', unicodeBidi: 'plaintext' }}><div className={`${size} font-extrabold tracking-tight text-yellow-300`}>{renderRich(txt)}</div></div>); })()
                           ) : isBullets ? (
-                            <ul key={`ul-${idx}-${pi}`} className={`text-sm md:text-base leading-relaxed list-disc ${isRTL ? 'pr-5 text-right' : 'pl-5 text-left'} text-gray-200`} style={{ direction: isRTL ? 'rtl' : 'ltr' }}>
+                            <ul key={`ul-${idx}-${pi}`} className={`text-sm md:text-base leading-relaxed list-disc ${isRTL ? 'pr-5 text-right' : 'pl-5 text-left'} text-gray-200`} style={{ direction: isRTL ? 'rtl' : 'ltr', unicodeBidi: 'plaintext' }}>
                               {lines.map((l, li) => (
                                 <li key={`li-${idx}-${pi}-${li}`}>{renderRich(l.replace(/^\s*(-|•)\s+/, ''))}</li>
                               ))}
                             </ul>
                           ) : isNumbers ? (
-                            <ol key={`ol-${idx}-${pi}`} className={`text-sm md:text-base leading-relaxed list-decimal ${isRTL ? 'pr-5 text-right' : 'pl-5 text-left'} text-gray-200`} style={{ direction: isRTL ? 'rtl' : 'ltr' }}>
+                            <ol key={`ol-${idx}-${pi}`} className={`text-sm md:text-base leading-relaxed list-decimal ${isRTL ? 'pr-5 text-right' : 'pl-5 text-left'} text-gray-200`} style={{ direction: isRTL ? 'rtl' : 'ltr', unicodeBidi: 'plaintext' }}>
                               {lines.map((l, li) => (
                                 <li key={`oli-${idx}-${pi}-${li}`}>{renderRich(l.replace(/^\s*\d+\.\s+/, ''))}</li>
                               ))}
                             </ol>
                           ) : (
-                            <p key={`p-${idx}-${pi}`} className={`text-sm md:text-base leading-relaxed whitespace-pre-wrap break-words text-gray-200 ${isRTL ? 'text-right' : 'text-left'}`} style={{ direction: isRTL ? 'rtl' : 'ltr' }}>
+                            <p key={`p-${idx}-${pi}`} className={`text-sm md:text-base leading-relaxed whitespace-pre-wrap break-words text-gray-200 ${isRTL ? 'text-right' : 'text-left'}`} style={{ direction: isRTL ? 'rtl' : 'ltr', unicodeBidi: 'plaintext' }}>
                               {renderRich(para)}
                             </p>
                           );
