@@ -1199,20 +1199,14 @@ export const useJoeChat = () => {
         sioUrl = `${sioBase}/joe-agent`;
         
         const isProdHost = (typeof window !== 'undefined') && (/xelitesolutions\.com$/.test(String(window.location.hostname || '')));
-        if (isProdHost) {
-          // على الإنتاج: نتجنب الاتصالات الفورية كليًا ونستخدم REST فقط
-          isConnectingRef.current = false;
-          try { localStorage.setItem('joeTransport', 'rest'); } catch { /* noop */ }
-          return;
-        }
 
         const pathPref = '/socket.io';
-        const initialTransports = isProdHost ? ['polling'] : ['polling','websocket'];
+        const initialTransports = ['polling','websocket'];
         const socket = io(sioUrl, {
           auth: { token: sessionToken },
           path: pathPref,
           transports: initialTransports,
-          upgrade: !isProdHost,
+          upgrade: true,
           reconnection: true,
           reconnectionAttempts: 1000000,
           reconnectionDelay: 500,
