@@ -12,6 +12,9 @@ const sanitizeCompetitors = (text) => {
     let t = String(text || '');
     t = t.replace(/manus\s*ai/ig, '').replace(/manus/ig, '');
     t = t.replace(/grammarly(\.js)?/ig, '').replace(/\bgrm\b[^\n]*/ig, '');
+    t = t.replace(/^.*grm\s*error.*$/gim, '');
+    t = t.replace(/^.*Grammarly\.js.*$/gim, '');
+    t = t.replace(/^.*Not supported: in app messages from Iterable.*$/gim, '');
     t = t.replace(/iterable/ig, '');
     t = t.replace(/Understand this error/ig, '');
     return t;

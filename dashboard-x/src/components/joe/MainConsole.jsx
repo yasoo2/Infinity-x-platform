@@ -763,11 +763,11 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                 const orderedDedup = ordered.filter((m, i) => {
                   if (i === 0) return true;
                   const prev = ordered[i - 1];
-                  return !(
-                    prev.type === m.type &&
-                    String(prev.content || '') === String(m.content || '') &&
-                    Number(prev.createdAt || 0) === Number(m.createdAt || 0)
-                  );
+                  const norm = (s) => String(s || '').replace(/\s+/g, ' ').trim();
+                  const sameType = prev.type === m.type;
+                  const sameText = norm(prev.content) === norm(m.content);
+                  const dt = Math.abs(Number(m.createdAt || 0) - Number(prev.createdAt || 0));
+                  return !(sameType && sameText && dt <= 2000);
                 });
                 const coalesced = [];
                 for (const m of orderedDedup) {
@@ -941,17 +941,14 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                       </span>
                     )}
                     <div 
-                      className={`relative max-w-[88%] sm:max-w-[80%] md:max-w-[70%] rounded-3xl px-6 py-5 ${
+                      className={`relative max-w-[88%] sm:max-w-[80%] md:max-w-[70%] rounded-2xl px-5 py-4 ${
                         msg.type === 'user' 
-                          ? 'bg-gradient-to-br from-[#0f172a] to-[#0b1220] text-gray-100 border border-yellow-500/40 shadow-lg backdrop-blur-sm ring-1 ring-yellow-500/30 transition-colors hover:shadow-xl' 
-                          : 'bg-gradient-to-br from-[#0f172a]/80 to-[#0b1220]/80 text-gray-100 border border-gray-700 shadow-lg backdrop-blur-sm ring-1 ring-white/10 transition-colors hover:shadow-xl'
+                          ? 'bg-[#0b1220] text-gray-100 border border-yellow-500/50 shadow-lg ring-1 ring-yellow-500/30 transition-colors hover:shadow-xl' 
+                          : 'bg-gray-900/70 text-gray-100 border border-gray-700 shadow-lg ring-1 ring-white/10 transition-colors hover:shadow-xl'
                       }`}
                     >
                       {msg.type === 'user' ? (
-                        <div className="flex items-center gap-2 text-xs text-gray-300 mb-2">
-                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-600 text-white font-bold">أ</span>
-                          <span className="tracking-wide">{lang==='ar' ? 'أنت' : 'You'}</span>
-                        </div>
+                        <div className="hidden" />
                       ) : (
                         <div className="flex items-center gap-2 text-xs text-gray-300 mb-2">
                           {(() => { const hasThought = Array.isArray(plan) && plan.slice(-5).some(s => s?.type === 'thought'); const hasDeploy = Array.isArray(plan) && plan.slice(-5).some(s => { const t = String(s?.type||'').toLowerCase(); const txt = String(s?.title||s?.step||s?.content||''); return t==='deploy' || /deploy|push|publish|run|execute|start/i.test(txt); }); const badgeState = !wsConnected ? 'offline' : (isProcessing ? (hasDeploy ? 'deploy' : (hasThought ? 'thinking' : 'typing')) : 'ready'); return (<JoeBadge size="sm" state={badgeState} />); })()}
