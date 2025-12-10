@@ -12,7 +12,7 @@ import path from 'path';
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
 
 // Define a consistent storage path for generated/uploaded images
-const VISION_STORAGE_PATH = 'public/uploads/vision';
+const VISION_STORAGE_PATH = 'public-site/uploads/vision';
 
 class AdvancedVisionSystem {
   constructor() {
@@ -49,13 +49,16 @@ class AdvancedVisionSystem {
       
       await fs.writeFile(filePath, buffer);
       
-      const publicUrl = `/${path.relative('public', filePath)}`;
+      const publicUrl = `/${path.relative('public-site', filePath)}`;
+      const base = process.env.PUBLIC_BASE_URL || 'http://localhost:4000';
+      const absoluteUrl = publicUrl ? `${base}${publicUrl}` : '';
       console.log(`🖼️ Image saved successfully to ${publicUrl}`);
 
       return { 
         success: true, 
         message: 'Image saved successfully.',
-        url: publicUrl
+        url: publicUrl,
+        absoluteUrl
       };
     } catch (error) {
       console.error(`❌ Error saving image from Base64: ${error.message}`);
@@ -149,8 +152,10 @@ class AdvancedVisionSystem {
         const filename = `gen-${Date.now()}.png`;
         const filePath = path.join(VISION_STORAGE_PATH, filename);
         await fs.writeFile(filePath, buffer);
-        const publicUrl = `/${path.relative('public', filePath)}`;
-        return { url: publicUrl, revisedPrompt: enhancedPrompt };
+        const publicUrl = `/${path.relative('public-site', filePath)}`;
+        const base = process.env.PUBLIC_BASE_URL || 'http://localhost:4000';
+        const absoluteUrl = publicUrl ? `${base}${publicUrl}` : '';
+        return { url: publicUrl, absoluteUrl, revisedPrompt: enhancedPrompt };
       } catch {
         return { url: '', revisedPrompt: enhancedPrompt };
       }
