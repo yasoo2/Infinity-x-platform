@@ -41,7 +41,7 @@ analyzeImage.metadata = {
  * @param {string} [params.size='1024x1024'] - The size of the generated image.
  * @returns {Promise<object>} - An object containing the URL of the generated image.
  */
-async function generateImage({ prompt, size }) {
+async function generateImageVision({ prompt, size }) {
     try {
         const result = await visionSystem.generateImage(prompt, { size });
         return { success: true, ...result };
@@ -51,8 +51,8 @@ async function generateImage({ prompt, size }) {
     }
 }
 
-generateImage.metadata = {
-    name: "generateImage",
+generateImageVision.metadata = {
+    name: "generateImageVision",
     description: "Generates a new image from a textual description using the DALL-E 3 model.",
     parameters: {
         type: "object",
@@ -125,4 +125,4 @@ editImage.metadata = {
 };
 
 
-export default { analyzeImage, generateImage, compareImages, editImage };
+export default { analyzeImage, generateImageVision, compareImages, editImage };

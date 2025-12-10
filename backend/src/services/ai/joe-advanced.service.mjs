@@ -799,7 +799,7 @@ ${transcript.slice(0, 8000)}`;
             try {
               const safeUser = String(userId || '').replace(/[^A-Za-z0-9_:-]/g, '_');
               const fileName = `joe-image-${Date.now()}.png`;
-              const outPath = path.join(process.cwd(), 'public-site', 'uploads', safeUser, fileName);
+              const outPath = path.join(process.cwd(), 'Infinity-x-platform', 'public-site', 'uploads', safeUser, fileName);
               const r = await executeTool(userId, sessionId, 'generateImage', { prompt: preview, style: 'modern', outputFilePath: outPath });
               toolResults.push({ tool: 'generateImage', args: { prompt: preview, style: 'modern', outputFilePath: outPath }, result: r });
               toolCalls.push({ function: { name: 'generateImage', arguments: { prompt: preview, style: 'modern', outputFilePath: outPath } } });
@@ -1448,7 +1448,7 @@ ${transcript.slice(0, 8000)}`;
           try {
             const safeUser = String(userId || '').replace(/[^A-Za-z0-9_:-]/g, '_');
             const fileName = `joe-image-${Date.now()}.png`;
-            const outPath = path.join(process.cwd(), 'public-site', 'uploads', safeUser, fileName);
+            const outPath = path.join(process.cwd(), 'Infinity-x-platform', 'public-site', 'uploads', safeUser, fileName);
             const r = await toolManager.execute('generateImage', { prompt: preview, style: 'modern', outputFilePath: outPath });
             toolResults.push({ tool: 'generateImage', args: { prompt: preview, style: 'modern', outputFilePath: outPath }, result: r });
             toolCalls.push({ function: { name: 'generateImage', arguments: { prompt: preview, style: 'modern', outputFilePath: outPath } } });

@@ -12,7 +12,7 @@ import path from 'path';
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
 
 // Define a consistent storage path for generated/uploaded images
-const VISION_STORAGE_PATH = 'public-site/uploads/vision';
+const VISION_STORAGE_PATH = path.join(process.cwd(), 'Infinity-x-platform', 'public-site', 'uploads', 'vision');
 
 class AdvancedVisionSystem {
   constructor() {
@@ -49,7 +49,7 @@ class AdvancedVisionSystem {
       
       await fs.writeFile(filePath, buffer);
       
-      const publicUrl = `/${path.relative('public-site', filePath)}`;
+      const publicUrl = `/uploads/vision/${filename}`;
       const base = process.env.PUBLIC_BASE_URL || 'http://localhost:4000';
       const absoluteUrl = publicUrl ? `${base}${publicUrl}` : '';
       console.log(`🖼️ Image saved successfully to ${publicUrl}`);
@@ -152,7 +152,7 @@ class AdvancedVisionSystem {
         const filename = `gen-${Date.now()}.png`;
         const filePath = path.join(VISION_STORAGE_PATH, filename);
         await fs.writeFile(filePath, buffer);
-        const publicUrl = `/${path.relative('public-site', filePath)}`;
+        const publicUrl = `/uploads/vision/${filename}`;
         const base = process.env.PUBLIC_BASE_URL || 'http://localhost:4000';
         const absoluteUrl = publicUrl ? `${base}${publicUrl}` : '';
         return { url: publicUrl, absoluteUrl, revisedPrompt: enhancedPrompt };
