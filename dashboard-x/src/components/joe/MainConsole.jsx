@@ -97,13 +97,16 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
     } catch { /* noop */ }
   }, [isProcessing, plan.length]);
 
-  const StyledJoe = ({ className = '' }) => (
-    <span className={`mx-1 inline-flex items-baseline font-semibold tracking-wide text-gray-100 ${className}`}>
-      <span>J</span>
-      <span>o</span>
-      <span className="text-yellow-500">e</span>
-    </span>
-  );
+  const StyledJoe = ({ className = '' }) => {
+    const isRTL = (lang === 'ar');
+    return (
+      <bdi dir={isRTL ? 'rtl' : undefined} style={{ unicodeBidi: 'isolate', display: 'inline-flex' }} className={`mx-1 inline-flex items-baseline font-semibold tracking-wide text-gray-100 ${className}`}>
+        <span>J</span>
+        <span>o</span>
+        <span className="text-yellow-500">e</span>
+      </bdi>
+    );
+  };
   StyledJoe.propTypes = { className: PropTypes.string };
 
   const SmartImage = ({ src, alt = 'image' }) => {
@@ -780,10 +783,28 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
             const hasActivity = (messages && messages.length > 0) || isProcessing || (Array.isArray(plan) && plan.length > 0);
             if (!hasActivity) {
               return (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <div className="text-center">
-                    <div className="text-xl md:text-2xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-amber-500">JOE</div>
+                    <div className="text-base md:text-lg font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-amber-500">JOE</div>
                     <p className="mt-1 text-[10px] md:text-[11px] text-gray-300">{lang==='ar' ? 'شريكك الذكي لبناء وتحليل وتنفيذ المشاريع التقنية.' : 'Your intelligent partner to build, analyze, and execute tech.'}</p>
+                  </div>
+                  <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 ${lang==='ar'?'text-right':'text-left'}`} style={{ direction: lang==='ar'?'rtl':'ltr' }}>
+                    <div className="p-2 rounded-2xl bg-gray-900/60 border border-gray-800 shadow">
+                      <div className="text-[10px] font-semibold text-yellow-300"><bdi dir={lang==='ar'? 'ltr': undefined} style={{ unicodeBidi: 'isolate' }}>Code & Systems Builder</bdi></div>
+                      <p className="mt-0.5 text-[10px] text-gray-300">يبني تطبيقات وخدمات كاملة من الفكرة حتى النشر.</p>
+                    </div>
+                    <div className="p-2 rounded-2xl bg-gray-900/60 border border-gray-800 shadow">
+                      <div className="text-[10px] font-semibold text-yellow-300"><bdi dir={lang==='ar'? 'ltr': undefined} style={{ unicodeBidi: 'isolate' }}>Smart Debugger</bdi></div>
+                      <p className="mt-0.5 text-[10px] text-gray-300">يتتبّع مشاكل الأداء والـ CORS والـ WebSocket ويقترح إصلاحات واضحة.</p>
+                    </div>
+                    <div className="p-2 rounded-2xl bg-gray-900/60 border border-gray-800 shadow">
+                      <div className="text-[10px] font-semibold text-yellow-300">📚 <bdi dir={lang==='ar'? 'ltr': undefined} style={{ unicodeBidi: 'isolate' }}>Repo & Docs Navigator</bdi></div>
+                      <p className="mt-0.5 text-[10px] text-gray-300">يتصفّح المستودعات، يفهم بنية المشروع ويولّد تقارير منظمة.</p>
+                    </div>
+                    <div className="p-2 rounded-2xl bg-gray-900/60 border border-gray-800 shadow">
+                      <div className="text-[10px] font-semibold text-yellow-300">🤖 <bdi dir={lang==='ar'? 'ltr': undefined} style={{ unicodeBidi: 'isolate' }}>Automation & Agents Orchestrator</bdi></div>
+                      <p className="mt-0.5 text-[10px] text-gray-300">يؤتمت المهام ويُنسّق العوامل الذكية داخل مشروعك بسلاسة.</p>
+                    </div>
                   </div>
                   <div className="text-center">
                     <span className="inline-block px-2.5 py-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 text-black text-[10px]">{lang==='ar'?'ابدأ برسالة لـ Joe هنا':'Start by typing a message to Joe'}</span>
@@ -792,10 +813,28 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
               );
             }
             return (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div className="text-center">
-                  <div className="text-xl md:text-2xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-amber-500">JOE</div>
+                  <div className="text-base md:text-lg font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-amber-500">JOE</div>
                   <p className="mt-1 text-[10px] md:text-[11px] text-gray-300">{lang==='ar' ? 'شريكك الذكي لبناء وتحليل وتنفيذ المشاريع التقنية.' : 'Your intelligent partner to build, analyze, and execute tech.'}</p>
+                </div>
+                <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 ${lang==='ar'?'text-right':'text-left'}`} style={{ direction: lang==='ar'?'rtl':'ltr' }}>
+                  <div className="p-2 rounded-2xl bg-gray-900/60 border border-gray-800 shadow">
+                    <div className="text-[10px] font-semibold text-yellow-300"><bdi dir={lang==='ar'? 'ltr': undefined} style={{ unicodeBidi: 'isolate' }}>Code & Systems Builder</bdi></div>
+                    <p className="mt-0.5 text-[10px] text-gray-300">يبني تطبيقات وخدمات كاملة من الفكرة حتى النشر.</p>
+                  </div>
+                  <div className="p-2 rounded-2xl bg-gray-900/60 border border-gray-800 shadow">
+                    <div className="text-[10px] font-semibold text-yellow-300"><bdi dir={lang==='ar'? 'ltr': undefined} style={{ unicodeBidi: 'isolate' }}>Smart Debugger</bdi></div>
+                    <p className="mt-0.5 text-[10px] text-gray-300">يتتبّع مشاكل الأداء والـ CORS والـ WebSocket ويقترح إصلاحات واضحة.</p>
+                  </div>
+                  <div className="p-2 rounded-2xl bg-gray-900/60 border border-gray-800 shadow">
+                    <div className="text-[10px] font-semibold text-yellow-300">📚 <bdi dir={lang==='ar'? 'ltr': undefined} style={{ unicodeBidi: 'isolate' }}>Repo & Docs Navigator</bdi></div>
+                    <p className="mt-0.5 text-[10px] text-gray-300">يتصفّح المستودعات، يفهم بنية المشروع ويولّد تقارير منظمة.</p>
+                  </div>
+                  <div className="p-2 rounded-2xl bg-gray-900/60 border border-gray-800 shadow">
+                    <div className="text-[10px] font-semibold text-yellow-300">🤖 <bdi dir={lang==='ar'? 'ltr': undefined} style={{ unicodeBidi: 'isolate' }}>Automation & Agents Orchestrator</bdi></div>
+                    <p className="mt-0.5 text-[10px] text-gray-300">يؤتمت المهام ويُنسّق العوامل الذكية داخل مشروعك بسلاسة.</p>
+                  </div>
                 </div>
               {(() => {
                 const ordered = [...messages].sort((a, b) => {
