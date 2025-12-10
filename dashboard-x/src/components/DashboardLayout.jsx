@@ -1,6 +1,6 @@
 // DashboardLayout.tsx
 import { Outlet } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import JoeScreen from './JoeScreen';
 
 export default function DashboardLayout() {
@@ -8,6 +8,8 @@ export default function DashboardLayout() {
   const [isProcessing, setIsProcessing] = useState(false); // تم تغيير القيمة الافتراضية
   const [progress, setProgress] = useState(0); // تم تغيير القيمة الافتراضية
   const [wsLog, setWsLog] = useState([]); // تم تحديد النوع
+  const [initialUrl, setInitialUrl] = useState('');
+  const [initialSearchQuery, setInitialSearchQuery] = useState('');
   
 
   const handleTakeover = () => {
@@ -17,6 +19,8 @@ export default function DashboardLayout() {
 
   const handleCloseJoeScreen = () => {
     setIsJoeScreenOpen(false);
+    setInitialUrl('');
+    setInitialSearchQuery('');
   };
 
   const handleCommandSubmit = async (data) => {
@@ -38,7 +42,26 @@ export default function DashboardLayout() {
     setProgress(100);
   };
 
-  
+  useEffect(() => {
+    const onOpenBrowser = (e) => {
+      const detail = e?.detail || {};
+      const url = String(detail.url || '').trim();
+      const q = String(detail.searchQuery || '').trim();
+      if (url) {
+        setInitialUrl(url);
+        setInitialSearchQuery('');
+        setIsJoeScreenOpen(true);
+      } else if (q) {
+        setInitialSearchQuery(q);
+        setInitialUrl('');
+        setIsJoeScreenOpen(true);
+      } else {
+        setIsJoeScreenOpen(true);
+      }
+    };
+    window.addEventListener('joe:open-browser', onOpenBrowser);
+    return () => window.removeEventListener('joe:open-browser', onOpenBrowser);
+  }, []);
 
   return (
     <div className="min-h-screen bg-bgDark">
@@ -55,6 +78,9 @@ export default function DashboardLayout() {
           onTakeover={handleTakeover}
           onClose={handleCloseJoeScreen}
           onSubmitCommand={handleCommandSubmit} // تمرير دالة إرسال الأمر
+          initialUrl={initialUrl}
+          initialSearchQuery={initialSearchQuery}
+          autoOpenOnSearch={true}
         />
       )}
     </div>

@@ -93,6 +93,25 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   );
   StyledJoe.propTypes = { className: PropTypes.string };
 
+  const SmartImage = ({ src, alt = 'image' }) => {
+    const [ok, setOk] = React.useState(false);
+    React.useEffect(() => {
+      let cancelled = false;
+      try {
+        const img = new Image();
+        img.onload = () => { if (!cancelled) setOk(true); };
+        img.onerror = () => { if (!cancelled) setOk(false); };
+        img.src = src;
+      } catch { setOk(false); }
+      return () => { cancelled = true; };
+    }, [src]);
+    if (!ok) return null;
+    return (
+      <img src={src} alt={alt} className="max-h-56 rounded-lg border border-gray-700" />
+    );
+  };
+  SmartImage.propTypes = { src: PropTypes.string.isRequired, alt: PropTypes.string };
+
   const JoeBadge = ({ size = 'sm', state = 'ready' }) => {
     const px = size === 'lg' ? 52 : (size === 'md' ? 40 : 28);
     const gradId = React.useMemo(() => `joeHexGrad-${Math.random().toString(36).slice(2)}`, []);
@@ -929,7 +948,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                               onClick={(e) => { e.preventDefault(); try { window.dispatchEvent(new CustomEvent('joe:open-browser', { detail: { url: src } })); } catch { /* noop */ } }}
                               className="block"
                             >
-                              <img src={src} alt="image" className="max-h-56 rounded-lg border border-gray-700" />
+                              <SmartImage src={src} alt="image" />
                             </a>
                           ))}
                         </div>
