@@ -1,5 +1,6 @@
 import { ESLint } from 'eslint'
 import prettier from 'prettier'
+import { glob } from 'glob'
 
 export default () => {
   async function autoFix({ lintPaths = ['backend/**/*.mjs','dashboard-x/src/**/*.{js,jsx,ts,tsx}'], prettierGlobs = ['backend/**/*.mjs','dashboard-x/src/**/*.{js,jsx,ts,tsx,css}'] }) {
@@ -8,11 +9,11 @@ export default () => {
     await ESLint.outputFixes(results)
     const formatted = []
     for (const g of prettierGlobs) {
-      const files = await prettier.utils.glob(g)
+      const files = await glob(g)
       for (const f of files) {
         const config = await prettier.resolveConfig(f)
         const text = await (await import('fs/promises')).readFile(f,'utf8')
-        const out = prettier.format(text, { ...(config || {}), filepath: f })
+        const out = await prettier.format(text, { ...(config || {}), filepath: f })
         await (await import('fs/promises')).writeFile(f,out,'utf8')
         formatted.push(f)
       }

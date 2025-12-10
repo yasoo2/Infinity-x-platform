@@ -1,4 +1,6 @@
-import { chromium } from 'playwright';
+let chromium;
+try { ({ chromium } = await import('playwright')); } catch { chromium = null }
+import puppeteer from 'puppeteer'
 
 /**
  * 🌐 BrowserDiagnosticsTool - Enables JOE to monitor and analyze browser console logs and network activity.
@@ -32,8 +34,9 @@ class BrowserDiagnosticsTool {
         let pageLoadTime = null;
 
         try {
-            browser = await chromium.launch();
-            const page = await browser.newPage();
+            if (chromium) {
+              browser = await chromium.launch();
+              const page = await browser.newPage();
 
             // 1. Console Listener
             page.on('console', msg => {
@@ -56,7 +59,6 @@ class BrowserDiagnosticsTool {
             });
 
             // 3. Navigate and Measure Load Time
-            // 3. Navigate and Measure Load Time
             const startTime = Date.now();
             const response = await page.goto(url, { waitUntil: 'networkidle', timeout });
             pageLoadTime = Date.now() - startTime;
@@ -70,6 +72,26 @@ class BrowserDiagnosticsTool {
                     statusText: response.statusText(),
                     failure: `Page Load HTTP Error ${response.status()}`
                 });
+            }
+            } else {
+              browser = await puppeteer.launch();
+              const page = await browser.newPage();
+              page.on('console', msg => {
+                const type = msg.type();
+                if (['error', 'warning', 'info'].includes(type)) {
+                  consoleLogs.push({ type, text: msg.text(), location: url });
+                }
+              });
+              page.on('requestfailed', request => {
+                networkFailures.push({ url: request.url(), method: request.method(), failure: request.failure()?.errorText || 'failed' });
+              });
+              const startTime = Date.now();
+              const response = await page.goto(url, { waitUntil: 'networkidle0', timeout });
+              pageLoadTime = Date.now() - startTime;
+              const status = response?.status?.() || 200;
+              if (status >= 400) {
+                networkFailures.push({ url, method: 'GET', status, statusText: '', failure: `Page Load HTTP Error ${status}` });
+              }
             }
 
             return {

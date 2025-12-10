@@ -1,8 +1,11 @@
 import { ESLint } from 'eslint'
 import depcheck from 'depcheck'
 import prettier from 'prettier'
+import { glob } from 'glob'
 import { exec as _exec } from 'child_process'
 import { promisify } from 'util'
+import path from 'path'
+import fs from 'fs/promises'
 
 const exec = promisify(_exec)
 
@@ -18,7 +21,14 @@ export default (dependencies = {}) => {
   runLint.metadata = { name: 'runLint', description: 'Run ESLint on the codebase', parameters: { type: 'object', properties: { paths: { type: 'array' }, fix: { type: 'boolean' } } } }
 
   async function runDepcheck({ dir = 'backend' }) {
-    const res = await depcheck(dir, { ignoreDirs: ['dist','node_modules'] })
+    const base = path.isAbsolute(dir) ? dir : path.join(process.cwd(), dir)
+    let target = base
+    try {
+      await fs.access(path.join(base, 'package.json'))
+    } catch {
+      target = process.cwd()
+    }
+    const res = await depcheck(target, { ignoreDirs: ['dist','node_modules'] })
     return { success: true, unused: res.dependencies || [], missing: res.missing || {}, invalidFiles: Object.keys(res.invalidFiles || {}), invalidDirs: Object.keys(res.invalidDirs || {}) }
   }
   runDepcheck.metadata = { name: 'runDepcheck', description: 'Detect unused and missing dependencies', parameters: { type: 'object', properties: { dir: { type: 'string' } } } }
@@ -26,11 +36,11 @@ export default (dependencies = {}) => {
   async function formatPrettier({ globs = ['backend/**/*.mjs','dashboard-x/src/**/*.{js,jsx,ts,tsx,css}'] }) {
     const formatted = []
     for (const g of globs) {
-      const files = await prettier.utils.glob(g)
+      const files = await glob(g)
       for (const f of files) {
         const config = await prettier.resolveConfig(f)
         const text = await (await import('fs/promises')).readFile(f,'utf8')
-        const out = prettier.format(text, { ...(config || {}), filepath: f })
+        const out = await prettier.format(text, { ...(config || {}), filepath: f })
         await (await import('fs/promises')).writeFile(f, out, 'utf8')
         formatted.push(f)
       }
@@ -72,8 +82,12 @@ export default (dependencies = {}) => {
     ]
     const findings = []
     for (const g of globs) {
-      const files = await prettier.utils.glob(g)
+      const files = await glob(g)
       for (const f of files) {
+        try {
+          const st = await (await import('fs/promises')).stat(f)
+          if (!st.isFile()) continue
+        } catch { continue }
         const text = await (await import('fs/promises')).readFile(f,'utf8')
         const lines = text.split('\n')
         for (let i = 0; i < lines.length; i++) {
@@ -101,8 +115,12 @@ export default (dependencies = {}) => {
     ]
     const findings = []
     for (const g of globs) {
-      const files = await prettier.utils.glob(g)
+      const files = await glob(g)
       for (const f of files) {
+        try {
+          const st = await (await import('fs/promises')).stat(f)
+          if (!st.isFile()) continue
+        } catch { continue }
         const text = await (await import('fs/promises')).readFile(f,'utf8')
         const lines = text.split('\n')
         for (let i = 0; i < lines.length; i++) {
