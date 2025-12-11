@@ -329,7 +329,6 @@ async function applyRoutes(dependencies) {
 async function startServer({ dependencyInitializer = setupDependencies, exit = process.exit } = {}) {
   try {
     console.log('🔄 Starting server setup...');
-    const dependencies = await dependencyInitializer();
     server.listen(CONFIG.PORT, '0.0.0.0', () => {
       console.log(`✅ Server running on http://localhost:${CONFIG.PORT}`);
     });
@@ -338,10 +337,8 @@ async function startServer({ dependencyInitializer = setupDependencies, exit = p
       server.headersTimeout = 66000;
       server.requestTimeout = 300000;
     } catch { /* noop */ }
-    setupAuth(dependencies.db);
-    await applyRoutes(dependencies);
 
-    // Lightweight runtime-mode status endpoint expected by frontend
+    // Lightweight runtime-mode status endpoint expected by frontend (available immediately)
     app.get('/api/v1/runtime-mode/status', (_req, res) => {
       try {
         const mode = getMode();
@@ -360,11 +357,22 @@ async function startServer({ dependencyInitializer = setupDependencies, exit = p
         res.status(500).json({ error: 'SERVER_ERROR', message: err.message });
     });
 
-    void 0;
-
-    // Background initialization (non-blocking)
+    // Initialize dependencies asynchronously to avoid blocking port binding
     Promise.resolve().then(async () => {
-      // Local LLaMA removed
+      let dependencies;
+      try {
+        dependencies = await dependencyInitializer();
+      } catch (error) {
+        console.error('❌ Could not initialize dependencies. Continuing without optional systems.', error?.message || String(error));
+        return;
+      }
+      try {
+        setupAuth(dependencies.db);
+        await applyRoutes(dependencies);
+      } catch (e) {
+        console.error('❌ Failed to apply routes or auth:', e?.message || String(e));
+      }
+      // Background initialization (non-blocking)
       try {
         const seedPreset = String(process.env.JOE_TOOL_SEED || 'core');
         await toolManager.execute('seedCuratedTools', { preset: seedPreset });
@@ -374,7 +382,7 @@ async function startServer({ dependencyInitializer = setupDependencies, exit = p
       }
     });
 
-    return dependencies;
+    return undefined;
 
   } catch (error) {
     console.error('❌ Fatal: Failed to start server:', error);
