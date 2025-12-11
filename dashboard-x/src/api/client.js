@@ -14,19 +14,8 @@
   if (typeof window !== 'undefined' && (isDev || ['localhost','127.0.0.1'].includes(String(window.location.hostname)))) {
     resolvedBase = 'http://localhost:4000';
   } else if (lsBase && String(lsBase).trim().length > 0) {
-    // Prefer stored base only if not pointing to www; sanitize if needed
-    try {
-      const u = new URL(String(lsBase));
-      const host = u.hostname;
-      if (host === 'www.xelitesolutions.com' || host === 'xelitesolutions.com') {
-        resolvedBase = 'https://api.xelitesolutions.com';
-        try { localStorage.setItem('apiBaseUrl', resolvedBase); } catch { /* noop */ }
-      } else {
-        resolvedBase = lsBase;
-      }
-    } catch {
-      resolvedBase = lsBase;
-    }
+    // Prefer stored base as-is
+    resolvedBase = lsBase;
   } else if (explicitBase && String(explicitBase).trim().length > 0) {
     // Use explicit base URL from environment variable (e.g., from Front Cloud settings)
     resolvedBase = explicitBase;
@@ -37,24 +26,23 @@
       resolvedBase = envBase;
     }
   } else if (typeof window !== 'undefined') {
+    // Prefer same-origin to avoid cross-site CORS/Workers issues
     resolvedBase = origin;
-    try {
-      const h = window.location.hostname || '';
-      if (h === 'www.xelitesolutions.com' || h === 'xelitesolutions.com') {
-        resolvedBase = 'https://api.xelitesolutions.com';
-      }
-    } catch { /* noop */ }
   } else {
     resolvedBase = 'http://localhost:4000';
   }
-  // Final sanitation: if resolvedBase still points to www/bare domain, force api
+  
   try {
-    const u2 = new URL(String(resolvedBase));
-    const host2 = u2.hostname;
-    if (host2 === 'www.xelitesolutions.com' || host2 === 'xelitesolutions.com') {
-      resolvedBase = 'https://api.xelitesolutions.com';
+    const rateLimited = localStorage.getItem('apiRateLimited') === '1';
+    if (rateLimited && typeof window !== 'undefined') {
+      const curHost = (() => { try { return new URL(String(resolvedBase)).hostname; } catch { return ''; } })();
+      const winHost = window.location.hostname || '';
+      if (!!curHost && !!winHost && curHost !== winHost) {
+        resolvedBase = origin;
+      }
     }
   } catch { /* noop */ }
+  // Final sanitation: trim trailing slashes
   const BASE_URL = String(resolvedBase).replace(/\/+$/, '');
   let errCount = 0;
   let errStart = 0;
@@ -152,11 +140,22 @@
   // Helper: compute safe fallback base URL
   const computeFallbackBase = () => {
     try {
+      // أولًا: احترم الـ Override اليدوي إن وُجد
+      try {
+        const override = localStorage.getItem('apiOverrideBase');
+        if (override && String(override).trim().length > 0) return String(override).replace(/\/+$/, '');
+      } catch { /* noop */ }
+      // ثانيًا: استخدم مسار احتياطي محدد بيئيًا إن وُجد
+      const envFallback = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FALLBACK_API_BASE_URL) || '';
+      if (String(envFallback).trim().length > 0) return String(envFallback).replace(/\/+$/, '');
+      // ثالثًا: استخدم القاعدة البيئية الأساسية إن وُجدت
+      const envApi = (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL || import.meta.env?.VITE_EXPLICIT_API_BASE)) || '';
+      if (String(envApi).trim().length > 0) return String(envApi).replace(/\/+$/, '');
+      // أخيرًا: إن لم يتوفر شيء، استخدم نفس الأصل في بيئة غير محلية
       if (typeof window !== 'undefined') {
         const h = String(window.location.hostname || '');
         const isLocalHost = (h === 'localhost' || h === '127.0.0.1');
         if (isLocalHost) return 'http://localhost:4000';
-        if (h === 'www.xelitesolutions.com' || h === 'xelitesolutions.com') return 'https://api.xelitesolutions.com';
         return String(window.location.origin || BASE_URL).replace(/\/+$/, '');
       }
     } catch { /* noop */ }
@@ -166,13 +165,41 @@
   // Helper: prefer production API when local backend is offline
   const computePreferredApiBase = () => {
     try {
+      try {
+        const override = localStorage.getItem('apiOverrideBase');
+        if (override && String(override).trim().length > 0) return String(override).replace(/\/+$/, '');
+      } catch { /* noop */ }
       const explicit = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_EXPLICIT_API_BASE) || '';
       const envApi = (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL)) || '';
+      const envFallback = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FALLBACK_API_BASE_URL) || '';
+      const rateLimited = (() => { try { return localStorage.getItem('apiRateLimited') === '1'; } catch { return false; } })();
       if (String(explicit).trim().length > 0) return String(explicit).replace(/\/+$/, '');
-      if (String(envApi).trim().length > 0) return String(envApi).replace(/\/+$/, '');
-      return 'https://api.xelitesolutions.com';
+      if (!rateLimited && String(envApi).trim().length > 0) return String(envApi).replace(/\/+$/, '');
+      if (String(envFallback).trim().length > 0) return String(envFallback).replace(/\/+$/, '');
+      if (typeof window !== 'undefined') {
+        const h = String(window.location.hostname || '');
+        const isLocalHost = (h === 'localhost' || h === '127.0.0.1');
+        return isLocalHost ? 'http://localhost:4000' : String(window.location.origin || BASE_URL).replace(/\/+$/, '');
+      }
+      return 'http://localhost:4000';
     } catch { /* noop */ }
-    return 'https://api.xelitesolutions.com';
+    return 'http://localhost:4000';
+  };
+
+  // Helper: compute rate-limit fallback base
+  const computeRateLimitFallback = () => {
+    try {
+      const envFallback = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FALLBACK_API_BASE_URL) || '';
+      if (String(envFallback).trim().length > 0) return String(envFallback).replace(/\/+$/, '');
+      if (typeof window !== 'undefined') {
+        const h = String(window.location.hostname || '');
+        const isLocalHost = (h === 'localhost' || h === '127.0.0.1');
+        if (isLocalHost) return 'http://localhost:4000';
+        const origin = String(window.location.origin || BASE_URL).replace(/\/+$/, '');
+        return origin;
+      }
+    } catch { /* noop */ }
+    return BASE_URL;
   };
 
   // Response interceptor
@@ -187,6 +214,20 @@
           if (localStorage.getItem('apiOffline') === '1') {
             localStorage.removeItem('apiOffline');
             window.dispatchEvent(new CustomEvent('api:online'));
+          }
+        } catch { /* noop */ }
+        try {
+          const ct = String(response.headers?.['content-type'] || response.headers?.['Content-Type'] || '');
+          const isHtml = /text\/html/i.test(ct);
+          const body = response.data;
+          const looksRateLimited = typeof body === 'string' && /temporarily rate limited|Cloudflare/i.test(body);
+          if (!isDev && (isHtml || looksRateLimited)) {
+            localStorage.setItem('apiRateLimited', '1');
+            const fallback = computeRateLimitFallback();
+            apiClient.defaults.baseURL = String(fallback).replace(/\/+$/, '');
+            try { localStorage.setItem('apiBaseUrl', apiClient.defaults.baseURL); } catch { /* noop */ }
+            try { window.dispatchEvent(new CustomEvent('api:baseurl:reset')); } catch { void 0; }
+            try { window.dispatchEvent(new CustomEvent('api:rate-limited')); } catch { void 0; }
           }
         } catch { /* noop */ }
       } catch { void 0; }
@@ -257,7 +298,8 @@
           if (!errStart) errStart = now;
           errCount += 1;
           const elapsed = now - errStart;
-          if (errCount >= 3 && elapsed <= 20000) {
+          // في الإنتاج، حوّل مباشرةً عند أول فشل preflight/شبكي
+          if (errCount >= 1 && elapsed <= 20000) {
             const fallback = computeFallbackBase();
             apiClient.defaults.baseURL = String(fallback).replace(/\/+$/, '');
             try { localStorage.setItem('apiBaseUrl', apiClient.defaults.baseURL); } catch { /* noop */ }
@@ -288,6 +330,15 @@
           errCount = 1;
           errStart = now;
         }
+      }
+
+      // Cloudflare/Workers rate limit (429): mark and fallback
+      if (!isDev && status === 429) {
+        try { localStorage.setItem('apiRateLimited', '1'); } catch { /* noop */ }
+        const fallback = computeRateLimitFallback();
+        apiClient.defaults.baseURL = String(fallback).replace(/\/+$/, '');
+        try { localStorage.setItem('apiBaseUrl', apiClient.defaults.baseURL); } catch { /* noop */ }
+        try { window.dispatchEvent(new CustomEvent('api:baseurl:reset')); } catch { void 0; }
       }
 
       // In local preview with production base, repeated 400/404 should fall back to localhost
