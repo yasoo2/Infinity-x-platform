@@ -235,6 +235,45 @@ class PlanningSystem {
   }
 
   /**
+   * Add feedback entry to a task
+   */
+  async addTaskFeedback(taskId, feedback) {
+    try {
+      const fb = {
+        message: String(feedback?.message || ''),
+        attempt: typeof feedback?.attempt === 'number' ? feedback.attempt : null,
+        timestamp: new Date(),
+        details: typeof feedback?.details === 'object' ? feedback.details : undefined
+      };
+      await this.tasksCollection.updateOne(
+        { taskId },
+        { $push: { feedback: fb }, $set: { updatedAt: new Date() } }
+      );
+      return { success: true };
+    } catch (err) {
+      console.error('Failed to add task feedback:', err);
+      throw err;
+    }
+  }
+
+  /**
+   * Increment retry count and record last attempt status
+   */
+  async incrementTaskRetry(taskId, lastAttemptStatus) {
+    try {
+      const res = await this.tasksCollection.findOneAndUpdate(
+        { taskId },
+        { $inc: { retryCount: 1 }, $set: { lastAttemptStatus, updatedAt: new Date() } },
+        { returnDocument: 'after' }
+      );
+      return res.value;
+    } catch (err) {
+      console.error('Failed to increment task retry:', err);
+      throw err;
+    }
+  }
+
+  /**
    * Get plan with all phases and tasks
    */
   async getPlanDetails(planId) {

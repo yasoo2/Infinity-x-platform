@@ -14,6 +14,8 @@ import path from 'path';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { getConfig } from './runtime-config.mjs';
 import { EventEmitter } from 'events';
+import PlanningSystem from '../../planning/PlanningSystem.mjs';
+import { getDB as getCoreDB } from '../../core/database.mjs';
 
 // --- Core System Components ---
 import toolManager from '../tools/tool-manager.service.mjs';
@@ -802,16 +804,75 @@ ${transcript.slice(0, 8000)}`;
               const steps = Array.isArray(plan?.steps) ? plan.steps : [];
               const header = (targetLang==='ar') ? `تم إنشاء خطة تنفيذ بعدد خطوات: ${steps.length}` : `Execution plan created with ${steps.length} steps`;
               pieces.push(header);
+              let dbForPlan = null;
+              try { dbForPlan = _dependencies?.db || getCoreDB(); } catch { dbForPlan = _dependencies?.db || null; }
+              let planRecord = null;
+              let phaseRecord = null;
+              if (dbForPlan) {
+                try {
+                  const ps = new PlanningSystem(dbForPlan);
+                  const title = `JOE Plan ${new Date().toISOString()}`;
+                  const description = String(preview || '').slice(0, 200);
+                  planRecord = await ps.createPlan({ title, description, goal: preview, userId, metadata: { sessionId } });
+                  phaseRecord = await ps.addPhase(planRecord.planId, { title: 'Execution', description: 'Auto-generated', order: 1 });
+                  await ps.startPhase(phaseRecord.phaseId);
+                  pieces.push((targetLang==='ar') ? `تم حفظ الخطة: ${planRecord.planId}` : `Plan saved: ${planRecord.planId}`);
+                } catch { void 0 }
+              }
               let idx = 0;
               for (const st of steps) {
                 idx += 1;
                 const label = (targetLang==='ar') ? `الخطوة ${idx}: ${st.description}` : `Step ${idx}: ${st.description}`;
                 pieces.push(label);
                 try { joeEvents.emitProgress(userId, sessionId, 30 + Math.min(idx*5, 50), `autoPlanAndExecute: step ${idx}`); } catch { /* noop */ }
-                const r = await executeTool(userId, sessionId, 'autoPlanAndExecute', { instruction: st.description, context: { sessionId } });
+                let taskRecord = null;
+                if (phaseRecord && dbForPlan) {
+                  try {
+                    const ps = new PlanningSystem(dbForPlan);
+                    taskRecord = await ps.addTask(phaseRecord.phaseId, { title: `Step ${idx}`, description: st.description, priority: 'medium' });
+                    await ps.updateTaskStatus(taskRecord.taskId, 'in_progress');
+                  } catch { void 0 }
+                }
+                let r = await executeTool(userId, sessionId, 'autoPlanAndExecute', { instruction: st.description, context: { sessionId } });
                 toolResults.push({ tool: 'autoPlanAndExecute', args: { instruction: st.description }, result: r });
+                if (taskRecord && dbForPlan && !r?.success) {
+                  try {
+                    const ps = new PlanningSystem(dbForPlan);
+                    await ps.addTaskFeedback(taskRecord.taskId, { message: String(r?.error || r?.response || 'failed').slice(0, 500), attempt: 1, details: { step: idx } });
+                    await ps.incrementTaskRetry(taskRecord.taskId, 'failed');
+                  } catch { void 0 }
+                  const retryMsg = (targetLang==='ar') ? `إعادة المحاولة تلقائيًا: ${st.description}` : `Auto-retrying: ${st.description}`;
+                  pieces.push(retryMsg);
+                  try { joeEvents.emitProgress(userId, sessionId, 30 + Math.min(idx*5, 50), `retry step ${idx}`); } catch { /* noop */ }
+                  r = await executeTool(userId, sessionId, 'autoPlanAndExecute', { instruction: `${st.description} (retry and fix issues)`, context: { sessionId } });
+                  toolResults.push({ tool: 'autoPlanAndExecute', args: { instruction: `${st.description} (retry)` }, result: r });
+                  if (taskRecord && dbForPlan) {
+                    try {
+                      const ps = new PlanningSystem(dbForPlan);
+                      const ok2 = !!r?.success;
+                      if (!ok2) {
+                        await ps.addTaskFeedback(taskRecord.taskId, { message: String(r?.error || r?.response || 'failed again').slice(0, 500), attempt: 2, details: { step: idx } });
+                        await ps.incrementTaskRetry(taskRecord.taskId, 'failed');
+                      }
+                      await ps.updateTaskStatus(taskRecord.taskId, ok2 ? 'completed' : 'failed');
+                    } catch { void 0 }
+                  }
+                } else if (taskRecord && dbForPlan) {
+                  try {
+                    const ps = new PlanningSystem(dbForPlan);
+                    const ok = !!r?.success;
+                    await ps.updateTaskStatus(taskRecord.taskId, ok ? 'completed' : 'failed');
+                  } catch { void 0 }
+                }
                 const summary = String(r?.summary || r?.message || r?.result || '').trim();
                 if (summary) pieces.push(summary);
+              }
+              if (phaseRecord && planRecord && dbForPlan) {
+                try {
+                  const ps = new PlanningSystem(dbForPlan);
+                  await ps.completePhase(phaseRecord.phaseId);
+                  await ps.advanceToNextPhase(planRecord.planId);
+                } catch { void 0 }
               }
               try { joeEvents.emitProgress(userId, sessionId, 80, 'plan execution complete'); } catch { /* noop */ }
             } catch { void 0 }

@@ -989,6 +989,25 @@ export const useJoeChat = () => {
     const connect = () => {
       if (isConnectingRef.current) return;
       if (ws.current && (ws.current.readyState === WebSocket.OPEN || ws.current.readyState === WebSocket.CONNECTING)) return;
+      try {
+        const until = Number(localStorage.getItem('wsDisabledUntil') || 0);
+        if (Number.isFinite(until) && until > Date.now()) {
+          dispatch({ type: 'ADD_WS_LOG', payload: `[WS] Skipping connect until ${new Date(until).toLocaleTimeString()} due to repeated failures` });
+          return;
+        } else if (until && until <= Date.now()) {
+          try { localStorage.removeItem('wsDisabledUntil'); localStorage.removeItem('wsDisabled'); } catch { /* noop */ }
+        }
+        const offline = localStorage.getItem('apiOffline') === '1';
+        if (offline) {
+          dispatch({ type: 'ADD_WS_LOG', payload: '[WS] Skipping connect due to API offline flag' });
+          return;
+        }
+        const wsDisabled = localStorage.getItem('wsDisabled') === '1';
+        if (wsDisabled) {
+          dispatch({ type: 'ADD_WS_LOG', payload: '[WS] Skipping connect due to wsDisabled flag' });
+          return;
+        }
+      } catch { /* noop */ }
       const validateToken = async () => {
         let t = localStorage.getItem('sessionToken');
         const needsReset = () => {
@@ -1038,8 +1057,8 @@ export const useJoeChat = () => {
             let host = u.host;
             if (isLocal && devPorts.has(u.port || '')) {
               host = `${u.hostname}:4000`;
-            } else if (u.hostname === 'www.xelitesolutions.com' || u.hostname === 'xelitesolutions.com') {
-              host = 'api.xelitesolutions.com';
+            } else {
+              host = u.host;
             }
             const proto = u.protocol === 'https:' ? 'wss' : 'ws';
             wsBase = `${proto}://${host}`;
@@ -1048,9 +1067,6 @@ export const useJoeChat = () => {
             try {
               const u2 = new URL(String(origin));
               let host2 = u2.host;
-              if (u2.hostname === 'www.xelitesolutions.com' || u2.hostname === 'xelitesolutions.com') {
-                host2 = 'api.xelitesolutions.com';
-              }
               const proto2 = u2.protocol === 'https:' ? 'wss' : 'ws';
               wsBase = `${proto2}://${host2}`;
             } catch {
@@ -1067,8 +1083,10 @@ export const useJoeChat = () => {
           if (!isValidWs) {
             const hostFallback = (() => {
               try {
-                const h = typeof window !== 'undefined' ? window.location.hostname : '';
-                return h && !(/localhost|127\.0\.0\.1/.test(h)) ? 'api.xelitesolutions.com' : 'localhost:4000';
+                const base = String(apiClient?.defaults?.baseURL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000'));
+                const u = new URL(base);
+                const isLocal2 = (u.hostname === 'localhost' || u.hostname === '127.0.0.1');
+                return isLocal2 ? 'localhost:4000' : u.host;
               } catch {
                 return 'localhost:4000';
               }
@@ -1078,6 +1096,18 @@ export const useJoeChat = () => {
             })();
             wsUrl = `${protoFallback}://${hostFallback}/ws/joe-agent?token=${sessionToken}`;
           }
+          try {
+            const rateLimited = (() => { try { return localStorage.getItem('apiRateLimited') === '1'; } catch { return false; } })();
+            const base = String(apiClient?.defaults?.baseURL || '');
+            const bHost = (() => { try { return new URL(base).hostname; } catch { return ''; } })();
+            const wHost = (typeof window !== 'undefined' ? (window.location.hostname || '') : bHost);
+            if (rateLimited && !!bHost && !!wHost && bHost !== wHost) {
+              dispatch({ type: 'ADD_WS_LOG', payload: '[WS] Skipping connect due to rate-limited cross-origin' });
+              isConnectingRef.current = false;
+              dispatch({ type: 'SET_WS_CONNECTED', payload: false });
+              return;
+            }
+          } catch { /* noop */ }
           ws.current = new WebSocket(wsUrl);
           const connectionTimeout = setTimeout(() => {
             if (ws.current && ws.current.readyState !== WebSocket.OPEN) {
@@ -1119,6 +1149,15 @@ export const useJoeChat = () => {
             const attempt = (reconnectAttempts.current || 0) + 1;
             reconnectAttempts.current = attempt;
             try { if (attempt >= 3) { localStorage.removeItem('joeUseWS'); } } catch { /* noop */ }
+            try {
+              if (attempt >= 5) {
+                const cooldownMs = 5 * 60 * 1000;
+                const until = Date.now() + cooldownMs;
+                localStorage.setItem('wsDisabled', '1');
+                localStorage.setItem('wsDisabledUntil', String(until));
+                dispatch({ type: 'ADD_WS_LOG', payload: `[WS] Disabled for ${Math.round(cooldownMs/1000)}s due to repeated failures` });
+              }
+            } catch { /* noop */ }
             const jitter = Math.floor(Math.random() * 500);
             let delay = Math.min(30000, 1000 * Math.pow(2, attempt)) + jitter;
             if (typeof navigator !== 'undefined' && navigator.onLine === false) { delay = Math.max(delay, 5000); }
@@ -1199,14 +1238,20 @@ export const useJoeChat = () => {
         sioUrl = `${sioBase}/joe-agent`;
         
         const isProdHost = (typeof window !== 'undefined') && (/xelitesolutions\.com$/.test(String(window.location.hostname || '')));
+        if (isProdHost) {
+          // على الإنتاج: نتجنب الاتصالات الفورية كليًا ونستخدم REST فقط
+          isConnectingRef.current = false;
+          try { localStorage.setItem('joeTransport', 'rest'); } catch { /* noop */ }
+          return;
+        }
 
         const pathPref = '/socket.io';
-        const initialTransports = ['polling','websocket'];
+        const initialTransports = isProdHost ? ['polling'] : ['polling','websocket'];
         const socket = io(sioUrl, {
           auth: { token: sessionToken },
           path: pathPref,
           transports: initialTransports,
-          upgrade: true,
+          upgrade: !isProdHost,
           reconnection: true,
           reconnectionAttempts: 1000000,
           reconnectionDelay: 500,
@@ -1691,7 +1736,22 @@ export const useJoeChat = () => {
     window.addEventListener('online', onOnline);
     window.addEventListener('joe:reconnect', onReconnect);
     heartbeatIntervalRef.current = setInterval(async () => {
-      try { await apiClient.get('/api/v1/joe/ping'); } catch { /* noop */ }
+      try {
+        const rateLimited = (() => { try { return localStorage.getItem('apiRateLimited') === '1'; } catch { return false; } })();
+        const base = String(apiClient?.defaults?.baseURL || '');
+        const isSameHost = (() => {
+          try {
+            const bHost = new URL(base).hostname;
+            const wHost = (typeof window !== 'undefined' ? (window.location.hostname || '') : '');
+            return !bHost || bHost === wHost;
+          } catch { return true; }
+        })();
+        if (rateLimited && !isSameHost) {
+          dispatch({ type: 'ADD_WS_LOG', payload: '[WS] Skipping ping due to rate-limited cross-origin' });
+          return;
+        }
+        await apiClient.get('/api/v1/joe/ping');
+      } catch { /* noop */ }
     }, 30000);
     return () => {
       try { window.removeEventListener('api:baseurl:reset', onApiReset); } catch { /* noop */ }
@@ -2015,25 +2075,6 @@ export const useJoeChat = () => {
                       }
                     } catch { /* noop */ }
                     try { window.dispatchEvent(new CustomEvent('joe:open-browser', { detail: { url: target || undefined } })); } catch { /* noop */ }
-                  } else if (String(name).toLowerCase() === 'generateimage') {
-                    (async () => {
-                      try {
-                        const r = await listUserUploads();
-                        const items = Array.isArray(r?.items) ? r.items : [];
-                        const latest = items.sort((a,b)=> new Date(b.mtime||0) - new Date(a.mtime||0))[0] || null;
-                        const url = latest?.absoluteUrl || latest?.publicUrl || '';
-                        if (url) {
-                          dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `! \`${url}\`` } });
-                        }
-                      } catch { /* noop */ }
-                    })();
-                  } else if (String(name).toLowerCase() === 'downloadimagefromurl') {
-                    try {
-                      const url = String(details?.args?.absoluteUrl || details?.args?.publicUrl || details?.args?.url || '');
-                      if (url) {
-                        dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `! \`${url}\`` } });
-                      }
-                    } catch { /* noop */ }
                   }
                 }
               }
@@ -2154,26 +2195,6 @@ export const useJoeChat = () => {
               if (name) {
                 dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'tool_used', content: name, details } });
                 try { if (String(name).toLowerCase() === 'browsewebsite') { window.dispatchEvent(new Event('joe:open-browser')); } } catch { /* noop */ }
-                if (String(name).toLowerCase() === 'generateimage') {
-                  (async () => {
-                    try {
-                      const r = await listUserUploads();
-                      const items = Array.isArray(r?.items) ? r.items : [];
-                      const latest = items.sort((a,b)=> new Date(b.mtime||0) - new Date(a.mtime||0))[0] || null;
-                      const url = latest?.absoluteUrl || latest?.publicUrl || '';
-                      if (url) {
-                        dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `! \`${url}\`` } });
-                      }
-                    } catch { /* noop */ }
-                  })();
-                } else if (String(name).toLowerCase() === 'downloadimagefromurl') {
-                  try {
-                    const url = String(details?.args?.absoluteUrl || details?.args?.publicUrl || details?.args?.url || '');
-                    if (url) {
-                      dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `! \`${url}\`` } });
-                    }
-                  } catch { /* noop */ }
-                }
               }
             }
           } catch { /* noop */ }
