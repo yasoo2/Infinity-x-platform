@@ -348,6 +348,15 @@ async function startServer({ dependencyInitializer = setupDependencies, exit = p
       }
     });
 
+    // Minimal health endpoint to avoid 404s in clients
+    app.get('/api/v1/health', (_req, res) => {
+      try {
+        res.json({ success: true, status: 'ok' });
+      } catch (e) {
+        res.status(500).json({ success: false, error: 'HEALTH_FAILED', message: e?.message || String(e) });
+      }
+    });
+
     app.use('/api/v1', rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false }));
     
     app.use((req, res) => res.status(404).json({ error: 'NOT_FOUND' }));
