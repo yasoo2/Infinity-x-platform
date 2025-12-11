@@ -19,7 +19,13 @@
     "cli": "node src/cli/joe-cli.mjs",
     "init": "node scripts/init.js",
     "demo": "node examples/demo.js",
-    "postinstall": "npx puppeteer browsers install chrome && npx puppeteer browsers install chromium || true"
+    "postinstall": "npx puppeteer browsers install chrome && npx puppeteer browsers install chromium || true",
+    "clean:backend": "sh -c 'rm -rf node_modules .eslintcache coverage .turbo .vite dist build .cache && rm -f package-lock.json pnpm-lock.yaml yarn.lock'",
+    "clean:root": "sh -c 'cd .. && rm -rf node_modules .eslintcache coverage .turbo .vite || true'",
+    "clean:submodules": "sh -c 'cd .. && git submodule foreach --recursive \"git reset --hard HEAD && git clean -fdx\" || true'",
+    "reinstall:backend": "npm install",
+    "verify:backend": "sh -c 'ESLINT_USE_FLAT_CONFIG=false npm run lint || true && npm test -- -u || npm test || true'",
+    "clean:deep": "npm run clean:backend && npm run clean:root && npm run clean:submodules && npm run reinstall:backend && npm run verify:backend"
   },
   "depcheck": {
     "ignores": [
