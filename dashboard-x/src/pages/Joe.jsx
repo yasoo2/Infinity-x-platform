@@ -570,6 +570,17 @@ const JoeContent = () => {
                 </div>
               );
             })()}
+            {(() => {
+              const count = Array.isArray(wsLog) ? wsLog.length : 0;
+              const label = count > 0 ? String(count) : (lang==='ar' ? 'سجلات' : 'Logs');
+              const title = lang==='ar' ? `السجلات: ${count}` : `Logs: ${count}`;
+              const onClick = () => { try { addAllLogsToChat(); } catch { /* noop */ } };
+              return (
+                <div onClick={onClick} className={`w-9 h-9 md:w-10 md:h-10 rounded-xl border bg-gray-900 text-blue-300 border-blue-600/40 shadow-md grid place-items-center cursor-pointer`} title={title} style={{ pointerEvents: 'auto' }}>
+                  <span className="text-[11px] md:text-xs font-semibold">{label}</span>
+                </div>
+              );
+            })()}
           </div>
         </div>
       </div>
