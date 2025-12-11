@@ -357,6 +357,15 @@ async function startServer({ dependencyInitializer = setupDependencies, exit = p
       }
     });
 
+    // Joe ping endpoint used by frontend heartbeat
+    app.get('/api/v1/joe/ping', (_req, res) => {
+      try {
+        res.json({ success: true, ts: Date.now() });
+      } catch (e) {
+        res.status(500).json({ success: false, error: 'PING_FAILED', message: e?.message || String(e) });
+      }
+    });
+
     // AI Providers: lightweight runtime management (OpenAI/Gemini)
     app.get('/api/v1/ai/providers', (_req, res) => {
       try {
