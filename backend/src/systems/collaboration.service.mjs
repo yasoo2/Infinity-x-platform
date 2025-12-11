@@ -20,9 +20,22 @@ class RealTimeCollaborationSystem {
   }
 
   async initialize(httpServer) {
+    const defaultWhitelist = [
+      'https://xelitesolutions.com',
+      'https://www.xelitesolutions.com',
+      'https://api.xelitesolutions.com',
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'http://localhost:4000',
+      'http://localhost:4001',
+      'http://localhost:4002'
+    ];
+    const envOrigins = process.env.CORS_ORIGINS ? String(process.env.CORS_ORIGINS).split(',').map(s => s.trim()) : [];
+    const whitelist = [...new Set([...defaultWhitelist, ...envOrigins])];
+
     this.io = new Server(httpServer, {
       path: '/socket.io/',
-      cors: { origin: '*' },
+      cors: { origin: whitelist, credentials: true },
       transports: ['websocket', 'polling'],
       pingInterval: 25000,
       pingTimeout: 60000,
