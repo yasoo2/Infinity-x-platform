@@ -487,6 +487,7 @@ async function processMessage(userId, message, sessionId, { model = null, lang }
           joeEvents.emitThought(userId, sessionId, planText);
         } catch { /* noop */ }
           const wantsDeploy = /(deploy|نشر)/i.test(lower);
+          const wantsTaskOrchestration = /(تقسيم\s*المهام|تاسكات|tasks|خطة\s*تنفيذ|تنفيذ\s*بالترتيب)/i.test(lower);
           let pieces = [];
           if (videoUrlMatch) {
             const url = videoUrlMatch[0];
@@ -794,7 +795,27 @@ ${transcript.slice(0, 8000)}`;
               }
             } catch { void 0 }
           }
-          if (wantsImage) {
+          if (wantsTaskOrchestration) {
+            try {
+              try { joeEvents.emitProgress(userId, sessionId, 25, 'create_execution_plan'); } catch { /* noop */ }
+              const plan = await executeTool(userId, sessionId, 'create_execution_plan', { instruction: preview });
+              const steps = Array.isArray(plan?.steps) ? plan.steps : [];
+              const header = (targetLang==='ar') ? `تم إنشاء خطة تنفيذ بعدد خطوات: ${steps.length}` : `Execution plan created with ${steps.length} steps`;
+              pieces.push(header);
+              let idx = 0;
+              for (const st of steps) {
+                idx += 1;
+                const label = (targetLang==='ar') ? `الخطوة ${idx}: ${st.description}` : `Step ${idx}: ${st.description}`;
+                pieces.push(label);
+                try { joeEvents.emitProgress(userId, sessionId, 30 + Math.min(idx*5, 50), `autoPlanAndExecute: step ${idx}`); } catch { /* noop */ }
+                const r = await executeTool(userId, sessionId, 'autoPlanAndExecute', { instruction: st.description, context: { sessionId } });
+                toolResults.push({ tool: 'autoPlanAndExecute', args: { instruction: st.description }, result: r });
+                const summary = String(r?.summary || r?.message || r?.result || '').trim();
+                if (summary) pieces.push(summary);
+              }
+              try { joeEvents.emitProgress(userId, sessionId, 80, 'plan execution complete'); } catch { /* noop */ }
+            } catch { void 0 }
+          } else if (wantsImage) {
             try {
               const safeUser = String(userId || '').replace(/[^A-Za-z0-9_:-]/g, '_');
               const fileName = `joe-image-${Date.now()}.png`;
