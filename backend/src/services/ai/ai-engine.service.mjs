@@ -5,6 +5,7 @@
  */
 
 import { OpenAI } from 'openai';
+import { getConfig } from './runtime-config.mjs';
 
 class AIEngineService {
     constructor(dependencies) {
@@ -24,11 +25,9 @@ class AIEngineService {
      */
     initOpenAI() {
         try {
-            const apiKey = process.env.OPENAI_API_KEY;
-            if (!apiKey) {
-                console.warn('⚠️ OPENAI_API_KEY not found in environment variables.');
-                return null;
-            }
+            const cfg = getConfig();
+            const apiKey = process.env.OPENAI_API_KEY || (cfg?.keys?.openai || null);
+            if (!apiKey) return null;
             return new OpenAI({ apiKey });
         } catch (error) {
             console.error('❌ Failed to initialize OpenAI:', error.message);

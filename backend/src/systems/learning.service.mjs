@@ -5,10 +5,13 @@
  */
 
 import OpenAI from 'openai';
+import { getConfig } from '../services/ai/runtime-config.mjs';
 import crypto from 'crypto';
 import { getDB } from '../services/db.mjs'; // Assuming db.mjs is in services
 
-const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
+const _cfg = getConfig();
+const _key = process.env.OPENAI_API_KEY || (_cfg?.keys?.openai || null);
+const openai = _key ? new OpenAI({ apiKey: _key }) : null;
 
 class ContinuousLearningSystem {
   constructor() {

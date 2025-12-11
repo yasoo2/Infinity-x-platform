@@ -1,12 +1,14 @@
 import OpenAI from 'openai';
+import { getConfig } from '../services/ai/runtime-config.mjs';
 import toolManager from '../services/tools/tool-manager.service.mjs';
 
 let openai;
 
 try {
-  openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-  });
+  const cfg = getConfig();
+  const apiKey = process.env.OPENAI_API_KEY || (cfg?.keys?.openai || null);
+  if (!apiKey) throw new Error('MISSING_KEY');
+  openai = new OpenAI({ apiKey });
   // Test the connection with a lightweight request that requires model.request scope
   openai.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: 'ping' }] })
     .catch(error => {

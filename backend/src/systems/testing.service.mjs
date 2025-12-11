@@ -4,13 +4,16 @@
  */
 
 import OpenAI from 'openai';
+import { getConfig } from '../services/ai/runtime-config.mjs';
 import fs from 'fs/promises';
 import path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
 const execAsync = promisify(exec);
-const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
+const _cfg = getConfig();
+const _key = process.env.OPENAI_API_KEY || (_cfg?.keys?.openai || null);
+const openai = _key ? new OpenAI({ apiKey: _key }) : null;
 
 class AutomatedTestingSystem {
 

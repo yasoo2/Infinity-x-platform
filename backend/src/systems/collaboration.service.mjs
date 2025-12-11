@@ -7,10 +7,13 @@ import { Server } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { createClient } from 'redis';
 import OpenAI from 'openai';
+import { getConfig } from '../services/ai/runtime-config.mjs';
 import { getDB } from '../services/db.mjs'; // Assuming db service
 import { shouldUseRedis } from '../utils/upstashRedis.mjs';
 
-const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
+const _cfg = getConfig();
+const _key = process.env.OPENAI_API_KEY || (_cfg?.keys?.openai || null);
+const openai = _key ? new OpenAI({ apiKey: _key }) : null;
 
 class RealTimeCollaborationSystem {
   constructor() {

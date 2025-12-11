@@ -4,14 +4,17 @@
  */
 
 import OpenAI from 'openai';
+import { getConfig } from '../services/ai/runtime-config.mjs';
 // Local LLaMA removed from Joe system
 import fs from 'fs/promises';
 import { codeReviewSystem } from './code-review.service.mjs';
 
 let openai = null;
 try {
-  if (process.env.OPENAI_API_KEY) {
-    openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  const cfg = getConfig();
+  const key = process.env.OPENAI_API_KEY || (cfg?.keys?.openai || null);
+  if (key) {
+    openai = new OpenAI({ apiKey: key });
   }
 } catch {
   openai = null;

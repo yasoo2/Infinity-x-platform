@@ -13,8 +13,8 @@ const aiRouterFactory = ({ optionalAuth } = {}) => {
       const provider = cfg.activeProvider || null
       const model = cfg.activeModel || null
       const providers = []
-      const hasOpenAI = !!process.env.OPENAI_API_KEY
-      const hasGemini = !!process.env.GOOGLE_API_KEY || !!process.env.GOOGLE_GENERATIVE_AI_API_KEY
+      const hasOpenAI = !!(process.env.OPENAI_API_KEY || (cfg?.keys?.openai || null))
+      const hasGemini = !!(process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || (cfg?.keys?.gemini || null))
       if (hasOpenAI) providers.push({ name: 'openai', models: [cfg.activeModel || 'gpt-4o', 'gpt-4o-mini', 'o3-mini'].filter(Boolean) })
       if (hasGemini) providers.push({ name: 'gemini', models: ['gemini-1.5-pro', 'gemini-1.5-flash'] })
       const ok = !!provider && !!model
@@ -27,8 +27,8 @@ const aiRouterFactory = ({ optionalAuth } = {}) => {
   router.get('/providers', async (_req, res) => {
     try {
       const cfg = getConfig()
-      const hasOpenAI = !!process.env.OPENAI_API_KEY
-      const hasGemini = !!process.env.GOOGLE_API_KEY || !!process.env.GOOGLE_GENERATIVE_AI_API_KEY
+      const hasOpenAI = !!(process.env.OPENAI_API_KEY || (cfg?.keys?.openai || null))
+      const hasGemini = !!(process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || (cfg?.keys?.gemini || null))
       return res.json({ success: true, activeProvider: cfg.activeProvider || null, activeModel: cfg.activeModel || null, available: { openai: hasOpenAI, gemini: hasGemini } })
     } catch {
       return res.json({ success: true, activeProvider: null, activeModel: null, available: { openai: false, gemini: false } })
