@@ -255,7 +255,13 @@
         const curBase = String(apiClient.defaults.baseURL || '');
         const host = (() => { try { return new URL(curBase).hostname; } catch { return ''; } })();
         const isLocalHost = (host === 'localhost' || host === '127.0.0.1');
-        const isCorePath = /^\/api\/v1\/(health|ai\/providers|chat-history)/i.test(String(cfg.url || ''));
+        const path = (() => {
+          try {
+            const u = new URL(String(cfg.url || ''), curBase || BASE_URL);
+            return u.pathname || String(cfg.url || '');
+          } catch { return String(cfg.url || ''); }
+        })();
+        const isCorePath = /^\/api\/v1\/(health|ai\/providers|chat-history)/i.test(path);
         if (!isLocalHost && status === 404 && isCorePath) {
           try {
             const probe = await axios.get('http://localhost:4000/api/v1/runtime-mode/status', { timeout: 2000 });
@@ -263,8 +269,13 @@
               apiClient.defaults.baseURL = 'http://localhost:4000';
               try { localStorage.setItem('apiBaseUrl', apiClient.defaults.baseURL); localStorage.removeItem('apiOffline'); } catch { /* noop */ }
               try { window.dispatchEvent(new CustomEvent('api:baseurl:reset')); window.dispatchEvent(new CustomEvent('api:online')); } catch { /* noop */ }
-              const retryCfg = { ...cfg };
-              return await axios.request(retryCfg);
+              const retryCfg = { ...cfg, baseURL: apiClient.defaults.baseURL };
+              try {
+                if (/^https?:\/\//i.test(String(retryCfg.url || ''))) {
+                  retryCfg.url = path;
+                }
+              } catch { /* noop */ }
+              return await apiClient.request(retryCfg);
             }
           } catch { /* ignore */ }
         }
