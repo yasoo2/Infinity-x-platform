@@ -12,7 +12,9 @@
   
 
   if (typeof window !== 'undefined' && (isDev || ['localhost','127.0.0.1'].includes(String(window.location.hostname)))) {
-    resolvedBase = 'http://localhost:4000';
+    //resol vedBase = 'http://localhost:4000';
+        resolvedBase = origin;
+    
   } else if (lsBase && String(lsBase).trim().length > 0) {
     // Prefer stored base only if not pointing to www; sanitize if needed
     try {
@@ -45,7 +47,9 @@
       }
     } catch { /* noop */ }
   } else {
-    resolvedBase = 'http://localhost:4000';
+    //resolvedBase = 'http://localhost:4000';
+        resolvedBase = origin;
+    
   }
   // Final sanitation: if resolvedBase still points to www/bare domain, force api
   try {
