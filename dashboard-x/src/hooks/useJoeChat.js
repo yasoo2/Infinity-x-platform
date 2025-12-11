@@ -228,8 +228,31 @@ const chatReducer = (state, action) => {
         case 'SET_TRANSCRIPT':
             return { ...state, transcript: action.payload, input: action.payload };
 
-        case 'ADD_WS_LOG':
-            return { ...state, wsLog: [...state.wsLog, action.payload] };
+        case 'ADD_WS_LOG': {
+            const raw = action.payload;
+            const entry = (typeof raw === 'string')
+                ? { id: Date.now(), type: 'info', text: raw }
+                : { id: (typeof raw?.id === 'number' ? raw.id : Date.now()), type: (raw?.type || 'info'), text: (raw?.text || JSON.stringify(raw)) };
+            const text = String(entry.text || '').trim();
+            const type = String(entry.type || 'info');
+            const prev = Array.isArray(state.wsLog) ? state.wsLog : [];
+            const last = prev.length ? prev[prev.length - 1] : null;
+            const lastText = last ? (typeof last === 'string' ? last : String(last?.text || '')) : '';
+            const lastType = last ? (typeof last === 'object' ? (last.type || 'info') : 'info') : 'info';
+            // Merge consecutive duplicates by increasing a repetition counter within the text
+            if (text && lastText.trim() === text && lastType === type) {
+                const rep = (typeof last === 'object' && typeof last.rep === 'number') ? (last.rep + 1) : 2;
+                const updatedLast = (typeof last === 'object')
+                    ? { ...last, rep, text: `${text} (x${rep})` }
+                    : { id: Date.now(), type, text: `${text} (x2)`, rep: 2 };
+                const next = [...prev.slice(0, -1), updatedLast];
+                const capped = next.length > 300 ? next.slice(-300) : next;
+                return { ...state, wsLog: capped };
+            }
+            const next = [...prev, { ...entry, text }];
+            const capped = next.length > 300 ? next.slice(-300) : next;
+            return { ...state, wsLog: capped };
+        }
 
         case 'ADD_PENDING_LOG': {
             const id = action.payload;
@@ -254,6 +277,9 @@ const chatReducer = (state, action) => {
 
         case 'SET_WS_CONNECTED':
             return { ...state, wsConnected: action.payload };
+
+        case 'SET_API_ONLINE':
+            return { ...state, apiOnline: !!action.payload };
 
         case 'SET_RECONNECT_STATE': {
             const { active, attempt, delayMs, etaTs } = action.payload;
@@ -484,6 +510,7 @@ export const useJoeChat = () => {
     pendingHandledLogIds: [],
     plan: [], // Initial state for the plan
     wsConnected: false,
+    apiOnline: false,
     reconnectActive: false,
     reconnectAttempt: 0,
     reconnectDelayMs: 0,
@@ -494,6 +521,7 @@ export const useJoeChat = () => {
   });
 
   const stateRef = useRef(state);
+  const logAutoReportTsRef = useRef(0);
   useEffect(() => { stateRef.current = state; }, [state]);
 
   const updateSummaryForCurrent = useCallback(() => {
@@ -664,6 +692,46 @@ export const useJoeChat = () => {
       }
     };
   });
+
+  useEffect(() => {
+    try {
+      const logs = Array.isArray(state.wsLog) ? state.wsLog : [];
+      const len = logs.length;
+      const now = Date.now();
+      const lastTs = Number(logAutoReportTsRef.current || 0);
+      if (len >= 100 && (now - lastTs) > 15000) {
+        const lines = logs.slice(-50).map(l => (typeof l === 'string') ? l : (l?.text || JSON.stringify(l))).join('\n');
+        const header = getLang() === 'ar' ? 'ملخص تلقائي للسجلات:\n' : 'Automatic logs summary:\n';
+        dispatch({ type: 'SEND_MESSAGE', payload: `${header}${lines}` });
+        logAutoReportTsRef.current = now;
+      }
+    } catch { /* noop */ }
+  }, [state.wsLog]);
+
+  useEffect(() => {
+    try {
+      const onOnline = () => { try { dispatch({ type: 'SET_API_ONLINE', payload: true }); } catch { /* noop */ } };
+      const onOffline = () => { try { dispatch({ type: 'SET_API_ONLINE', payload: false }); } catch { /* noop */ } };
+      window.addEventListener('api:online', onOnline);
+      window.addEventListener('api:offline', onOffline);
+      let interval = setInterval(async () => {
+        try {
+          const r = await apiClient.get('/api/v1/health');
+          const ok = !!r?.data?.success;
+          dispatch({ type: 'SET_API_ONLINE', payload: ok });
+        } catch {
+          dispatch({ type: 'SET_API_ONLINE', payload: false });
+        }
+      }, 10000);
+      return () => {
+        try {
+          window.removeEventListener('api:online', onOnline);
+          window.removeEventListener('api:offline', onOffline);
+          if (interval) clearInterval(interval);
+        } catch { /* noop */ }
+      };
+    } catch { /* noop */ }
+  }, []);
 
   // ... (useEffect for localStorage loading remains the same)
   const handleNewConversation = useCallback(async (selectNew = true) => {
@@ -2422,6 +2490,7 @@ export const useJoeChat = () => {
     transcript: state.transcript,
     wsLog: state.wsLog,
     wsConnected: state.wsConnected,
+    apiOnline: state.apiOnline,
     reconnectActive: state.reconnectActive,
     reconnectAttempt: state.reconnectAttempt,
     reconnectRemainingMs: state.reconnectRemainingMs,

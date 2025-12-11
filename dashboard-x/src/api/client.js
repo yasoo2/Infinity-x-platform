@@ -249,6 +249,26 @@
       return response;
     },
     async (error) => {
+      try {
+        const status = error?.response?.status;
+        const cfg = error?.config || {};
+        const curBase = String(apiClient.defaults.baseURL || '');
+        const host = (() => { try { return new URL(curBase).hostname; } catch { return ''; } })();
+        const isLocalHost = (host === 'localhost' || host === '127.0.0.1');
+        const isCorePath = /^\/api\/v1\/(health|ai\/providers|chat-history)/i.test(String(cfg.url || ''));
+        if (!isLocalHost && status === 404 && isCorePath) {
+          try {
+            const probe = await axios.get('http://localhost:4000/api/v1/runtime-mode/status', { timeout: 2000 });
+            if (probe?.data?.success) {
+              apiClient.defaults.baseURL = 'http://localhost:4000';
+              try { localStorage.setItem('apiBaseUrl', apiClient.defaults.baseURL); localStorage.removeItem('apiOffline'); } catch { /* noop */ }
+              try { window.dispatchEvent(new CustomEvent('api:baseurl:reset')); window.dispatchEvent(new CustomEvent('api:online')); } catch { /* noop */ }
+              const retryCfg = { ...cfg };
+              return await axios.request(retryCfg);
+            }
+          } catch { /* ignore */ }
+        }
+      } catch { /* noop */ }
       const code = error.code;
       const msg = String(error.message || '').toLowerCase();
       const nameNotResolved = /name\s*not\s*resolved|enotfound|getaddrinfo/.test(msg);

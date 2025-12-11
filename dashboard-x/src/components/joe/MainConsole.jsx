@@ -735,10 +735,10 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
             <div className="text-sm text-gray-300">لوحة التحكم</div>
             <div className="p-2 rounded-lg bg-gray-800 border border-gray-700">
               <div className="flex items-center gap-2">
-                {(() => { const hasThought = Array.isArray(plan) && plan.slice(-5).some(s => s?.type === 'thought'); const hasDeploy = Array.isArray(plan) && plan.slice(-5).some(s => { const t = String(s?.type||'').toLowerCase(); const txt = String(s?.title||s?.step||s?.content||''); return t==='deploy' || /deploy|push|publish|run|execute|start/i.test(txt); }); const badgeState = !wsConnected ? 'offline' : (isProcessing ? (hasDeploy ? 'deploy' : (hasThought ? 'thinking' : 'typing')) : 'ready'); return (<JoeBadge size="lg" state={badgeState} />); })()}
+                {(() => { const hasThought = Array.isArray(plan) && plan.slice(-5).some(s => s?.type === 'thought'); const hasDeploy = Array.isArray(plan) && plan.slice(-5).some(s => { const t = String(s?.type||'').toLowerCase(); const txt = String(s?.title||s?.step||s?.content||''); return t==='deploy' || /deploy|push|publish|run|execute|start/i.test(txt); }); const online = (wsConnected || apiOnline); const badgeState = !online ? 'offline' : (isProcessing ? (hasDeploy ? 'deploy' : (hasThought ? 'thinking' : 'typing')) : 'ready'); return (<JoeBadge size="lg" state={badgeState} />); })()}
                 <div>
                   <div className="text-xs text-gray-200"><StyledJoe /> Agent</div>
-                  <div className={`text-[11px] ${wsConnected? 'text-green-300':'text-red-300'}`}>{wsConnected? (lang==='ar'?'متصل':'Online') : (lang==='ar'?'غير متصل':'Offline')}</div>
+                  <div className={`text-[11px] ${(wsConnected||apiOnline)? 'text-green-300':'text-red-300'}`}>{(wsConnected||apiOnline)? (lang==='ar'?'متصل':'Online') : (lang==='ar'?'غير متصل':'Offline')}</div>
                 </div>
               </div>
             </div>
