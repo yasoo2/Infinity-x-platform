@@ -311,7 +311,7 @@ async function processMessage(userId, message, sessionId, { model = null, lang }
     try { joeEvents.emitProgress(userId, sessionId, 10, 'Context loaded'); } catch { /* noop */ }
 
     const targetLang = (String(lang || '').toLowerCase() === 'ar') ? 'ar' : 'en';
-    const languageDirective = targetLang === 'ar' ? 'اعتمد العربية في جميع الردود، ولخص المحتوى بشكل واضح مع نقاط موجزة وعناوين فرعية.' : 'Respond in English. Provide a clear summary with bullet points and subheadings.';
+    const languageDirective = targetLang === 'ar' ? 'اعتمد العربية في جميع الردود.' : 'Respond in English.';
     const systemPrompt = { role: 'system', content: `${MANUS_STYLE_PROMPT}\n\n${languageDirective}` };
     let ltmFactsText = '';
     try {
@@ -529,7 +529,6 @@ ${transcript.slice(0, 8000)}`;
                   toolResults.push({ tool: 'browseWebsite', args: { url }, result: r });
                   toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
                   pieces.push(String(r?.summary || r?.content || ''));
-                  navigateVisual(userId, url);
                   try { joeEvents.emitProgress(userId, sessionId, 60, 'browseWebsite done'); } catch { /* noop */ }
                 }
             } catch { void 0 }
@@ -865,7 +864,6 @@ ${transcript.slice(0, 8000)}`;
                 toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
                 const sum = String(br?.summary || br?.content || '');
                 finalContent = sum || finalContent;
-                navigateVisual(userId, url);
               }
             } catch { void 0 }
             if (shouldAugment(message)) {
@@ -920,7 +918,6 @@ ${transcript.slice(0, 8000)}`;
               toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
               const sum = String(br?.summary || br?.content || '');
               finalContent = sum || finalContent;
-              navigateVisual(userId, url);
             }
           } catch { /* noop */ }
           if (!finalContent) {
