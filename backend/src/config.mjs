@@ -9,8 +9,19 @@
 import dotenv from 'dotenv';
 import path from 'path';
 
-// Load environment variables from .env file in the root directory
-dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+const isProduction = process.env.NODE_ENV === 'production';
+const isRender = Boolean(
+  process.env.RENDER ||
+  process.env.RENDER_SERVICE_ID ||
+  process.env.RENDER_INSTANCE_ID ||
+  process.env.RENDER_EXTERNAL_URL
+);
+
+if (!(isProduction || isRender)) {
+  try {
+    dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+  } catch { /* noop */ }
+}
 
 const config = {
     // Server Configuration
@@ -42,12 +53,13 @@ function validateConfig() {
     const missingKeys = requiredKeys.filter(key => !config[key]);
 
     if (missingKeys.length > 0) {
-        // This is a critical failure. The system cannot run without these settings.
-        // In a real production system, you would log this and exit.
         console.error('❌ FATAL ERROR: Missing required environment variables!');
-        console.error(`   The following keys are missing in your .env file: ${missingKeys.join(', ')}`);
-        console.error('   Please create a .env file in the root directory and add them.');
-        // process.exit(1); // We won't exit in dev, but it's good practice.
+        if (isProduction || isRender) {
+            console.error(`   Missing in runtime environment: ${missingKeys.join(', ')}`);
+        } else {
+            console.error(`   The following keys are missing in your .env file: ${missingKeys.join(', ')}`);
+            console.error('   Please create a .env file in the root directory and add them.');
+        }
     }
 }
 
