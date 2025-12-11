@@ -12,10 +12,25 @@
   
 
   if (typeof window !== 'undefined' && (isDev || ['localhost','127.0.0.1'].includes(String(window.location.hostname)))) {
-    resolvedBase = 'http://localhost:4000';
+    if (explicitBase && String(explicitBase).trim().length > 0) {
+      resolvedBase = explicitBase;
+    } else if (envBase && String(envBase).trim().length > 0) {
+      resolvedBase = envBase;
+    } else {
+      resolvedBase = 'http://localhost:4000';
+    }
   } else if (lsBase && String(lsBase).trim().length > 0) {
-    // Prefer stored base as-is
-    resolvedBase = lsBase;
+    let valid = null;
+    try {
+      const u = new URL(String(lsBase));
+      if (u.hostname && u.protocol) valid = String(lsBase);
+    } catch { valid = null; }
+    if (valid) {
+      resolvedBase = valid;
+    } else {
+      try { localStorage.removeItem('apiBaseUrl'); } catch { /* noop */ }
+      resolvedBase = origin || 'http://localhost:4000';
+    }
   } else if (explicitBase && String(explicitBase).trim().length > 0) {
     // Use explicit base URL from environment variable (e.g., from Front Cloud settings)
     resolvedBase = explicitBase;
@@ -234,6 +249,16 @@
       return response;
     },
     async (error) => {
+      const code = error.code;
+      const msg = String(error.message || '').toLowerCase();
+      const nameNotResolved = /name\s*not\s*resolved|enotfound|getaddrinfo/.test(msg);
+      if (nameNotResolved) {
+        try { localStorage.removeItem('apiBaseUrl'); } catch { /* noop */ }
+        const fb = computeFallbackBase();
+        apiClient.defaults.baseURL = String(fb).replace(/\/+$/, '');
+        try { localStorage.setItem('apiBaseUrl', apiClient.defaults.baseURL); } catch { /* noop */ }
+        try { window.dispatchEvent(new CustomEvent('api:baseurl:reset')); } catch { void 0; }
+      }
       if (shouldRetry(error)) {
         try {
           return await axios.request(error.config);
@@ -283,8 +308,7 @@
         window.dispatchEvent(new CustomEvent('auth:forbidden', { detail: details }));
       }
 
-      // Network timeout or no status: count and fallback after repeated failures
-      if (!status || error.code === 'ECONNABORTED') {
+      if (!status || code === 'ECONNABORTED') {
         try {
           const curBase = String(apiClient.defaults.baseURL || '');
           const host = new URL(curBase).hostname;
