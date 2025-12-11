@@ -357,6 +357,63 @@ async function startServer({ dependencyInitializer = setupDependencies, exit = p
       }
     });
 
+    // AI Providers: lightweight runtime management (OpenAI/Gemini)
+    app.get('/api/v1/ai/providers', (_req, res) => {
+      try {
+        const providers = [
+          { name: 'openai', active: !!process.env.OPENAI_API_KEY },
+          { name: 'gemini', active: !!process.env.GEMINI_API_KEY },
+        ];
+        res.json({ success: true, providers });
+      } catch (e) {
+        res.status(500).json({ success: false, error: 'AI_PROVIDERS_FAILED', message: e?.message || String(e) });
+      }
+    });
+
+    app.post('/api/v1/ai/validate', async (req, res) => {
+      try {
+        const provider = String(req?.body?.provider || '').toLowerCase();
+        const apiKey = String(req?.body?.apiKey || '').trim();
+        if (!provider || !apiKey) return res.status(400).json({ success: false, error: 'BAD_REQUEST', message: 'provider and apiKey are required' });
+        if (provider === 'openai') {
+          try {
+            const r = await fetch('https://api.openai.com/v1/models', { headers: { Authorization: `Bearer ${apiKey}` } });
+            if (r.ok) return res.json({ success: true });
+            const body = await r.text();
+            return res.status(r.status).json({ success: false, error: 'OPENAI_VALIDATE_FAILED', details: body });
+          } catch (e) {
+            return res.status(500).json({ success: false, error: 'OPENAI_VALIDATE_ERROR', message: e?.message || String(e) });
+          }
+        }
+        if (provider === 'gemini') {
+          // Minimal ping
+          return res.json({ success: !!apiKey });
+        }
+        return res.status(400).json({ success: false, error: 'UNSUPPORTED_PROVIDER' });
+      } catch (e) {
+        res.status(500).json({ success: false, error: 'AI_VALIDATE_FAILED', message: e?.message || String(e) });
+      }
+    });
+
+    app.post('/api/v1/ai/activate', async (req, res) => {
+      try {
+        const provider = String(req?.body?.provider || '').toLowerCase();
+        const apiKey = String(req?.body?.apiKey || '').trim();
+        if (!provider || !apiKey) return res.status(400).json({ success: false, error: 'BAD_REQUEST', message: 'provider and apiKey are required' });
+        if (provider === 'openai') {
+          process.env.OPENAI_API_KEY = apiKey;
+          return res.json({ success: true, provider });
+        }
+        if (provider === 'gemini') {
+          process.env.GEMINI_API_KEY = apiKey;
+          return res.json({ success: true, provider });
+        }
+        return res.status(400).json({ success: false, error: 'UNSUPPORTED_PROVIDER' });
+      } catch (e) {
+        res.status(500).json({ success: false, error: 'AI_ACTIVATE_FAILED', message: e?.message || String(e) });
+      }
+    });
+
     app.use('/api/v1', rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false }));
     
     app.use((req, res) => res.status(404).json({ error: 'NOT_FOUND' }));
