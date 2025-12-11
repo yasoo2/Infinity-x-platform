@@ -17,10 +17,6 @@ const useAuth = () => {
 
   const login = async (email, password, remember = false) => {
     try {
-      try {
-        const offline = localStorage.getItem('apiOffline') === '1';
-        if (offline) return false;
-      } catch { /* noop */ }
       const { data } = await apiClient.post('/api/v1/auth/login', { email, password });
       const token = data?.token || data?.sessionToken || data?.jwt || data?.access_token;
       if (token) {

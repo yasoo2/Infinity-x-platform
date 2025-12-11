@@ -989,6 +989,25 @@ export const useJoeChat = () => {
     const connect = () => {
       if (isConnectingRef.current) return;
       if (ws.current && (ws.current.readyState === WebSocket.OPEN || ws.current.readyState === WebSocket.CONNECTING)) return;
+      try {
+        const until = Number(localStorage.getItem('wsDisabledUntil') || 0);
+        if (Number.isFinite(until) && until > Date.now()) {
+          dispatch({ type: 'ADD_WS_LOG', payload: `[WS] Skipping connect until ${new Date(until).toLocaleTimeString()} due to repeated failures` });
+          return;
+        } else if (until && until <= Date.now()) {
+          try { localStorage.removeItem('wsDisabledUntil'); localStorage.removeItem('wsDisabled'); } catch { /* noop */ }
+        }
+        const offline = localStorage.getItem('apiOffline') === '1';
+        if (offline) {
+          dispatch({ type: 'ADD_WS_LOG', payload: '[WS] Skipping connect due to API offline flag' });
+          return;
+        }
+        const wsDisabled = localStorage.getItem('wsDisabled') === '1';
+        if (wsDisabled) {
+          dispatch({ type: 'ADD_WS_LOG', payload: '[WS] Skipping connect due to wsDisabled flag' });
+          return;
+        }
+      } catch { /* noop */ }
       const validateToken = async () => {
         let t = localStorage.getItem('sessionToken');
         const needsReset = () => {
@@ -1022,14 +1041,26 @@ export const useJoeChat = () => {
         const openNativeWs = () => {
           let wsUrl;
           const envWs = (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_WS_BASE_URL || import.meta.env?.VITE_WS_URL)) || '';
+          const envWsFallback = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_WS_FALLBACK_URL) || '';
           const envApi2 = (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL || import.meta.env?.VITE_EXPLICIT_API_BASE)) || '';
-          const baseCandidate = (String(envWs).trim().length > 0)
-            ? envWs
-            : ((String(envApi2).trim().length > 0)
-                ? envApi2
-                : (typeof apiClient?.defaults?.baseURL === 'string'
-                    ? apiClient.defaults.baseURL
-                    : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000')));
+          const envApiFallback = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FALLBACK_API_BASE_URL) || '';
+          const rateLimited = (() => { try { return localStorage.getItem('apiRateLimited') === '1'; } catch { return false; } })();
+          const lsApiOverride = (() => { try { return localStorage.getItem('apiOverrideBase') || ''; } catch { return ''; } })();
+          const lsWsOverride = (() => { try { return localStorage.getItem('wsOverrideBase') || ''; } catch { return ''; } })();
+          const lsWsFallbackOverride = (() => { try { return localStorage.getItem('wsFallbackOverride') || ''; } catch { return ''; } })();
+          const baseCandidate = rateLimited && (String(lsWsFallbackOverride).trim().length > 0 || String(envWsFallback).trim().length > 0)
+            ? envWsFallback
+            : ((String(lsWsOverride).trim().length > 0)
+                ? lsWsOverride
+                : ((String(envWs).trim().length > 0)
+                    ? envWs
+                    : (rateLimited && (String(lsApiOverride).trim().length > 0 || String(envApiFallback).trim().length > 0)
+                        ? (String(lsApiOverride).trim().length > 0 ? lsApiOverride : envApiFallback)
+                        : ((String(envApi2).trim().length > 0)
+                            ? envApi2
+                            : (typeof apiClient?.defaults?.baseURL === 'string'
+                                ? apiClient.defaults.baseURL
+                                : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000'))))));
           let wsBase;
           try {
             const u = new URL(String(baseCandidate).replace(/\/(api.*)?$/, '').replace(/\/+$/, ''));
@@ -1038,8 +1069,6 @@ export const useJoeChat = () => {
             let host = u.host;
             if (isLocal && devPorts.has(u.port || '')) {
               host = `${u.hostname}:4000`;
-            } else if (u.hostname === 'www.xelitesolutions.com' || u.hostname === 'xelitesolutions.com') {
-              host = 'api.xelitesolutions.com';
             }
             const proto = u.protocol === 'https:' ? 'wss' : 'ws';
             wsBase = `${proto}://${host}`;
@@ -1047,10 +1076,7 @@ export const useJoeChat = () => {
             let origin = (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
             try {
               const u2 = new URL(String(origin));
-              let host2 = u2.host;
-              if (u2.hostname === 'www.xelitesolutions.com' || u2.hostname === 'xelitesolutions.com') {
-                host2 = 'api.xelitesolutions.com';
-              }
+              const host2 = u2.host;
               const proto2 = u2.protocol === 'https:' ? 'wss' : 'ws';
               wsBase = `${proto2}://${host2}`;
             } catch {
@@ -1065,19 +1091,27 @@ export const useJoeChat = () => {
             isValidWs = (u3.protocol === 'ws:' || u3.protocol === 'wss:') && !!u3.host;
           } catch { isValidWs = false; }
           if (!isValidWs) {
-            const hostFallback = (() => {
-              try {
-                const h = typeof window !== 'undefined' ? window.location.hostname : '';
-                return h && !(/localhost|127\.0\.0\.1/.test(h)) ? 'api.xelitesolutions.com' : 'localhost:4000';
-              } catch {
-                return 'localhost:4000';
-              }
-            })();
-            const protoFallback = (() => {
-              try { return (typeof window !== 'undefined' && window.location.protocol === 'https:') ? 'wss' : 'ws'; } catch { return 'ws'; }
-            })();
-            wsUrl = `${protoFallback}://${hostFallback}/ws/joe-agent?token=${sessionToken}`;
+            try {
+              const w = window.location;
+              const protoFallback = w.protocol === 'https:' ? 'wss' : 'ws';
+              const hostFallback = w.host || 'localhost:4000';
+              wsUrl = `${protoFallback}://${hostFallback}/ws/joe-agent?token=${sessionToken}`;
+            } catch {
+              wsUrl = `ws://localhost:4000/ws/joe-agent?token=${sessionToken}`;
+            }
           }
+          try {
+            const rateLimited = (() => { try { return localStorage.getItem('apiRateLimited') === '1'; } catch { return false; } })();
+            const base = String(apiClient?.defaults?.baseURL || '');
+            const bHost = (() => { try { return new URL(base).hostname; } catch { return ''; } })();
+            const wHost = (typeof window !== 'undefined' ? (window.location.hostname || '') : bHost);
+            if (rateLimited && !!bHost && !!wHost && bHost !== wHost) {
+              dispatch({ type: 'ADD_WS_LOG', payload: '[WS] Skipping connect due to rate-limited cross-origin' });
+              isConnectingRef.current = false;
+              dispatch({ type: 'SET_WS_CONNECTED', payload: false });
+              return;
+            }
+          } catch { /* noop */ }
           ws.current = new WebSocket(wsUrl);
           const connectionTimeout = setTimeout(() => {
             if (ws.current && ws.current.readyState !== WebSocket.OPEN) {
@@ -1119,6 +1153,15 @@ export const useJoeChat = () => {
             const attempt = (reconnectAttempts.current || 0) + 1;
             reconnectAttempts.current = attempt;
             try { if (attempt >= 3) { localStorage.removeItem('joeUseWS'); } } catch { /* noop */ }
+            try {
+              if (attempt >= 5) {
+                const cooldownMs = 5 * 60 * 1000;
+                const until = Date.now() + cooldownMs;
+                localStorage.setItem('wsDisabled', '1');
+                localStorage.setItem('wsDisabledUntil', String(until));
+                dispatch({ type: 'ADD_WS_LOG', payload: `[WS] Disabled for ${Math.round(cooldownMs/1000)}s due to repeated failures` });
+              }
+            } catch { /* noop */ }
             const jitter = Math.floor(Math.random() * 500);
             let delay = Math.min(30000, 1000 * Math.pow(2, attempt)) + jitter;
             if (typeof navigator !== 'undefined' && navigator.onLine === false) { delay = Math.max(delay, 5000); }
@@ -1173,15 +1216,30 @@ export const useJoeChat = () => {
         let sioUrl;
         const envApi = (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL || import.meta.env?.VITE_EXPLICIT_API_BASE)) || '';
         const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-        const httpBase2 = isLocalHost
-          ? (typeof apiClient?.defaults?.baseURL === 'string'
-              ? apiClient.defaults.baseURL
-              : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000'))
-          : ((String(envApi).trim().length > 0)
-              ? envApi
-              : (typeof apiClient?.defaults?.baseURL === 'string'
-                  ? apiClient.defaults.baseURL
-                  : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000')));
+        const rateLimited = (() => { try { return localStorage.getItem('apiRateLimited') === '1'; } catch { return false; } })();
+        let httpBase2;
+        if (isLocalHost) {
+          httpBase2 = (typeof apiClient?.defaults?.baseURL === 'string')
+            ? apiClient.defaults.baseURL
+            : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
+        } else {
+          // في الإنتاج: فضّل قاعدة Axios الحالية (والتي تتحول تلقائيًا لنفس الأصل عند الفشل)
+          // تجنّب الاعتماد المباشر على envApi عندما تكون هناك حدود أو تعارضات CORS
+          httpBase2 = (typeof apiClient?.defaults?.baseURL === 'string')
+            ? apiClient.defaults.baseURL
+            : (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000');
+          // إذا كانت المتغيرات البيئية مطلوبة صراحةً ولا توجد حدود، استخدمها فقط عند الضرورة
+          if (!rateLimited && String(envApi).trim().length > 0) {
+            try {
+              const curHost = new URL(String(httpBase2)).hostname;
+              const envHost = new URL(String(envApi)).hostname;
+              // استخدم envApi فقط إذا كان يطابق نفس الأصل أو ليس api-domain مع أصل www
+              if (envHost === curHost) {
+                httpBase2 = envApi;
+              }
+            } catch { /* noop */ }
+          }
+        }
         const sanitizedHttp = String(httpBase2).replace(/\/+$/, '');
         let sioBase = sanitizedHttp;
         try {
@@ -1191,30 +1249,41 @@ export const useJoeChat = () => {
           let host = u.host;
           if (isLocal && devPorts.has(u.port || '')) {
             host = `${u.hostname}:4000`;
-          } else if (u.hostname === 'www.xelitesolutions.com' || u.hostname === 'xelitesolutions.com') {
-            host = 'api.xelitesolutions.com';
           }
           sioBase = `${u.protocol}//${host}`;
         } catch { /* noop */ }
         sioUrl = `${sioBase}/joe-agent`;
         
         const isProdHost = (typeof window !== 'undefined') && (/xelitesolutions\.com$/.test(String(window.location.hostname || '')));
+        if (isProdHost) {
+          isConnectingRef.current = false;
+          try { localStorage.setItem('joeTransport', 'rest'); } catch { /* noop */ }
+          return;
+        }
 
+        const isLocal = (typeof window !== 'undefined' && /localhost|127\.0\.0\.1/.test(String(window.location.hostname||'')));
+        const forcePolling = (() => { try { const until = Number(localStorage.getItem('wsDisabledUntil') || 0); return Number.isFinite(until) && until > Date.now(); } catch { return false; } })();
+        const useSio = isLocal || forcePolling;
         const pathPref = '/socket.io';
-        const initialTransports = ['polling','websocket'];
-        const socket = io(sioUrl, {
-          auth: { token: sessionToken },
-          path: pathPref,
-          transports: initialTransports,
-          upgrade: true,
-          reconnection: true,
-          reconnectionAttempts: 1000000,
-          reconnectionDelay: 500,
-          reconnectionDelayMax: 4000,
-          timeout: 8000,
-          forceNew: true,
-          withCredentials: false,
-        });
+        const initialTransports = useSio ? ['polling','websocket'] : ['websocket'];
+        let socket;
+        if (!useSio) {
+          openNativeWs();
+          return;
+        } else {
+          socket = io(sioUrl, {
+            auth: { token: sessionToken },
+            path: pathPref,
+            transports: initialTransports,
+            upgrade: true,
+            reconnection: true,
+            reconnectionAttempts: 1000000,
+            reconnectionDelay: 500,
+            reconnectionDelayMax: 4000,
+            timeout: 8000,
+            forceNew: true,
+            withCredentials: false,
+          });
         socket.on('connect', () => {
           reconnectAttempts.current = 0;
           isConnectingRef.current = false;
@@ -1238,7 +1307,7 @@ export const useJoeChat = () => {
           dispatch({ type: 'ADD_WS_LOG', payload: `[SIO] Disconnected: ${String(reason||'')}` });
           try {
             const msg = String(reason || '').toLowerCase();
-            if (/transport error/i.test(msg)) {
+            if (isLocal && /transport error/i.test(msg)) {
               try { socket.io.opts.transports = ['polling']; socket.io.opts.upgrade = false; } catch { /* noop */ }
               try { socket.connect(); } catch { /* noop */ }
             }
@@ -1246,11 +1315,11 @@ export const useJoeChat = () => {
         });
         socket.on('connect_error', async (err) => {
           const msg = String(err?.message || 'connect_error');
-          if (/websocket error/i.test(msg)) {
+          if (isLocal && /websocket error/i.test(msg)) {
             try { socket.io.opts.transports = ['polling']; socket.connect(); } catch { /* noop */ }
             return;
           }
-          if (/xhr poll error|transport error|bad request|400/i.test(msg)) {
+          if (isLocal && /xhr poll error|transport error|bad request|400/i.test(msg)) {
             try {
               socket.io.opts.path = '/socket.io';
               socket.io.opts.transports = ['polling'];
@@ -1280,7 +1349,7 @@ export const useJoeChat = () => {
         socket.on('error', async (err) => {
           const msg = typeof err === 'string' ? err : String(err?.message || 'error');
           dispatch({ type: 'ADD_WS_LOG', payload: `[SIO] Error: ${msg}` });
-          if (/xhr poll error|transport error/i.test(msg)) {
+          if (isLocal && /xhr poll error|transport error/i.test(msg)) {
             try { socket.io.opts.transports = ['websocket']; socket.connect(); } catch { /* noop */ }
           }
           if (/INVALID_TOKEN|NO_TOKEN/i.test(msg)) {
@@ -1288,6 +1357,8 @@ export const useJoeChat = () => {
             try { socket.auth = {}; socket.connect(); } catch { /* noop */ }
           }
         });
+        }
+        if (isLocal) {
         socket.on('status', (d) => { dispatch({ type: 'ADD_WS_LOG', payload: `[SIO] ${JSON.stringify(d)}` }); });
         socket.on('tool_used', (d) => {
           const name = (d?.tool?.function?.name) || d?.tool?.name || d?.tool || '';
@@ -1400,6 +1471,7 @@ export const useJoeChat = () => {
         });
         sioRef.current = socket;
         try { window.__joeSocket = socket; window.dispatchEvent(new Event('joe:socket-ready')); } catch { /* noop */ }
+        }
         const __useWsImmediately = false;
         if (!__useWsImmediately) { return; }
         let wsUrl;
@@ -1420,8 +1492,8 @@ export const useJoeChat = () => {
           let host = u.host;
           if (isLocal && devPorts.has(u.port || '')) {
             host = `${u.hostname}:4000`;
-          } else if (u.hostname === 'www.xelitesolutions.com' || u.hostname === 'xelitesolutions.com') {
-            host = 'api.xelitesolutions.com';
+          } else {
+            host = u.host;
           }
           const proto = u.protocol === 'https:' ? 'wss' : 'ws';
           wsBase = `${proto}://${host}`;
@@ -1430,9 +1502,6 @@ export const useJoeChat = () => {
           try {
             const u2 = new URL(String(origin));
             let host2 = u2.host;
-            if (u2.hostname === 'www.xelitesolutions.com' || u2.hostname === 'xelitesolutions.com') {
-              host2 = 'api.xelitesolutions.com';
-            }
             const proto2 = u2.protocol === 'https:' ? 'wss' : 'ws';
             wsBase = `${proto2}://${host2}`;
           } catch {
@@ -1449,8 +1518,10 @@ export const useJoeChat = () => {
         if (!isValidWs) {
           const hostFallback = (() => {
             try {
-              const h = typeof window !== 'undefined' ? window.location.hostname : '';
-              return h && !(/localhost|127\.0\.0\.1/.test(h)) ? 'api.xelitesolutions.com' : 'localhost:4000';
+              const base = String(apiClient?.defaults?.baseURL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:4000'));
+              const u = new URL(base);
+              const isLocal = (u.hostname === 'localhost' || u.hostname === '127.0.0.1');
+              return isLocal ? 'localhost:4000' : u.host;
             } catch {
               return 'localhost:4000';
             }
@@ -1514,6 +1585,13 @@ export const useJoeChat = () => {
           try {
             if (attempt >= 3) {
               localStorage.removeItem('joeUseWS');
+            }
+            if (attempt >= 5) {
+              const cooldownMs = 5 * 60 * 1000;
+              const until = Date.now() + cooldownMs;
+              localStorage.setItem('wsDisabled', '1');
+              localStorage.setItem('wsDisabledUntil', String(until));
+              dispatch({ type: 'ADD_WS_LOG', payload: `[WS] Disabled for ${Math.round(cooldownMs/1000)}s due to repeated failures` });
             }
           } catch { /* noop */ }
           const jitter = Math.floor(Math.random() * 500);
@@ -1691,7 +1769,22 @@ export const useJoeChat = () => {
     window.addEventListener('online', onOnline);
     window.addEventListener('joe:reconnect', onReconnect);
     heartbeatIntervalRef.current = setInterval(async () => {
-      try { await apiClient.get('/api/v1/joe/ping'); } catch { /* noop */ }
+      try {
+        const rateLimited = (() => { try { return localStorage.getItem('apiRateLimited') === '1'; } catch { return false; } })();
+        const base = String(apiClient?.defaults?.baseURL || '');
+        const isSameHost = (() => {
+          try {
+            const bHost = new URL(base).hostname;
+            const wHost = (typeof window !== 'undefined' ? (window.location.hostname || '') : '');
+            return !bHost || bHost === wHost;
+          } catch { return true; }
+        })();
+        if (rateLimited && !isSameHost) {
+          dispatch({ type: 'ADD_WS_LOG', payload: '[WS] Skipping ping due to rate-limited cross-origin' });
+          return;
+        }
+        await apiClient.get('/api/v1/joe/ping');
+      } catch { /* noop */ }
     }, 30000);
     return () => {
       try { window.removeEventListener('api:baseurl:reset', onApiReset); } catch { /* noop */ }

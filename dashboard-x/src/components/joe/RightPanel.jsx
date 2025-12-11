@@ -66,9 +66,16 @@ const RightPanel = ({ isProcessing, plan, forceStatus = false, wsConnected = fal
         if (offline) { try { localStorage.removeItem('apiOffline'); window.dispatchEvent(new CustomEvent('api:online')); } catch { /* noop */ } }
       } catch {
         try {
-          const p = await apiClient.get('/api/v1/joe/ping', { signal });
-          setHealth({ success: true, status: 'ok', uptime: 0, ping: p.data });
-          if (offline) { try { localStorage.removeItem('apiOffline'); window.dispatchEvent(new CustomEvent('api:online')); } catch { /* noop */ } }
+          const rateLimited = (() => { try { return localStorage.getItem('apiRateLimited') === '1'; } catch { return false; } })();
+          const base = String(apiClient?.defaults?.baseURL || '');
+          const isSameHost = (() => { try { return new URL(base).hostname === (typeof window !== 'undefined' ? (window.location.hostname || '') : ''); } catch { return true; } })();
+          if (rateLimited && !isSameHost) {
+            setHealth({ success: false, status: 'offline' });
+          } else {
+            const p = await apiClient.get('/api/v1/joe/ping', { signal });
+            setHealth({ success: true, status: 'ok', uptime: 0, ping: p.data });
+            if (offline) { try { localStorage.removeItem('apiOffline'); window.dispatchEvent(new CustomEvent('api:online')); } catch { /* noop */ } }
+          }
         } catch {
           setHealth({ success: false, status: 'offline' });
         }
@@ -173,12 +180,12 @@ const ConnectionCard = ({ wsConnected }) => {
   const [transport, setTransport] = useState(() => { try { return localStorage.getItem('joeTransport') || 'sio'; } catch { return 'sio'; } });
   useEffect(() => { try { setTransport(localStorage.getItem('joeTransport') || 'sio'); } catch { /* noop */ } }, [wsConnected]);
   const label = transport === 'ws' ? 'WebSocket' : transport === 'rest' ? 'REST' : 'Socket.IO';
-  const statusText = transport === 'rest' ? 'Disabled' : (wsConnected ? 'Connected' : 'Disconnected');
+  const statusText = transport === 'rest' ? 'Available' : (wsConnected ? 'Connected' : 'Disconnected');
   const modeText = transport === 'rest' ? 'Mode: REST (HTTP)' : `Mode: Auto (${label})`;
   return (
     <div className="p-4 bg-gray-800/80 rounded-lg border border-gray-700">
       <div className="flex items-center gap-3 mb-2">
-        <FiCheckCircle className={wsConnected && transport !== 'rest' ? 'text-green-500' : 'text-red-500'} size={20} />
+        <FiCheckCircle className={(transport === 'rest' || wsConnected) ? 'text-green-500' : 'text-red-500'} size={20} />
         <h4 className="font-semibold text-white">Realtime Link</h4>
       </div>
       <p className="text-sm text-gray-400">{statusText}</p>

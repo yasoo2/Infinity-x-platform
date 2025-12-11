@@ -29,10 +29,22 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, isLoading } = useAuth();
   const [guestTrying, setGuestTrying] = useState(false);
   const [guestFailed, setGuestFailed] = useState(false);
+  const [offline, setOffline] = useState(() => {
+    try { return localStorage.getItem('apiOffline') === '1'; } catch { return false; }
+  });
+
+  useEffect(() => {
+    const onOffline = () => { try { setOffline(true); } catch { /* noop */ } };
+    const onOnline = () => { try { setOffline(false); } catch { /* noop */ } };
+    try { window.addEventListener('api:offline', onOffline); } catch { /* noop */ }
+    try { window.addEventListener('api:online', onOnline); } catch { /* noop */ }
+    return () => { try { window.removeEventListener('api:offline', onOffline); window.removeEventListener('api:online', onOnline); } catch { /* noop */ } };
+  }, []);
 
   useEffect(() => {
     const run = async () => {
       if (hasToken()) return;
+      if (offline) return;
       if (guestTrying) return;
       setGuestTrying(true);
       try {
@@ -54,6 +66,20 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   }, [hasToken, guestTrying, saveToken]);
 
   if (!hasToken()) {
+    if (offline) {
+      return (
+        <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: '#0B1220' }}>
+          <div style={{ padding: 24, borderRadius: 12, border: '1px solid #334155', background: '#111827', color: '#e2e8f0', maxWidth: 600, width: '90%' }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: '#f59e0b', marginBottom: 8 }}>الاتصال بالخادم غير متاح</div>
+            <div style={{ fontSize: 14, marginBottom: 12 }}>يتعذر الحصول على جلسة ضيف أو المصادقة حاليًا. قد يكون الخادم غير متاح أو تم حظر الطلبات عبر CORS.</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => { try { localStorage.removeItem('apiOffline'); window.dispatchEvent(new CustomEvent('api:online')); } catch { /* noop */ } }} style={{ background: '#0ea5e9', color: 'white', padding: '8px 12px', borderRadius: 8 }}>محاولة مجددًا</button>
+              <button onClick={() => location.reload()} style={{ background: '#334155', color: 'white', padding: '8px 12px', borderRadius: 8 }}>إعادة التحميل</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
     if (guestTrying) return <div>Loading...</div>;
     if (!token && guestFailed) return <Navigate to="/" replace />;
     return <div>Loading...</div>;
