@@ -471,6 +471,13 @@ export const useJoeChat = () => {
     } catch { /* noop */ }
   }, []);
 
+  const isChatHistoryDisabled = () => {
+    try {
+      const until = Number(localStorage.getItem('chatHistoryDisabledUntil') || 0);
+      return Number.isFinite(until) && until > Date.now();
+    } catch { return false; }
+  };
+
   const [state, dispatch] = useReducer(chatReducer, {
     conversations: {},
     currentConversationId: null,
@@ -671,6 +678,7 @@ export const useJoeChat = () => {
     dispatch({ type: 'NEW_CONVERSATION', payload: { selectNew, id: newId } });
     (async () => {
       try {
+        if (isChatHistoryDisabled()) return;
         const created = await createChatSession('New Conversation');
         const s = created?.session;
         const sid = s?._id || s?.id || null;
@@ -733,28 +741,30 @@ export const useJoeChat = () => {
     (async () => {
       let usedServer = false;
       try {
-        let token = null;
-        try { token = localStorage.getItem('sessionToken'); } catch { token = null; }
-        if (!token) {
-          try {
-            const r = await getGuestToken();
-            if ((r?.success || r?.ok) && r?.token) {
-              localStorage.setItem('sessionToken', r.token);
-              token = r.token;
-            }
-          } catch { /* noop */ }
-        }
-        if (token) {
-          try {
-            const s = await getChatSessions({});
-            const list = Array.isArray(s?.sessions) ? s.sessions : [];
-            if (list.length > 0) {
-              if (syncRef.current) {
-                await syncRef.current();
-                usedServer = true;
+        if (!isChatHistoryDisabled()) {
+          let token = null;
+          try { token = localStorage.getItem('sessionToken'); } catch { token = null; }
+          if (!token) {
+            try {
+              const r = await getGuestToken();
+              if ((r?.success || r?.ok) && r?.token) {
+                localStorage.setItem('sessionToken', r.token);
+                token = r.token;
               }
-            }
-          } catch { /* noop */ }
+            } catch { /* noop */ }
+          }
+          if (token) {
+            try {
+              const s = await getChatSessions({});
+              const list = Array.isArray(s?.sessions) ? s.sessions : [];
+              if (list.length > 0) {
+                if (syncRef.current) {
+                  await syncRef.current();
+                  usedServer = true;
+                }
+              }
+            } catch { /* noop */ }
+          }
         }
       } catch { /* noop */ }
       if (!usedServer) {
@@ -823,6 +833,7 @@ export const useJoeChat = () => {
   const syncBackendSessions = useCallback(async () => {
     if (state.isProcessing) return;
     if (syncInProgressRef.current) return;
+    if (isChatHistoryDisabled()) return;
     try {
       syncInProgressRef.current = true;
       const controller = new AbortController();
@@ -903,6 +914,13 @@ export const useJoeChat = () => {
       const status = e?.status ?? e?.response?.status;
       const code = e?.code ?? e?.response?.data?.code;
       const notFound = status === 404 || String(e?.details?.error || code || '').toUpperCase() === 'NOT_FOUND';
+      if (notFound) {
+        try {
+          const disableMs = 60 * 60 * 1000;
+          localStorage.setItem('chatHistoryDisabledUntil', String(Date.now() + disableMs));
+          dispatch({ type: 'ADD_WS_LOG', payload: { id: Date.now(), type: 'warning', text: '[NET] chat-history endpoints unavailable; disabling sync for 60m' } });
+        } catch { /* noop */ }
+      }
       if (e?.status !== 403 && !notFound) {
         console.warn('syncBackendSessions error:', e);
         try { dispatch({ type: 'ADD_WS_LOG', payload: { id: Date.now(), type: 'error', text: '[NET] فشل مزامنة الجلسات: ' + (e?.message || 'Network Error') } }); } catch { /* noop */ }
@@ -1832,19 +1850,21 @@ export const useJoeChat = () => {
         const convId = stateRef.current.currentConversationId;
         const conv = stateRef.current.conversations[convId] || null;
         sid = conv?.sessionId || null;
-        if (!sid) {
-          const created = await createChatSession(normalizeTitle(inputText));
-          const s = created?.session;
-          sid = s?._id || s?.id || null;
-          if (sid) {
-            dispatch({ type: 'REBASE_CONVERSATION', payload: { oldId: convId, newId: sid } });
-            dispatch({ type: 'SET_SESSION_ID', payload: { id: sid, sessionId: sid } });
+        if (!isChatHistoryDisabled()) {
+          if (!sid) {
+            const created = await createChatSession(normalizeTitle(inputText));
+            const s = created?.session;
+            sid = s?._id || s?.id || null;
+            if (sid) {
+              dispatch({ type: 'REBASE_CONVERSATION', payload: { oldId: convId, newId: sid } });
+              dispatch({ type: 'SET_SESSION_ID', payload: { id: sid, sessionId: sid } });
+            }
+          } else {
+            await updateChatSession(sid, { title: normalizeTitle(inputText) }).catch(() => {});
           }
-        } else {
-          await updateChatSession(sid, { title: normalizeTitle(inputText) }).catch(() => {});
-        }
-        if (sid) {
-          await addChatMessage(sid, { type: 'user', content: inputText }).catch(() => {});
+          if (sid) {
+            await addChatMessage(sid, { type: 'user', content: inputText }).catch(() => {});
+          }
         }
       } catch { void 0; }
       const selectedModel = activeModelRef.current || localStorage.getItem('aiSelectedModel') || null;
@@ -1948,20 +1968,22 @@ export const useJoeChat = () => {
       }
       const conv = state.conversations[convId] || null;
       sid = conv?.sessionId || null;
-      if (!sid) {
-        const created = await createChatSession(normalizeTitle(inputText));
-        const s = created?.session;
-        sid = s?._id || s?.id || null;
-        if (sid) {
-          dispatch({ type: 'REBASE_CONVERSATION', payload: { oldId: convId, newId: sid } });
-          convId = sid;
-          dispatch({ type: 'SET_SESSION_ID', payload: { id: sid, sessionId: sid } });
+      if (!isChatHistoryDisabled()) {
+        if (!sid) {
+          const created = await createChatSession(normalizeTitle(inputText));
+          const s = created?.session;
+          sid = s?._id || s?.id || null;
+          if (sid) {
+            dispatch({ type: 'REBASE_CONVERSATION', payload: { oldId: convId, newId: sid } });
+            convId = sid;
+            dispatch({ type: 'SET_SESSION_ID', payload: { id: sid, sessionId: sid } });
+          }
+        } else {
+          await updateChatSession(sid, { title: normalizeTitle(inputText) }).catch(() => {});
         }
-      } else {
-        await updateChatSession(sid, { title: normalizeTitle(inputText) }).catch(() => {});
-      }
-      if (sid) {
-        await addChatMessage(sid, { type: 'user', content: inputText }).catch(() => {});
+        if (sid) {
+          await addChatMessage(sid, { type: 'user', content: inputText }).catch(() => {});
+        }
       }
     } catch { void 0; }
 
@@ -2048,7 +2070,7 @@ export const useJoeChat = () => {
               } catch { dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } }); }
               try {
                 const isObjId = typeof sidToUse === 'string' && /^[a-f0-9]{24}$/i.test(sidToUse);
-                if (isObjId) {
+                if (!isChatHistoryDisabled() && isObjId) {
                   const r = await getChatMessages(sidToUse);
                   const exists = (r?.messages || []).some(m => String(m?.content || '') === text && m?.type !== 'user');
                   if (!exists) { await addChatMessage(sidToUse, { type: 'joe', content: text }); }
@@ -2113,14 +2135,14 @@ export const useJoeChat = () => {
             const text = sanitizeCompetitors(String(data?.response || data?.message || '').trim());
             if (text) {
               dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
-              try {
-                const isObjId = typeof sidToUse === 'string' && /^[a-f0-9]{24}$/i.test(sidToUse);
-                if (isObjId) {
-                  const r = await getChatMessages(sidToUse);
-                  const exists = (r?.messages || []).some(m => String(m?.content || '') === text && m?.type !== 'user');
-                  if (!exists) { await addChatMessage(sidToUse, { type: 'joe', content: text }); }
-                }
-              } catch { /* noop */ }
+            try {
+              const isObjId = typeof sidToUse === 'string' && /^[a-f0-9]{24}$/i.test(sidToUse);
+              if (!isChatHistoryDisabled() && isObjId) {
+                const r = await getChatMessages(sidToUse);
+                const exists = (r?.messages || []).some(m => String(m?.content || '') === text && m?.type !== 'user');
+                if (!exists) { await addChatMessage(sidToUse, { type: 'joe', content: text }); }
+              }
+            } catch { /* noop */ }
             }
             try {
               const tools = Array.isArray(data?.toolsUsed) ? data.toolsUsed : [];
@@ -2177,7 +2199,7 @@ export const useJoeChat = () => {
             dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: text } });
             try {
               const isObjId = typeof sidToUse === 'string' && /^[a-f0-9]{24}$/i.test(sidToUse);
-              if (isObjId) {
+              if (!isChatHistoryDisabled() && isObjId) {
                 const r = await getChatMessages(sidToUse);
                 const exists = (r?.messages || []).some(m => String(m?.content || '') === text && m?.type !== 'user');
                 if (!exists) {
@@ -2220,6 +2242,7 @@ export const useJoeChat = () => {
     const convo = state.conversations[id];
     const sid = convo?.sessionId || id;
     if (!sid) return;
+    if (isChatHistoryDisabled()) return;
     const isMongoObjectId = /^[a-f0-9]{24}$/i.test(String(sid));
     if (!isMongoObjectId) {
       return;
