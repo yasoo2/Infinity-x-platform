@@ -9,3 +9,6 @@ routes = [
 
 [observability]
 enabled = true
+
+[vars]
+BACKEND_ORIGIN = "https://api-backend.xelitesolutions.com"

@@ -1,5 +1,5 @@
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
     const origin = request.headers.get('Origin') || '*';
     const baseHeaders = {
       'Access-Control-Allow-Origin': origin,
@@ -23,7 +23,26 @@ export default {
       });
     }
 
-    const response = await fetch(request);
+    let url = new URL(request.url);
+    const isApiHost = url.hostname === 'api.xelitesolutions.com';
+    const isApiPath = url.pathname.startsWith('/api/');
+    const backendOrigin = String(env.BACKEND_ORIGIN || '').trim();
+    let targetRequest = request;
+    if (isApiHost && isApiPath && backendOrigin) {
+      const target = new URL(backendOrigin.replace(/\/+$/, ''));
+      const fwd = new URL(request.url);
+      fwd.protocol = target.protocol;
+      fwd.host = target.host;
+      const init = {
+        method: request.method,
+        headers: request.headers,
+        body: request.body,
+        redirect: 'follow'
+      };
+      targetRequest = new Request(fwd.toString(), init);
+    }
+
+    const response = await fetch(targetRequest);
     if (response.status === 101) {
       return response;
     }
