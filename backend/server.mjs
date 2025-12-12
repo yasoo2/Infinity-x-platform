@@ -369,11 +369,15 @@ async function startServer({ dependencyInitializer = setupDependencies, exit = p
     // AI Providers: lightweight runtime management (OpenAI/Gemini)
     app.get('/api/v1/ai/providers', (_req, res) => {
       try {
+        const hasOpenAI = !!process.env.OPENAI_API_KEY;
+        const hasGemini = !!process.env.GEMINI_API_KEY;
+        const activeProvider = hasOpenAI ? 'openai' : (hasGemini ? 'gemini' : null);
+        const activeModel = activeProvider === 'openai' ? 'gpt-4o' : (activeProvider === 'gemini' ? 'gemini-1.5-pro-latest' : null);
         const providers = [
-          { name: 'openai', active: !!process.env.OPENAI_API_KEY },
-          { name: 'gemini', active: !!process.env.GEMINI_API_KEY },
+          { name: 'openai', active: hasOpenAI },
+          { name: 'gemini', active: hasGemini },
         ];
-        res.json({ success: true, providers });
+        res.json({ success: true, providers, activeProvider, activeModel });
       } catch (e) {
         res.status(500).json({ success: false, error: 'AI_PROVIDERS_FAILED', message: e?.message || String(e) });
       }
