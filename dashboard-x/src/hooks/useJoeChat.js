@@ -1239,13 +1239,13 @@ export const useJoeChat = () => {
         
         const isProdHost = (typeof window !== 'undefined') && (/xelitesolutions\.com$/.test(String(window.location.hostname || '')));
         if (isProdHost) {
-          // على الإنتاج: نتجنب الاتصالات الفورية كليًا ونستخدم REST فقط          isConnectingRef.current = false;
+          isConnectingRef.current = false;
           try { localStorage.setItem('joeTransport', 'rest'); } catch { /* noop */ }
-r//// return;
+          return;
         }
 
         const pathPref = '/socket.io';
-   //      const initialTransports = isProdHost ? ['polling'] : ['polling','websocket'];
+        const initialTransports = isProdHost ? ['polling'] : ['polling','websocket'];
         const socket = io(sioUrl, {
           auth: { token: sessionToken },
           path: pathPref,
