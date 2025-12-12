@@ -991,6 +991,16 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                   const whitelistHosts = ['placekitten.com','picsum.photos','images.unsplash.com'];
                   const hostImgs = rawUrlsAll.filter(u => { try { const h = new URL(u).hostname; return whitelistHosts.includes(h); } catch { return false; } });
                   const imageUrls = Array.from(new Set([...extImgs, ...mdBangBacktick, ...mdImage, ...bangPlain, ...hostImgs]));
+                  const allowedHosts = new Set(['placekitten.com','picsum.photos','images.unsplash.com']);
+                  const filteredImageUrls = imageUrls.filter(u => {
+                    try {
+                      const h = new URL(u).hostname.toLowerCase();
+                      const hasExt = /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(u);
+                      return hasExt || allowedHosts.has(h);
+                    } catch {
+                      return false;
+                    }
+                  });
                   const rawVideoAll = rawUrlsAll;
                   const extVideos = rawVideoAll.filter(u => /\.(mp4|webm|ogg)(\?|$)/i.test(u));
                   const mdVideo = Array.from(t.matchAll(/!video\[[^\]]*\]\((https?:\/\/[^)]+)\)/gi)).map(m => m[1]);
@@ -1043,9 +1053,9 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                           );
                         })
                       ))}
-                      {imageUrls.length > 0 && (
+                      {filteredImageUrls.length > 0 && (
                         <div className="mt-3 flex flex-wrap gap-3">
-                          {imageUrls.slice(0, 4).map((src, i) => (
+                          {filteredImageUrls.slice(0, 4).map((src, i) => (
                             <div key={`img-${i}`} className="block">
                               <SmartImage src={src} alt="image" />
                             </div>
