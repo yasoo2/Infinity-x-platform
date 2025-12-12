@@ -571,8 +571,12 @@ const AIMenuButton = ({ runtimeMode }) => {
       const data = await getAIProviders({ signal: controller.signal });
       const allowedMap = Object.fromEntries(DEFAULT_AI_PROVIDERS.map(p => [p.id, p]));
       const list = (data.providers || [])
-        .map(p => ({ ...allowedMap[p.id], ...p }))
-        .filter(p => !!allowedMap[p.id]);
+        .map(p => {
+          const pid = p.id || p.name;
+          const base = allowedMap[pid];
+          return base ? { ...base, ...p, id: pid } : null;
+        })
+        .filter(Boolean);
       setProviders(list);
       setActive({ provider: data.activeProvider, model: data.activeModel });
     } catch (err) {
@@ -631,7 +635,7 @@ const AIMenuButton = ({ runtimeMode }) => {
   const handleActivate = async (id) => {
     try {
       setLoading(true);
-      await activateAIProvider(id);
+      await activateAIProvider(id, keys[id]);
       setActive({ provider: id, model: null });
       try { localStorage.removeItem('aiSelectedModel'); } catch { void 0; }
       setActivationError(e => ({ ...e, [id]: '' }));

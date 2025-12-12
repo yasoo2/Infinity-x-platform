@@ -134,8 +134,8 @@ export const getAIProviders = (opts) =>
 export const validateAIKey = (provider, apiKey, opts) =>
     call(() => apiClient.post(v1('/ai/validate'), { provider, apiKey }, { signal: opts?.signal, timeout: 45000, _noRedirect401: true }));
 
-export const activateAIProvider = (provider, opts) =>
-    call(() => apiClient.post(v1('/ai/activate'), { provider }, { signal: opts?.signal, timeout: 30000, _noRedirect401: true }));
+export const activateAIProvider = (provider, apiKey, opts) =>
+    call(() => apiClient.post(v1('/ai/activate'), { provider, apiKey }, { signal: opts?.signal, timeout: 30000, _noRedirect401: true }));
 
 export const getChatSessions = async (opts) => {
   try {
