@@ -1,18 +1,6 @@
 import React from 'react';
 import { FiMaximize2, FiLogOut, FiUsers, FiTerminal } from 'react-icons/fi';
-import { Sparkles, Key, ExternalLink, Search as SearchIcon } from 'lucide-react';
-import { getAIProviders, validateAIKey, activateAIProvider } from '../../api/system';
 import apiClient from '../../api/client';
-
-const DEFAULT_AI_PROVIDERS = [
-  { id: 'openai', name: 'OpenAI', siteUrl: 'https://openai.com', createUrl: 'https://platform.openai.com/api-keys', defaultModel: 'gpt-4o', color: '#10a37f', icon: '🟢', region: 'global', logo: 'https://logo.clearbit.com/openai.com' },
-  { id: 'gemini', name: 'Google Gemini', siteUrl: 'https://ai.google.dev', createUrl: 'https://aistudio.google.com/app/apikey', defaultModel: 'gemini-1.5-pro-latest', color: '#7c3aed', icon: '🔷', region: 'global', logo: 'https://logo.clearbit.com/google.com' },
-  { id: 'anthropic', name: 'Anthropic Claude', siteUrl: 'https://www.anthropic.com', createUrl: 'https://console.anthropic.com/account/keys', defaultModel: 'claude-3-5-sonnet-latest', color: '#f59e0b', icon: '🟡', region: 'global', logo: 'https://logo.clearbit.com/anthropic.com' },
-  { id: 'mistral', name: 'Mistral AI', siteUrl: 'https://mistral.ai', createUrl: 'https://console.mistral.ai/api-keys/', defaultModel: 'mistral-large-latest', color: '#2563eb', icon: '🔵', region: 'global', logo: 'https://logo.clearbit.com/mistral.ai' },
-  { id: 'cohere', name: 'Cohere', siteUrl: 'https://cohere.com', createUrl: 'https://dashboard.cohere.com/api-keys', defaultModel: 'command-r-plus', color: '#ef4444', icon: '🔴', region: 'global', logo: 'https://logo.clearbit.com/cohere.com' },
-  { id: 'groq', name: 'Groq', siteUrl: 'https://groq.com', createUrl: 'https://console.groq.com/keys', defaultModel: 'llama3-70b-8192', color: '#dc2626', icon: '⚡', region: 'global', logo: 'https://logo.clearbit.com/groq.com' },
-  { id: 'openrouter', name: 'OpenRouter', siteUrl: 'https://openrouter.ai', createUrl: 'https://openrouter.ai/settings/keys', defaultModel: 'openrouter/auto', color: '#84cc16', icon: '🔀', region: 'global', logo: 'https://logo.clearbit.com/openrouter.ai' },
-];
 
 import PropTypes from 'prop-types';
 import { useSessionToken } from '../../hooks/useSessionToken';
@@ -50,54 +38,22 @@ const TopBar = ({ onToggleBorderSettings, isBorderSettingsOpen, isSuperAdmin, on
   React.useEffect(() => {
     (async () => {
       try {
-        const keysRaw = localStorage.getItem('aiProviderKeys') || '{}';
-        const keys = JSON.parse(keysRaw);
-        const { data } = await apiClient.get('/api/v1/ai/providers', { _noRedirect401: true });
-        const active = data?.activeProvider || (Array.isArray(data?.providers) && data.providers.find(p=>p.active)?.name) || null;
-        const model = data?.activeModel || '';
-        if (active) {
-          setProviderName(String(active));
-          if (model) setProviderModel(String(model));
-        }
-        if (!active) {
-          const openKey = keys['openai'];
-          const gemKey = keys['gemini'];
-          if (openKey) {
-            try {
-              await apiClient.post('/api/v1/ai/validate', { provider: 'openai', apiKey: openKey }, { _noRedirect401: true });
-              await apiClient.post('/api/v1/ai/activate', { provider: 'openai', apiKey: openKey }, { _noRedirect401: true });
-              setAiInactive(false);
-              setRuntimeMode('online');
-              setProviderName('openai');
-              setProviderModel('gpt-4o');
-              return;
-            } catch { /* noop */ }
-          }
-          if (!openKey && gemKey) {
-            try {
-              await apiClient.post('/api/v1/ai/validate', { provider: 'gemini', apiKey: gemKey }, { _noRedirect401: true });
-              await apiClient.post('/api/v1/ai/activate', { provider: 'gemini', apiKey: gemKey }, { _noRedirect401: true });
-              setAiInactive(false);
-              setRuntimeMode('online');
-              setProviderName('gemini');
-              setProviderModel('gemini-1.5-pro-latest');
-              return;
-            } catch { /* noop */ }
-          }
-          setAiInactive(true);
-        } else {
-          setAiInactive(false);
-        }
+        const { data } = await apiClient.post('/api/v1/ai/activate', { provider: 'openai' }, { _noRedirect401: true });
+        const active = data?.activeProvider || 'openai';
+        const model = data?.activeModel || 'gpt-4o';
+        setProviderName(String(active));
+        setProviderModel(String(model));
+        setAiInactive(false);
+        setRuntimeMode('online');
       } catch {
-        setAiInactive(true);
+        setAiInactive(false);
+        setProviderName('openai');
+        setProviderModel('gpt-4o');
+        setRuntimeMode('online');
       }
     })();
   }, []);
-  React.useEffect(() => {
-    if (aiInactive) {
-      try { setTimeout(() => window.dispatchEvent(new CustomEvent('joe:openProviders', { detail: { provider: 'openai' } })), 300); } catch { /* noop */ }
-    }
-  }, [aiInactive]);
+  
   React.useEffect(() => {
     const onOffline = () => { setNetOffline(true); };
     const onOnline = () => { setNetOffline(false); };
@@ -394,25 +350,14 @@ const TopBar = ({ onToggleBorderSettings, isBorderSettingsOpen, isSuperAdmin, on
             {lang==='ar' ? 'فشل الاتصال بالخادم. تأكد من تشغيل الباكند أو إعدادات الـ API.' : 'Connection to server failed. Check backend or API settings.'}
           </div>
         )}
-        {aiInactive && (
-          <button
-            type="button"
-            onClick={() => { try { window.dispatchEvent(new CustomEvent('joe:openProviders', { detail: { provider: 'openai' } })); } catch { /* noop */ } }}
-            className="absolute right-3 top-1 text-[11px] px-3 py-1 rounded bg-yellow-600 text-black border border-yellow-700"
-            title={lang==='ar'?'تفعيل مزود الذكاء':'Activate AI Provider'}
-          >
-            {lang==='ar' ? 'الذكاء غير مُفعل - اضغط للتفعيل' : 'AI not active - Click to activate'}
-          </button>
-        )}
+        
         {!aiInactive && providerName && (
           <div className="absolute right-3 top-1 text-[11px] px-3 py-1 rounded bg-green-600 text-black border border-green-700" title={lang==='ar'?'مزود نشط':'Active Provider'}>
             {(lang==='ar' ? 'مزود: ' : 'Provider: ') + providerName + (providerModel ? ` • ${providerModel}` : '')}
           </div>
         )}
       <div className="flex items-center gap-1.5">
-        {/* Providers Button Only */}
-        {/* Providers Button */}
-        <AIMenuButton runtimeMode={runtimeMode} />
+        
         <button
           type="button"
           className={`p-1.5 px-2 h-7 inline-flex items-center justify-center rounded-lg transition-colors border bg-gray-800 text-yellow-400 hover:bg-gray-700 border-yellow-600/40`}
