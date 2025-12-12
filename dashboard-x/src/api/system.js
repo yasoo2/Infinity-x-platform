@@ -207,7 +207,7 @@ export const executeJoe = async (instruction, ctx, opts) => {
     return data;
   } catch (e) {
     const status = e?.status ?? e?.response?.status;
-    if (status === 405) {
+    if (status === 405 || status === 404) {
       const params = new URLSearchParams();
       params.set('instruction', instruction);
       if (payload.lang) params.set('lang', String(payload.lang));
