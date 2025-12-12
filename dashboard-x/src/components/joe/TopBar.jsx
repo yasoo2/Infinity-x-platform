@@ -37,6 +37,8 @@ const TopBar = ({ onToggleBorderSettings, isBorderSettingsOpen, isSuperAdmin, on
   const [runtimeMode, setRuntimeMode] = React.useState('online');
   const [netOffline, setNetOffline] = React.useState(false);
   const [aiInactive, setAiInactive] = React.useState(false);
+  const [providerName, setProviderName] = React.useState('');
+  const [providerModel, setProviderModel] = React.useState('');
   
   React.useEffect(() => {
     const onLang = () => {
@@ -52,6 +54,11 @@ const TopBar = ({ onToggleBorderSettings, isBorderSettingsOpen, isSuperAdmin, on
         const keys = JSON.parse(keysRaw);
         const { data } = await apiClient.get('/api/v1/ai/providers', { _noRedirect401: true });
         const active = data?.activeProvider || (Array.isArray(data?.providers) && data.providers.find(p=>p.active)?.name) || null;
+        const model = data?.activeModel || '';
+        if (active) {
+          setProviderName(String(active));
+          if (model) setProviderModel(String(model));
+        }
         if (!active) {
           const openKey = keys['openai'];
           const gemKey = keys['gemini'];
@@ -61,6 +68,8 @@ const TopBar = ({ onToggleBorderSettings, isBorderSettingsOpen, isSuperAdmin, on
               await apiClient.post('/api/v1/ai/activate', { provider: 'openai', apiKey: openKey }, { _noRedirect401: true });
               setAiInactive(false);
               setRuntimeMode('online');
+              setProviderName('openai');
+              setProviderModel('gpt-4o');
               return;
             } catch { /* noop */ }
           }
@@ -70,6 +79,8 @@ const TopBar = ({ onToggleBorderSettings, isBorderSettingsOpen, isSuperAdmin, on
               await apiClient.post('/api/v1/ai/activate', { provider: 'gemini', apiKey: gemKey }, { _noRedirect401: true });
               setAiInactive(false);
               setRuntimeMode('online');
+              setProviderName('gemini');
+              setProviderModel('gemini-1.5-pro-latest');
               return;
             } catch { /* noop */ }
           }
@@ -82,6 +93,11 @@ const TopBar = ({ onToggleBorderSettings, isBorderSettingsOpen, isSuperAdmin, on
       }
     })();
   }, []);
+  React.useEffect(() => {
+    if (aiInactive) {
+      try { setTimeout(() => window.dispatchEvent(new CustomEvent('joe:openProviders', { detail: { provider: 'openai' } })), 300); } catch { /* noop */ }
+    }
+  }, [aiInactive]);
   React.useEffect(() => {
     const onOffline = () => { setNetOffline(true); };
     const onOnline = () => { setNetOffline(false); };
@@ -387,6 +403,11 @@ const TopBar = ({ onToggleBorderSettings, isBorderSettingsOpen, isSuperAdmin, on
           >
             {lang==='ar' ? 'الذكاء غير مُفعل - اضغط للتفعيل' : 'AI not active - Click to activate'}
           </button>
+        )}
+        {!aiInactive && providerName && (
+          <div className="absolute right-3 top-1 text-[11px] px-3 py-1 rounded bg-green-600 text-black border border-green-700" title={lang==='ar'?'مزود نشط':'Active Provider'}>
+            {(lang==='ar' ? 'مزود: ' : 'Provider: ') + providerName + (providerModel ? ` • ${providerModel}` : '')}
+          </div>
         )}
       <div className="flex items-center gap-1.5">
         {/* Providers Button Only */}
