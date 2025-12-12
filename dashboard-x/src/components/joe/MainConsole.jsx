@@ -1267,6 +1267,14 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                 <FiImage size={14} />
               </button>
               <button
+                onClick={() => { try { setInput(lang==='ar' ? 'صمم صورة شعار بسيطة أنيقة باللونين الذهبي والأسود باسم AURA على خلفية داكنة بدقة 1024 ثم احفظها وانشر الرابط هنا.' : 'Design a simple elegant logo image in gold and black named AURA on a dark background, 1024px, then save it and post the link here.'); okPulse('genimg','success'); handleSend(); } catch { /* noop */ } }}
+                className="px-2 py-1 text-[12px] rounded-lg bg-yellow-600 hover:bg-yellow-700 text-black border border-yellow-600"
+                disabled={isProcessing}
+                title={lang==='ar'?'صمم صورة':'Generate Image'}
+              >
+                {lang==='ar' ? 'صمم صورة' : 'Generate Image'}
+              </button>
+              <button
                 onClick={() => { okPulse('builder','toggle'); setShowBuilder(v => !v); }}
                 className="p-2 text-gray-400 hover:text-yellow-400 hover:bg-gray-700 rounded-lg transition-colors border border-gray-700"
                 disabled={isProcessing}
