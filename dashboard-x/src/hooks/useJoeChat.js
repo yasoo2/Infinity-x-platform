@@ -1256,11 +1256,6 @@ export const useJoeChat = () => {
         sioUrl = `${sioBase}/joe-agent`;
         
         const isProdHost = (typeof window !== 'undefined') && (/xelitesolutions\.com$/.test(String(window.location.hostname || '')));
-        if (isProdHost) {
-          isConnectingRef.current = false;
-          try { localStorage.setItem('joeTransport', 'rest'); } catch { /* noop */ }
-          return;
-        }
 
         const pathPref = '/socket.io';
         const initialTransports = isProdHost ? ['polling'] : ['polling','websocket'];
