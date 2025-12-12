@@ -351,11 +351,7 @@ const TopBar = ({ onToggleBorderSettings, isBorderSettingsOpen, isSuperAdmin, on
           </div>
         )}
         
-        {!aiInactive && providerName && (
-          <div className="absolute right-3 top-1 text-[11px] px-3 py-1 rounded bg-green-600 text-black border border-green-700" title={lang==='ar'?'مزود نشط':'Active Provider'}>
-            {(lang==='ar' ? 'مزود: ' : 'Provider: ') + providerName + (providerModel ? ` • ${providerModel}` : '')}
-          </div>
-        )}
+        
       <div className="flex items-center gap-1.5">
         
         <button
