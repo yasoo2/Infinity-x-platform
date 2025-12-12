@@ -137,11 +137,31 @@ export const validateAIKey = (provider, apiKey, opts) =>
 export const activateAIProvider = (provider, opts) =>
     call(() => apiClient.post(v1('/ai/activate'), { provider }, { signal: opts?.signal, timeout: 30000, _noRedirect401: true }));
 
-export const getChatSessions = (opts) =>
-  call(() => apiClient.get(chatHistory('/sessions'), { signal: opts?.signal, _noRedirect401: true }));
+export const getChatSessions = async (opts) => {
+  try {
+    const { data } = await apiClient.get(chatHistory('/sessions'), { signal: opts?.signal, _noRedirect401: true });
+    return data;
+  } catch (e) {
+    const status = e?.status ?? e?.response?.status;
+    if (status === 404 || String(e?.details?.error || e?.code || '').toUpperCase() === 'NOT_FOUND') {
+      return { success: true, sessions: [] };
+    }
+    throw e;
+  }
+};
 
-export const getChatSessionById = (id, opts) =>
-  call(() => apiClient.get(chatHistory(`/sessions/${id}`), { signal: opts?.signal, _noRedirect401: true }));
+export const getChatSessionById = async (id, opts) => {
+  try {
+    const { data } = await apiClient.get(chatHistory(`/sessions/${id}`), { signal: opts?.signal, _noRedirect401: true });
+    return data;
+  } catch (e) {
+    const status = e?.status ?? e?.response?.status;
+    if (status === 404 || String(e?.details?.error || e?.code || '').toUpperCase() === 'NOT_FOUND') {
+      return { success: false, session: null, messages: [] };
+    }
+    throw e;
+  }
+};
 
 export const deleteChatSession = (id, opts) =>
   call(() => apiClient.delete(chatHistory(`/sessions/${id}`), { signal: opts?.signal, timeout: opts?.timeout ?? 12000, _noRedirect401: true }));
