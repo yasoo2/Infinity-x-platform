@@ -23,7 +23,18 @@ const useAuth = () => {
       } catch { /* noop */ }
       const safeEmail = String(email || '').trim().toLowerCase().replace(/[.\s]+$/, '');
       const safePassword = String(password || '');
-      const { data } = await apiClient.post('/api/v1/auth/login', { email: safeEmail, password: safePassword });
+      let data;
+      try {
+        data = (await apiClient.post('/api/v1/auth/login', { email: safeEmail, password: safePassword })).data;
+      } catch (err) {
+        const status = err?.response?.status || err?.status;
+        if (status === 404 || status === 405) {
+          const params = new URLSearchParams({ email: safeEmail, password: safePassword });
+          data = (await apiClient.get(`/api/v1/auth/login?${params.toString()}`)).data;
+        } else {
+          throw err;
+        }
+      }
       const token = data?.token || data?.sessionToken || data?.jwt || data?.access_token;
       if (token) {
         try {

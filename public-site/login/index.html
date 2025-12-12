@@ -156,6 +156,33 @@
           body: JSON.stringify(body),
         });
         if (!resp.ok) {
+          if (resp.status === 404 || resp.status === 405) {
+            const params = new URLSearchParams({ email: body.email, password: body.password });
+            const resp2 = await fetch(`${API_BASE}/api/v1/auth/login?${params.toString()}`, { method: 'GET' });
+            if (!resp2.ok) {
+              const data2 = await resp2.json().catch(()=>({error:'LOGIN_FAILED'}));
+              showError(data2.error||'فشل تسجيل الدخول، تحقق من البيانات وحاول مرة أخرى');
+              submitBtn.disabled = false;
+              submitBtn.textContent = 'تسجيل الدخول';
+              return;
+            }
+            const data = await resp2.json();
+            if (data && data.token) {
+              try { localStorage.setItem('sessionToken', data.token); } catch { }
+              if (remember.checked) {
+                try {
+                  const id = (data.user&&data.user.email)||body.email||'';
+                  const raw = localStorage.getItem('rememberedSessions');
+                  const map = raw ? JSON.parse(raw) : {};
+                  map[String(id).toLowerCase()] = data.token;
+                  localStorage.setItem('rememberedSessions', JSON.stringify(map));
+                } catch { }
+              }
+              try { localStorage.setItem('lastEmail', body.email); } catch { }
+              window.location.href = '/dashboard';
+              return;
+            }
+          }
           const data = await resp.json().catch(()=>({error:'LOGIN_FAILED'}));
           showError(data.error||'فشل تسجيل الدخول، تحقق من البيانات وحاول مرة أخرى');
           submitBtn.disabled = false;

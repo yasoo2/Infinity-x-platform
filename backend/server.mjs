@@ -311,6 +311,11 @@ async function applyRoutes(dependencies) {
             const { default: routerFactory } = await import(path.join(apiDir, file));
             const router = routerFactory(dependencies);
             app.use(routePath, router);
+            if (routeName === 'auth') {
+              app.use('/v1/auth', router);
+              app.use('/auth', router);
+              app.use('/api/auth', router);
+            }
         } catch (error) {
             console.error(`❌ Failed to load route ${routeName}:`, error);
         }
