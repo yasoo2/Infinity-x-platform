@@ -35,6 +35,7 @@ const TopBar = ({ onToggleBorderSettings, isBorderSettingsOpen, isSuperAdmin, on
   
   const [version, setVersion] = React.useState('');
   const [runtimeMode, setRuntimeMode] = React.useState('online');
+  const [netOffline, setNetOffline] = React.useState(false);
   
   React.useEffect(() => {
     const onLang = () => {
@@ -42,6 +43,20 @@ const TopBar = ({ onToggleBorderSettings, isBorderSettingsOpen, isSuperAdmin, on
     };
     window.addEventListener('joe:lang', onLang);
     return () => window.removeEventListener('joe:lang', onLang);
+  }, []);
+  React.useEffect(() => {
+    const onOffline = () => { setNetOffline(true); };
+    const onOnline = () => { setNetOffline(false); };
+    try {
+      window.addEventListener('api:offline', onOffline);
+      window.addEventListener('api:online', onOnline);
+    } catch { /* noop */ }
+    return () => {
+      try {
+        window.removeEventListener('api:offline', onOffline);
+        window.removeEventListener('api:online', onOnline);
+      } catch { /* noop */ }
+    };
   }, []);
   const toggleLang = () => {
     const next = lang === 'ar' ? 'en' : 'ar';
@@ -154,7 +169,7 @@ const TopBar = ({ onToggleBorderSettings, isBorderSettingsOpen, isSuperAdmin, on
   const [okKind, setOkKind] = React.useState('success');
   const okPulse = (key, kind = 'success') => { setOkKey(key); setOkKind(kind); setTimeout(() => { setOkKey(null); setOkKind('success'); }, 800); };
   return (
-    <div className="bg-gray-900 h-14 flex-shrink-0 flex items-center justify-between px-6 border-b border-gray-800">
+    <div className="bg-gray-900 h-14 flex-shrink-0 flex items-center justify-between px-6 border-b border-gray-800 relative">
       {/* Left: Title */}
       <div className="flex items-center">
         <style>{`
@@ -320,6 +335,11 @@ const TopBar = ({ onToggleBorderSettings, isBorderSettingsOpen, isSuperAdmin, on
         </div>
 
         {/* Right: Control Buttons */}
+        {netOffline && (
+          <div className="absolute left-0 top-0 w-full text-center text-xs bg-red-600 text-white py-1">
+            {lang==='ar' ? 'فشل الاتصال بالخادم. تأكد من تشغيل الباكند أو إعدادات الـ API.' : 'Connection to server failed. Check backend or API settings.'}
+          </div>
+        )}
       <div className="flex items-center gap-1.5">
         {/* Providers Button Only */}
         {/* Providers Button */}
