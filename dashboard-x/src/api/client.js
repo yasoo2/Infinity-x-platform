@@ -375,3 +375,12 @@
       throw err;
     }
   }
+
+  export function setApiBaseUrl(next) {
+    try {
+      const base = String(next || '').replace(/\/+$/, '');
+      apiClient.defaults.baseURL = base;
+      try { localStorage.setItem('apiBaseUrl', base); } catch { /* noop */ }
+      try { window.dispatchEvent(new CustomEvent('api:baseurl:reset')); window.dispatchEvent(new CustomEvent('api:online')); } catch { /* noop */ }
+    } catch { /* noop */ }
+  }

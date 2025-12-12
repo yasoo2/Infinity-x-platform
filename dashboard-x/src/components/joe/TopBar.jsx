@@ -361,6 +361,17 @@ const TopBar = ({ onToggleBorderSettings, isBorderSettingsOpen, isSuperAdmin, on
         >
           <span className="text-[11px] font-semibold">{`V${version || '...'}`}</span>
         </button>
+
+        <div className="relative inline-flex items-center">
+          <button
+            onClick={() => { okPulse('api','toggle'); setUserMenuOpen(false); setApiOpen(v=>!v); setApiUrl(() => { try { return (typeof apiClient?.defaults?.baseURL === 'string') ? apiClient.defaults.baseURL : (localStorage.getItem('apiBaseUrl')||''); } catch { return ''; } }); }}
+            className={`p-1.5 px-2 h-7 inline-flex items-center justify-center rounded-lg transition-colors border bg-gray-800 text-gray-300 hover:bg-gray-700 border-yellow-600/40`}
+            title={lang==='ar'?'إعداد الـ API':'API Base'}
+          >
+            <span className="text-[11px] font-semibold">API</span>
+          </button>
+          {okKey==='api' && (<span className={`absolute -top-1 -right-1 text-[10px] px-1 py-0.5 rounded-full ${okKind==='toggle' ? 'bg-yellow-500 border-yellow-400' : 'bg-green-600 border-green-500'} text-black shadow-sm`}>✓</span>)}
+        </div>
         
 
 
@@ -419,6 +430,17 @@ const TopBar = ({ onToggleBorderSettings, isBorderSettingsOpen, isSuperAdmin, on
                 </button>
               </div>
             )}
+          </div>
+        )}
+
+        {apiOpen && (
+          <div className="absolute right-3 top-12 z-50 w-80 bg-gray-900 border border-yellow-600/40 rounded-lg shadow-xl p-3">
+            <div className="text-xs text-gray-300 mb-2">{lang==='ar'?'قاعدة واجهة البرمجة (API Base)':'API Base URL'}</div>
+            <input value={apiUrl} onChange={(e)=>setApiUrl(e.target.value)} className="w-full px-2 py-1.5 rounded bg-[#0e1524] border border-yellow-600/30 text-white text-xs" placeholder={lang==='ar'?'https://api.example.com':'https://api.example.com'}/>
+            <div className="flex justify-end gap-2 mt-2">
+              <button onClick={()=>setApiOpen(false)} className="px-2 py-1 text-xs rounded bg-gray-700 text-gray-200 hover:bg-gray-600">{lang==='ar'?'إلغاء':'Cancel'}</button>
+              <button onClick={()=>{ try { const u = String(apiUrl||'').trim(); if (u) { try { localStorage.setItem('apiBaseUrl', u); } catch { /* noop */ } try { import('../../api/client').then(m=>{ try { m.setApiBaseUrl?.(u); } catch { /* noop */ } }); } catch { /* noop */ } okPulse('api','success'); setApiOpen(false); } } catch { /* noop */ } }} className="px-2 py-1 text-xs rounded bg-yellow-600 text-black hover:bg-yellow-700">{lang==='ar'?'حفظ':'Save'}</button>
+            </div>
           </div>
         )}
 
