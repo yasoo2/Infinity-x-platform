@@ -18,21 +18,23 @@ const useAuth = () => {
   const login = async (email, password, remember = false) => {
     try {
       try {
-        const offline = localStorage.getItem('apiOffline') === '1';
-        if (offline) return false;
+        const host = typeof window !== 'undefined' ? String(window.location.hostname || '') : '';
+        if (/xelitesolutions\.com$/i.test(host)) { try { localStorage.removeItem('apiOffline'); } catch { /* noop */ } }
       } catch { /* noop */ }
-      const { data } = await apiClient.post('/api/v1/auth/login', { email, password });
+      const safeEmail = String(email || '').trim().toLowerCase().replace(/[.\s]+$/, '');
+      const safePassword = String(password || '');
+      const { data } = await apiClient.post('/api/v1/auth/login', { email: safeEmail, password: safePassword });
       const token = data?.token || data?.sessionToken || data?.jwt || data?.access_token;
       if (token) {
         try {
           localStorage.setItem('sessionToken', token);
         } catch { void 0; }
-        const usr = { email: data.user?.email, role: data.user?.role, id: data.user?.id };
+        const usr = { email: data.user?.email || safeEmail, role: data.user?.role, id: data.user?.id };
         setUser(usr);
         setIsAuthenticated(true);
         if (remember) {
           try {
-            const identifier = usr.email || email || usr.id || '';
+            const identifier = usr.email || safeEmail || usr.id || '';
             const mapRaw = localStorage.getItem('rememberedSessions');
             const map = mapRaw ? JSON.parse(mapRaw) : {};
             map[String(identifier).toLowerCase()] = token;

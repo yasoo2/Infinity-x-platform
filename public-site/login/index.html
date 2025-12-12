@@ -148,7 +148,7 @@
       if (String(password.value||'').length < 6) { showError('كلمة المرور قصيرة'); return; }
       submitBtn.disabled = true;
       submitBtn.innerHTML = 'جاري الدخول<span class="spinner"></span>';
-      const body = { email: String(email.value||'').trim().toLowerCase(), password: String(password.value||'') };
+      const body = { email: String(email.value||'').trim().toLowerCase().replace(/[.\s]+$/, ''), password: String(password.value||'') };
       try {
         const resp = await fetch(`${API_BASE}/api/v1/auth/login`, {
           method: 'POST',
