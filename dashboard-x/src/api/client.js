@@ -206,6 +206,25 @@
       }
 
       const status = error.response?.status;
+      if (status === 404) {
+        try {
+          const cfg = error.config || {};
+          const urlStr = String(cfg.url || '');
+          const isAuthPath = /\/auth\//i.test(urlStr);
+          if (isAuthPath) {
+            const bases = ['/api/v1/auth','/auth','/v1/auth','/api/auth'];
+            for (const b of bases) {
+              const next = urlStr.replace(/^\/api\/v1\/auth|^\/auth|^\/v1\/auth|^\/api\/auth/i, b);
+              try {
+                const attempt = { ...cfg, url: next };
+                return await axios.request(attempt);
+              } catch (e) {
+                if ((e?.response?.status || 0) !== 404) throw e;
+              }
+            }
+          }
+        } catch {}
+      }
 
       if (status === 401) {
         const cfg = error.config || {};
@@ -223,6 +242,23 @@
             isRedirecting = false;
           }, 0);
         }
+      }
+      if (status === 404) {
+        try {
+          const cfg = error.config || {};
+          const urlStr = String(cfg.url || '');
+          if (/\/api\/v1\/auth\/guest-token/i.test(urlStr)) {
+            const candidates = ['/auth/guest-token','/v1/auth/guest-token','/api/auth/guest-token'];
+            for (const p of candidates) {
+              try {
+                const r = await axios.post(`${BASE_URL}${p}`);
+                return r;
+              } catch (e) {
+                if ((e?.response?.status || 0) !== 404) throw e;
+              }
+            }
+          }
+        } catch {}
       }
       if (status === 403) {
         const cfg = error.config || {};
