@@ -207,30 +207,19 @@ const LoginForm = () => {
               )}
             </div>
             
-            {/* Remember Me & Forgot Password */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="h-4 w-4 text-blue-600 bg-white/10 border-white/20 rounded focus:ring-blue-500"
-                  disabled={isLoading}
-                />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-300">
-                  Remember me
-                </label>
-              </div>
-              
-              <button
-                type="button"
-                onClick={() => navigate('/forgot-password')}
-                className="text-sm text-blue-400 hover:text-blue-300 transition-colors duration-200"
+            {/* Remember Me */}
+            <div className="flex items-center">
+              <input
+                id="remember-me"
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="h-4 w-4 text-blue-600 bg-white/10 border-white/20 rounded focus:ring-blue-500"
                 disabled={isLoading}
-              >
-                Forgot password?
-              </button>
+              />
+              <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-300">
+                Remember me
+              </label>
             </div>
             
             {/* Error/Success Messages */}
@@ -304,19 +293,7 @@ const LoginForm = () => {
             )}
           </div>
           
-          {/* Sign Up Link */}
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-300">
-              Don't have an account?{' '}
-              <button
-                type="button"
-                onClick={() => navigate('/signup')}
-                className="text-blue-400 hover:text-blue-300 font-medium transition-colors duration-200"
-              >
-                Sign up here
-              </button>
-            </p>
-          </div>
+          {/* Simplified footer without signup */}
         </div>
         
         {/* Footer */}

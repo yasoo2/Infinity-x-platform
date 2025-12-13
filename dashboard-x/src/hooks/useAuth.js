@@ -176,10 +176,9 @@ export function useAuth() {
                 
                 const storedUser = getToken(TOKEN_KEYS.USER_DATA);
                 const accessToken = getToken(TOKEN_KEYS.ACCESS_TOKEN);
-                const sessionToken = getToken(TOKEN_KEYS.SESSION_TOKEN);
                 const rememberMe = localStorage.getItem(TOKEN_KEYS.REMEMBER_ME) === 'true';
                 
-                if (!storedUser && !accessToken && !sessionToken) {
+                if (!storedUser && !accessToken) {
                     setLoading(false);
                     return;
                 }
@@ -192,12 +191,8 @@ export function useAuth() {
                         setIsAuthenticated(true);
                     } catch (error) {
                         console.warn('Token validation failed:', error);
-                        // Try to refresh token
-                        await refreshAccessToken();
+                        clearAllTokens();
                     }
-                } else if (sessionToken) {
-                    // Try session-based login
-                    await loginWithSession(sessionToken);
                 } else if (storedUser) {
                     // Fallback to stored user data
                     setUser(JSON.parse(storedUser));
@@ -268,12 +263,7 @@ export function useAuth() {
                 '/api/v1/auth/simple-login',
                 '/api/auth/simple-login',
                 '/v1/auth/simple-login',
-                '/auth/simple-login',
-                // legacy fallback
-                '/api/v1/auth/login',
-                '/api/auth/login',
-                '/v1/auth/login',
-                '/auth/login'
+                '/auth/simple-login'
             ];
             
             for (const endpoint of endpoints) {
@@ -572,19 +562,11 @@ export function useAuth() {
         error,
         isAuthenticated,
         login,
-        loginWithSession,
-        listRemembered,
-        loginWithRemembered,
-        removeRemembered,
-        register,
         logout,
-        requestPasswordReset,
-        resetPassword,
         updateProfile,
         hasRole,
         hasAnyRole,
         updateApiBaseUrl,
-        refreshAccessToken,
         validateToken
     }), [
         user,
@@ -592,19 +574,11 @@ export function useAuth() {
         error,
         isAuthenticated,
         login,
-        loginWithSession,
-        listRemembered,
-        loginWithRemembered,
-        removeRemembered,
-        register,
         logout,
-        requestPasswordReset,
-        resetPassword,
         updateProfile,
         hasRole,
         hasAnyRole,
         updateApiBaseUrl,
-        refreshAccessToken,
         validateToken
     ]);
 
