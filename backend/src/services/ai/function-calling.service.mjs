@@ -8,12 +8,8 @@ import { getDB } from '../../core/database.mjs';
 import GrokTool from '../../../joengine-agi/tools/GrokTool.mjs'; // Correct path to the class
 import { SmartPageBuilder } from '../../../joengine-agi/engines/SmartPageBuilder.mjs'; // Correct path to the class
 
-// --- REFACTORED TOOL IMPORTS ---
-// These are direct imports of functions/objects from their actual locations.
-import * as githubTools from '../../tools_refactored/githubTools.mjs';
-import * as deploymentTools from '../../tools_refactored/deployment.tool.mjs';
-import * as databaseTools from '../../tools_refactored/mongodbTools.mjs';
-import * as memoryTools from '../../tools_refactored/memoryTools.mjs';
+// --- TOOL MANAGER (single source of truth) ---
+import toolManager from '../../services/tools/tool-manager.service.mjs';
 
 // --- TOOL INSTANTIATION ---
 const config = {
@@ -61,6 +57,8 @@ class FunctionCallingManager {
         this.stats.totalCalls++;
 
         try {
+            // Ensure tools are loaded once
+            await toolManager.initialize();
             const cacheKey = `${functionName}:${JSON.stringify(args)}`;
             if (options.useCache !== false) {
                 const cached = this.getCachedResult(cacheKey);
@@ -70,56 +68,9 @@ class FunctionCallingManager {
                 }
             }
 
-            let result;
-            // --- CORRECTED TOOL EXECUTION ROUTING ---
-            switch (functionName) {
-                // GitHub Tools (from githubTools.mjs)
-                case 'github_create_repo':
-                    result = await githubTools.createRepo(args.repoName, args.description, args.isPrivate);
-                    break;
-                case 'github_commit_and_push':
-                    // Assuming the function is named commitAndPush in the file
-                    result = await githubTools.commitAndPush(args.repoPath, args.commitMessage);
-                    break;
-
-                // Grok Tools (from GrokTool.mjs class)
-                case 'grok_refactor_code':
-                    result = await grokTool.refactorCode(args.originalCode, args.command);
-                    break;
-                case 'grok_generate_code':
-                    result = await grokTool.generateCode(args.description, args.codeType);
-                    break;
-
-                // Deploy Tools (from deployment.tool.mjs)
-                case 'deploy_project':
-                     // Assuming the function is named deploy in the file
-                    result = await deploymentTools.deploy(args.path, args.service);
-                    break;
-
-                // Database Tools (from mongodbTools.mjs)
-                case 'database_query':
-                    result = await databaseTools.queryDB(args.collection, args.filter, args.options);
-                    break;
-                case 'database_insert':
-                    result = await databaseTools.insertIntoDB(args.collection, args.document);
-                    break;
-
-                // Memory/VectorDB Tools (from memoryTools.mjs)
-                case 'memory_search':
-                    result = await memoryTools.searchMemory(args.query, args.topK);
-                    break;
-                case 'memory_add':
-                    result = await memoryTools.addMemory(args.text, args.metadata);
-                    break;
-
-                // Smart Page Builder (from SmartPageBuilder.mjs class)
-                case 'build_smart_page':
-                    result = await pageBuilder.buildPageFromDescription(args.description, args.filePath, args.style);
-                    break;
-
-                default:
-                    throw new Error(`Unknown or un-migrated function: ${functionName}`);
-            }
+            // Route all tool calls through ToolManager by function name
+            // Function names must match registered tool metadata names
+            const result = await toolManager.execute(functionName, args);
 
             const executionTime = Date.now() - startTime;
             this.updateExecutionStats(functionName, executionTime, true);
@@ -190,7 +141,12 @@ export function getFunctionStats() {
 }
 
 export function getAvailableTools() {
-    return JOE_TOOLS.map(tool => ({ name: tool.function.name, description: tool.function.description }));
+    try {
+        const schemas = toolManager.getToolSchemas();
+        return schemas.map(t => ({ name: t.function.name, description: t.function.description }));
+    } catch {
+        return JOE_TOOLS.map(tool => ({ name: tool.function.name, description: tool.function.description }));
+    }
 }
 
 export default {
