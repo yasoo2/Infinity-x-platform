@@ -16,7 +16,7 @@ function resolveApiBaseUrl() {
       const u = new URL(String(lsBase));
       const host = u.hostname;
       if (host === 'www.xelitesolutions.com' || host === 'xelitesolutions.com') {
-        base = 'https://api.xelitesolutions.com';
+        base = 'http://localhost:4000';
         try { localStorage.setItem('apiBaseUrl', base); } catch { /* noop */ }
       } else {
         base = lsBase;
@@ -29,7 +29,7 @@ function resolveApiBaseUrl() {
     try {
       const h = window.location.hostname || '';
       if (h === 'www.xelitesolutions.com' || h === 'xelitesolutions.com') {
-        base = 'https://api.xelitesolutions.com';
+        base = 'http://localhost:4000';
       } else if (isLocalHost(h)) {
         base = 'http://localhost:4000';
       }
@@ -41,9 +41,9 @@ function resolveApiBaseUrl() {
   try {
     const u2 = new URL(String(base));
     const host2 = u2.hostname;
-    if (host2 === 'www.xelitesolutions.com' || host2 === 'xelitesolutions.com') {
-      base = 'https://api.xelitesolutions.com';
-    }
+  if (host2 === 'www.xelitesolutions.com' || host2 === 'xelitesolutions.com') {
+    base = 'http://localhost:4000';
+  }
   } catch { /* noop */ }
 
   const sanitized = String(base).replace(/\/+$/, '');

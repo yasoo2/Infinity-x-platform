@@ -268,7 +268,12 @@ export function useAuth() {
                 '/api/v1/auth/simple-login',
                 '/api/auth/simple-login',
                 '/v1/auth/simple-login',
-                '/auth/simple-login'
+                '/auth/simple-login',
+                // legacy fallback
+                '/api/v1/auth/login',
+                '/api/auth/login',
+                '/v1/auth/login',
+                '/auth/login'
             ];
             
             for (const endpoint of endpoints) {
