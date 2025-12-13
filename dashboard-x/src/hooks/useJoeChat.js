@@ -17,6 +17,11 @@ const sanitizeCompetitors = (text) => {
     t = t.replace(/^.*Not supported: in app messages from Iterable.*$/gim, '');
     t = t.replace(/iterable/ig, '');
     t = t.replace(/Understand this error/ig, '');
+    t = t.replace(/^\s*سياق\s*سابق\s*:.*$/gim, '');
+    t = t.replace(/^\s*Previous\s*context\s*:.*$/gim, '');
+    t = t.replace(/^\s*ملخص\s*الجلسة\s*:.*$/gim, '');
+    t = t.replace(/^\s*Session\s*summary\s*:.*$/gim, '');
+    t = t.replace(/^\s*Session\s*memory\s*:.*$/gim, '');
     return t;
   } catch { return String(text || ''); }
 };
@@ -2036,9 +2041,10 @@ export const useJoeChat = () => {
         const headerSum = lang === 'ar' ? 'ملخص الجلسة' : 'Session summary';
         const parts = [];
         const includeSum = (() => { try { return localStorage.getItem('includeSummaryInContext') === '1'; } catch { return false; } })();
+        const includePrev = (() => { try { return localStorage.getItem('includePrevContextInPrompt') === '1'; } catch { return false; } })();
         if (includeSum && convSummaryLong) parts.push(`${(lang==='ar'?'ذاكرة الجلسة':'Session memory')}:\n${convSummaryLong}`);
         if (includeSum && convSummary) parts.push(`${headerSum}:\n${convSummary}`);
-        if (ctxLines) parts.push(`${headerPrev}:\n${ctxLines}`);
+        if (includePrev && ctxLines) parts.push(`${headerPrev}:\n${ctxLines}`);
         const prefix = parts.length ? `${parts.join('\n\n')}\n\n` : '';
         const msgWithContext = `${prefix}${inputText}`;
         const base = keyMatch
@@ -2140,9 +2146,10 @@ export const useJoeChat = () => {
             const headerSum2 = lang === 'ar' ? 'ملخص الجلسة' : 'Session summary';
             const parts2 = [];
             const includeSum2 = (() => { try { return localStorage.getItem('includeSummaryInContext') === '1'; } catch { return false; } })();
+            const includePrev2 = (() => { try { return localStorage.getItem('includePrevContextInPrompt') === '1'; } catch { return false; } })();
             if (includeSum2 && convSummaryLong2) parts2.push(`${(lang==='ar'?'ذاكرة الجلسة':'Session memory')}:\n${convSummaryLong2}`);
             if (includeSum2 && convSummary2) parts2.push(`${headerSum2}:\n${convSummary2}`);
-            if (ctxLines2) parts2.push(`${headerPrev2}:\n${ctxLines2}`);
+            if (includePrev2 && ctxLines2) parts2.push(`${headerPrev2}:\n${ctxLines2}`);
             const prefix2 = parts2.length ? `${parts2.join('\n\n')}\n\n` : '';
             const msgWithContext2 = `${prefix2}${inputText}`;
             const data = await executeJoe(msgWithContext2, ctx2, {});
