@@ -21,36 +21,13 @@ const SuperAdminPanel = React.lazy(() => import('./pages/SuperAdminPanel'));
 const UniversalStoreIntegration = React.lazy(() => import('./pages/UniversalStoreIntegration'));
 const Users = React.lazy(() => import('./pages/Users'));
 
-// Helper component for protected routes using simple auth
-const ProtectedRoute = ({ children, allowedRoles }) => {
-  const { user, loading, isAuthenticated } = useSimpleAuthContext();
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-300">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  // Check role-based access
-  if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/dashboard/overview" replace />;
-  }
-
+// Helper component: now passes through without auth checks
+const ProtectedRoute = ({ children }) => {
   return children;
 };
 
 ProtectedRoute.propTypes = {
   children: PropTypes.node.isRequired,
-  allowedRoles: PropTypes.array,
 };
 
 const SecurityReport = React.lazy(() => import('./pages/SecurityReport'));

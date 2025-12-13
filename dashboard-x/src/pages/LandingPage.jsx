@@ -1,30 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import LoginCard from '../components/auth/LoginCard';
+ 
 import { FiLogIn, FiZap, FiGlobe, FiUsers, FiAward } from 'react-icons/fi';
 import { useSimpleAuthContext } from '../context/SimpleAuthContext';
 
 const LandingPage = () => {
   const navigate = useNavigate();
   const auth = useSimpleAuthContext();
-  const [showLogin, setShowLogin] = useState(false);
-  const [diagRunning, setDiagRunning] = useState(false);
-  const [diagLogs, setDiagLogs] = useState([]);
 
   const handleLoginClick = () => {
-    setShowLogin(true);
-  };
-
-  const handleLoginSuccess = (user) => {
-    try { setShowLogin(false); } catch { /* noop */ }
     navigate('/dashboard/joe');
   };
 
-  const handleLoginError = () => {
-    // keep modal open, error shown inside LoginCard
-  };
+  
 
-  const pushLog = (msg) => setDiagLogs((prev) => [...prev, { ts: Date.now(), msg }].slice(-12));
   const normalizeApiBase = () => {
     let base = localStorage.getItem('apiBaseUrl');
     try {
@@ -38,92 +27,7 @@ const LandingPage = () => {
     } catch { base = '/api/v1'; }
     return String(base).replace(/\/+$/,'');
   };
-  const runAdminDiagnostic = async () => {
-    if (diagRunning) return;
-    setDiagRunning(true); setDiagLogs([]);
-    try {
-      const base = normalizeApiBase();
-      pushLog(`base=${base}`);
-      const callAuth = async (sub, init) => {
-        const b = String(base).replace(/\/+$/,'');
-        const roots = [b, b.replace(/\/api\/v1$/i,''), b.replace(/\/api\/v1$/i,'')];
-        const paths = [sub, sub.replace(/^\/auth\//i,'/api/v1/auth/'), sub.replace(/^\/auth\//i,'/auth/'), sub.replace(/^\/auth\//i,'/v1/auth/'), sub.replace(/^\/auth\//i,'/api/auth/')];
-        const urls = [];
-        for (const r of Array.from(new Set(roots.filter(Boolean)))) {
-          for (const p of Array.from(new Set(paths.filter(Boolean)))) {
-            urls.push(`${r}${p.startsWith('/')?p:`/${p}`}`);
-          }
-        }
-        let last;
-        for (const u of Array.from(new Set(urls))) {
-          try { const rr = await fetch(u, init); return rr; } catch (e) { last = e; }
-        }
-        if (last) throw last;
-        throw new Error('network');
-      };
-      const badPassword = 'wrong-pass-123';
-      try {
-        const r0 = await callAuth('/auth/simple-login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'info.auraaluxury@gmail.com', password: badPassword, rememberMe: false }), credentials: 'include' });
-        const d0 = await r0.json().catch(()=>({}));
-        if (r0.ok && (d0?.ok || d0?.token)) pushLog('unexpected success on invalid credentials');
-        else pushLog('invalid credentials handled');
-      } catch { pushLog('invalid credentials network error'); }
-      const email = 'info.auraaluxury@gmail.com';
-      const password = 'younes2025';
-      const r1 = await callAuth('/auth/simple-login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, rememberMe: true }), credentials: 'include' });
-      const d1 = await r1.json();
-      if (!r1.ok || !d1.ok || !d1.token) throw new Error(d1.error || 'simple-login failed');
-      pushLog('simple-login ok');
-      try { localStorage.setItem('sessionToken', d1.token); localStorage.setItem('simple_auth_token', d1.token); localStorage.setItem('simple_user_data', JSON.stringify(d1.user)); } catch { /* noop */ }
-      try {
-        const resCtx = await auth.login(email, password, true);
-        if (resCtx?.success || auth.isAuthenticated) pushLog('context login ok');
-        else pushLog('context login failed');
-      } catch { pushLog('context login threw'); }
-      try {
-        const v = await auth.validate();
-        if (v?.success || v?.ok) pushLog('context validate ok'); else pushLog('context validate failed');
-      } catch { pushLog('context validate threw'); }
-      const r2 = await callAuth('/auth/validate', { headers: { Authorization: `Bearer ${d1.token}` }, credentials: 'include' });
-      const d2 = await r2.json();
-      if (!r2.ok || !(d2.success || d2.ok)) throw new Error(d2.error || 'validate failed');
-      pushLog('validate ok');
-      try {
-        const rL = await callAuth('/auth/logout', { method: 'POST', headers: { Authorization: `Bearer ${d1.token}`, 'Content-Type': 'application/json' }, credentials: 'include' });
-        if (rL.ok) pushLog('logout endpoint ok'); else pushLog('logout endpoint failed');
-      } catch { pushLog('logout endpoint network error'); }
-      try { await auth.logout(); await new Promise(r=>setTimeout(r,150)); if (!auth.isAuthenticated) pushLog('context logout ok'); else pushLog('context logout not reflected'); } catch { pushLog('context logout threw'); }
-      try {
-        const resCtx2 = await auth.login(email, password, false);
-        if (resCtx2?.success) pushLog('context login (no remember) ok'); else pushLog('context login (no remember) failed');
-      } catch { pushLog('context re-login threw'); }
-      try {
-        const t = localStorage.getItem('sessionToken');
-        const s = localStorage.getItem('simple_auth_token');
-        const u = localStorage.getItem('simple_user_data');
-        pushLog(`storage token=${Boolean(t)} simple=${Boolean(s)} user=${Boolean(u)}`);
-      } catch { pushLog('storage read error'); }
-      const r3 = await fetch(`${base}/joe/ping`);
-      let okPing = false;
-      try { const j = await r3.json(); okPing = !!(j && (j.success || j.status === 'ok')); } catch { const t = await r3.text(); okPing = /pong/i.test(String(t)); }
-      if (!r3.ok || !okPing) throw new Error('joe ping failed');
-      pushLog('joe ping ok');
-      await new Promise((resolve) => {
-        let done = false; const es = new EventSource(`${base}/joe/events`, { withCredentials: true });
-        const tidy = () => { if (done) return; done = true; try { es.close(); } catch { /* noop */ } resolve(); };
-        es.addEventListener('init', () => { pushLog('events init'); tidy(); });
-        es.addEventListener('error', () => tidy());
-        setTimeout(tidy, 3000);
-      });
-      pushLog('events ok');
-      setShowLogin(false);
-      navigate('/dashboard/joe');
-    } catch (e) {
-      pushLog(`error: ${e?.message || e}`);
-    } finally {
-      setDiagRunning(false);
-    }
-  };
+  
 
   const features = [
     {
@@ -233,23 +137,7 @@ const LandingPage = () => {
         </div>
       </main>
 
-      {showLogin && (
-        <div className="fixed inset-0 z-[100] grid place-items-center bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md mx-4 relative">
-            <button onClick={()=>setShowLogin(false)} className="absolute -top-3 -right-3 bg:white/10 border border-white/20 text-white rounded-full w-10 h-10">×</button>
-            <LoginCard onSuccess={handleLoginSuccess} onError={handleLoginError} className="bg-transparent min-h-0" />
-            <div className="mt-4 bg-white/10 border border-white/20 rounded-lg p-3">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-white text-sm">تشخيص الدخول</div>
-                <button onClick={runAdminDiagnostic} disabled={diagRunning} className="px-3 py-1 bg-blue-600 text-white rounded disabled:opacity-50">{diagRunning ? 'جاري الفحص...' : 'بدء الفحص'}</button>
-              </div>
-              <div className="max-h-28 overflow-auto space-y-1 text-xs text-gray-200">
-                {diagLogs.map((l,i)=>(<div key={i}><span className="text-gray-400 mr-1">{new Date(l.ts).toLocaleTimeString()}</span>{l.msg}</div>))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      
 
       {/* Footer */}
       <footer className="relative z-10 border-t border-white/10">
