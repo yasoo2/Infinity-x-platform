@@ -41,20 +41,28 @@ async function apiRequest(endpoint, options = {}) {
         candidates.push('http://localhost:3001/api/v1');
 
         let lastError = null;
+        const isAuthPath = /^\/?auth\//i.test(String(endpoint).replace(/^\/+/, ''));
         for (const base of Array.from(new Set(candidates.filter(Boolean)))) {
             try {
-                const url = `${String(base).replace(/\/+$/,'')}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
-                const response = await fetch(url, { ...options, headers, credentials: 'include' });
-                if (!response.ok) {
-                    if (response.status === 401) throw new Error(ERROR_MESSAGES.INVALID_CREDENTIALS);
-                    if (response.status === 404 || response.status === 405) { lastError = new Error(`HTTP ${response.status}`); continue; }
-                    if (response.status >= 500) throw new Error(ERROR_MESSAGES.SERVER_ERROR);
-                    let errorMessage = ERROR_MESSAGES.SERVER_ERROR;
-                    try { const errorData = await response.json(); errorMessage = errorData.message || errorMessage; } catch { /* noop */ }
-                    throw new Error(errorMessage);
+                const baseClean = String(base).replace(/\/+$/, '');
+                const ep = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+                const primary = `${baseClean}${ep}`;
+                const paths = isAuthPath ? [primary, `${baseClean}/auth${ep.replace(/^\/auth/, '')}`, `${baseClean.replace(/\/api\/v1$/i,'')}/api/v1${ep}`, `${baseClean.replace(/\/api\/v1$/i,'')}/auth${ep.replace(/^\/auth/,'')}`, `${baseClean.replace(/\/api\/v1$/i,'')}/v1/auth${ep.replace(/^\/auth\//,'/')}`] : [primary];
+                for (const u of Array.from(new Set(paths.filter(Boolean)))) {
+                    try {
+                        const response = await fetch(u, { ...options, headers, credentials: 'include' });
+                        if (!response.ok) {
+                            if (response.status === 401) throw new Error(ERROR_MESSAGES.INVALID_CREDENTIALS);
+                            if (response.status === 404 || response.status === 405) { lastError = new Error(`HTTP ${response.status}`); continue; }
+                            if (response.status >= 500) throw new Error(ERROR_MESSAGES.SERVER_ERROR);
+                            let errorMessage = ERROR_MESSAGES.SERVER_ERROR;
+                            try { const errorData = await response.json(); errorMessage = errorData.message || errorMessage; } catch { /* noop */ }
+                            throw new Error(errorMessage);
+                        }
+                        return await response.json();
+                    } catch (e) { lastError = e; }
                 }
-                return await response.json();
-            } catch (e) { lastError = e; continue; }
+            } catch (e) { lastError = e; }
         }
         if (lastError) throw lastError;
         throw new Error(ERROR_MESSAGES.NETWORK_ERROR);

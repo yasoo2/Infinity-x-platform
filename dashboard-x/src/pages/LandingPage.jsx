@@ -44,16 +44,33 @@ const LandingPage = () => {
     try {
       const base = normalizeApiBase();
       pushLog(`base=${base}`);
+      const callAuth = async (sub, init) => {
+        const b = String(base).replace(/\/+$/,'');
+        const roots = [b, b.replace(/\/api\/v1$/i,''), b.replace(/\/api\/v1$/i,'')];
+        const paths = [sub, sub.replace(/^\/auth\//i,'/api/v1/auth/'), sub.replace(/^\/auth\//i,'/auth/'), sub.replace(/^\/auth\//i,'/v1/auth/'), sub.replace(/^\/auth\//i,'/api/auth/')];
+        const urls = [];
+        for (const r of Array.from(new Set(roots.filter(Boolean)))) {
+          for (const p of Array.from(new Set(paths.filter(Boolean)))) {
+            urls.push(`${r}${p.startsWith('/')?p:`/${p}`}`);
+          }
+        }
+        let last;
+        for (const u of Array.from(new Set(urls))) {
+          try { const rr = await fetch(u, init); return rr; } catch (e) { last = e; }
+        }
+        if (last) throw last;
+        throw new Error('network');
+      };
       const badPassword = 'wrong-pass-123';
       try {
-        const r0 = await fetch(`${base}/auth/simple-login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'info.auraaluxury@gmail.com', password: badPassword, rememberMe: false }), credentials: 'include' });
+        const r0 = await callAuth('/auth/simple-login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'info.auraaluxury@gmail.com', password: badPassword, rememberMe: false }), credentials: 'include' });
         const d0 = await r0.json().catch(()=>({}));
         if (r0.ok && (d0?.ok || d0?.token)) pushLog('unexpected success on invalid credentials');
         else pushLog('invalid credentials handled');
       } catch { pushLog('invalid credentials network error'); }
       const email = 'info.auraaluxury@gmail.com';
       const password = 'younes2025';
-      const r1 = await fetch(`${base}/auth/simple-login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, rememberMe: true }), credentials: 'include' });
+      const r1 = await callAuth('/auth/simple-login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, rememberMe: true }), credentials: 'include' });
       const d1 = await r1.json();
       if (!r1.ok || !d1.ok || !d1.token) throw new Error(d1.error || 'simple-login failed');
       pushLog('simple-login ok');
@@ -63,12 +80,12 @@ const LandingPage = () => {
         if (resCtx?.success || auth.isAuthenticated) pushLog('context login ok');
         else pushLog('context login failed');
       } catch { pushLog('context login threw'); }
-      const r2 = await fetch(`${base}/auth/validate`, { headers: { Authorization: `Bearer ${d1.token}` }, credentials: 'include' });
+      const r2 = await callAuth('/auth/validate', { headers: { Authorization: `Bearer ${d1.token}` }, credentials: 'include' });
       const d2 = await r2.json();
       if (!r2.ok || !(d2.success || d2.ok)) throw new Error(d2.error || 'validate failed');
       pushLog('validate ok');
       try {
-        const rL = await fetch(`${base}/auth/logout`, { method: 'POST', headers: { Authorization: `Bearer ${d1.token}`, 'Content-Type': 'application/json' }, credentials: 'include' });
+        const rL = await callAuth('/auth/logout', { method: 'POST', headers: { Authorization: `Bearer ${d1.token}`, 'Content-Type': 'application/json' }, credentials: 'include' });
         if (rL.ok) pushLog('logout endpoint ok'); else pushLog('logout endpoint failed');
       } catch { pushLog('logout endpoint network error'); }
       try { await auth.logout(); await new Promise(r=>setTimeout(r,150)); if (!auth.isAuthenticated) pushLog('context logout ok'); else pushLog('context logout not reflected'); } catch { pushLog('context logout threw'); }
@@ -83,8 +100,9 @@ const LandingPage = () => {
         pushLog(`storage token=${Boolean(t)} simple=${Boolean(s)} user=${Boolean(u)}`);
       } catch { pushLog('storage read error'); }
       const r3 = await fetch(`${base}/joe/ping`);
-      const t3 = await r3.text();
-      if (!r3.ok || !/pong/.test(String(t3))) throw new Error('joe ping failed');
+      let okPing = false;
+      try { const j = await r3.json(); okPing = !!(j && (j.success || j.status === 'ok')); } catch { const t = await r3.text(); okPing = /pong/i.test(String(t)); }
+      if (!r3.ok || !okPing) throw new Error('joe ping failed');
       pushLog('joe ping ok');
       await new Promise((resolve) => {
         let done = false; const es = new EventSource(`${base}/joe/events`, { withCredentials: true });
