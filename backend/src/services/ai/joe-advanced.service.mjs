@@ -561,7 +561,7 @@ ${transcript.slice(0, 8000)}`;
                   toolResults.push({ tool: 'downloadImageFromUrl', args: { url }, result: out });
                   toolCalls.push({ function: { name: 'downloadImageFromUrl', arguments: { url } } });
                   const link = out?.absoluteUrl || out?.publicUrl || '';
-                  const msg = link ? `تم تحميل الصورة: ${link}` : 'تم تحميل الصورة.';
+                  const msg = link ? `!size[2cmx2cm] \`${link}\`` : 'تم تحميل الصورة.';
                   pieces.push(msg);
                   try { joeEvents.emitProgress(userId, sessionId, 60, 'downloadImageFromUrl done'); } catch { /* noop */ }
                 } else {
@@ -1422,7 +1422,7 @@ ${transcript.slice(0, 8000)}`;
                   toolResults.push({ tool: 'downloadImageFromUrl', args: { url }, result: out });
                   toolCalls.push({ function: { name: 'downloadImageFromUrl', arguments: { url } } });
                   const link = out?.absoluteUrl || out?.publicUrl || '';
-                  const msg = link ? `! \`${link}\`` : (targetLang==='ar' ? 'تم تحميل الصورة.' : 'Image downloaded.');
+                  const msg = link ? `!size[2cmx2cm] \`${link}\`` : (targetLang==='ar' ? 'تم تحميل الصورة.' : 'Image downloaded.');
                   pieces.push(msg);
                 } else {
                   const r = await executeTool(userId, sessionId, 'browseWebsite', { url });
@@ -1606,7 +1606,7 @@ ${transcript.slice(0, 8000)}`;
               toolResults.push({ tool: 'downloadImageFromUrl', args: { url }, result: out });
               toolCalls.push({ function: { name: 'downloadImageFromUrl', arguments: { url } } });
               const link = out?.absoluteUrl || out?.publicUrl || '';
-              const msg = link ? `! \`${link}\`` : (targetLang==='ar' ? 'تم تحميل الصورة.' : 'Image downloaded.');
+              const msg = link ? `!size[2cmx2cm] \`${link}\`` : (targetLang==='ar' ? 'تم تحميل الصورة.' : 'Image downloaded.');
               pieces.push(msg);
             } else {
               const r = await toolManager.execute('browseWebsite', { url });

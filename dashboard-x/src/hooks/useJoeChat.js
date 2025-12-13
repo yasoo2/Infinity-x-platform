@@ -1636,7 +1636,7 @@ export const useJoeChat = () => {
 
           if (type === 'response' || typeof data.response === 'string') {
             flushStreamBuffer();
-            const text = String(data.response || '').trim();
+            const text = sanitizeCompetitors(String(data.response || '').trim());
             if (text) {
               dispatch({ type: 'REPLACE_LAST_JOE', payload: text });
               dispatch({ type: 'CLEAR_ECHO' });
