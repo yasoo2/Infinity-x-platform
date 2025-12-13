@@ -171,6 +171,13 @@ const JoeConsole = () => {
       if (!base || !String(base).trim()) {
         base = (typeof window !== 'undefined' ? window.location.origin : '') + '/api/v1';
       }
+      try {
+        const u = new URL(String(base));
+        const host = u.hostname;
+        if (host === 'www.xelitesolutions.com' || host === 'xelitesolutions.com') {
+          base = 'https://api.xelitesolutions.com/api/v1';
+        }
+      } catch { /* noop */ }
       const hasV1 = /\/api\/v1$/i.test(String(base));
       if (!hasV1) base = String(base).replace(/\/+$/,'') + '/api/v1';
     } catch { base = '/api/v1'; }
@@ -207,6 +214,13 @@ const JoeConsole = () => {
         if (!base || !String(base).trim()) {
           base = (typeof window !== 'undefined' ? window.location.origin : '') + '/api/v1';
         }
+        try {
+          const u = new URL(String(base));
+          const host = u.hostname;
+          if (host === 'www.xelitesolutions.com' || host === 'xelitesolutions.com') {
+            base = 'https://api.xelitesolutions.com/api/v1';
+          }
+        } catch { /* noop */ }
         const hasV1 = /\/api\/v1$/i.test(String(base));
         if (!hasV1) base = String(base).replace(/\/+$/,'') + '/api/v1';
       } catch { base = '/api/v1'; }

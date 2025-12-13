@@ -20,53 +20,46 @@ async function apiRequest(endpoint, options = {}) {
         'Content-Type': 'application/json',
         ...options.headers
     };
-    
     try {
-        // Try multiple base URLs
-        const baseCandidates = [
-            'http://localhost:4000/api/v1',
-            'http://localhost:3001/api/v1'
-        ];
-        
+        const candidates = [];
+        try {
+            let base = (typeof window !== 'undefined' ? localStorage.getItem('apiBaseUrl') : '') || (typeof window !== 'undefined' ? window.location.origin : '');
+            if (base) {
+                try {
+                    const u = new URL(String(base));
+                    const host = u.hostname;
+                    if (host === 'www.xelitesolutions.com' || host === 'xelitesolutions.com') {
+                        base = 'https://api.xelitesolutions.com/api/v1';
+                    }
+                } catch { /* noop */ }
+                const hasV1 = /\/api\/v1$/i.test(String(base));
+                if (!hasV1) base = String(base).replace(/\/+$/,'') + '/api/v1';
+                candidates.push(String(base).replace(/\/+$/,''));
+            }
+        } catch { /* noop */ }
+        candidates.push('http://localhost:4000/api/v1');
+        candidates.push('http://localhost:3001/api/v1');
+
         let lastError = null;
-        for (const base of baseCandidates) {
+        for (const base of Array.from(new Set(candidates.filter(Boolean)))) {
             try {
-                const response = await fetch(`${base}${endpoint}`, {
-                    ...options,
-                    headers,
-                    credentials: 'include'
-                });
-                
+                const url = `${String(base).replace(/\/+$/,'')}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+                const response = await fetch(url, { ...options, headers, credentials: 'include' });
                 if (!response.ok) {
-                    if (response.status === 401) {
-                        throw new Error(ERROR_MESSAGES.INVALID_CREDENTIALS);
-                    }
-                    if (response.status === 404 || response.status === 405) {
-                        lastError = new Error(`HTTP ${response.status}`);
-                        continue;
-                    }
-                    if (response.status >= 500) {
-                        throw new Error(ERROR_MESSAGES.SERVER_ERROR);
-                    }
+                    if (response.status === 401) throw new Error(ERROR_MESSAGES.INVALID_CREDENTIALS);
+                    if (response.status === 404 || response.status === 405) { lastError = new Error(`HTTP ${response.status}`); continue; }
+                    if (response.status >= 500) throw new Error(ERROR_MESSAGES.SERVER_ERROR);
                     let errorMessage = ERROR_MESSAGES.SERVER_ERROR;
                     try { const errorData = await response.json(); errorMessage = errorData.message || errorMessage; } catch { /* noop */ }
                     throw new Error(errorMessage);
                 }
-                
                 return await response.json();
-            } catch (error) {
-                lastError = error;
-                continue;
-            }
+            } catch (e) { lastError = e; continue; }
         }
-        
         if (lastError) throw lastError;
         throw new Error(ERROR_MESSAGES.NETWORK_ERROR);
-        
     } catch (error) {
-        if (error.name === 'TypeError' && error.message.includes('fetch')) {
-            throw new Error(ERROR_MESSAGES.NETWORK_ERROR);
-        }
+        if (error.name === 'TypeError' && error.message.includes('fetch')) throw new Error(ERROR_MESSAGES.NETWORK_ERROR);
         throw error;
     }
 }

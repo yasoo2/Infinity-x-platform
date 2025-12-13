@@ -13,15 +13,16 @@ const App = () => {
   useEffect(() => {
     try {
       const origin = typeof window !== 'undefined' ? window.location.origin : '';
-      const isLocal = /^(http:\/\/localhost|http:\/\/127\.0\.0\.1|ws:\/\/localhost|ws:\/\/127\.0\.0\.1)/.test(origin);
-      const current = localStorage.getItem('apiBaseUrl');
-      const currentIsLocal = current && /localhost|127\.0\.0\.1/.test(String(current));
-      if (!isLocal && (!current || currentIsLocal)) {
-        localStorage.setItem('apiBaseUrl', 'http://localhost:4000/api/v1');
-      }
       const host = typeof window !== 'undefined' ? window.location.hostname : '';
+      const current = localStorage.getItem('apiBaseUrl');
+      const setBase = (u) => { try { localStorage.setItem('apiBaseUrl', String(u).replace(/\/+$/,'')); } catch { /* noop */ } };
       if (host === 'localhost' || host === '127.0.0.1') {
+        setBase('http://localhost:4000/api/v1');
         apiClient.defaults.baseURL = 'http://localhost:4000';
+      } else if (host === 'www.xelitesolutions.com' || host === 'xelitesolutions.com') {
+        setBase('https://api.xelitesolutions.com/api/v1');
+      } else if (!current) {
+        setBase(origin + '/api/v1');
       }
       const oldKeys = ['auth_access_token','auth_refresh_token','auth_session_token','auth_user_data','auth_remember_me','auth_remembered_sessions'];
       oldKeys.forEach(k=>{ try { localStorage.removeItem(k); sessionStorage.removeItem(k); } catch { /* noop */ } });
