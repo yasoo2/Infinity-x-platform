@@ -991,7 +991,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                   const bangPlain = Array.from(t.matchAll(/!\s*(https?:\/\/\S+)/g)).map(m => m[1]);
                   const whitelistHosts = ['placekitten.com','picsum.photos','images.unsplash.com'];
                   const hostImgs = rawUrlsAll.filter(u => { try { const h = new URL(u).hostname; return whitelistHosts.includes(h); } catch { return false; } });
-                  const imageUrls = Array.from(new Set([...extImgs, ...mdBangBacktick, ...mdImage, ...bangPlain, ...hostImgs]));
+                  const imageUrls = Array.from(new Set([...extImgs, ...mdBangBacktick, ...mdImage, ...bangPlain, ...hostImgs, ...sizedBacktick.map(s=>s.url)]));
                   const sizeMap = new Map(sizedBacktick.map(s => [s.url, { w: s.w, h: s.h }]));
                   const allowedHosts = new Set(['placekitten.com','picsum.photos','images.unsplash.com']);
                   const filteredImageUrls = imageUrls;

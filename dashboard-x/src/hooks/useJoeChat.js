@@ -1389,7 +1389,7 @@ export const useJoeChat = () => {
               url = String(details?.args?.absoluteUrl || details?.args?.publicUrl || details?.args?.url || '');
             } catch { /* noop */ }
             if (url) {
-              dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `! \`${url}\`` } });
+              dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `!size[2cmx2cm] \`${url}\`` } });
             }
           }
           if (name) dispatch({ type: 'ADD_PLAN_STEP', payload: { type: 'tool_used', content: name, details } });
@@ -2181,7 +2181,7 @@ export const useJoeChat = () => {
                         const latest = items.sort((a,b)=> new Date(b.mtime||0) - new Date(a.mtime||0))[0] || null;
                         const url = latest?.absoluteUrl || latest?.publicUrl || '';
                         if (url) {
-                          dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `! \`${url}\`` } });
+                          dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `!size[2cmx2cm] \`${url}\`` } });
                         }
                       } catch { /* noop */ }
                     })();
