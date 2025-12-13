@@ -2145,7 +2145,6 @@ export const useJoeChat = () => {
             if (ctxLines2) parts2.push(`${headerPrev2}:\n${ctxLines2}`);
             const prefix2 = parts2.length ? `${parts2.join('\n\n')}\n\n` : '';
             const msgWithContext2 = `${prefix2}${inputText}`;
-            const msgWithContext2 = `${prefix2}${inputText}`;
             const data = await executeJoe(msgWithContext2, ctx2, {});
             const text = sanitizeCompetitors(String(data?.response || data?.message || '').trim());
             if (text) {
