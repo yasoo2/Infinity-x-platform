@@ -6,8 +6,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Xelite Solutions – Autonomous Software Company</title>
     
-    <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Outfit:wght@300;400;500;700;900&family=Noto+Kufi+Arabic:wght@300;400;600;800;900&display=swap" rel="stylesheet" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <script>
+      try {
+        if (localStorage.getItem('disableExternalFonts') !== '1') {
+          var l = document.createElement('link');
+          l.id = 'ext-fonts';
+          l.rel = 'stylesheet';
+          l.href = 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Outfit:wght@300;400;500;700;900&family=Noto+Kufi+Arabic:wght@300;400;600;800;900&display=swap';
+          document.head.appendChild(l);
+        } else {
+          document.documentElement.classList.add('no-ext-fonts');
+        }
+      } catch {}
+    </script>
   </head>
   <body>
     <div id="root"></div>
