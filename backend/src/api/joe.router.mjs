@@ -1,6 +1,6 @@
 import express from 'express';
 import toolManager from '../services/tools/tool-manager.service.mjs';
-import joeAdvanced from '../services/ai/joe-advanced.service.mjs';
+import joeAdvanced, { joeEvents } from '../services/ai/joe-advanced.service.mjs';
 import { setKey, setActive } from '../services/ai/runtime-config.mjs';
 import { ObjectId } from 'mongodb';
 
@@ -12,6 +12,32 @@ const joeRouterFactory = ({ requireRole, optionalAuth, db }) => {
   // GET /api/v1/joe/ping
   router.get('/ping', (req, res) => {
     res.send('pong from joeRouter');
+  });
+
+  router.get('/events', (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders?.();
+    const send = (event, payload) => { try { res.write(`event: ${event}\n` + `data: ${JSON.stringify(payload)}\n\n`); } catch { /* noop */ } };
+    const onProgress = (p) => send('progress', p);
+    const onError = (e) => send('error', e);
+    const onTool = (t) => send('tool_used', t);
+    const onThought = (t) => send('thought', t);
+    joeEvents.on('progress', onProgress);
+    joeEvents.on('error', onError);
+    joeEvents.on('tool_used', onTool);
+    joeEvents.on('thought', onThought);
+    send('init', { ok: true });
+    const interval = setInterval(() => send('heartbeat', { ts: Date.now() }), 25000);
+    req.on('close', () => {
+      clearInterval(interval);
+      joeEvents.off('progress', onProgress);
+      joeEvents.off('error', onError);
+      joeEvents.off('tool_used', onTool);
+      joeEvents.off('thought', onThought);
+      try { res.end(); } catch { /* noop */ }
+    });
   });
 
   // POST /api/v1/joe/command - Queue a command for a worker to execute

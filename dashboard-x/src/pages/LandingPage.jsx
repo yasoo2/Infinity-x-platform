@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiLogIn, FiZap, FiGlobe, FiUsers, FiAward } from 'react-icons/fi';
 
@@ -112,22 +112,8 @@ const LandingPage = () => {
           </div>
         </div>
 
-        {/* CTA Section */}
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-          <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 backdrop-blur-sm border border-white/20 rounded-2xl p-12 text-center space-y-6">
-            <h2 className="text-4xl font-bold text-white">Ready to Get Started?</h2>
-            <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-              Join thousands of professionals who trust our platform for their daily operations. 
-              Experience the difference today.
-            </p>
-            <button
-              onClick={handleLoginClick}
-              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-4 rounded-lg font-medium text-lg transition-all duration-200 transform hover:scale-105 flex items-center justify-center space-x-2 mx-auto focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50"
-            >
-              <FiLogIn className="w-6 h-6" />
-              <span>Login to Dashboard</span>
-            </button>
-          </div>
+          <JoeConsole />
         </div>
       </main>
 
@@ -150,4 +136,100 @@ const LandingPage = () => {
   );
 };
 
-export default Landing
+const JoeConsole = () => {
+  const [instruction, setInstruction] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [response, setResponse] = useState('');
+  const [toolsUsed, setToolsUsed] = useState([]);
+  const [error, setError] = useState('');
+  const [provider, setProvider] = useState('');
+  const [model, setModel] = useState('');
+  const [events, setEvents] = useState([]);
+  useEffect(() => {
+    const base = localStorage.getItem('apiBaseUrl') || '/api/v1';
+    const url = `${String(base).replace(/\/+$/,'')}/joe/events`;
+    let es;
+    try {
+      es = new EventSource(url, { withCredentials: true });
+      es.addEventListener('progress', (ev) => {
+        try { const d = JSON.parse(ev.data); setEvents((prev) => [{ type: 'progress', d, ts: Date.now() }, ...prev].slice(0, 50)); } catch { /* noop */ }
+      });
+      es.addEventListener('error', (ev) => {
+        try { const d = JSON.parse(ev.data); setEvents((prev) => [{ type: 'error', d, ts: Date.now() }, ...prev].slice(0, 50)); } catch { /* noop */ }
+      });
+      es.addEventListener('tool_used', (ev) => {
+        try { const d = JSON.parse(ev.data); setEvents((prev) => [{ type: 'tool', d, ts: Date.now() }, ...prev].slice(0, 50)); } catch { /* noop */ }
+      });
+      es.addEventListener('thought', (ev) => {
+        try { const d = JSON.parse(ev.data); setEvents((prev) => [{ type: 'thought', d, ts: Date.now() }, ...prev].slice(0, 50)); } catch { /* noop */ }
+      });
+    } catch { /* noop */ }
+    return () => { try { es && es.close(); } catch { /* noop */ } };
+  }, []);
+  const submit = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      setResponse('');
+      setToolsUsed([]);
+      const body = { instruction };
+      if (provider) body.provider = provider;
+      if (model) body.model = model;
+      const base = localStorage.getItem('apiBaseUrl') || '/api/v1';
+      const url = `${String(base).replace(/\/+$/,'')}/joe/execute`;
+      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), credentials: 'include' });
+      const data = await r.json();
+      if (!r.ok || !data.success) {
+        throw new Error(data.error || 'REQUEST_FAILED');
+      }
+      setResponse(String(data.response || ''));
+      setToolsUsed(Array.isArray(data.toolsUsed) ? data.toolsUsed : []);
+    } catch (e) {
+      setError(e.message || 'REQUEST_FAILED');
+    } finally {
+      setLoading(false);
+    }
+  };
+  return (
+    <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 backdrop-blur-sm border border-white/20 rounded-2xl p-6 md:p-8">
+      <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">Joe Command Console</h2>
+      <p className="text-gray-300 mb-6">اكتب تعليماتك وسيقوم جو بتحليلها وتقسيمها واختيار الأدوات المناسبة وتنفيذها.</p>
+      <div className="space-y-4">
+        <textarea value={instruction} onChange={e=>setInstruction(e.target.value)} className="w-full h-32 px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="مثال: حلل موقع https://xelitesolutions.com وابحث عن المشاكل التقنية" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <input value={provider} onChange={e=>setProvider(e.target.value)} placeholder="provider (openai|gemini)" className="px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+          <input value={model} onChange={e=>setModel(e.target.value)} placeholder="model (gpt-4o|gemini-1.5-pro-latest)" className="px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+          <button onClick={submit} disabled={loading || !instruction.trim()} className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg font-medium transition-all duration-200 transform hover:scale-105 disabled:opacity-50">{loading ? 'تشغيل...' : 'تشغيل'}</button>
+        </div>
+        {error && <div className="px-4 py-3 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300">{error}</div>}
+        {response && (
+          <div className="space-y-3">
+            <div className="px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-gray-100 whitespace-pre-wrap">{response}</div>
+            <div className="px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-gray-300">
+              <span className="font-semibold text-white">الأدوات المستخدمة:</span>
+              <span className="ml-2">{toolsUsed.length ? toolsUsed.join(', ') : 'بدون'}</span>
+            </div>
+          </div>
+        )}
+        <div className="mt-6">
+          <h3 className="text-white font-semibold mb-2">البث الحي</h3>
+          <div className="space-y-2 max-h-64 overflow-auto">
+            {events.length === 0 ? (
+              <div className="text-gray-400">لا توجد أحداث بعد.</div>
+            ) : (
+              events.map((ev, idx) => (
+                <div key={idx} className="px-3 py-2 bg-white/5 border border-white/10 rounded text-gray-200">
+                  <span className="text-xs text-gray-400 mr-2">{new Date(ev.ts).toLocaleTimeString()}</span>
+                  <span className="text-blue-300 mr-2">{ev.type}</span>
+                  <span className="text-gray-100">{String(ev?.d?.message || ev?.d?.content || ev?.d?.summary || '')}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default LandingPage
