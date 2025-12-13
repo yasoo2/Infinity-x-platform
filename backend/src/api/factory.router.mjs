@@ -2,8 +2,9 @@ import express from 'express';
 import { ObjectId } from 'mongodb';
 
 // RESTRUCTURED to use the factory pattern, dependency injection, and proper security.
-const factoryRouterFactory = ({ requireRole, db }) => {
+const factoryRouterFactory = ({ requireRole, optionalAuth, db }) => {
     const router = express.Router();
+    if (optionalAuth) router.use(optionalAuth);
 
     /**
      * @route GET /api/v1/factory/jobs
@@ -31,7 +32,7 @@ const factoryRouterFactory = ({ requireRole, db }) => {
      * @access ADMIN (or a specific service role in the future)
      * @body { projectType, shortDescription, metadata }
      */
-    router.post('/jobs', requireRole('ADMIN'), async (req, res) => {
+    router.post('/jobs', requireRole('USER'), async (req, res) => {
         try {
             const mongoDb = await db();
             const { projectType, shortDescription, metadata = {} } = req.body;
@@ -83,6 +84,35 @@ const factoryRouterFactory = ({ requireRole, db }) => {
     router.post('/snapshot', requireRole('SUPER_ADMIN'), async (req, res) => {
         // This seems highly sensitive and should be in a dedicated service.
         res.status(511).json({ success: false, message: 'This endpoint is deprecated and needs review.' });
+    });
+
+    router.get('/events', async (req, res) => {
+        try {
+            res.setHeader('Content-Type', 'text/event-stream');
+            res.setHeader('Cache-Control', 'no-cache');
+            res.setHeader('Connection', 'keep-alive');
+            res.flushHeaders?.();
+            const send = (event, payload) => { try { res.write(`event: ${event}\n` + `data: ${JSON.stringify(payload)}\n\n`); } catch { /* noop */ } };
+            send('init', { ok: true });
+            let stopped = false;
+            const tick = async () => {
+                if (stopped) return;
+                try {
+                    const mongoDb = await db();
+                    const jobs = await mongoDb.collection('factory_jobs')
+                        .find({})
+                        .sort({ createdAt: -1 })
+                        .limit(50)
+                        .toArray();
+                    send('snapshot', { jobs });
+                } catch { /* noop */ }
+            };
+            const interval = setInterval(tick, 5000);
+            tick();
+            req.on('close', () => { stopped = true; clearInterval(interval); try { res.end(); } catch { /* noop */ } });
+        } catch {
+            try { res.status(500).end(); } catch { /* noop */ }
+        }
     });
 
     return router;

@@ -119,8 +119,23 @@ export default function Build() {
 
   useEffect(() => {
     fetchJobs();
-    const interval = setInterval(fetchJobs, 5000);
-    return () => clearInterval(interval);
+    try {
+      const base = (typeof window !== 'undefined' && (localStorage.getItem('apiBaseUrl') || window.location.origin + '/api/v1')) || '/api/v1';
+      const url = String(base).replace(/\/+$/,'') + '/factory/events';
+      const es = new EventSource(url, { withCredentials: true });
+      es.addEventListener('snapshot', (ev) => {
+        try {
+          const d = JSON.parse(ev.data);
+          if (Array.isArray(d?.jobs)) {
+            setJobs(d.jobs);
+          }
+        } catch { /* noop */ }
+      });
+      return () => { try { es.close(); } catch { /* noop */ } };
+    } catch {
+      const interval = setInterval(fetchJobs, 5000);
+      return () => clearInterval(interval);
+    }
   }, [fetchJobs]);
 
   const addLog = useCallback((message, type = 'info') => {
