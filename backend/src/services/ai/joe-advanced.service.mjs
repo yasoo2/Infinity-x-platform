@@ -923,7 +923,7 @@ ${transcript.slice(0, 8000)}`;
               toolResults.push({ tool: 'generateImage', args: { prompt: preview, style: 'modern', outputFilePath: outPath }, result: r });
               toolCalls.push({ function: { name: 'generateImage', arguments: { prompt: preview, style: 'modern', outputFilePath: outPath } } });
               const link = r?.absoluteUrl || r?.publicUrl || r?.url || '';
-              const msg = targetLang === 'ar' ? (link ? `تم إنشاء الصورة: ${link}` : 'تم إنشاء الصورة.') : (link ? `Image generated: ${link}` : 'Image generated.');
+              const msg = targetLang === 'ar' ? (link ? `تم إنشاء الصورة: ${link}\n! \`${link}\`` : 'تم إنشاء الصورة.') : (link ? `Image generated: ${link}\n! \`${link}\`` : 'Image generated.');
               pieces.push(msg);
             } catch { void 0 }
           }
