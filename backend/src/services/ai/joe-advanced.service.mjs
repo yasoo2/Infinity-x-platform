@@ -1022,27 +1022,41 @@ ${transcript.slice(0, 8000)}`;
           const text = String(resp?.output_text || '').trim();
           finalContent = text || '';
           usage = resp?.usage || {};
-          try {
-            const preview = String(message || '').trim();
-            const m = preview.match(/https?:\/\/[^\s]+/i);
-            let url = null;
-            if (m) {
-              const rawUrl = m[0];
-              url = rawUrl ? rawUrl.replace(/[.,;:!?)]+$/, '') : rawUrl;
-            } else {
-              url = resolveSiteToUrl(preview);
-            }
-            if (url) {
-              const br = await executeTool(userId, sessionId, 'browseWebsite', { url });
-              toolResults.push({ tool: 'browseWebsite', args: { url }, result: br });
-              toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
-              const sum = String(br?.summary || br?.content || '');
-              finalContent = sum || finalContent;
-            }
-          } catch { /* noop */ }
-          if (!finalContent) {
-            finalContent = 'لم أحصل على رد من النموذج. جرّب صياغة مختلفة.';
+        try {
+          const preview = String(message || '').trim();
+          const m = preview.match(/https?:\/\/[^\s]+/i);
+          let url = null;
+          if (m) {
+            const rawUrl = m[0];
+            url = rawUrl ? rawUrl.replace(/[.,;:!?)]+$/, '') : rawUrl;
+          } else {
+            url = resolveSiteToUrl(preview);
           }
+          if (url) {
+            const br = await executeTool(userId, sessionId, 'browseWebsite', { url });
+            toolResults.push({ tool: 'browseWebsite', args: { url }, result: br });
+            toolCalls.push({ function: { name: 'browseWebsite', arguments: { url } } });
+            const sum = String(br?.summary || br?.content || '');
+            finalContent = sum || finalContent;
+          }
+        } catch { /* noop */ }
+        try {
+          const lower = String(message || '').toLowerCase();
+          const wantsImage = /(image|صورة|لوغو|شعار|generate\s*image)/i.test(lower);
+          if (wantsImage) {
+            const safeUser = String(userId || '').replace(/[^A-Za-z0-9_:-]/g, '_');
+            const fileName = `joe-image-${Date.now()}.png`;
+            const outPath = path.join(process.cwd(), 'public-site', 'uploads', safeUser, fileName);
+            const r = await executeTool(userId, sessionId, 'generateImage', { prompt: preview, style: 'modern', outputFilePath: outPath });
+            toolResults.push({ tool: 'generateImage', args: { prompt: preview, style: 'modern', outputFilePath: outPath }, result: r });
+            toolCalls.push({ function: { name: 'generateImage', arguments: { prompt: preview, style: 'modern', outputFilePath: outPath } } });
+            const link = r?.absoluteUrl || r?.publicUrl || r?.url || '';
+            if (link) finalContent = `!size[2cmx2cm] \`${link}\``;
+          }
+        } catch { /* noop */ }
+        if (!finalContent) {
+          finalContent = 'لم أحصل على رد من النموذج. جرّب صياغة مختلفة.';
+        }
         } catch (e) {
           try { console.log(e && e.message); } catch (e00) { void e00; }
           if (geminiClient) {
