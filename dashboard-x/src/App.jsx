@@ -23,6 +23,8 @@ const App = () => {
       if (host === 'localhost' || host === '127.0.0.1') {
         apiClient.defaults.baseURL = 'http://localhost:4000';
       }
+      const oldKeys = ['auth_access_token','auth_refresh_token','auth_session_token','auth_user_data','auth_remember_me','auth_remembered_sessions'];
+      oldKeys.forEach(k=>{ try { localStorage.removeItem(k); sessionStorage.removeItem(k); } catch { /* noop */ } });
     } catch { void 0; }
   }, []);
   

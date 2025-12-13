@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, Mail, Lock, User, AlertCircle, CheckCircle, Settings } from 'lucide-react';
-import { useAuth } from '../../hooks/useAuth';
+import { useSimpleAuthContext } from '../../context/SimpleAuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 const LoginForm = () => {
@@ -14,7 +14,7 @@ const LoginForm = () => {
   const [showApiConfig, setShowApiConfig] = useState(false);
   const [apiBaseUrl, setApiBaseUrl] = useState(localStorage.getItem('apiBaseUrl') || 'http://localhost:3001');
   
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated } = useSimpleAuthContext();
   const navigate = useNavigate();
   const location = useLocation();
   

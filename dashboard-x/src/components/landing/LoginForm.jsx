@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import useAuth from '../../hooks/useAuth';
+import { useSimpleAuthContext } from '../../context/SimpleAuthContext';
 import { useNavigate } from 'react-router-dom';
 
 const LoginForm = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const { login } = useAuth();
+  const { login } = useSimpleAuthContext();
   const [remember, setRemember] = useState(true);
   const navigate = useNavigate();
 

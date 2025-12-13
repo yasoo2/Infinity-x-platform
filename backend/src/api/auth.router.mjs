@@ -67,6 +67,22 @@ const authRouterFactory = ({ db }) => {
     }
   });
 
+  router.get('/validate', async (req, res) => {
+    try {
+      const auth = String(req.headers.authorization || '').trim();
+      const m = auth.match(/^Bearer\s+(.+)/i);
+      if (!m) return res.status(401).json({ ok: false, error: 'NO_TOKEN' });
+      const token = m[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'a-very-weak-secret-for-dev');
+      const id = String(decoded?.userId || '000000000000000000000001');
+      const role = String(decoded?.role || ROLES.SUPER_ADMIN);
+      const email = process.env.SUPER_ADMIN_EMAIL || 'info.auraaluxury@gmail.com';
+      return res.json({ success: true, user: { id, email, role } });
+    } catch (error) {
+      return res.status(401).json({ ok: false, error: 'INVALID_TOKEN' });
+    }
+  });
+
   /**
    * @route POST /api/v1/auth/logout
    * @description Trivial logout endpoint

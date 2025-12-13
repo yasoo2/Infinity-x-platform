@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback } from 'react';
 import ReactDOM from 'react-dom';
-import useAuth from '../../hooks/useAuth';
+import { useSimpleAuthContext } from '../../context/SimpleAuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 
@@ -10,7 +10,7 @@ const Header = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const { login, listRemembered, loginWithRemembered, removeRemembered } = useAuth();
+  const { login } = useSimpleAuthContext();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [loggingIn, setLoggingIn] = useState(false);
@@ -48,30 +48,18 @@ const Header = () => {
   };
 
   const refreshRemembered = useCallback(() => {
-    setRememberedList(listRemembered());
-  }, [listRemembered]);
+    setRememberedList([]);
+  }, []);
 
-  const handleLoginRemembered = async (id) => {
-    if (loggingIn) return;
-    setLoggingIn(true);
-    setError('');
-    const ok = await loginWithRemembered(id);
-    if (ok) {
-      navigate('/dashboard/joe');
-    } else {
-      setError(lang === 'ar' ? 'لا توجد جلسة محفوظة لهذا المستخدم' : 'No saved session for this user');
-    }
-    setLoggingIn(false);
+  const handleLoginRemembered = async () => {
+    setError(lang === 'ar' ? 'الميزة غير متاحة في وضع المصادقة المبسط' : 'Feature not available in simple auth mode');
   };
 
-  const handleRemoveRemembered = (id) => {
-    removeRemembered(id);
-    refreshRemembered();
-  };
+  const handleRemoveRemembered = () => { refreshRemembered(); };
 
   React.useEffect(() => {
-    if (showLogin) setRememberedList(listRemembered());
-  }, [showLogin, listRemembered]);
+    if (showLogin) setRememberedList([]);
+  }, [showLogin]);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-black/30 backdrop-blur-lg border-b border-gray-800">
