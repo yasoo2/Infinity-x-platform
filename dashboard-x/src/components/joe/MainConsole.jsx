@@ -109,7 +109,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
   };
   StyledJoe.propTypes = { className: PropTypes.string };
 
-  const SmartImage = ({ src, alt = 'image' }) => {
+  const SmartImage = ({ src, alt = 'image', w, h }) => {
     const [ok, setOk] = React.useState(false);
     React.useEffect(() => {
       let cancelled = false;
@@ -123,10 +123,10 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
     }, [src]);
     if (!ok) return null;
     return (
-      <img src={src} alt={alt} className="max-h-56 rounded-lg border border-gray-700" />
+      <img src={src} alt={alt} className="rounded-lg border border-gray-700" style={{ width: w || undefined, height: h || undefined, objectFit: 'cover' }} />
     );
   };
-  SmartImage.propTypes = { src: PropTypes.string.isRequired, alt: PropTypes.string };
+  SmartImage.propTypes = { src: PropTypes.string.isRequired, alt: PropTypes.string, w: PropTypes.string, h: PropTypes.string };
 
   const HlsVideo = ({ src }) => {
     const ref = React.useRef(null);
@@ -986,11 +986,13 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                   const rawUrlsAll = (t.match(/https?:\/\/[^\s)]+/g) || []);
                   const extImgs = rawUrlsAll.filter(u => /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(u));
                   const mdBangBacktick = Array.from(t.matchAll(/!\s*`(https?:\/\/[^\s`]+)`/g)).map(m => m[1]);
+                  const sizedBacktick = Array.from(t.matchAll(/!size\[(\S+?)x(\S+?)\]\s*`(https?:\/\/[^\s`]+)`/g)).map(m => ({ w: m[1], h: m[2], url: m[3] }));
                   const mdImage = Array.from(t.matchAll(/!\[[^\]]*\]\((https?:\/\/[^)]+)\)/g)).map(m => m[1]);
                   const bangPlain = Array.from(t.matchAll(/!\s*(https?:\/\/\S+)/g)).map(m => m[1]);
                   const whitelistHosts = ['placekitten.com','picsum.photos','images.unsplash.com'];
                   const hostImgs = rawUrlsAll.filter(u => { try { const h = new URL(u).hostname; return whitelistHosts.includes(h); } catch { return false; } });
                   const imageUrls = Array.from(new Set([...extImgs, ...mdBangBacktick, ...mdImage, ...bangPlain, ...hostImgs]));
+                  const sizeMap = new Map(sizedBacktick.map(s => [s.url, { w: s.w, h: s.h }]));
                   const allowedHosts = new Set(['placekitten.com','picsum.photos','images.unsplash.com']);
                   const filteredImageUrls = imageUrls;
                   const rawVideoAll = rawUrlsAll;
@@ -1017,6 +1019,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                         </div>
                       ) : (
                         String(seg.content || '')
+                          .replace(/!size\[[^\]]+\]\s*`https?:\/\/[^\s`]+`/g,'')
                           .replace(/!\s*`https?:\/\/[^\s`]+`/g,'')
                           .replace(/!\[[^\]]*\]\((https?:\/\/[^)]+)\)/g,'')
                           .replace(/!\s*https?:\/\/\S+/g,'')
@@ -1049,7 +1052,7 @@ const MainConsole = ({ isBottomPanelOpen, isBottomCollapsed }) => {
                         <div className="mt-3 flex flex-wrap gap-3">
                           {filteredImageUrls.slice(0, 4).map((src, i) => (
                             <div key={`img-${i}`} className="block">
-                              <SmartImage src={src} alt="image" />
+                              <SmartImage src={src} alt="image" w={sizeMap.get(src)?.w} h={sizeMap.get(src)?.h} />
                             </div>
                           ))}
                         </div>

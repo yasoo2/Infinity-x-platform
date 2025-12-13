@@ -923,7 +923,7 @@ ${transcript.slice(0, 8000)}`;
               toolResults.push({ tool: 'generateImage', args: { prompt: preview, style: 'modern', outputFilePath: outPath }, result: r });
               toolCalls.push({ function: { name: 'generateImage', arguments: { prompt: preview, style: 'modern', outputFilePath: outPath } } });
               const link = r?.absoluteUrl || r?.publicUrl || r?.url || '';
-              const msg = link ? `! \`${link}\`` : (targetLang === 'ar' ? 'تم إنشاء الصورة.' : 'Image generated.');
+              const msg = link ? `!size[2cmx2cm] \`${link}\`` : (targetLang === 'ar' ? 'تم إنشاء الصورة.' : 'Image generated.');
               pieces.push(msg);
             } catch { void 0 }
           }
@@ -1428,7 +1428,7 @@ ${transcript.slice(0, 8000)}`;
                 toolResults.push({ tool: 'generateImage', args: { prompt: preview, style: 'modern', outputFilePath: outPath }, result: r });
                 toolCalls.push({ function: { name: 'generateImage', arguments: { prompt: preview, style: 'modern', outputFilePath: outPath } } });
                 const link = r?.absoluteUrl || r?.publicUrl || r?.url || '';
-                const msg = link ? `! \`${link}\`` : (targetLang==='ar' ? 'تم إنشاء الصورة.' : 'Image generated.');
+                const msg = link ? `!size[2cmx2cm] \`${link}\`` : (targetLang==='ar' ? 'تم إنشاء الصورة.' : 'Image generated.');
                 pieces.push(msg);
               } catch (eImg) { void eImg; }
             }
@@ -1612,7 +1612,7 @@ ${transcript.slice(0, 8000)}`;
             toolResults.push({ tool: 'generateImage', args: { prompt: preview, style: 'modern', outputFilePath: outPath }, result: r });
             toolCalls.push({ function: { name: 'generateImage', arguments: { prompt: preview, style: 'modern', outputFilePath: outPath } } });
             const link = r?.absoluteUrl || r?.publicUrl || r?.url || '';
-            const msg = link ? `! \`${link}\`` : (targetLang==='ar' ? 'تم إنشاء الصورة.' : 'Image generated.');
+            const msg = link ? `!size[2cmx2cm] \`${link}\`` : (targetLang==='ar' ? 'تم إنشاء الصورة.' : 'Image generated.');
             pieces.push(msg);
           } catch { /* noop */ }
         }

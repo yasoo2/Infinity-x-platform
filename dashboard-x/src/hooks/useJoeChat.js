@@ -1380,7 +1380,7 @@ export const useJoeChat = () => {
               }
             } catch { /* noop */ }
             if (url) {
-              dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `! \`${url}\`` } });
+              dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `!size[2cmx2cm] \`${url}\`` } });
             }
           }
           if (String(name || '').toLowerCase() === 'downloadimagefromurl') {
@@ -1427,7 +1427,7 @@ export const useJoeChat = () => {
                       const latest = items.sort((a,b)=> new Date(b.mtime||0) - new Date(a.mtime||0))[0] || null;
                       const url = latest?.absoluteUrl || latest?.publicUrl || '';
                       if (url) {
-                        dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `! \`${url}\`` } });
+                        dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `!size[2cmx2cm] \`${url}\`` } });
                       }
                     } catch { /* noop */ }
                   })();
@@ -1668,7 +1668,7 @@ export const useJoeChat = () => {
                         const latest = items.sort((a,b)=> new Date(b.mtime||0) - new Date(a.mtime||0))[0] || null;
                         const url = latest?.absoluteUrl || latest?.publicUrl || '';
                         if (url) {
-                          dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `! \`${url}\`` } });
+                          dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: `!size[2cmx2cm] \`${url}\`` } });
                         }
                       } catch { /* noop */ }
                     })();
