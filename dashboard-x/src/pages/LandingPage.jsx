@@ -80,6 +80,10 @@ const LandingPage = () => {
         if (resCtx?.success || auth.isAuthenticated) pushLog('context login ok');
         else pushLog('context login failed');
       } catch { pushLog('context login threw'); }
+      try {
+        const v = await auth.validate();
+        if (v?.success || v?.ok) pushLog('context validate ok'); else pushLog('context validate failed');
+      } catch { pushLog('context validate threw'); }
       const r2 = await callAuth('/auth/validate', { headers: { Authorization: `Bearer ${d1.token}` }, credentials: 'include' });
       const d2 = await r2.json();
       if (!r2.ok || !(d2.success || d2.ok)) throw new Error(d2.error || 'validate failed');

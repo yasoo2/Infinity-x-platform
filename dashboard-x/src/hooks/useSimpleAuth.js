@@ -86,10 +86,10 @@ export function useSimpleAuth() {
                 setLoading(true);
                 setError(null);
                 
-                const token = localStorage.getItem(TOKEN_KEYS.ACCESS_TOKEN);
+                const sessionToken = localStorage.getItem('sessionToken') || localStorage.getItem(TOKEN_KEYS.ACCESS_TOKEN);
                 const userData = localStorage.getItem(TOKEN_KEYS.USER_DATA);
                 
-                if (!token || !userData) {
+                if (!sessionToken && !userData) {
                     setLoading(false);
                     return;
                 }
@@ -97,15 +97,14 @@ export function useSimpleAuth() {
                 // Validate token
                 try {
                     const data = await apiRequest('/auth/validate', {
-                        headers: {
-                            'Authorization': `Bearer ${token}`
-                        }
+                        headers: { 'Authorization': `Bearer ${sessionToken}` }
                     });
                     
                     setUser(data.user);
                     setIsAuthenticated(true);
                 } catch (error) {
                     // Token invalid, clear storage
+                    localStorage.removeItem('sessionToken');
                     localStorage.removeItem(TOKEN_KEYS.ACCESS_TOKEN);
                     localStorage.removeItem(TOKEN_KEYS.USER_DATA);
                     localStorage.removeItem(TOKEN_KEYS.REMEMBER_ME);
@@ -120,6 +119,13 @@ export function useSimpleAuth() {
         };
         
         loadStoredAuth();
+    }, []);
+
+    const validate = useCallback(async () => {
+        const sessionToken = localStorage.getItem('sessionToken') || localStorage.getItem(TOKEN_KEYS.ACCESS_TOKEN);
+        if (!sessionToken) throw new Error('NO_TOKEN');
+        const data = await apiRequest('/auth/validate', { headers: { 'Authorization': `Bearer ${sessionToken}` } });
+        return data;
     }, []);
 
     // Simple login function
@@ -151,9 +157,9 @@ export function useSimpleAuth() {
             setIsAuthenticated(true);
             
             // Store in localStorage (simple approach)
+            localStorage.setItem('sessionToken', data.token);
             localStorage.setItem(TOKEN_KEYS.ACCESS_TOKEN, data.token);
             localStorage.setItem(TOKEN_KEYS.USER_DATA, JSON.stringify(userData));
-            try { localStorage.setItem('sessionToken', data.token); } catch { /* noop */ }
             if (rememberMe) {
                 localStorage.setItem(TOKEN_KEYS.REMEMBER_ME, 'true');
             }
@@ -168,13 +174,39 @@ export function useSimpleAuth() {
         }
     }, []);
 
+    const loginWithToken = useCallback(async (sessionToken) => {
+        try {
+            setLoading(true);
+            setError(null);
+            if (!sessionToken) throw new Error('NO_TOKEN');
+            const data = await apiRequest('/auth/validate', { headers: { 'Authorization': `Bearer ${sessionToken}` } });
+            const userData = {
+                id: data.user.id,
+                email: data.user.email,
+                name: data.user.name || data.user.fullName || 'Super Admin',
+                role: data.user.role || 'super_admin'
+            };
+            setUser(userData);
+            setIsAuthenticated(true);
+            localStorage.setItem('sessionToken', sessionToken);
+            localStorage.setItem(TOKEN_KEYS.ACCESS_TOKEN, sessionToken);
+            localStorage.setItem(TOKEN_KEYS.USER_DATA, JSON.stringify(userData));
+            return { success: true, user: userData };
+        } catch (error) {
+            setError(error.message);
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
     // Logout function
     const logout = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
             
-            const token = localStorage.getItem(TOKEN_KEYS.ACCESS_TOKEN);
+            const token = localStorage.getItem('sessionToken') || localStorage.getItem(TOKEN_KEYS.ACCESS_TOKEN);
             
             try {
                 await apiRequest('/auth/logout', {
@@ -186,10 +218,10 @@ export function useSimpleAuth() {
             }
             
             // Clear all data
+            localStorage.removeItem('sessionToken');
             localStorage.removeItem(TOKEN_KEYS.ACCESS_TOKEN);
             localStorage.removeItem(TOKEN_KEYS.USER_DATA);
             localStorage.removeItem(TOKEN_KEYS.REMEMBER_ME);
-            try { localStorage.removeItem('sessionToken'); } catch { /* noop */ }
             
             setUser(null);
             setIsAuthenticated(false);
@@ -215,7 +247,9 @@ export function useSimpleAuth() {
         error,
         isAuthenticated,
         login,
+        loginWithToken,
         logout,
+        validate,
         clearError
     };
 }
