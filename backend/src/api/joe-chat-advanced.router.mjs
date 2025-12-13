@@ -1,14 +1,15 @@
 import express from 'express';
 
-// REFACTORED & CORRECTED: Import from the unified AI service layer
-import { processMessage } from '../services/ai/joe-advanced.service.mjs';
+// Import from the new ImageMaster service that forces image generation
+import { processMessage, init as initImageMaster } from '../services/ai/joe-imagemaster.service.mjs';
+import { getDB } from '../../db.mjs';
 
 const joeChatAdvancedRouterFactory = ({ requireRole }) => {
     const router = express.Router();
 
     /**
      * @route POST /api/v1/joe-chat-advanced
-     * @description Processes a user message using the advanced Joe engine with tool-calling capabilities.
+     * @description Processes a user message using the ImageMaster Joe engine with forced image generation
      * @access USER
      * @body { message: string, sessionId: string }
      */
@@ -25,19 +26,49 @@ const joeChatAdvancedRouterFactory = ({ requireRole }) => {
                 return res.status(400).json({ success: false, error: 'Session ID is required' });
             }
 
-            console.log(`🤖 Advanced Joe processing message for user: ${userId} in session: ${sessionId}`);
+            console.log(`🎨 ImageMaster processing message for user: ${userId} in session: ${sessionId}`);
+            console.log(`🎨 Message: ${message}`);
 
-            // Call the corrected service and function name
-            const result = await processMessage(userId, message, sessionId);
+            // Initialize ImageMaster with dependencies
+            const memoryManager = req.app.locals.memoryManager;
+            if (!memoryManager) {
+                console.error('❌ MemoryManager not found in app.locals');
+                return res.status(500).json({ 
+                    success: false, 
+                    error: 'MEMORY_MANAGER_NOT_FOUND',
+                    message: 'Memory manager not initialized' 
+                });
+            }
 
-            res.json(result);
+            // Initialize the ImageMaster service
+            initImageMaster({ memoryManager });
+
+            // Process message with forced image generation
+            const context = {
+                userId,
+                sessionId,
+                lang: req.body.lang || 'ar',
+                provider: req.body.provider || 'openai',
+                model: req.body.model || null
+            };
+
+            console.log('🎨 Calling ImageMaster processMessage...');
+            const result = await processMessage(message, context);
+            
+            console.log('🎨 ImageMaster result:', result);
+
+            res.json({
+                success: true,
+                response: result.response,
+                toolsUsed: result.toolsUsed || []
+            });
 
         } catch (error) {
-            console.error('❌ Advanced Joe Router Error:', error);
+            console.error('❌ ImageMaster Router Error:', error);
             res.status(500).json({
                 success: false,
-                error: 'ROUTER_LEVEL_ERROR',
-                message: 'An unexpected error occurred in the chat router.',
+                error: 'IMAGEMASTER_ROUTER_ERROR',
+                message: 'An unexpected error occurred in the ImageMaster router.',
                 details: error.message
             });
         }
