@@ -84,10 +84,15 @@ const TopBar = ({ onToggleBorderSettings, isBorderSettingsOpen, isSuperAdmin, on
     try { window.dispatchEvent(new CustomEvent('global:lang', { detail: { lang: next } })); } catch { void 0; }
     try { document.documentElement.setAttribute('lang', next); } catch { void 0; }
   };
+  const pollTimerRef = React.useRef(null);
+  const pollInFlightRef = React.useRef(false);
+  const pollAbortRef = React.useRef(null);
+  const pollDelayRef = React.useRef(2000);
+
   React.useEffect(() => {
     (async () => {
       try {
-        const { data } = await apiClient.get('/api/v1/runtime-mode/status');
+        const { data } = await apiClient.get('/api/v1/runtime-mode/status', { _noRedirect401: true });
         const offlineReady = Boolean(data?.offlineReady);
         const mode = String(data?.mode || 'online');
         const stage = String(data?.stage || '');
@@ -99,7 +104,7 @@ const TopBar = ({ onToggleBorderSettings, isBorderSettingsOpen, isSuperAdmin, on
         try { window.__joeRuntimeStatus = { offlineReady, mode, hasProvider: Boolean(data?.hasProvider), stage, modelPath }; } catch { /* noop */ }
       } catch {
         try {
-          const { data } = await apiClient.get('/api/v1/health');
+          const { data } = await apiClient.get('/api/v1/health', { _noRedirect401: true });
           const mode = String(data?.mode || 'online');
           setRuntimeMode(mode);
           setOfflineReady(Boolean(data?.offlineReady));
@@ -112,26 +117,44 @@ const TopBar = ({ onToggleBorderSettings, isBorderSettingsOpen, isSuperAdmin, on
   }, []);
 
   React.useEffect(() => {
-    let timer = null;
-    const shouldPoll = (!offlineReady || (runtimeStage && runtimeStage !== 'done'));
-    if (shouldPoll) {
-      timer = setInterval(async () => {
+    const loop = async () => {
+      const shouldPoll = (!offlineReady || (runtimeStage && runtimeStage !== 'done'));
+      if (!shouldPoll) return;
+      if (pollInFlightRef.current) {
+        pollTimerRef.current = setTimeout(loop, pollDelayRef.current);
+        return;
+      }
+      pollInFlightRef.current = true;
+      try {
+        if (pollAbortRef.current) { try { pollAbortRef.current.abort(); } catch { /* noop */ } }
+        const controller = new AbortController();
+        pollAbortRef.current = controller;
+        const { data } = await apiClient.get('/api/v1/runtime-mode/status', { signal: controller.signal, _noRedirect401: true });
+        setOfflineReady(Boolean(data?.offlineReady));
+        setRuntimeStage(String(data?.stage || ''));
+        setRuntimeMode(String(data?.mode || 'online'));
+        pollDelayRef.current = 4000;
+      } catch {
         try {
-          const { data } = await apiClient.get('/api/v1/runtime-mode/status');
-          setOfflineReady(Boolean(data?.offlineReady));
-          setRuntimeStage(String(data?.stage || ''));
-          
+          const { data } = await apiClient.get('/api/v1/health', { _noRedirect401: true });
           setRuntimeMode(String(data?.mode || 'online'));
+          setOfflineReady(Boolean(data?.offlineReady));
+          pollDelayRef.current = 6000;
         } catch {
-          try {
-            const { data } = await apiClient.get('/api/v1/health');
-            setRuntimeMode(String(data?.mode || 'online'));
-            setOfflineReady(Boolean(data?.offlineReady));
-          } catch { /* noop */ }
+          pollDelayRef.current = Math.min((pollDelayRef.current || 2000) * 2, 15000);
         }
-      }, 1200);
-    }
-    return () => { if (timer) clearInterval(timer); };
+      } finally {
+        pollInFlightRef.current = false;
+        pollTimerRef.current = setTimeout(loop, pollDelayRef.current);
+      }
+    };
+    clearTimeout(pollTimerRef.current);
+    pollTimerRef.current = setTimeout(loop, pollDelayRef.current);
+    return () => {
+      try { clearTimeout(pollTimerRef.current); } catch { /* noop */ }
+      try { pollAbortRef.current?.abort(); } catch { /* noop */ }
+      pollInFlightRef.current = false;
+    };
   }, [offlineReady, runtimeStage]);
   React.useEffect(() => {
     const onRuntime = (e) => {
