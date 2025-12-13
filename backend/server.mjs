@@ -433,13 +433,6 @@ async function startServer({ dependencyInitializer = setupDependencies, exit = p
     });
 
     app.use('/api/v1', rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false }));
-    
-    app.use((req, res) => res.status(404).json({ error: 'NOT_FOUND' }));
-    app.use((err, req, res, _next) => {
-        void _next;
-        console.error('❌ Global Error:', err);
-        res.status(500).json({ error: 'SERVER_ERROR', message: err.message });
-    });
 
     // Initialize dependencies asynchronously to avoid blocking port binding
     Promise.resolve().then(async () => {
@@ -456,6 +449,14 @@ async function startServer({ dependencyInitializer = setupDependencies, exit = p
       } catch (e) {
         console.error('❌ Failed to apply routes or auth:', e?.message || String(e));
       }
+      try {
+        app.use((req, res) => res.status(404).json({ error: 'NOT_FOUND' }));
+        app.use((err, req, res, _next) => {
+          void _next;
+          console.error('❌ Global Error:', err);
+          res.status(500).json({ error: 'SERVER_ERROR', message: err.message });
+        });
+      } catch {}
       // Background initialization (non-blocking)
       try {
         const seedPreset = String(process.env.JOE_TOOL_SEED || 'core');

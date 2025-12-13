@@ -223,8 +223,21 @@ export const executeJoe = async (instruction, ctx, opts) => {
       if (payload.sessionId) params.set('sessionId', String(payload.sessionId));
       if (payload.provider) params.set('provider', String(payload.provider));
       if (payload.apiKey) params.set('apiKey', String(payload.apiKey));
-      const { data } = await apiClient.get(`${v1('/joe/execute')}?${params.toString()}`, { signal: opts?.signal, _noRedirect401: true });
-      return data;
+      try {
+        const { data } = await apiClient.get(`${v1('/joe/execute')}?${params.toString()}`, { signal: opts?.signal, _noRedirect401: true });
+        return data;
+      } catch (e2) {
+        const s2 = e2?.status ?? e2?.response?.status;
+        if (s2 === 404) {
+          try {
+            const { data } = await apiClient.post(v1('/joe-chat-advanced'), { message: instruction, sessionId: payload.sessionId }, { signal: opts?.signal, _noRedirect401: true });
+            return data;
+          } catch (e3) {
+            throw e3;
+          }
+        }
+        throw e2;
+      }
     }
     throw e;
   }
