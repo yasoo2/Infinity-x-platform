@@ -3,15 +3,14 @@ import PropTypes from 'prop-types';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import DashboardLayout from './components/DashboardLayout';
 import Joe from './pages/Joe';
-import { useAuthContext } from './context/AuthContext';
-import { useSessionToken } from './hooks/useSessionToken';
-import { getGuestToken } from './api/system';
+import { useSimpleAuthContext } from './context/SimpleAuthContext';
 
 const Activity = React.lazy(() => import('./pages/Activity'));
 const Build = React.lazy(() => import('./pages/Build'));
 const Command = React.lazy(() => import('./pages/Command'));
 const Home = React.lazy(() => import('./pages/Home'));
-const LoginPage = React.lazy(() => import('./pages/Login'));
+const LoginPage = React.lazy(() => import('./pages/SimpleLogin'));
+const LandingPage = React.lazy(() => import('./pages/LandingPage'));
 const SignupPage = React.lazy(() => import('./pages/Signup'));
 const MonitoringPage = React.lazy(() => import('./pages/MonitoringPage'));
 const NotFound = React.lazy(() => import('./pages/NotFound'));
@@ -22,50 +21,28 @@ const SuperAdminPanel = React.lazy(() => import('./pages/SuperAdminPanel'));
 const UniversalStoreIntegration = React.lazy(() => import('./pages/UniversalStoreIntegration'));
 const Users = React.lazy(() => import('./pages/Users'));
 
-
-
-// Helper component for protected routes
+// Helper component for protected routes using simple auth
 const ProtectedRoute = ({ children, allowedRoles }) => {
-  const { token, saveToken, isAuthenticated: hasToken } = useSessionToken();
-  const { user, isLoading } = useAuthContext();
-  const [guestTrying, setGuestTrying] = useState(false);
-  const [guestFailed, setGuestFailed] = useState(false);
+  const { user, loading, isAuthenticated } = useSimpleAuthContext();
 
-  useEffect(() => {
-    const run = async () => {
-      if (hasToken()) return;
-      if (guestTrying) return;
-      setGuestTrying(true);
-      try {
-        const res = await getGuestToken();
-        const t = res?.token || res?.data?.token;
-        if (t) {
-          saveToken(t);
-          setGuestFailed(false);
-        } else {
-          setGuestFailed(true);
-        }
-      } catch {
-        setGuestFailed(true);
-      } finally {
-        setGuestTrying(false);
-      }
-    };
-    run();
-  }, [hasToken, guestTrying, saveToken]);
-
-  if (!hasToken()) {
-    if (guestTrying) return <div>Loading...</div>;
-    if (!token && guestFailed) return <Navigate to="/" replace />;
-    return <div>Loading...</div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-300">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
-  // عند تقييد الأدوار، ننتظر تحميل معلومات المستخدم
-  if (allowedRoles) {
-    if (isLoading) return <div>Loading...</div>;
-    if (!user || !allowedRoles.includes(user.role)) {
-      return <Navigate to="/dashboard/overview" replace />;
-    }
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Check role-based access
+  if (allowedRoles && user && !allowedRoles.includes(user.role)) {
+    return <Navigate to="/dashboard/overview" replace />;
   }
 
   return children;
@@ -76,46 +53,43 @@ ProtectedRoute.propTypes = {
   allowedRoles: PropTypes.array,
 };
 
-// JoeScreen usage removed from routes
 const SecurityReport = React.lazy(() => import('./pages/SecurityReport'));
 const Knowledge = React.lazy(() => import('./pages/Knowledge'));
 
-// Legacy JoeScreenPage removed
-
-
-  const AppRoutes = () => {
-    class ErrorBoundary extends React.Component {
-      constructor(props) { super(props); this.state = { hasError: false, error: null }; }
-      static getDerivedStateFromError(error) { return { hasError: true, error }; }
-      componentDidCatch(error) { try { console.error('UI Error:', error); } catch { /* noop */ } }
-      render() {
-        if (this.state.hasError) {
-          const msg = String(this.state.error?.message || 'Unexpected error');
-          const stack = String(this.state.error?.stack || '').trim();
-          return (
-            <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: '#0B1220' }}>
-              <div style={{ padding: 24, borderRadius: 12, border: '1px solid #334155', background: '#111827', color: '#e2e8f0', maxWidth: 600, width: '90%' }}>
-                <div style={{ fontSize: 18, fontWeight: 700, color: '#38bdf8', marginBottom: 8 }}>حدث خطأ في الواجهة</div>
-                <div style={{ fontSize: 14, marginBottom: 12 }}>{msg}</div>
-                {stack && (
-                  <pre style={{ fontSize: 12, lineHeight: 1.4, background: '#0b1220', padding: 12, borderRadius: 8, border: '1px solid #334155', overflowX: 'auto', maxHeight: 240 }}>{stack}</pre>
-                )}
-                <button onClick={() => location.reload()} style={{ background: '#0ea5e9', color: 'white', padding: '8px 12px', borderRadius: 8 }}>إعادة التحميل</button>
-              </div>
+const AppRoutes = () => {
+  class ErrorBoundary extends React.Component {
+    constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+    static getDerivedStateFromError(error) { return { hasError: true, error }; }
+    componentDidCatch(error) { try { console.error('UI Error:', error); } catch { /* noop */ } }
+    render() {
+      if (this.state.hasError) {
+        const msg = String(this.state.error?.message || 'Unexpected error');
+        const stack = String(this.state.error?.stack || '').trim();
+        return (
+          <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: '#0B1220' }}>
+            <div style={{ padding: 24, borderRadius: 12, border: '1px solid #334155', background: '#111827', color: '#e2e8f0', maxWidth: 600, width: '90%' }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: '#38bdf8', marginBottom: 8 }}>حدث خطأ في الواجهة</div>
+              <div style={{ fontSize: 14, marginBottom: 12 }}>{msg}</div>
+              {stack && (
+                <pre style={{ fontSize: 12, lineHeight: 1.4, background: '#0b1220', padding: 12, borderRadius: 8, border: '1px solid #334155', overflowX: 'auto', maxHeight: 240 }}>{stack}</pre>
+              )}
+              <button onClick={() => location.reload()} style={{ background: '#0ea5e9', color: 'white', padding: '8px 12px', borderRadius: 8 }}>إعادة التحميل</button>
             </div>
-          );
-        }
+          </div>
+        );
+      }
       return this.props.children;
     }
   }
   ErrorBoundary.propTypes = { children: PropTypes.node };
+  
   return (
     <Router>
       <ErrorBoundary>
       <Suspense fallback={<div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}><div style={{ color: '#0ea5e9', fontWeight: 700 }}>Loading...</div></div>}>
       <Routes>
         {/* Public Routes */}
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
 
@@ -127,7 +101,6 @@ const Knowledge = React.lazy(() => import('./pages/Knowledge'));
           <Route path="build" element={<Build />} />
           <Route path="command" element={<Command />} />
           <Route path="monitoring" element={<MonitoringPage />} />
-          {/* Removed legacy joe-screen route */}
           
           <Route path="security" element={<SecurityReport />} />
           <Route path="knowledge" element={<Knowledge />} />

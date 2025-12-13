@@ -1,14 +1,13 @@
-
 import React, { useEffect } from 'react';
 import apiClient from './api/client';
 import AppRoutes from './Routes';
-import { AuthProvider } from './context/AuthContext';
+import { SimpleAuthProvider } from './context/SimpleAuthContext';
 
 /**
  * App Component
  * ------------------
  * This is the main entry point for the React application.
- * Now includes authentication context provider for global auth state.
+ * Now includes simple authentication context provider for global auth state.
  */
 const App = () => {
   useEffect(() => {
@@ -28,9 +27,9 @@ const App = () => {
   }, []);
   
   return (
-    <AuthProvider>
+    <SimpleAuthProvider>
       <AppRoutes />
-    </AuthProvider>
+    </SimpleAuthProvider>
   );
 };
 
