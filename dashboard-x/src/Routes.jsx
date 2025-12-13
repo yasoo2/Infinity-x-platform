@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import DashboardLayout from './components/DashboardLayout';
 import Joe from './pages/Joe';
-import useAuth from './hooks/useAuth';
+import { useAuthContext } from './context/AuthContext';
 import { useSessionToken } from './hooks/useSessionToken';
 import { getGuestToken } from './api/system';
 
@@ -12,6 +12,7 @@ const Build = React.lazy(() => import('./pages/Build'));
 const Command = React.lazy(() => import('./pages/Command'));
 const Home = React.lazy(() => import('./pages/Home'));
 const LoginPage = React.lazy(() => import('./pages/Login'));
+const SignupPage = React.lazy(() => import('./pages/Signup'));
 const MonitoringPage = React.lazy(() => import('./pages/MonitoringPage'));
 const NotFound = React.lazy(() => import('./pages/NotFound'));
 const Overview = React.lazy(() => import('./pages/Overview'));
@@ -26,7 +27,7 @@ const Users = React.lazy(() => import('./pages/Users'));
 // Helper component for protected routes
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { token, saveToken, isAuthenticated: hasToken } = useSessionToken();
-  const { user, isLoading } = useAuth();
+  const { user, isLoading } = useAuthContext();
   const [guestTrying, setGuestTrying] = useState(false);
   const [guestFailed, setGuestFailed] = useState(false);
 
@@ -116,6 +117,7 @@ const Knowledge = React.lazy(() => import('./pages/Knowledge'));
         {/* Public Routes */}
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
 
         {/* Protected Routes (Requires Authentication) */}
         <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>

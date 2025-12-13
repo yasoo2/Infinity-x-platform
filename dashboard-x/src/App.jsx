@@ -1,18 +1,14 @@
 
 import React, { useEffect } from 'react';
 import apiClient from './api/client';
-// Corrected the import path again. Build tools like Vite often handle file extensions
-// automatically, so we should import without the .jsx extension.
-import AppRoutes from './Routes'; 
+import AppRoutes from './Routes';
+import { AuthProvider } from './context/AuthContext';
 
 /**
  * App Component
  * ------------------
  * This is the main entry point for the React application.
- *
- * As per the user's request for a direct and sophisticated interface,
- * we are bypassing the old login system and rendering the core "Joe" agent UI directly.
- // The previous components (LandingPage, LoginModal) were missing, causing the build to fail. We now use React Router for proper navigation. * This streamlined approach immediately presents the user with the functional AI interface.
+ * Now includes authentication context provider for global auth state.
  */
 const App = () => {
   useEffect(() => {
@@ -30,7 +26,12 @@ const App = () => {
       }
     } catch { void 0; }
   }, []);
-  return <AppRoutes />;
+  
+  return (
+    <AuthProvider>
+      <AppRoutes />
+    </AuthProvider>
+  );
 };
 
 export default App;

@@ -1,9 +1,12 @@
-
 import React from 'react';
-import LoginForm from '../components/landing/LoginForm';
+import LoginForm from '../components/auth/LoginForm';
 
-const LoginPage = () => {
-  return <LoginForm />;
+const Login = () => {
+  return (
+    <div className="min-h-screen">
+      <LoginForm />
+    </div>
+  );
 };
 
-export default LoginPage;
+export default Login;

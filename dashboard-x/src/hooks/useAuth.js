@@ -1,124 +1,509 @@
-import { useState, useEffect, useCallback } from 'react';
-import apiClient from '../api/client';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 
-// Placeholder for a real authentication hook
-const useAuth = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+// API configuration
+const API_BASE_URL = localStorage.getItem('apiBaseUrl') || 'http://localhost:3001';
 
-  useEffect(() => {
-    const token = localStorage.getItem('sessionToken');
-    if (token) {
-      setIsAuthenticated(true);
-    }
-    setIsLoading(false);
-  }, []);
-
-  const login = async (email, password, remember = false) => {
-    try {
-      try {
-        const host = typeof window !== 'undefined' ? String(window.location.hostname || '') : '';
-        if (/xelitesolutions\.com$/i.test(host)) { try { localStorage.removeItem('apiOffline'); } catch { /* noop */ } }
-      } catch { /* noop */ }
-      const safeEmail = String(email || '').trim().toLowerCase().replace(/[.\s]+$/, '');
-      const safePassword = String(password || '');
-      let data;
-      try {
-        data = (await apiClient.post('/api/v1/auth/login', { email: safeEmail, password: safePassword })).data;
-      } catch (err) {
-        const status = err?.response?.status || err?.status;
-        if (status === 404 || status === 405) {
-          const params = new URLSearchParams({ email: safeEmail, password: safePassword });
-          data = (await apiClient.get(`/api/v1/auth/login?${params.toString()}`)).data;
-        } else {
-          throw err;
-        }
-      }
-      const token = data?.token || data?.sessionToken || data?.jwt || data?.access_token;
-      if (token) {
-        try {
-          localStorage.setItem('sessionToken', token);
-        } catch { void 0; }
-        const usr = { email: data.user?.email || safeEmail, role: data.user?.role, id: data.user?.id };
-        setUser(usr);
-        setIsAuthenticated(true);
-        if (remember) {
-          try {
-            const identifier = usr.email || safeEmail || usr.id || '';
-            const mapRaw = localStorage.getItem('rememberedSessions');
-            const map = mapRaw ? JSON.parse(mapRaw) : {};
-            map[String(identifier).toLowerCase()] = token;
-            localStorage.setItem('rememberedSessions', JSON.stringify(map));
-          } catch { void 0; }
-        }
-        return true;
-      }
-      if (data?.ok === false && typeof data?.message === 'string') {
-        throw new Error(data.message);
-      }
-    } catch {
-      return false;
-    }
-  };
-
-  const listRemembered = useCallback(() => {
-    try {
-      const raw = localStorage.getItem('rememberedSessions');
-      const map = raw ? JSON.parse(raw) : {};
-      return Object.keys(map);
-    } catch {
-      return [];
-    }
-  }, []);
-
-  const loginWithRemembered = useCallback((identifier) => {
-    try {
-      const raw = localStorage.getItem('rememberedSessions');
-      const map = raw ? JSON.parse(raw) : {};
-      const key = String(identifier).toLowerCase();
-      const tok = map[key];
-      if (!tok) return false;
-      localStorage.setItem('sessionToken', tok);
-      setIsAuthenticated(true);
-      setUser({ email: identifier });
-      return true;
-    } catch {
-      return false;
-    }
-  }, []);
-
-  const removeRemembered = useCallback((identifier) => {
-    try {
-      const raw = localStorage.getItem('rememberedSessions');
-      const map = raw ? JSON.parse(raw) : {};
-      const key = String(identifier).toLowerCase();
-      if (map[key]) {
-        delete map[key];
-        localStorage.setItem('rememberedSessions', JSON.stringify(map));
-      }
-      return true;
-    } catch {
-      return false;
-    }
-  }, []);
-
-  // const logout = () => { // Removed as per user request
-  //   localStorage.removeItem('sessionToken');
-  //   setUser(null);
-  //   setIsAuthenticated(false);
-  // };
-
-  return {
-    isAuthenticated,
-    user,
-    isLoading,
-    login,
-    listRemembered,
-    loginWithRemembered,
-    removeRemembered,
-    // logout, // Removed as per user request
-  };
+// Token storage keys
+const TOKEN_KEYS = {
+    ACCESS_TOKEN: 'auth_access_token',
+    REFRESH_TOKEN: 'auth_refresh_token',
+    SESSION_TOKEN: 'auth_session_token',
+    USER_DATA: 'auth_user_data',
+    REMEMBER_ME: 'auth_remember_me'
 };
+
+// Error messages
+const ERROR_MESSAGES = {
+    NETWORK_ERROR: 'Network error. Please check your connection.',
+    INVALID_CREDENTIALS: 'Invalid email or password.',
+    ACCOUNT_LOCKED: 'Account is locked. Please contact support.',
+    SERVER_ERROR: 'Server error. Please try again later.',
+    SESSION_EXPIRED: 'Session expired. Please log in again.',
+    INVALID_TOKEN: 'Invalid authentication token.',
+    RATE_LIMITED: 'Too many attempts. Please try again later.',
+    MAINTENANCE: 'System is under maintenance. Please try again later.'
+};
+
+// Helper functions
+const clearAllTokens = () => {
+    Object.values(TOKEN_KEYS).forEach(key => {
+        localStorage.removeItem(key);
+        sessionStorage.removeItem(key);
+    });
+};
+
+const setToken = (key, value, persistent = false) => {
+    if (persistent) {
+        localStorage.setItem(key, value);
+    } else {
+        sessionStorage.setItem(key, value);
+    }
+};
+
+const getToken = (key) => {
+    return localStorage.getItem(key) || sessionStorage.getItem(key);
+};
+
+const removeToken = (key) => {
+    localStorage.removeItem(key);
+    sessionStorage.removeItem(key);
+};
+
+// API helper function
+async function apiRequest(endpoint, options = {}) {
+    const url = `${API_BASE_URL}${endpoint}`;
+    const token = getToken(TOKEN_KEYS.ACCESS_TOKEN);
+    
+    const headers = {
+        'Content-Type': 'application/json',
+        ...options.headers
+    };
+    
+    if (token) {
+        headers.Authorization = `Bearer ${token}`;
+    }
+    
+    try {
+        const response = await fetch(url, {
+            ...options,
+            headers,
+            credentials: 'include'
+        });
+        
+        // Handle rate limiting
+        if (response.status === 429) {
+            const retryAfter = response.headers.get('Retry-After');
+            throw new Error(`${ERROR_MESSAGES.RATE_LIMITED}${retryAfter ? ` Retry after ${retryAfter} seconds.` : ''}`);
+        }
+        
+        // Handle maintenance mode
+        if (response.status === 503) {
+            throw new Error(ERROR_MESSAGES.MAINTENANCE);
+        }
+        
+        // Handle network/server errors
+        if (response.status >= 500) {
+            throw new Error(ERROR_MESSAGES.SERVER_ERROR);
+        }
+        
+        // Handle unauthorized
+        if (response.status === 401) {
+            throw new Error(ERROR_MESSAGES.SESSION_EXPIRED);
+        }
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || `HTTP ${response.status}`);
+        }
+        
+        return data;
+        
+    } catch (error) {
+        // Handle network errors
+        if (error.name === 'TypeError' && error.message.includes('fetch')) {
+            throw new Error(ERROR_MESSAGES.NETWORK_ERROR);
+        }
+        
+        throw error;
+    }
+}
+
+// Main authentication hook
+export function useAuth() {
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+    // Load user data from storage on mount
+    useEffect(() => {
+        const loadStoredUser = async () => {
+            try {
+                setLoading(true);
+                setError(null);
+                
+                const storedUser = getToken(TOKEN_KEYS.USER_DATA);
+                const accessToken = getToken(TOKEN_KEYS.ACCESS_TOKEN);
+                const sessionToken = getToken(TOKEN_KEYS.SESSION_TOKEN);
+                const rememberMe = localStorage.getItem(TOKEN_KEYS.REMEMBER_ME) === 'true';
+                
+                if (!storedUser && !accessToken && !sessionToken) {
+                    setLoading(false);
+                    return;
+                }
+                
+                // Try to validate existing session
+                if (accessToken) {
+                    try {
+                        const userData = await validateToken();
+                        setUser(userData);
+                        setIsAuthenticated(true);
+                    } catch (error) {
+                        console.warn('Token validation failed:', error);
+                        // Try to refresh token
+                        await refreshAccessToken();
+                    }
+                } else if (sessionToken) {
+                    // Try session-based login
+                    await loginWithSession(sessionToken);
+                } else if (storedUser) {
+                    // Fallback to stored user data
+                    setUser(JSON.parse(storedUser));
+                    setIsAuthenticated(true);
+                }
+                
+            } catch (error) {
+                console.error('Failed to load stored user:', error);
+                clearAllTokens();
+            } finally {
+                setLoading(false);
+            }
+        };
+        
+        loadStoredUser();
+    }, []);
+
+    // Validate current token
+    const validateToken = useCallback(async () => {
+        try {
+            const data = await apiRequest('/api/v1/auth/profile');
+            return data.user;
+        } catch (error) {
+            throw error;
+        }
+    }, []);
+
+    // Refresh access token
+    const refreshAccessToken = useCallback(async () => {
+        try {
+            const refreshToken = getToken(TOKEN_KEYS.REFRESH_TOKEN);
+            if (!refreshToken) {
+                throw new Error('No refresh token available');
+            }
+            
+            const data = await apiRequest('/api/v1/auth/refresh', {
+                method: 'POST',
+                body: JSON.stringify({ refreshToken })
+            });
+            
+            // Store new tokens
+            const rememberMe = localStorage.getItem(TOKEN_KEYS.REMEMBER_ME) === 'true';
+            setToken(TOKEN_KEYS.ACCESS_TOKEN, data.accessToken, rememberMe);
+            setToken(TOKEN_KEYS.REFRESH_TOKEN, data.refreshToken, rememberMe);
+            
+            return data;
+        } catch (error) {
+            console.error('Token refresh failed:', error);
+            clearAllTokens();
+            throw error;
+        }
+    }, []);
+
+    // Login with credentials
+    const login = useCallback(async (email, password, rememberMe = false) => {
+        try {
+            setLoading(true);
+            setError(null);
+            
+            // Basic validation
+            if (!email || !password) {
+                throw new Error('Email and password are required');
+            }
+            
+            // Attempt login with multiple endpoint fallbacks
+            let loginData = null;
+            const endpoints = [
+                '/api/v1/auth/login',
+                '/api/auth/login',
+                '/v1/auth/login',
+                '/api/v1/auth/login',
+                '/auth/login'
+            ];
+            
+            for (const endpoint of endpoints) {
+                try {
+                    loginData = await apiRequest(endpoint, {
+                        method: 'POST',
+                        body: JSON.stringify({ email, password, rememberMe })
+                    });
+                    break; // Success, exit loop
+                } catch (error) {
+                    console.warn(`Login failed for ${endpoint}:`, error.message);
+                    if (error.message.includes('Network error')) {
+                        continue; // Try next endpoint
+                    }
+                    throw error; // Re-throw non-network errors
+                }
+            }
+            
+            if (!loginData) {
+                throw new Error('All login endpoints failed');
+            }
+            
+            // Store user data and tokens
+            const userData = {
+                id: loginData.user.id,
+                email: loginData.user.email,
+                fullName: loginData.user.fullName,
+                role: loginData.user.role
+            };
+            
+            setUser(userData);
+            setIsAuthenticated(true);
+            
+            // Store tokens
+            setToken(TOKEN_KEYS.ACCESS_TOKEN, loginData.accessToken, rememberMe);
+            setToken(TOKEN_KEYS.REFRESH_TOKEN, loginData.refreshToken, rememberMe);
+            setToken(TOKEN_KEYS.USER_DATA, JSON.stringify(userData), rememberMe);
+            
+            if (rememberMe && loginData.sessionToken) {
+                setToken(TOKEN_KEYS.SESSION_TOKEN, loginData.sessionToken, true);
+                localStorage.setItem(TOKEN_KEYS.REMEMBER_ME, 'true');
+            }
+            
+            return { success: true, user: userData };
+            
+        } catch (error) {
+            setError(error.message);
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    // Login with session token
+    const loginWithSession = useCallback(async (sessionToken) => {
+        try {
+            setLoading(true);
+            setError(null);
+            
+            const data = await apiRequest('/api/v1/auth/session', {
+                method: 'POST',
+                body: JSON.stringify({ sessionToken })
+            });
+            
+            // Store user data and tokens
+            const userData = {
+                id: data.user.id,
+                email: data.user.email,
+                fullName: data.user.fullName,
+                role: data.user.role
+            };
+            
+            setUser(userData);
+            setIsAuthenticated(true);
+            
+            // Store tokens
+            setToken(TOKEN_KEYS.ACCESS_TOKEN, data.accessToken, true);
+            setToken(TOKEN_KEYS.REFRESH_TOKEN, data.refreshToken, true);
+            setToken(TOKEN_KEYS.USER_DATA, JSON.stringify(userData), true);
+            
+            return { success: true, user: userData };
+            
+        } catch (error) {
+            // Session failed, remove it
+            removeToken(TOKEN_KEYS.SESSION_TOKEN);
+            setError(error.message);
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    // Register new user
+    const register = useCallback(async (email, password, fullName) => {
+        try {
+            setLoading(true);
+            setError(null);
+            
+            // Basic validation
+            if (!email || !password || !fullName) {
+                throw new Error('Email, password, and full name are required');
+            }
+            
+            const data = await apiRequest('/api/v1/auth/register', {
+                method: 'POST',
+                body: JSON.stringify({ email, password, fullName })
+            });
+            
+            // Store user data and tokens
+            const userData = {
+                id: data.user.id,
+                email: data.user.email,
+                fullName: data.user.fullName,
+                role: data.user.role
+            };
+            
+            setUser(userData);
+            setIsAuthenticated(true);
+            
+            // Store tokens
+            setToken(TOKEN_KEYS.ACCESS_TOKEN, data.accessToken, false);
+            setToken(TOKEN_KEYS.REFRESH_TOKEN, data.refreshToken, false);
+            setToken(TOKEN_KEYS.USER_DATA, JSON.stringify(userData), false);
+            
+            return { success: true, user: userData };
+            
+        } catch (error) {
+            setError(error.message);
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    // Logout
+    const logout = useCallback(async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            
+            const sessionToken = getToken(TOKEN_KEYS.SESSION_TOKEN);
+            
+            try {
+                await apiRequest('/api/v1/auth/logout', {
+                    method: 'POST',
+                    body: JSON.stringify({ sessionToken })
+                });
+            } catch (error) {
+                console.warn('Logout API call failed:', error);
+            }
+            
+            // Clear all data
+            clearAllTokens();
+            setUser(null);
+            setIsAuthenticated(false);
+            
+            return { success: true };
+            
+        } catch (error) {
+            setError(error.message);
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    // Request password reset
+    const requestPasswordReset = useCallback(async (email) => {
+        try {
+            setLoading(true);
+            setError(null);
+            
+            await apiRequest('/api/v1/auth/reset-request', {
+                method: 'POST',
+                body: JSON.stringify({ email })
+            });
+            
+            return { success: true };
+            
+        } catch (error) {
+            setError(error.message);
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    // Reset password
+    const resetPassword = useCallback(async (token, newPassword) => {
+        try {
+            setLoading(true);
+            setError(null);
+            
+            await apiRequest('/api/v1/auth/reset', {
+                method: 'POST',
+                body: JSON.stringify({ token, newPassword })
+            });
+            
+            return { success: true };
+            
+        } catch (error) {
+            setError(error.message);
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    // Update user profile
+    const updateProfile = useCallback(async (updates) => {
+        try {
+            setLoading(true);
+            setError(null);
+            
+            // This would typically be a separate API endpoint
+            // For now, just update local state
+            const updatedUser = { ...user, ...updates };
+            setUser(updatedUser);
+            setToken(TOKEN_KEYS.USER_DATA, JSON.stringify(updatedUser), true);
+            
+            return { success: true, user: updatedUser };
+            
+        } catch (error) {
+            setError(error.message);
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    }, [user]);
+
+    // Check if user has a specific role
+    const hasRole = useCallback((role) => {
+        return user?.role === role;
+    }, [user]);
+
+    // Check if user has any of the specified roles
+    const hasAnyRole = useCallback((roles) => {
+        return roles.includes(user?.role);
+    }, [user]);
+
+    // Update API base URL
+    const updateApiBaseUrl = useCallback((newUrl) => {
+        localStorage.setItem('apiBaseUrl', newUrl);
+        // You might want to reload the page or reinitialize API calls here
+        window.location.reload();
+    }, []);
+
+    // Memoized values
+    const authContext = useMemo(() => ({
+        user,
+        loading,
+        error,
+        isAuthenticated,
+        login,
+        loginWithSession,
+        register,
+        logout,
+        requestPasswordReset,
+        resetPassword,
+        updateProfile,
+        hasRole,
+        hasAnyRole,
+        updateApiBaseUrl,
+        refreshAccessToken,
+        validateToken
+    }), [
+        user,
+        loading,
+        error,
+        isAuthenticated,
+        login,
+        loginWithSession,
+        register,
+        logout,
+        requestPasswordReset,
+        resetPassword,
+        updateProfile,
+        hasRole,
+        hasAnyRole,
+        updateApiBaseUrl,
+        refreshAccessToken,
+        validateToken
+    ]);
+
+    return authContext;
+}
 
 export default useAuth;
