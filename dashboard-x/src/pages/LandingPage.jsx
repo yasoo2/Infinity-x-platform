@@ -6,6 +6,8 @@ import { FiLogIn, FiZap, FiGlobe, FiUsers, FiAward } from 'react-icons/fi';
 const LandingPage = () => {
   const navigate = useNavigate();
   const [showLogin, setShowLogin] = useState(false);
+  const [diagRunning, setDiagRunning] = useState(false);
+  const [diagLogs, setDiagLogs] = useState([]);
 
   const handleLoginClick = () => {
     setShowLogin(true);
@@ -18,6 +20,58 @@ const LandingPage = () => {
 
   const handleLoginError = () => {
     // keep modal open, error shown inside LoginCard
+  };
+
+  const pushLog = (msg) => setDiagLogs((prev) => [...prev, { ts: Date.now(), msg }].slice(-12));
+  const normalizeApiBase = () => {
+    let base = localStorage.getItem('apiBaseUrl');
+    try {
+      if (!base || !String(base).trim()) base = (typeof window !== 'undefined' ? window.location.origin : '') + '/api/v1';
+      try {
+        const u = new URL(String(base)); const host = u.hostname;
+        if (host === 'www.xelitesolutions.com' || host === 'xelitesolutions.com') base = 'https://api.xelitesolutions.com/api/v1';
+      } catch { /* noop */ }
+      const hasV1 = /\/api\/v1$/i.test(String(base));
+      if (!hasV1) base = String(base).replace(/\/+$/,'') + '/api/v1';
+    } catch { base = '/api/v1'; }
+    return String(base).replace(/\/+$/,'');
+  };
+  const runAdminDiagnostic = async () => {
+    if (diagRunning) return;
+    setDiagRunning(true); setDiagLogs([]);
+    try {
+      const base = normalizeApiBase();
+      pushLog(`base=${base}`);
+      const email = 'info.auraaluxury@gmail.com';
+      const password = 'younes2025';
+      const r1 = await fetch(`${base}/auth/simple-login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, rememberMe: true }), credentials: 'include' });
+      const d1 = await r1.json();
+      if (!r1.ok || !d1.ok || !d1.token) throw new Error(d1.error || 'simple-login failed');
+      pushLog('simple-login ok');
+      try { localStorage.setItem('sessionToken', d1.token); localStorage.setItem('simple_auth_token', d1.token); localStorage.setItem('simple_user_data', JSON.stringify(d1.user)); } catch { /* noop */ }
+      const r2 = await fetch(`${base}/auth/validate`, { headers: { Authorization: `Bearer ${d1.token}` }, credentials: 'include' });
+      const d2 = await r2.json();
+      if (!r2.ok || !(d2.success || d2.ok)) throw new Error(d2.error || 'validate failed');
+      pushLog('validate ok');
+      const r3 = await fetch(`${base}/joe/ping`);
+      const t3 = await r3.text();
+      if (!r3.ok || !/pong/.test(String(t3))) throw new Error('joe ping failed');
+      pushLog('joe ping ok');
+      await new Promise((resolve) => {
+        let done = false; const es = new EventSource(`${base}/joe/events`, { withCredentials: true });
+        const tidy = () => { if (done) return; done = true; try { es.close(); } catch { /* noop */ } resolve(); };
+        es.addEventListener('init', () => { pushLog('events init'); tidy(); });
+        es.addEventListener('error', () => tidy());
+        setTimeout(tidy, 3000);
+      });
+      pushLog('events ok');
+      setShowLogin(false);
+      navigate('/dashboard/joe');
+    } catch (e) {
+      pushLog(`error: ${e?.message || e}`);
+    } finally {
+      setDiagRunning(false);
+    }
   };
 
   const features = [
@@ -131,8 +185,17 @@ const LandingPage = () => {
       {showLogin && (
         <div className="fixed inset-0 z-[100] grid place-items-center bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-md mx-4 relative">
-            <button onClick={()=>setShowLogin(false)} className="absolute -top-3 -right-3 bg-white/10 border border-white/20 text-white rounded-full w-10 h-10">×</button>
+            <button onClick={()=>setShowLogin(false)} className="absolute -top-3 -right-3 bg:white/10 border border-white/20 text-white rounded-full w-10 h-10">×</button>
             <LoginCard onSuccess={handleLoginSuccess} onError={handleLoginError} className="bg-transparent min-h-0" />
+            <div className="mt-4 bg-white/10 border border-white/20 rounded-lg p-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-white text-sm">تشخيص الدخول</div>
+                <button onClick={runAdminDiagnostic} disabled={diagRunning} className="px-3 py-1 bg-blue-600 text-white rounded disabled:opacity-50">{diagRunning ? 'جاري الفحص...' : 'بدء الفحص'}</button>
+              </div>
+              <div className="max-h-28 overflow-auto space-y-1 text-xs text-gray-200">
+                {diagLogs.map((l,i)=>(<div key={i}><span className="text-gray-400 mr-1">{new Date(l.ts).toLocaleTimeString()}</span>{l.msg}</div>))}
+              </div>
+            </div>
           </div>
         </div>
       )}
