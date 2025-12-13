@@ -17,6 +17,7 @@ const sanitizeCompetitors = (text) => {
     t = t.replace(/^.*Not supported: in app messages from Iterable.*$/gim, '');
     t = t.replace(/iterable/ig, '');
     t = t.replace(/Understand this error/ig, '');
+    t = t.replace(/^.*grm\s*ERROR.*$/gim, '');
     t = t.replace(/^\s*سياق\s*سابق\s*:.*$/gim, '');
     t = t.replace(/^\s*Previous\s*context\s*:.*$/gim, '');
     t = t.replace(/^\s*ملخص\s*الجلسة\s*:.*$/gim, '');
