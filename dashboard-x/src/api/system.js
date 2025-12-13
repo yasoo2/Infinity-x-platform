@@ -186,9 +186,17 @@ export const getChatMessages = (id, opts) =>
     } catch (e) {
       const status = e?.status ?? e?.response?.status;
       if (status === 405 || status === 404) {
-        const res = await apiClient.get(chatHistory(`/sessions/${id}`), { signal: opts?.signal, _noRedirect401: true });
-        const messages = Array.isArray(res?.data?.messages) ? res.data.messages : [];
-        return { data: { success: true, messages } };
+        try {
+          const res = await apiClient.get(chatHistory(`/sessions/${id}`), { signal: opts?.signal, _noRedirect401: true });
+          const messages = Array.isArray(res?.data?.messages) ? res.data.messages : [];
+          return { data: { success: true, messages } };
+        } catch (e2) {
+          const s2 = e2?.status ?? e2?.response?.status;
+          if (s2 === 404) {
+            return { data: { success: true, messages: [] } };
+          }
+          throw e2;
+        }
       }
       throw e;
     }

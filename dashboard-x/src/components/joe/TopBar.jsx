@@ -3,7 +3,10 @@ import { FiMaximize2, FiLogOut, FiUsers, FiTerminal } from 'react-icons/fi';
 import apiClient from '../../api/client';
 import { Search as SearchIcon, Sparkles } from 'lucide-react';
 import { getAIProviders, validateAIKey, activateAIProvider } from '../../api/system';
-import { DEFAULT_AI_PROVIDERS } from '../../api/system';
+const DEFAULT_AI_PROVIDERS = [
+  { id: 'openai', name: 'OpenAI', region: 'global' },
+  { id: 'gemini', name: 'Google Gemini', region: 'global' },
+];
 
 import PropTypes from 'prop-types';
 import { useSessionToken } from '../../hooks/useSessionToken';

@@ -4,8 +4,8 @@ import jwt from 'jsonwebtoken';
 import { ROLES } from '../../../shared/roles.js';
 
 const authRouterFactory = ({ db }) => {
-    const router = express.Router();
-    void db;
+  const router = express.Router();
+  void db;
 
     
 
@@ -89,6 +89,20 @@ const authRouterFactory = ({ db }) => {
    */
   router.post('/logout', async (_req, res) => {
     try { return res.json({ ok: true }); } catch { return res.json({ ok: true }); }
+  });
+
+  router.post('/guest-token', async (_req, res) => {
+    try {
+      const id = `guest:${Date.now()}:${Math.random().toString(16).slice(2,10)}`;
+      const token = jwt.sign(
+        { userId: id, role: ROLES.USER },
+        process.env.JWT_SECRET || 'a-very-weak-secret-for-dev',
+        { expiresIn: '30d' }
+      );
+      return res.json({ success: true, token });
+    } catch (error) {
+      return res.status(500).json({ success: false, error: 'GUEST_TOKEN_FAILED', message: error.message });
+    }
   });
 
     
