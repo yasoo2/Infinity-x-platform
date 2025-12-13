@@ -606,7 +606,12 @@ const AIMenuButton = ({ runtimeMode }) => {
   const handleActivate = async (id) => {
     try {
       setLoading(true);
-      await activateAIProvider(id, keys[id]);
+      const k = keys[id];
+      if (!k) {
+        setActivationError(e => ({ ...e, [id]: 'يرجى إدخال مفتاح الـ API قبل التفعيل' }));
+        return;
+      }
+      await activateAIProvider(id, k);
       setActive({ provider: id, model: null });
       try { localStorage.removeItem('aiSelectedModel'); } catch { void 0; }
       setActivationError(e => ({ ...e, [id]: '' }));

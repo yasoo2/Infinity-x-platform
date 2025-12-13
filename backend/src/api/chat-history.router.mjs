@@ -73,6 +73,10 @@ const chatHistoryRouterFactory = ({ optionalAuth, requireRole, io, memoryManager
     try {
       const uid = ensureUid(req)
       const sid = req.params.id
+      const isObjId = typeof sid === 'string' && /^[a-f0-9]{24}$/i.test(sid)
+      if (!isObjId) {
+        return res.status(404).json({ success: false, error: 'SESSION_NOT_FOUND' })
+      }
       const useMemory = !memoryManager?._getDB?.()
       if (useMemory) {
         const session = await memoryManager.getSession(sid, uid)
@@ -142,8 +146,12 @@ const chatHistoryRouterFactory = ({ optionalAuth, requireRole, io, memoryManager
 
   router.get('/sessions/:id/messages', requireRole('USER'), async (req, res) => {
     try {
-      const uid = ensureUid(req)
+      const uid = req.user?._id
       const sid = req.params.id
+      const isObjId = typeof sid === 'string' && /^[a-f0-9]{24}$/i.test(sid)
+      if (!isObjId) {
+        return res.status(404).json({ success: false, error: 'SESSION_NOT_FOUND' })
+      }
       const useMemory = !memoryManager?._getDB?.()
       if (useMemory) {
         const session = await memoryManager.getSession(sid, uid)

@@ -417,14 +417,16 @@ async function startServer({ dependencyInitializer = setupDependencies, exit = p
       try {
         const provider = String(req?.body?.provider || '').toLowerCase();
         const apiKey = String(req?.body?.apiKey || '').trim();
-        if (!provider || !apiKey) return res.status(400).json({ success: false, error: 'BAD_REQUEST', message: 'provider and apiKey are required' });
+        if (!provider) return res.status(400).json({ success: false, error: 'BAD_REQUEST', message: 'provider is required' });
         if (provider === 'openai') {
-          process.env.OPENAI_API_KEY = apiKey;
-          return res.json({ success: true, provider });
+          if (apiKey) process.env.OPENAI_API_KEY = apiKey;
+          if (process.env.OPENAI_API_KEY) return res.json({ success: true, provider });
+          return res.status(400).json({ success: false, error: 'PROVIDER_KEY_MISSING', message: 'OPENAI_API_KEY is not configured' });
         }
         if (provider === 'gemini') {
-          process.env.GEMINI_API_KEY = apiKey;
-          return res.json({ success: true, provider });
+          if (apiKey) process.env.GEMINI_API_KEY = apiKey;
+          if (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY) return res.json({ success: true, provider });
+          return res.status(400).json({ success: false, error: 'PROVIDER_KEY_MISSING', message: 'Gemini API key is not configured' });
         }
         return res.status(400).json({ success: false, error: 'UNSUPPORTED_PROVIDER' });
       } catch (e) {
@@ -432,7 +434,20 @@ async function startServer({ dependencyInitializer = setupDependencies, exit = p
       }
     });
 
-    app.use('/api/v1', rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false }));
+    app.use('/api/v1', rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 1200,
+      standardHeaders: true,
+      legacyHeaders: false,
+      skip: (req) => {
+        try {
+          const m = String(req.method || '').toUpperCase();
+          const u = String(req.originalUrl || req.url || '');
+          if (m === 'GET' && (/^\/api\/v1\/chat-history\//i.test(u) || /^\/api\/v1\/ai\//i.test(u))) return true;
+        } catch { /* noop */ }
+        return false;
+      }
+    }));
 
     // Initialize dependencies asynchronously to avoid blocking port binding
     Promise.resolve().then(async () => {
