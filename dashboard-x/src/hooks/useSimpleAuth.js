@@ -152,6 +152,7 @@ export function useSimpleAuth() {
             // Store in localStorage (simple approach)
             localStorage.setItem(TOKEN_KEYS.ACCESS_TOKEN, data.token);
             localStorage.setItem(TOKEN_KEYS.USER_DATA, JSON.stringify(userData));
+            try { localStorage.setItem('sessionToken', data.token); } catch { /* noop */ }
             if (rememberMe) {
                 localStorage.setItem(TOKEN_KEYS.REMEMBER_ME, 'true');
             }
@@ -187,6 +188,7 @@ export function useSimpleAuth() {
             localStorage.removeItem(TOKEN_KEYS.ACCESS_TOKEN);
             localStorage.removeItem(TOKEN_KEYS.USER_DATA);
             localStorage.removeItem(TOKEN_KEYS.REMEMBER_ME);
+            try { localStorage.removeItem('sessionToken'); } catch { /* noop */ }
             
             setUser(null);
             setIsAuthenticated(false);
