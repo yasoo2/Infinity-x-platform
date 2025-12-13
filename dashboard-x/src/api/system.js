@@ -4,6 +4,15 @@ import apiClient from './client';
   const joe = (p) => v1(`/joe${p}`);
   const admin = (p) => v1(`/admin${p}`);
   const chatHistory = (p) => v1(`/chat-history${p}`);
+  const isChatHistoryDisabled = () => {
+    try {
+      const until = Number(localStorage.getItem('chatHistoryDisabledUntil') || 0);
+      return Number.isFinite(until) && until > Date.now();
+    } catch { return false; }
+  };
+  const disableChatHistory = (ms = 60 * 60 * 1000) => {
+    try { localStorage.setItem('chatHistoryDisabledUntil', String(Date.now() + ms)); } catch { /* noop */ }
+  };
 
   // Unified call wrapper to normalize errors and support AbortSignal
   /**
@@ -139,11 +148,21 @@ export const activateAIProvider = (provider, apiKey, opts) =>
 
 export const getChatSessions = async (opts) => {
   try {
+    if (isChatHistoryDisabled()) {
+      return { success: true, sessions: [] };
+    }
     const { data } = await apiClient.get(chatHistory('/sessions'), { signal: opts?.signal, _noRedirect401: true });
     return data;
   } catch (e) {
     const status = e?.status ?? e?.response?.status;
     if (status === 404 || String(e?.details?.error || e?.code || '').toUpperCase() === 'NOT_FOUND') {
+      disableChatHistory();
+      return { success: true, sessions: [] };
+    }
+    const code = String(e?.code || '').toUpperCase();
+    const msg = String(e?.message || '').toUpperCase();
+    if (code === 'ERR_NAME_NOT_RESOLVED' || /ENOTFOUND|DNS|NAME\s*NOT\s*RESOLVED/i.test(msg)) {
+      disableChatHistory();
       return { success: true, sessions: [] };
     }
     throw e;
@@ -152,11 +171,21 @@ export const getChatSessions = async (opts) => {
 
 export const getChatSessionById = async (id, opts) => {
   try {
+    if (isChatHistoryDisabled()) {
+      return { success: false, session: null, messages: [] };
+    }
     const { data } = await apiClient.get(chatHistory(`/sessions/${id}`), { signal: opts?.signal, _noRedirect401: true });
     return data;
   } catch (e) {
     const status = e?.status ?? e?.response?.status;
     if (status === 404 || String(e?.details?.error || e?.code || '').toUpperCase() === 'NOT_FOUND') {
+      disableChatHistory();
+      return { success: false, session: null, messages: [] };
+    }
+    const code = String(e?.code || '').toUpperCase();
+    const msg = String(e?.message || '').toUpperCase();
+    if (code === 'ERR_NAME_NOT_RESOLVED' || /ENOTFOUND|DNS|NAME\s*NOT\s*RESOLVED/i.test(msg)) {
+      disableChatHistory();
       return { success: false, session: null, messages: [] };
     }
     throw e;
@@ -182,6 +211,9 @@ export const updateChatSession = (id, patch, opts) =>
 export const getChatMessages = (id, opts) =>
   call(async () => {
     try {
+      if (isChatHistoryDisabled()) {
+        return { data: { success: true, messages: [] } };
+      }
       return await apiClient.get(chatHistory(`/sessions/${id}/messages`), { signal: opts?.signal, _noRedirect401: true });
     } catch (e) {
       const status = e?.status ?? e?.response?.status;
@@ -193,10 +225,17 @@ export const getChatMessages = (id, opts) =>
         } catch (e2) {
           const s2 = e2?.status ?? e2?.response?.status;
           if (s2 === 404) {
+            disableChatHistory();
             return { data: { success: true, messages: [] } };
           }
           throw e2;
         }
+      }
+      const code = String(e?.code || '').toUpperCase();
+      const msg = String(e?.message || '').toUpperCase();
+      if (code === 'ERR_NAME_NOT_RESOLVED' || /ENOTFOUND|DNS|NAME\s*NOT\s*RESOLVED/i.test(msg)) {
+        disableChatHistory();
+        return { data: { success: true, messages: [] } };
       }
       throw e;
     }
