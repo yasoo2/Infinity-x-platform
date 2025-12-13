@@ -27,6 +27,8 @@ const TopBar = ({ onToggleBorderSettings, isBorderSettingsOpen, isSuperAdmin, on
   const [aiInactive, setAiInactive] = React.useState(false);
   const [providerName, setProviderName] = React.useState('');
   const [providerModel, setProviderModel] = React.useState('');
+  const [apiOpen, setApiOpen] = React.useState(false);
+  const [apiUrl, setApiUrl] = React.useState('');
   
   React.useEffect(() => {
     const onLang = () => {
