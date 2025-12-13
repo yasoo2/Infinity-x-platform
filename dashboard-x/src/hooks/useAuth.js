@@ -86,14 +86,12 @@ async function apiRequest(endpoint, options = {}) {
     try {
         const baseCandidates = (() => {
             const candidates = [];
-            const current = INITIAL_API_BASE;
-            candidates.push(current);
-            try {
-                const origin = typeof window !== 'undefined' ? window.location.origin : '';
-                if (origin) candidates.push(`${origin.replace(/\/+$/, '')}/api/v1`);
-            } catch { /* noop */ }
             candidates.push('http://localhost:4000/api/v1');
             candidates.push('http://localhost:3001/api/v1');
+            const current = INITIAL_API_BASE;
+            if (current && /localhost|127\.0\.0\.1/.test(String(current))) {
+              candidates.unshift(current);
+            }
             const unique = Array.from(new Set(candidates.filter(Boolean)));
             return unique;
         })();
@@ -133,9 +131,8 @@ async function apiRequest(endpoint, options = {}) {
         
                 if (!response.ok) {
                     const msg = data && (data.error || data.message);
-                    // If NOT_FOUND, try next base candidate
-                    if (response.status === 404) {
-                        lastError = new Error(msg || 'HTTP 404');
+                    if (response.status === 404 || response.status === 405) {
+                        lastError = new Error(msg || `HTTP ${response.status}`);
                         continue;
                     }
                     throw new Error(msg || `HTTP ${response.status}`);

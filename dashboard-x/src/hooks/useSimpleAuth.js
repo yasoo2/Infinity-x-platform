@@ -25,9 +25,8 @@ async function apiRequest(endpoint, options = {}) {
         // Try multiple base URLs
         const baseCandidates = [
             'http://localhost:4000/api/v1',
-            'http://localhost:3001/api/v1',
-            window.location.origin + '/api/v1'
-        ].filter(Boolean);
+            'http://localhost:3001/api/v1'
+        ];
         
         let lastError = null;
         for (const base of baseCandidates) {
@@ -42,11 +41,16 @@ async function apiRequest(endpoint, options = {}) {
                     if (response.status === 401) {
                         throw new Error(ERROR_MESSAGES.INVALID_CREDENTIALS);
                     }
+                    if (response.status === 404 || response.status === 405) {
+                        lastError = new Error(`HTTP ${response.status}`);
+                        continue;
+                    }
                     if (response.status >= 500) {
                         throw new Error(ERROR_MESSAGES.SERVER_ERROR);
                     }
-                    const errorData = await response.json();
-                    throw new Error(errorData.message || ERROR_MESSAGES.SERVER_ERROR);
+                    let errorMessage = ERROR_MESSAGES.SERVER_ERROR;
+                    try { const errorData = await response.json(); errorMessage = errorData.message || errorMessage; } catch { /* noop */ }
+                    throw new Error(errorMessage);
                 }
                 
                 return await response.json();

@@ -1,12 +1,8 @@
 import React from 'react';
-import RegisterForm from '../components/auth/RegisterForm';
+import { Navigate } from 'react-router-dom';
 
 const Signup = () => {
-  return (
-    <div className="min-h-screen">
-      <RegisterForm />
-    </div>
-  );
+  return <Navigate to="/login" replace />;
 };
 
 export default Signup;
