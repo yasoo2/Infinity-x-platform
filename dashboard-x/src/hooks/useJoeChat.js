@@ -529,6 +529,8 @@ export const useJoeChat = () => {
   }, []);
 
   useEffect(() => {
+    const auto = (() => { try { return localStorage.getItem('autoSummary') === '1'; } catch { return false; } })();
+    if (!auto) return () => {};
     const id = state.currentConversationId;
     if (!id) return;
     const conv = state.conversations[id] || {};
@@ -1439,9 +1441,10 @@ export const useJoeChat = () => {
           dispatch({ type: 'REMOVE_PENDING_LOGS' });
           try {
             const d = browserSummaryRef.current;
-            if (d && typeof d.summary === 'string' && d.summary.trim().length > 0) {
+            if (summaryRequestedRef.current && d && typeof d.summary === 'string' && d.summary.trim().length > 0) {
               dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: d.summary } });
               browserSummaryRef.current = null;
+              summaryRequestedRef.current = false;
             }
           } catch { /* noop */ }
           try { if (sioSendTimeoutRef.current) { clearTimeout(sioSendTimeoutRef.current); sioSendTimeoutRef.current = null; } } catch { /* noop */ }
@@ -1795,6 +1798,7 @@ export const useJoeChat = () => {
     return () => window.removeEventListener('auth:forbidden', onForbidden);
   }, []);
   const browserSummaryRef = useRef(null);
+  const summaryRequestedRef = useRef(false);
   useEffect(() => {
     const onBrowserSummary = (e) => {
       const d = e?.detail || {};
@@ -1870,7 +1874,8 @@ export const useJoeChat = () => {
       const headerPrev = lang === 'ar' ? 'سياق سابق' : 'Previous context';
       const headerSum = lang === 'ar' ? 'ملخص الجلسة' : 'Session summary';
       const parts = [];
-      if (convSummary) parts.push(`${headerSum}:\n${convSummary}`);
+      const includeSum0 = (() => { try { return localStorage.getItem('includeSummaryInContext') === '1'; } catch { return false; } })();
+      if (includeSum0 && convSummary) parts.push(`${headerSum}:\n${convSummary}`);
       if (ctxLines) parts.push(`${headerPrev}:\n${ctxLines}`);
       const prefix = parts.length ? `${parts.join('\n\n')}\n\n` : '';
       const msgWithContext = `${prefix}${inputText}`;
@@ -1938,6 +1943,17 @@ export const useJoeChat = () => {
     if (last.text && last.text.replace(/\s+/g,' ').trim() === inputText.replace(/\s+/g,' ').trim() && (nowTs - last.ts) < 1200) {
       return;
     }
+    try {
+      const askSummary = /^(?:ملخص|أعطني الملخص|اعرض الملخص|عرض الملخص|summary|summarize|show\s+summary)\b/i.test(inputText);
+      if (askSummary) {
+        summaryRequestedRef.current = true;
+        updateSummaryForCurrent();
+        const id = stateRef.current.currentConversationId;
+        const s = String(stateRef.current.conversations[id]?.summary || '').trim();
+        if (s) dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: s } });
+        return;
+      }
+    } catch { /* noop */ }
     sendLockRef.current = true;
     try {
       const detected = detectLangFromText(inputText);
@@ -2019,8 +2035,9 @@ export const useJoeChat = () => {
         const headerPrev = lang === 'ar' ? 'سياق سابق' : 'Previous context';
         const headerSum = lang === 'ar' ? 'ملخص الجلسة' : 'Session summary';
         const parts = [];
-        if (convSummaryLong) parts.push(`${(lang==='ar'?'ذاكرة الجلسة':'Session memory')}:\n${convSummaryLong}`);
-        if (convSummary) parts.push(`${headerSum}:\n${convSummary}`);
+        const includeSum = (() => { try { return localStorage.getItem('includeSummaryInContext') === '1'; } catch { return false; } })();
+        if (includeSum && convSummaryLong) parts.push(`${(lang==='ar'?'ذاكرة الجلسة':'Session memory')}:\n${convSummaryLong}`);
+        if (includeSum && convSummary) parts.push(`${headerSum}:\n${convSummary}`);
         if (ctxLines) parts.push(`${headerPrev}:\n${ctxLines}`);
         const prefix = parts.length ? `${parts.join('\n\n')}\n\n` : '';
         const msgWithContext = `${prefix}${inputText}`;
@@ -2047,8 +2064,9 @@ export const useJoeChat = () => {
             const headerPrev = lang === 'ar' ? 'سياق سابق' : 'Previous context';
             const headerSum = lang === 'ar' ? 'ملخص الجلسة' : 'Session summary';
             const parts = [];
-            if (convSummaryLong) parts.push(`${(lang==='ar'?'ذاكرة الجلسة':'Session memory')}:\n${convSummaryLong}`);
-            if (convSummary) parts.push(`${headerSum}:\n${convSummary}`);
+            const includeSum1 = (() => { try { return localStorage.getItem('includeSummaryInContext') === '1'; } catch { return false; } })();
+            if (includeSum1 && convSummaryLong) parts.push(`${(lang==='ar'?'ذاكرة الجلسة':'Session memory')}:\n${convSummaryLong}`);
+            if (includeSum1 && convSummary) parts.push(`${headerSum}:\n${convSummary}`);
             if (ctxLines) parts.push(`${headerPrev}:\n${ctxLines}`);
             const prefix = parts.length ? `${parts.join('\n\n')}\n\n` : '';
             const msgWithContext = `${prefix}${inputText}`;
@@ -2121,10 +2139,12 @@ export const useJoeChat = () => {
             const headerPrev2 = lang === 'ar' ? 'سياق سابق' : 'Previous context';
             const headerSum2 = lang === 'ar' ? 'ملخص الجلسة' : 'Session summary';
             const parts2 = [];
-            if (convSummaryLong2) parts2.push(`${(lang==='ar'?'ذاكرة الجلسة':'Session memory')}:\n${convSummaryLong2}`);
-            if (convSummary2) parts2.push(`${headerSum2}:\n${convSummary2}`);
+            const includeSum2 = (() => { try { return localStorage.getItem('includeSummaryInContext') === '1'; } catch { return false; } })();
+            if (includeSum2 && convSummaryLong2) parts2.push(`${(lang==='ar'?'ذاكرة الجلسة':'Session memory')}:\n${convSummaryLong2}`);
+            if (includeSum2 && convSummary2) parts2.push(`${headerSum2}:\n${convSummary2}`);
             if (ctxLines2) parts2.push(`${headerPrev2}:\n${ctxLines2}`);
             const prefix2 = parts2.length ? `${parts2.join('\n\n')}\n\n` : '';
+            const msgWithContext2 = `${prefix2}${inputText}`;
             const msgWithContext2 = `${prefix2}${inputText}`;
             const data = await executeJoe(msgWithContext2, ctx2, {});
             const text = sanitizeCompetitors(String(data?.response || data?.message || '').trim());
@@ -2384,6 +2404,15 @@ export const useJoeChat = () => {
     clearMessages: (id) => dispatch({ type: 'CLEAR_MESSAGES', payload: { id } }),
     // NEWLY EXPORTED STATE
     plan: state.plan,
+    requestSummary: () => {
+      try {
+        summaryRequestedRef.current = true;
+        updateSummaryForCurrent();
+        const id = stateRef.current.currentConversationId;
+        const s = String(stateRef.current.conversations[id]?.summary || '').trim();
+        if (s) dispatch({ type: 'APPEND_MESSAGE', payload: { type: 'joe', content: s } });
+      } catch { /* noop */ }
+    },
     addLogToChat: (log) => {
       const text = typeof log === 'string' ? log : (log?.text || JSON.stringify(log));
       const prefix = getLang() === 'ar' ? 'حل واصل العمل: ' : 'Diagnose and continue: ';
