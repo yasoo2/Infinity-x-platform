@@ -9,7 +9,8 @@ const TOKEN_KEYS = {
     REFRESH_TOKEN: 'auth_refresh_token',
     SESSION_TOKEN: 'auth_session_token',
     USER_DATA: 'auth_user_data',
-    REMEMBER_ME: 'auth_remember_me'
+    REMEMBER_ME: 'auth_remember_me',
+    REMEMBERED_SESSIONS: 'auth_remembered_sessions'
 };
 
 // Error messages
@@ -260,6 +261,16 @@ export function useAuth() {
             if (rememberMe && loginData.sessionToken) {
                 setToken(TOKEN_KEYS.SESSION_TOKEN, loginData.sessionToken, true);
                 localStorage.setItem(TOKEN_KEYS.REMEMBER_ME, 'true');
+                try {
+                    const existing = JSON.parse(localStorage.getItem(TOKEN_KEYS.REMEMBERED_SESSIONS) || '{}');
+                    existing[userData.id] = {
+                        token: loginData.sessionToken,
+                        email: userData.email,
+                        fullName: userData.fullName
+                    };
+                    localStorage.setItem(TOKEN_KEYS.REMEMBERED_SESSIONS, JSON.stringify(existing));
+                } catch {
+                }
             }
             
             return { success: true, user: userData };
@@ -308,6 +319,40 @@ export function useAuth() {
             throw error;
         } finally {
             setLoading(false);
+        }
+    }, []);
+
+    const listRemembered = useCallback(() => {
+        try {
+            const obj = JSON.parse(localStorage.getItem(TOKEN_KEYS.REMEMBERED_SESSIONS) || '{}');
+            return Object.keys(obj);
+        } catch {
+            return [];
+        }
+    }, []);
+
+    const loginWithRemembered = useCallback(async (id) => {
+        try {
+            const obj = JSON.parse(localStorage.getItem(TOKEN_KEYS.REMEMBERED_SESSIONS) || '{}');
+            const entry = obj[id];
+            if (!entry || !entry.token) {
+                throw new Error('No saved session');
+            }
+            const result = await loginWithSession(entry.token);
+            return result;
+        } catch (error) {
+            throw error;
+        }
+    }, [loginWithSession]);
+
+    const removeRemembered = useCallback((id) => {
+        try {
+            const obj = JSON.parse(localStorage.getItem(TOKEN_KEYS.REMEMBERED_SESSIONS) || '{}');
+            if (obj[id]) {
+                delete obj[id];
+                localStorage.setItem(TOKEN_KEYS.REMEMBERED_SESSIONS, JSON.stringify(obj));
+            }
+        } catch {
         }
     }, []);
 
@@ -474,6 +519,9 @@ export function useAuth() {
         isAuthenticated,
         login,
         loginWithSession,
+        listRemembered,
+        loginWithRemembered,
+        removeRemembered,
         register,
         logout,
         requestPasswordReset,
@@ -491,6 +539,9 @@ export function useAuth() {
         isAuthenticated,
         login,
         loginWithSession,
+        listRemembered,
+        loginWithRemembered,
+        removeRemembered,
         register,
         logout,
         requestPasswordReset,
