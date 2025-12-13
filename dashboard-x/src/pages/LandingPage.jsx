@@ -1,12 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import LoginCard from '../components/auth/LoginCard';
 import { FiLogIn, FiZap, FiGlobe, FiUsers, FiAward } from 'react-icons/fi';
 
 const LandingPage = () => {
   const navigate = useNavigate();
+  const [showLogin, setShowLogin] = useState(false);
 
   const handleLoginClick = () => {
-    navigate('/login');
+    setShowLogin(true);
+  };
+
+  const handleLoginSuccess = (user) => {
+    try { setShowLogin(false); } catch { /* noop */ }
+    navigate('/dashboard/joe');
+  };
+
+  const handleLoginError = () => {
+    // keep modal open, error shown inside LoginCard
   };
 
   const features = [
@@ -116,6 +127,15 @@ const LandingPage = () => {
           <JoeConsole />
         </div>
       </main>
+
+      {showLogin && (
+        <div className="fixed inset-0 z-[100] grid place-items-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-md mx-4 relative">
+            <button onClick={()=>setShowLogin(false)} className="absolute -top-3 -right-3 bg-white/10 border border-white/20 text-white rounded-full w-10 h-10">×</button>
+            <LoginCard onSuccess={handleLoginSuccess} onError={handleLoginError} className="bg-transparent min-h-0" />
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="relative z-10 border-t border-white/10">
