@@ -923,7 +923,7 @@ ${transcript.slice(0, 8000)}`;
               toolResults.push({ tool: 'generateImage', args: { prompt: preview, style: 'modern', outputFilePath: outPath }, result: r });
               toolCalls.push({ function: { name: 'generateImage', arguments: { prompt: preview, style: 'modern', outputFilePath: outPath } } });
               const link = r?.absoluteUrl || r?.publicUrl || r?.url || '';
-              const msg = targetLang === 'ar' ? (link ? `تم إنشاء الصورة: ${link}\n! \`${link}\`` : 'تم إنشاء الصورة.') : (link ? `Image generated: ${link}\n! \`${link}\`` : 'Image generated.');
+              const msg = link ? `! \`${link}\`` : (targetLang === 'ar' ? 'تم إنشاء الصورة.' : 'Image generated.');
               pieces.push(msg);
             } catch { void 0 }
           }
@@ -1408,7 +1408,7 @@ ${transcript.slice(0, 8000)}`;
                   toolResults.push({ tool: 'downloadImageFromUrl', args: { url }, result: out });
                   toolCalls.push({ function: { name: 'downloadImageFromUrl', arguments: { url } } });
                   const link = out?.absoluteUrl || out?.publicUrl || '';
-                  const msg = link ? `تم تحميل الصورة: ${link}` : 'تم تحميل الصورة.';
+                  const msg = link ? `! \`${link}\`` : (targetLang==='ar' ? 'تم تحميل الصورة.' : 'Image downloaded.');
                   pieces.push(msg);
                 } else {
                   const r = await executeTool(userId, sessionId, 'browseWebsite', { url });
@@ -1421,11 +1421,15 @@ ${transcript.slice(0, 8000)}`;
             }
             if (wantsImage) {
               try {
-                const outPath = `/tmp/joe-image-${Date.now()}.png`;
+                const safeUser = String(userId || '').replace(/[^A-Za-z0-9_:-]/g, '_');
+                const fileName = `joe-image-${Date.now()}.png`;
+                const outPath = path.join(process.cwd(), 'public-site', 'uploads', safeUser, fileName);
                 const r = await executeTool(userId, sessionId, 'generateImage', { prompt: preview, style: 'modern', outputFilePath: outPath });
                 toolResults.push({ tool: 'generateImage', args: { prompt: preview, style: 'modern', outputFilePath: outPath }, result: r });
                 toolCalls.push({ function: { name: 'generateImage', arguments: { prompt: preview, style: 'modern', outputFilePath: outPath } } });
-                pieces.push(`Image task queued. Output: ${outPath}`);
+                const link = r?.absoluteUrl || r?.publicUrl || r?.url || '';
+                const msg = link ? `! \`${link}\`` : (targetLang==='ar' ? 'تم إنشاء الصورة.' : 'Image generated.');
+                pieces.push(msg);
               } catch (eImg) { void eImg; }
             }
             if (wantsWebsite) {
@@ -1588,7 +1592,7 @@ ${transcript.slice(0, 8000)}`;
               toolResults.push({ tool: 'downloadImageFromUrl', args: { url }, result: out });
               toolCalls.push({ function: { name: 'downloadImageFromUrl', arguments: { url } } });
               const link = out?.absoluteUrl || out?.publicUrl || '';
-              const msg = link ? `تم تحميل الصورة: ${link}` : 'تم تحميل الصورة.';
+              const msg = link ? `! \`${link}\`` : (targetLang==='ar' ? 'تم تحميل الصورة.' : 'Image downloaded.');
               pieces.push(msg);
             } else {
               const r = await toolManager.execute('browseWebsite', { url });
@@ -1608,7 +1612,7 @@ ${transcript.slice(0, 8000)}`;
             toolResults.push({ tool: 'generateImage', args: { prompt: preview, style: 'modern', outputFilePath: outPath }, result: r });
             toolCalls.push({ function: { name: 'generateImage', arguments: { prompt: preview, style: 'modern', outputFilePath: outPath } } });
             const link = r?.absoluteUrl || r?.publicUrl || r?.url || '';
-            const msg = targetLang === 'ar' ? (link ? `تم إنشاء الصورة: ${link}` : 'تم إنشاء الصورة.') : (link ? `Image generated: ${link}` : 'Image generated.');
+            const msg = link ? `! \`${link}\`` : (targetLang==='ar' ? 'تم إنشاء الصورة.' : 'Image generated.');
             pieces.push(msg);
           } catch { /* noop */ }
         }
