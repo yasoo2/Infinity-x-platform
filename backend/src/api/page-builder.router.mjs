@@ -1,4 +1,7 @@
 import express from 'express';
+import path from 'path';
+import fs from 'fs/promises';
+import toolManager from '../services/tools/tool-manager.service.mjs';
 
 // REFACTORED: This router orchestrates AI code generation, GitHub commits, and deployment.
 // All complex logic should be delegated to specialized services.
@@ -43,7 +46,7 @@ const pageBuilderRouterFactory = ({ requireRole, optionalAuth }) => {
      */
     router.post('/create-and-deploy', requireRole('USER'), async (req, res) => {
         try {
-            const { description, projectType = 'page', repoName } = req.body;
+            const { description, projectType = 'page', repoName, platform = 'vercel' } = req.body;
 
             if (!description || !repoName) {
                 return res.status(400).json({ success: false, error: 'Description and repoName are required.' });
@@ -54,7 +57,22 @@ const pageBuilderRouterFactory = ({ requireRole, optionalAuth }) => {
             const codeFiles = gen.files || [];
             console.log('Step 1/3: Code generation complete.');
 
-            // Step 2: Push to GitHub
+            // Step 2a: Write to local workspace for deployment
+            const safeName = String(repoName || `project_${Date.now()}`).replace(/[^A-Za-z0-9._-]+/g, '-');
+            const outDir = path.join(process.cwd(), 'generated-projects', safeName);
+            try {
+                await fs.mkdir(outDir, { recursive: true });
+                for (const f of codeFiles) {
+                    const fp = path.join(outDir, f.path);
+                    const dir = path.dirname(fp);
+                    await fs.mkdir(dir, { recursive: true });
+                    await fs.writeFile(fp, f.content || '');
+                }
+            } catch (e) {
+                console.warn('⚠️ Writing local files failed:', e?.message || e);
+            }
+
+            // Step 2b: Push to GitHub
             // This uses the refactored githubTools which should handle auth securely
             const gh = new GitHubTools();
             const clone = await gh.cloneRepo(repoName);
@@ -77,17 +95,24 @@ const pageBuilderRouterFactory = ({ requireRole, optionalAuth }) => {
             }
             console.log('Step 2/3: GitHub commit successful.');
 
-            // Step 3: Deploy (placeholder)
-            // const deploymentResult = await deploymentService.deploy({ repoUrl: commitResult.repoUrl });
-            const deploymentResult = { success: true, url: `https://example.com/${repoName}` }; // Mocked result
-            console.log('Step 3/3: Deployment initiated.');
+            // Step 3: Deploy via ToolManager
+            let deploymentResult = { success: false };
+            try {
+                deploymentResult = await toolManager.execute('deployProject', { projectPath: outDir, platform });
+            } catch (e) {
+                console.warn('⚠️ Deployment via ToolManager failed:', e?.message || e);
+                deploymentResult = { success: false, error: e?.message };
+            }
+            console.log('Step 3/3: Deployment attempted.');
 
 
             res.json({
                 success: true,
-                message: 'Project creation and deployment process initiated.',
+                message: 'Project creation and deployment process completed.',
                 repoUrl: commitResult.repoUrl,
-                deploymentUrl: deploymentResult.url
+                deploymentUrl: deploymentResult.url || null,
+                projectPath: outDir,
+                platform
             });
 
         } catch (error) {

@@ -25,6 +25,7 @@ class ToolManager {
         this.cache = new Map();
         this.stats = new Map();
         this.circuit = new Map();
+        this.conflicts = [];
     }
 
     async initialize(dependencies) {
@@ -143,6 +144,10 @@ class ToolManager {
                 parameters: md.parameters || { type: 'object', properties: {} }
             };
             fn.metadata = schema;
+            if (this.tools.has(name)) {
+                this.conflicts.push(name);
+                return;
+            }
             this.tools.set(name, fn);
             this.toolSchemas.push({ type: 'function', function: schema });
         };
@@ -254,7 +259,8 @@ class ToolManager {
             stats,
             circuits,
             openCircuits,
-            ranking
+            ranking,
+            conflicts: Array.from(new Set(this.conflicts))
         };
     }
 

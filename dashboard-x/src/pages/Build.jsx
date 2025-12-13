@@ -80,6 +80,7 @@ export default function Build() {
   const [description, setDescription] = useState('');
   const [features, setFeatures] = useState('');
   const [style, setStyle] = useState('modern');
+  const [platform, setPlatform] = useState('vercel');
 
   // GitHub settings (stored in localStorage)
   const [githubToken, setGithubToken] = useState(localStorage.getItem('github_token') || '');
@@ -174,7 +175,8 @@ export default function Build() {
         features: featuresList,
         githubToken,
         githubUsername,
-        repoName: title.toLowerCase().replace(/[^a-z0-9]/g, '-')
+        repoName: title.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+        platform
       };
 
       const response = await apiClient.post('/api/v1/page-builder/create-and-deploy', payload);
@@ -351,6 +353,22 @@ export default function Build() {
                 <option value="creative">إبداعي (Creative)</option>
                 <option value="professional">احترافي (Professional)</option>
                 <option value="playful">مرح (Playful)</option>
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="platform" className="block text-sm font-medium text-textDim mb-2">
+                منصة النشر
+              </label>
+              <select
+                id="platform"
+                value={platform}
+                onChange={(e) => setPlatform(e.target.value)}
+                className="input-field w-full bg-bgDark border-borderDim text-white rounded-md p-2"
+                disabled={building}
+              >
+                <option value="vercel">Vercel</option>
+                <option value="railway">Railway</option>
               </select>
             </div>
 
