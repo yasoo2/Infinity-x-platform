@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LoginCard from '../components/auth/LoginCard';
 import { FiLogIn, FiZap, FiGlobe, FiUsers, FiAward } from 'react-icons/fi';
+import { useSimpleAuthContext } from '../context/SimpleAuthContext';
 
 const LandingPage = () => {
   const navigate = useNavigate();
+  const auth = useSimpleAuthContext();
   const [showLogin, setShowLogin] = useState(false);
   const [diagRunning, setDiagRunning] = useState(false);
   const [diagLogs, setDiagLogs] = useState([]);
@@ -42,6 +44,13 @@ const LandingPage = () => {
     try {
       const base = normalizeApiBase();
       pushLog(`base=${base}`);
+      const badPassword = 'wrong-pass-123';
+      try {
+        const r0 = await fetch(`${base}/auth/simple-login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'info.auraaluxury@gmail.com', password: badPassword, rememberMe: false }), credentials: 'include' });
+        const d0 = await r0.json().catch(()=>({}));
+        if (r0.ok && (d0?.ok || d0?.token)) pushLog('unexpected success on invalid credentials');
+        else pushLog('invalid credentials handled');
+      } catch { pushLog('invalid credentials network error'); }
       const email = 'info.auraaluxury@gmail.com';
       const password = 'younes2025';
       const r1 = await fetch(`${base}/auth/simple-login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, rememberMe: true }), credentials: 'include' });
@@ -49,10 +58,30 @@ const LandingPage = () => {
       if (!r1.ok || !d1.ok || !d1.token) throw new Error(d1.error || 'simple-login failed');
       pushLog('simple-login ok');
       try { localStorage.setItem('sessionToken', d1.token); localStorage.setItem('simple_auth_token', d1.token); localStorage.setItem('simple_user_data', JSON.stringify(d1.user)); } catch { /* noop */ }
+      try {
+        const resCtx = await auth.login(email, password, true);
+        if (resCtx?.success || auth.isAuthenticated) pushLog('context login ok');
+        else pushLog('context login failed');
+      } catch { pushLog('context login threw'); }
       const r2 = await fetch(`${base}/auth/validate`, { headers: { Authorization: `Bearer ${d1.token}` }, credentials: 'include' });
       const d2 = await r2.json();
       if (!r2.ok || !(d2.success || d2.ok)) throw new Error(d2.error || 'validate failed');
       pushLog('validate ok');
+      try {
+        const rL = await fetch(`${base}/auth/logout`, { method: 'POST', headers: { Authorization: `Bearer ${d1.token}`, 'Content-Type': 'application/json' }, credentials: 'include' });
+        if (rL.ok) pushLog('logout endpoint ok'); else pushLog('logout endpoint failed');
+      } catch { pushLog('logout endpoint network error'); }
+      try { await auth.logout(); await new Promise(r=>setTimeout(r,150)); if (!auth.isAuthenticated) pushLog('context logout ok'); else pushLog('context logout not reflected'); } catch { pushLog('context logout threw'); }
+      try {
+        const resCtx2 = await auth.login(email, password, false);
+        if (resCtx2?.success) pushLog('context login (no remember) ok'); else pushLog('context login (no remember) failed');
+      } catch { pushLog('context re-login threw'); }
+      try {
+        const t = localStorage.getItem('sessionToken');
+        const s = localStorage.getItem('simple_auth_token');
+        const u = localStorage.getItem('simple_user_data');
+        pushLog(`storage token=${Boolean(t)} simple=${Boolean(s)} user=${Boolean(u)}`);
+      } catch { pushLog('storage read error'); }
       const r3 = await fetch(`${base}/joe/ping`);
       const t3 = await r3.text();
       if (!r3.ok || !/pong/.test(String(t3))) throw new Error('joe ping failed');

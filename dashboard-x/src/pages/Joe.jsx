@@ -9,7 +9,7 @@ import MainConsole from '../components/joe/MainConsole';
  
 import BottomPanel from '../components/joe/BottomPanel';
 import { JoeChatProvider, useJoeChatContext } from '../context/JoeChatContext';
-import useAuth from '../hooks/useAuth';
+import { useSimpleAuthContext } from '../context/SimpleAuthContext';
 
  
 
@@ -323,7 +323,7 @@ const JoeContent = () => {
 
   
   const toggleBorderSettings = () => navigate('/dashboard/users');
-  const { user } = useAuth();
+  const { user } = useSimpleAuthContext();
 
  
 
