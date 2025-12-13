@@ -1,21 +1,15 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { yupResolver } from '@hookform/resolvers/yup';
-import * as yup from 'yup';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { FiEye, FiEyeOff } from 'react-icons/fi';
 import { useSimpleAuthContext } from '../../context/SimpleAuthContext';
 
 // Validation schema
-const loginSchema = yup.object({
-  email: yup
-    .string()
-    .email('Please enter a valid email address')
-    .required('Email is required'),
-  password: yup
-    .string()
-    .min(6, 'Password must be at least 6 characters')
-    .required('Password is required'),
-  remember: yup.boolean()
+const loginSchema = z.object({
+  email: z.string().min(1, 'Email is required').email('Please enter a valid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  remember: z.boolean().optional().default(false)
 });
 
 const LoginCard = ({ onSuccess, onError, className = '' }) => {
@@ -29,7 +23,7 @@ const LoginCard = ({ onSuccess, onError, className = '' }) => {
     formState: { errors },
     setError
   } = useForm({
-    resolver: yupResolver(loginSchema),
+    resolver: zodResolver(loginSchema),
     defaultValues: {
       email: '',
       password: '',
