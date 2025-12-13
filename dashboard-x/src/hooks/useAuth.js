@@ -72,7 +72,6 @@ const removeToken = (key) => {
 
 // API helper function
 async function apiRequest(endpoint, options = {}) {
-    const url = `${API_BASE_URL}${endpoint}`;
     const token = getToken(TOKEN_KEYS.ACCESS_TOKEN);
     
     const headers = {
