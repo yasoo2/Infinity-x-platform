@@ -265,11 +265,10 @@ export function useAuth() {
             // Attempt login with multiple endpoint fallbacks
             let loginData = null;
             const endpoints = [
-                '/api/v1/auth/login',
-                '/api/auth/login',
-                '/v1/auth/login',
-                '/api/v1/auth/login',
-                '/auth/login'
+                '/api/v1/auth/simple-login',
+                '/api/auth/simple-login',
+                '/v1/auth/simple-login',
+                '/auth/simple-login'
             ];
             
             for (const endpoint of endpoints) {
@@ -296,31 +295,31 @@ export function useAuth() {
             const userData = {
                 id: loginData.user.id,
                 email: loginData.user.email,
-                fullName: loginData.user.fullName,
-                role: loginData.user.role
+                fullName: loginData.user.fullName || 'Super Admin',
+                role: loginData.user.role || 'super_admin'
             };
             
             setUser(userData);
             setIsAuthenticated(true);
             
             // Store tokens
-            setToken(TOKEN_KEYS.ACCESS_TOKEN, loginData.accessToken, rememberMe);
-            setToken(TOKEN_KEYS.REFRESH_TOKEN, loginData.refreshToken, rememberMe);
+            setToken(TOKEN_KEYS.ACCESS_TOKEN, loginData.token || loginData.accessToken, rememberMe);
+            if (loginData.refreshToken) setToken(TOKEN_KEYS.REFRESH_TOKEN, loginData.refreshToken, rememberMe);
             setToken(TOKEN_KEYS.USER_DATA, JSON.stringify(userData), rememberMe);
             
-            if (rememberMe && loginData.sessionToken) {
-                setToken(TOKEN_KEYS.SESSION_TOKEN, loginData.sessionToken, true);
+            if (rememberMe && (loginData.sessionToken || loginData.token)) {
+                const sess = loginData.sessionToken || loginData.token;
+                setToken(TOKEN_KEYS.SESSION_TOKEN, sess, true);
                 localStorage.setItem(TOKEN_KEYS.REMEMBER_ME, 'true');
                 try {
                     const existing = JSON.parse(localStorage.getItem(TOKEN_KEYS.REMEMBERED_SESSIONS) || '{}');
                     existing[userData.id] = {
-                        token: loginData.sessionToken,
+                        token: sess,
                         email: userData.email,
                         fullName: userData.fullName
                     };
                     localStorage.setItem(TOKEN_KEYS.REMEMBERED_SESSIONS, JSON.stringify(existing));
-                } catch {
-                }
+                } catch {}
             }
             
             return { success: true, user: userData };

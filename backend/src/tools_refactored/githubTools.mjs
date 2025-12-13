@@ -25,6 +25,7 @@ class GitHubTools {
       parameters: {
         type: "object",
         properties: {
+          owner: { type: "string", description: "The repository owner (username/org). Optional; defaults to configured username." },
           repoName: { type: "string", description: "The name of the repository (e.g., 'my-project')." },
           branch: { type: "string", description: "The branch to clone.", default: "main" }
         },
@@ -75,6 +76,7 @@ class GitHubTools {
             type: "object",
             properties: {
                 repoName: { type: "string", description: "The name of the repository." },
+                owner: { type: "string", description: "The repository owner (username/org). Optional; defaults to configured username." },
                 branch: { type: "string", description: "The branch to push to.", default: "main" }
             },
             required: ["repoName"]
@@ -86,6 +88,7 @@ class GitHubTools {
         parameters: {
             type: "object",
             properties: {
+                owner: { type: "string", description: "The repository owner (username/org). Optional; defaults to configured username." },
                 repoName: { type: "string", description: "The name of the repository." },
                 pattern: { type: "string", description: "The regex pattern to search for." },
                 replacement: { type: "string", description: "The text to replace the pattern with." },
@@ -100,6 +103,7 @@ class GitHubTools {
         parameters: {
             type: "object",
             properties: {
+                owner: { type: "string", description: "The repository owner (username/org). Optional; defaults to configured username." },
                 repoName: { type: "string", description: "The name of the repository." },
                 targetFiles: { type: "array", items: { type: "string" }, description: "An array of specific file paths to modify." },
                 pattern: { type: "string", description: "The regex pattern to search for." },
@@ -123,12 +127,13 @@ class GitHubTools {
     };
   }
 
-  async cloneRepo(repoName, branch = 'main') {
+  async cloneRepo(repoName, branch = 'main', owner = null) {
     try {
       await execAsync(`rm -rf ${this.workDir}`);
       await fs.mkdir(this.workDir, { recursive: true });
-      const authedUrl = this.token ? `https://${this.token}@github.com/${this.username}/${repoName}.git` : null;
-      const publicUrl = `https://github.com/${this.username}/${repoName}.git`;
+      const who = owner || this.username;
+      const authedUrl = this.token ? `https://${this.token}@github.com/${who}/${repoName}.git` : null;
+      const publicUrl = `https://github.com/${who}/${repoName}.git`;
       const repoUrl = authedUrl || publicUrl;
       await execAsync(`cd ${this.workDir} && git clone -b ${branch} ${repoUrl} ${repoName}`, { maxBuffer: 10 * 1024 * 1024 });
       return { success: true, path: path.join(this.workDir, repoName), message: "Repository cloned successfully" };
@@ -199,11 +204,12 @@ class GitHubTools {
     }
   }
 
-  async push(repoName, branch = 'main') {
+  async push(repoName, branch = 'main', owner = null) {
     if (!this.token) return { success: false, error: "GitHub token is not configured." };
     try {
       const repoPath = path.join(this.workDir, repoName);
-      const repoUrl = `https://${this.token}@github.com/${this.username}/${repoName}.git`;
+      const who = owner || this.username;
+      const repoUrl = `https://${this.token}@github.com/${who}/${repoName}.git`;
       await execAsync(`cd ${repoPath} && git push ${repoUrl} ${branch}`);
       return { success: true, message: `Pushed to ${branch}` };
     } catch (error) {
@@ -211,9 +217,9 @@ class GitHubTools {
     }
   }
   
-  async searchReplaceAndPush(repoName, pattern, replacement, commitMessage) {
+  async searchReplaceAndPush(repoName, pattern, replacement, commitMessage, owner = null) {
     try {
-      const cloneResult = await this.cloneRepo(repoName);
+      const cloneResult = await this.cloneRepo(repoName, 'main', owner);
 if (!cloneResult.success) return { success: false, step: 'clone', error: cloneResult.error };
 
       const replaceResult = await this.searchAndReplace(repoName, pattern, replacement);
@@ -226,7 +232,7 @@ if (!cloneResult.success) return { success: false, step: 'clone', error: cloneRe
             return { success: true, message: "No functional changes detected after replacement."}
         }
 
-      const pushResult = await this.push(repoName);
+      const pushResult = await this.push(repoName, 'main', owner);
       if (!pushResult.success) return { success: false, step: 'push', error: pushResult.error };
 
       return { success: true, message: `Modified ${replaceResult.count} files and pushed`, modified: replaceResult.modified };
@@ -235,9 +241,9 @@ if (!cloneResult.success) return { success: false, step: 'clone', error: cloneRe
     }
   }
 
-  async searchReplaceInFiles(repoName, targetFiles, pattern, replacement, commitMessage) {
+  async searchReplaceInFiles(repoName, targetFiles, pattern, replacement, commitMessage, owner = null) {
     try {
-      const cloneResult = await this.cloneRepo(repoName);
+      const cloneResult = await this.cloneRepo(repoName, 'main', owner);
       if (!cloneResult.success) return cloneResult;
 
       const repoPath = path.join(this.workDir, repoName);
@@ -270,7 +276,7 @@ if (!cloneResult.success) return { success: false, step: 'clone', error: cloneRe
             return { success: true, message: "No functional changes detected after replacement."}
         }
 
-      const pushResult = await this.push(repoName);
+      const pushResult = await this.push(repoName, 'main', owner);
       if (!pushResult.success) return { success: false, step: 'push', error: pushResult.error };
 
       return { success: true, modified, count: modified.length, message: `Modified ${modified.length} files and pushed` };

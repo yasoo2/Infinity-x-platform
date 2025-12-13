@@ -491,7 +491,45 @@ async function processMessage(userId, message, sessionId, { model = null, lang }
           const wantsDeploy = /(deploy|نشر)/i.test(lower);
           const wantsTaskOrchestration = /(تقسيم\s*المهام|تاسكات|tasks|خطة\s*تنفيذ|تنفيذ\s*بالترتيب)/i.test(lower);
           let pieces = [];
-          if (videoUrlMatch) {
+          const ghMatch = preview.match(/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)/i);
+          if (ghMatch) {
+            try {
+              const owner = ghMatch[1];
+              const repo = ghMatch[2];
+              try { joeEvents.emitProgress(userId, sessionId, 30, 'Clone GitHub repo'); } catch { /* noop */ }
+              const cr = await executeTool(userId, sessionId, 'cloneRepo', { repoName: repo, branch: 'main', owner });
+              toolResults.push({ tool: 'cloneRepo', args: { repoName: repo, owner }, result: cr });
+              toolCalls.push({ function: { name: 'cloneRepo', arguments: { repoName: repo, owner } } });
+              const lf = await executeTool(userId, sessionId, 'listFiles', { repoName: repo, directory: '.' });
+              toolResults.push({ tool: 'listFiles', args: { repoName: repo }, result: lf });
+              toolCalls.push({ function: { name: 'listFiles', arguments: { repoName: repo } } });
+              const filesSummary = Array.isArray(lf?.files) ? lf.files.slice(0, 20).map(f => `${f.type === 'directory' ? '📁' : '📄'} ${f.path}`).join('\n') : '';
+              pieces.push(filesSummary || (targetLang==='ar' ? 'تم استنساخ المستودع.' : 'Repository cloned.'));
+              try {
+                const readme = await executeTool(userId, sessionId, 'readFile', { repoName: repo, filePath: 'README.md' });
+                if (readme?.success && readme?.content) {
+                  pieces.push((targetLang==='ar' ? 'ملخص README.md:' : 'README.md summary:'));
+                  pieces.push(String(readme.content).slice(0, 800));
+                }
+              } catch { /* noop */ }
+              try {
+                const pkg = await executeTool(userId, sessionId, 'readFile', { repoName: repo, filePath: 'package.json' });
+                if (pkg?.success && pkg?.content) {
+                  pieces.push((targetLang==='ar' ? 'اكتشف الحزم من package.json' : 'Detected packages from package.json'));
+                }
+              } catch { /* noop */ }
+              const repInstr = preview.match(/(?:استبدل|replace)\s+['"]?([^'"\n]+)['"]?\s+(?:ب|with)\s+['"]?([^'"\n]+)['"]?/i);
+              if (repInstr) {
+                const pattern = repInstr[1];
+                const replacement = repInstr[2];
+                try { joeEvents.emitProgress(userId, sessionId, 60, 'Search & Replace'); } catch { /* noop */ }
+                const sr = await executeTool(userId, sessionId, 'searchReplaceAndPush', { owner, repoName: repo, pattern, replacement, commitMessage: (targetLang==='ar' ? 'تعديل تلقائي بواسطة JOE' : 'Auto update by JOE') });
+                toolResults.push({ tool: 'searchReplaceAndPush', args: { owner, repoName: repo, pattern, replacement }, result: sr });
+                toolCalls.push({ function: { name: 'searchReplaceAndPush', arguments: { owner, repoName: repo, pattern, replacement } } });
+                pieces.push(String(sr?.message || '').trim() || (targetLang==='ar' ? 'تم تنفيذ البحث والاستبدال.' : 'Search & replace executed.'));
+              }
+            } catch { /* noop */ }
+          } else if (videoUrlMatch) {
             const url = videoUrlMatch[0];
             try {
               const vr = await executeTool(userId, sessionId, 'analyzeVideoFromUrl', { url, targetLanguage: targetLang });
@@ -514,7 +552,7 @@ ${transcript.slice(0, 8000)}`;
             } catch { void 0 }
           } else if (hasUrl) {
             try {
-                const rawUrl = (preview.match(/https?:\/\/[^\s]+/i) || [])[0];
+              const rawUrl = (preview.match(/https?:\/\/[^\s]+/i) || [])[0];
                 const url = rawUrl ? rawUrl.replace(/[.,;:!?)]+$/,'') : rawUrl;
                 const isImageUrl = /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(url);
                 if (isImageUrl) {
@@ -1497,7 +1535,45 @@ ${transcript.slice(0, 8000)}`;
           try {
             const url = (preview.match(/https?:\/\/[^\s]+/i) || [])[0];
             const isVideo = /(youtube\.com|youtu\.be|vimeo\.com)|\.(mp4|webm|m4v|mov)(\?|$)/i.test(url);
-            if (isVideo) {
+            const ghMatch = url && url.match(/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)/i);
+            if (ghMatch) {
+              try {
+                const owner = ghMatch[1];
+                const repo = ghMatch[2];
+                try { joeEvents.emitProgress(userId, sessionId, 30, 'Clone GitHub repo'); } catch { /* noop */ }
+                const cr = await toolManager.execute('cloneRepo', { repoName: repo, branch: 'main', owner });
+                toolResults.push({ tool: 'cloneRepo', args: { repoName: repo, owner }, result: cr });
+                toolCalls.push({ function: { name: 'cloneRepo', arguments: { repoName: repo, owner } } });
+                const lf = await toolManager.execute('listFiles', { repoName: repo, directory: '.' });
+                toolResults.push({ tool: 'listFiles', args: { repoName: repo }, result: lf });
+                toolCalls.push({ function: { name: 'listFiles', arguments: { repoName: repo } } });
+                const filesSummary = Array.isArray(lf?.files) ? lf.files.slice(0, 20).map(f => `${f.type === 'directory' ? '📁' : '📄'} ${f.path}`).join('\n') : '';
+                pieces.push(filesSummary || (targetLang==='ar' ? 'تم استنساخ المستودع.' : 'Repository cloned.'));
+                try {
+                  const readme = await toolManager.execute('readFile', { repoName: repo, filePath: 'README.md' });
+                  if (readme?.success && readme?.content) {
+                    pieces.push((targetLang==='ar' ? 'ملخص README.md:' : 'README.md summary:'));
+                    pieces.push(String(readme.content).slice(0, 800));
+                  }
+                } catch { /* noop */ }
+                try {
+                  const pkg = await toolManager.execute('readFile', { repoName: repo, filePath: 'package.json' });
+                  if (pkg?.success && pkg?.content) {
+                    pieces.push((targetLang==='ar' ? 'اكتشف الحزم من package.json' : 'Detected packages from package.json'));
+                  }
+                } catch { /* noop */ }
+                const repInstr = preview.match(/(?:استبدل|replace)\s+['"]?([^'"\n]+)['"]?\s+(?:ب|with)\s+['"]?([^'"\n]+)['"]?/i);
+                if (repInstr) {
+                  const pattern = repInstr[1];
+                  const replacement = repInstr[2];
+                  try { joeEvents.emitProgress(userId, sessionId, 60, 'Search & Replace'); } catch { /* noop */ }
+                  const sr = await toolManager.execute('searchReplaceAndPush', { owner, repoName: repo, pattern, replacement, commitMessage: (targetLang==='ar' ? 'تعديل تلقائي بواسطة JOE' : 'Auto update by JOE') });
+                  toolResults.push({ tool: 'searchReplaceAndPush', args: { owner, repoName: repo, pattern, replacement }, result: sr });
+                  toolCalls.push({ function: { name: 'searchReplaceAndPush', arguments: { owner, repoName: repo, pattern, replacement } } });
+                  pieces.push(String(sr?.message || '').trim() || (targetLang==='ar' ? 'تم تنفيذ البحث والاستبدال.' : 'Search & replace executed.'));
+                }
+              } catch { /* noop */ }
+            } else if (isVideo) {
               const vr = await toolManager.execute('analyzeVideoFromUrl', { url, targetLanguage: targetLang });
               toolResults.push({ tool: 'analyzeVideoFromUrl', args: { url, targetLanguage: targetLang }, result: vr });
               toolCalls.push({ function: { name: 'analyzeVideoFromUrl', arguments: { url, targetLanguage: targetLang } } });
