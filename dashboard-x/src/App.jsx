@@ -17,7 +17,7 @@ const App = () => {
       const current = localStorage.getItem('apiBaseUrl');
       const currentIsLocal = current && /localhost|127\.0\.0\.1/.test(String(current));
       if (!isLocal && (!current || currentIsLocal)) {
-        localStorage.setItem('apiBaseUrl', 'http://localhost:4000');
+        localStorage.setItem('apiBaseUrl', 'http://localhost:4000/api/v1');
       }
       const host = typeof window !== 'undefined' ? window.location.hostname : '';
       if (host === 'localhost' || host === '127.0.0.1') {

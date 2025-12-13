@@ -121,7 +121,9 @@ export default function Build() {
   useEffect(() => {
     fetchJobs();
     try {
-      const base = (typeof window !== 'undefined' && (localStorage.getItem('apiBaseUrl') || window.location.origin + '/api/v1')) || '/api/v1';
+      let base = (typeof window !== 'undefined' ? localStorage.getItem('apiBaseUrl') : '') || (typeof window !== 'undefined' ? window.location.origin + '/api/v1' : '/api/v1');
+      const hasV1 = /\/api\/v1$/i.test(String(base));
+      if (!hasV1) base = String(base).replace(/\/+$/,'') + '/api/v1';
       const url = String(base).replace(/\/+$/,'') + '/factory/events';
       const es = new EventSource(url, { withCredentials: true });
       es.addEventListener('snapshot', (ev) => {

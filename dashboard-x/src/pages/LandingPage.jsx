@@ -166,7 +166,14 @@ const JoeConsole = () => {
   const [model, setModel] = useState('');
   const [events, setEvents] = useState([]);
   useEffect(() => {
-    const base = localStorage.getItem('apiBaseUrl') || '/api/v1';
+    let base = localStorage.getItem('apiBaseUrl');
+    try {
+      if (!base || !String(base).trim()) {
+        base = (typeof window !== 'undefined' ? window.location.origin : '') + '/api/v1';
+      }
+      const hasV1 = /\/api\/v1$/i.test(String(base));
+      if (!hasV1) base = String(base).replace(/\/+$/,'') + '/api/v1';
+    } catch { base = '/api/v1'; }
     const url = `${String(base).replace(/\/+$/,'')}/joe/events`;
     let es;
     try {
@@ -195,7 +202,14 @@ const JoeConsole = () => {
       const body = { instruction };
       if (provider) body.provider = provider;
       if (model) body.model = model;
-      const base = localStorage.getItem('apiBaseUrl') || '/api/v1';
+      let base = localStorage.getItem('apiBaseUrl');
+      try {
+        if (!base || !String(base).trim()) {
+          base = (typeof window !== 'undefined' ? window.location.origin : '') + '/api/v1';
+        }
+        const hasV1 = /\/api\/v1$/i.test(String(base));
+        if (!hasV1) base = String(base).replace(/\/+$/,'') + '/api/v1';
+      } catch { base = '/api/v1'; }
       const url = `${String(base).replace(/\/+$/,'')}/joe/execute`;
       const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), credentials: 'include' });
       const data = await r.json();
