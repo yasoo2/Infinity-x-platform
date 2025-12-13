@@ -8,7 +8,7 @@ import apiClient from '../api/client';
 const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initialUrl, initialSearchQuery, autoOpenOnSearch, embedded = false }) => {
   const [isTakeoverActive, setIsTakeoverActive] = useState(false);
   const [activeTab, setActiveTab] = useState('browser'); // 'terminal' or 'browser'
-  const [browserUrl, setBrowserUrl] = useState('https://www.xelitesolutions.com');
+  const [browserUrl, setBrowserUrl] = useState('about:blank');
   const [isCollapsed, setIsCollapsed] = useState(false);
   
   const [boxSize, setBoxSize] = useState({ width: 700, height: 500 });
@@ -214,9 +214,11 @@ const JoeScreen = ({ isProcessing, progress, wsLog, onTakeover, onClose, initial
   }, [sizeMode]);
 
   useEffect(() => {
-    if (isConnected && browserUrl && !screenshot) {
+    if (isConnected && !screenshot) {
       startStreaming();
-      navigateAndLog(browserUrl);
+      if (browserUrl && browserUrl !== 'about:blank') {
+        navigateAndLog(browserUrl);
+      }
     }
   }, [isConnected]);
 
