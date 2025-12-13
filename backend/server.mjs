@@ -49,6 +49,7 @@ import toolSearchFactory from './src/services/tools/tool-code-search.tool.mjs';
 import toolRefactorFactory from './src/services/tools/tool-code-refactor.tool.mjs';
 import toolAutoFixFactory from './src/services/tools/tool-auto-fix.tool.mjs';
 import toolSystemConnectorsFactory from './src/services/tools/tool-system-connectors.tool.mjs';
+import MediaGenerationTool from './src/tools_refactored/media_generation.tool.mjs';
 import { liveStreamingService } from './src/services/liveStreamingService.mjs';
 import LiveStreamWebSocketServer from './src/services/liveStreamWebSocket.mjs';
 
@@ -263,6 +264,16 @@ async function setupDependencies() {
         const refactorTools = (typeof toolRefactorFactory === 'function') ? toolRefactorFactory(dependencies) : toolRefactorFactory;
         const autoFixTools = (typeof toolAutoFixFactory === 'function') ? toolAutoFixFactory(dependencies) : toolAutoFixFactory;
         const systemConnectorTools = (typeof toolSystemConnectorsFactory === 'function') ? toolSystemConnectorsFactory(dependencies) : toolSystemConnectorsFactory;
+        
+        // Initialize MediaGenerationTool
+        const mediaGenerationTool = new MediaGenerationTool(dependencies);
+        const mediaGenerationTools = {
+            generateImage: mediaGenerationTool.generateImage.bind(mediaGenerationTool),
+            editImage: mediaGenerationTool.editImage.bind(mediaGenerationTool),
+            generateSpeech: mediaGenerationTool.generateSpeech.bind(mediaGenerationTool),
+            downloadImageFromUrl: mediaGenerationTool.downloadImageFromUrl.bind(mediaGenerationTool)
+        };
+        
         toolManager._registerModule(discoveryTools);
         toolManager._registerModule(integrationTools);
         toolManager._registerModule(pipIntegrationTools);
@@ -272,6 +283,7 @@ async function setupDependencies() {
         toolManager._registerModule(refactorTools);
         toolManager._registerModule(autoFixTools);
         toolManager._registerModule(systemConnectorTools);
+        toolManager._registerModule(mediaGenerationTools);
         const joeAgentServer = new JoeAgentWebSocketServer(server, dependencies);
         dependencies.joeAgentServer = joeAgentServer;
         const browserWSServer = new BrowserWebSocketServer(server);

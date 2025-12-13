@@ -271,8 +271,10 @@ async function processMessage(message, context = {}) {
     try { joeEvents.emitProgress(userId, sessionId, 20, 'Force image generation'); } catch { void 0; }
     
     try {
+      // Use proper path for uploads directory
       const safeUser = String(userId || '').replace(/[^A-Za-z0-9_:-]/g, '_');
-      const fileName = `joe-image-${Date.now()}.png`;
+      const timestamp = Date.now();
+      const fileName = `joe-image-${timestamp}.png`;
       const outPath = path.join(process.cwd(), 'public-site', 'uploads', safeUser, fileName);
       
       const imagePrompt = String(message || '').trim();
@@ -488,8 +490,10 @@ User: "ارسم شعار" → You: !size[2cmx2cm] \`https://url.com/logo.png\`
     try { joeEvents.emitProgress(userId, sessionId, 85, 'Force generating image'); } catch { void 0; }
     
     try {
+      // Use proper path for uploads directory
       const safeUser = String(userId || '').replace(/[^A-Za-z0-9_:-]/g, '_');
-      const fileName = `joe-image-${Date.now()}.png`;
+      const timestamp = Date.now();
+      const fileName = `joe-image-${timestamp}.png`;
       const outPath = path.join(process.cwd(), 'public-site', 'uploads', safeUser, fileName);
       
       const r = await executeTool(userId, sessionId, 'generateImage', { 

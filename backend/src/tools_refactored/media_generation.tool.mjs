@@ -13,8 +13,16 @@ class MediaGenerationTool {
         this._openai = null;
         try {
             const key = process.env.OPENAI_API_KEY || this.dependencies?.openaiApiKey;
-            if (key) this._openai = new OpenAI({ apiKey: key });
-        } catch { this._openai = null }
+            if (key) {
+                this._openai = new OpenAI({ apiKey: key });
+                console.log('🎨 MediaGenerationTool: OpenAI client initialized');
+            } else {
+                console.log('🎨 MediaGenerationTool: No OpenAI key, will use fallback');
+            }
+        } catch (error) { 
+            console.log('🎨 MediaGenerationTool: OpenAI initialization failed:', error.message);
+            this._openai = null; 
+        }
     }
 
     _initializeMetadata() {
@@ -81,15 +89,25 @@ class MediaGenerationTool {
         const out = String(outputFilePath || '').trim();
         if (!out) return { success: false, error: 'OUTPUT_PATH_REQUIRED' };
 
+        console.log('🎨 generateImage: Starting with prompt:', p);
+
         if (!this._openai) {
+            console.log('🎨 generateImage: Using fallback Pollinations API');
             try {
                 const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(style ? `${p} ${style}` : p)}`;
+                console.log('🎨 generateImage: Fetching from:', url);
                 const res = await (await import('axios')).default.get(url, { responseType: 'arraybuffer', timeout: 20000 });
                 const buf = Buffer.from(res.data, 'binary');
+                
+                // Ensure directory exists
                 try { await fs.mkdir(path.dirname(out), { recursive: true }); } catch { /* noop */ }
                 await fs.writeFile(out, buf);
+                
+                // Generate URLs
                 const baseUploads = path.join(process.cwd(), 'public-site', 'uploads');
                 let publicUrl = '';
+                let absoluteUrl = '';
+                
                 if (out.startsWith(baseUploads)) {
                     const rel = out.slice(baseUploads.length).replace(/^[/\\]/, '').replace(/\\/g, '/');
                     publicUrl = ['/uploads', rel].join('/');
@@ -102,27 +120,47 @@ class MediaGenerationTool {
                         publicUrl = `/uploads/${rel}`;
                     }
                 }
+                
                 const base = process.env.PUBLIC_BASE_URL || 'http://localhost:4000';
-                const absoluteUrl = publicUrl ? `${base}${publicUrl}` : '';
-                const message = absoluteUrl ? `Image saved: ${absoluteUrl}` : 'Image generated';
-                return { success: true, outputFile: out, model: 'pollinations', publicUrl, absoluteUrl, message };
+                absoluteUrl = publicUrl ? `${base}${publicUrl}` : '';
+                
+                console.log('🎨 generateImage: Success! Public URL:', publicUrl, 'Absolute URL:', absoluteUrl);
+                return { 
+                    success: true, 
+                    outputFile: out, 
+                    model: 'pollinations', 
+                    publicUrl, 
+                    absoluteUrl, 
+                    message: 'Image generated successfully' 
+                };
             } catch (error) {
+                console.log('🎨 generateImage: Fallback failed:', error.message);
                 return { success: false, error: error?.message || String(error) };
             }
         }
 
         try {
+            console.log('🎨 generateImage: Using OpenAI DALL-E');
             const size = '1024x1024';
-            const model = 'gpt-image-1';
+            const model = 'dall-e-3';
             const promptText = style ? `${p}\nStyle: ${style}` : p;
             const res = await this._openai.images.generate({ model, prompt: promptText, size });
             const b64 = res?.data?.[0]?.b64_json || '';
-            if (!b64) return { success: false, error: 'EMPTY_IMAGE_RESPONSE' };
+            
+            if (!b64) {
+                console.log('🎨 generateImage: Empty response from OpenAI');
+                return { success: false, error: 'EMPTY_IMAGE_RESPONSE' };
+            }
+            
             const buf = Buffer.from(b64, 'base64');
             try { await fs.mkdir(path.dirname(out), { recursive: true }); } catch { /* noop */ }
             await fs.writeFile(out, buf);
+            
+            // Generate URLs
             const baseUploads = path.join(process.cwd(), 'public-site', 'uploads');
             let publicUrl = '';
+            let absoluteUrl = '';
+            
             if (out.startsWith(baseUploads)) {
                 const rel = out.slice(baseUploads.length).replace(/^[\\/]/, '').replace(/\\/g, '/');
                 publicUrl = ['/uploads', rel].join('/');
@@ -135,11 +173,22 @@ class MediaGenerationTool {
                     publicUrl = `/uploads/${rel}`;
                 }
             }
+            
             const base = process.env.PUBLIC_BASE_URL || 'http://localhost:4000';
-            const absoluteUrl = publicUrl ? `${base}${publicUrl}` : '';
-            const message = absoluteUrl ? `Image saved: ${absoluteUrl}` : 'Image generated';
-            return { success: true, outputFile: out, size, model, publicUrl, absoluteUrl, message };
+            absoluteUrl = publicUrl ? `${base}${publicUrl}` : '';
+            
+            console.log('🎨 generateImage: OpenAI success! Public URL:', publicUrl, 'Absolute URL:', absoluteUrl);
+            return { 
+                success: true, 
+                outputFile: out, 
+                size, 
+                model, 
+                publicUrl, 
+                absoluteUrl, 
+                message: 'Image generated successfully' 
+            };
         } catch (error) {
+            console.log('🎨 generateImage: OpenAI failed:', error.message);
             return { success: false, error: error?.message || String(error) };
         }
     }
@@ -167,12 +216,17 @@ class MediaGenerationTool {
     async downloadImageFromUrl({ url, outputFilePath, filename, userId }) {
         const src = String(url || '').trim();
         if (!src) return { success: false, error: 'URL_REQUIRED' };
+        
+        console.log('🎨 downloadImageFromUrl: Starting with URL:', src);
+        
         try {
             const res = await fetch(src, { redirect: 'follow' });
             if (!res.ok) return { success: false, error: `HTTP_${res.status}` };
+            
             const ct = res.headers.get('content-type') || '';
             const isImage = /image\/(png|jpeg|jpg|gif|webp|bmp|svg)/i.test(ct) || /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(src);
             if (!isImage) return { success: false, error: 'NOT_IMAGE_URL' };
+            
             const buf = Buffer.from(await res.arrayBuffer());
             let ext = '.png';
             if (/jpeg|jpg/i.test(ct) || /\.jpe?g(\?|$)/i.test(src)) ext = '.jpg';
@@ -184,6 +238,7 @@ class MediaGenerationTool {
 
             const baseUploads = path.join(process.cwd(), 'public-site', 'uploads');
             try { await fs.mkdir(baseUploads, { recursive: true }); } catch { /* noop */ }
+            
             let userFolder = '';
             if (userId) {
                 try {
@@ -192,17 +247,22 @@ class MediaGenerationTool {
                     await fs.mkdir(path.join(baseUploads, userFolder), { recursive: true });
                 } catch { userFolder = ''; }
             }
+            
             const name = String(filename || '').trim() || `imported-${Date.now()}${ext}`;
             const outPath = String(outputFilePath || '').trim() || path.join(baseUploads, userFolder ? userFolder : '', name);
             await fs.writeFile(outPath, buf);
+            
             const parts = ['/uploads'];
             if (userFolder) parts.push(userFolder);
             parts.push(path.basename(outPath));
             const publicUrl = parts.join('/');
             const base = process.env.PUBLIC_BASE_URL || 'http://localhost:4000';
             const absoluteUrl = `${base}${publicUrl}`;
+            
+            console.log('🎨 downloadImageFromUrl: Success! Public URL:', publicUrl, 'Absolute URL:', absoluteUrl);
             return { success: true, outputFile: outPath, publicUrl, absoluteUrl, contentType: ct };
         } catch (error) {
+            console.log('🎨 downloadImageFromUrl: Failed:', error.message);
             return { success: false, error: error?.message || String(error) };
         }
     }
