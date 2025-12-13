@@ -391,7 +391,7 @@ async function processMessage(userId, message, sessionId, { model = null, lang }
 
     const previewMsg = String(message || '');
     let handled = false;
-    if (wantsSelfDescribe(previewMsg)) {
+  if (wantsSelfDescribe(previewMsg)) {
       try {
         finalContent = formatSystemSummary(targetLang, availableTools);
         handled = true;
@@ -402,7 +402,7 @@ async function processMessage(userId, message, sessionId, { model = null, lang }
       }
     }
 
-    const noCloud = !openaiClient && !geminiClient;
+  const noCloud = !openaiClient && !geminiClient;
     if (!model) {
       if (noCloud) {
         model = '__disabled__';
@@ -1821,6 +1821,8 @@ ${transcript.slice(0, 8000)}`;
         toolsUsed: toolCalls.map(tc => tc.function.name),
     };
   }
+
+  
 
 
 // =========================
