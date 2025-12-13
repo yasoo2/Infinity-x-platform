@@ -9,8 +9,9 @@ import express from 'express';
 import GitHubTools from '../tools_refactored/githubTools.mjs';
 import pageBuilder from '../services/ai/ai-page-builder.service.mjs';
 
-const pageBuilderRouterFactory = ({ requireRole }) => {
+const pageBuilderRouterFactory = ({ requireRole, optionalAuth }) => {
     const router = express.Router();
+    if (optionalAuth) router.use(optionalAuth);
 
     // Removed legacy notImplemented handler; preview is now implemented.
 
@@ -40,7 +41,7 @@ const pageBuilderRouterFactory = ({ requireRole }) => {
      * @access ADMIN
      * @body { description, projectType, repoName, ... }
      */
-    router.post('/create-and-deploy', requireRole('ADMIN'), async (req, res) => {
+    router.post('/create-and-deploy', requireRole('USER'), async (req, res) => {
         try {
             const { description, projectType = 'page', repoName } = req.body;
 

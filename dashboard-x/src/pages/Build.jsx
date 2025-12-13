@@ -106,7 +106,7 @@ export default function Build() {
     setJobsError(null);
     try {
       const res = await apiClient.get('/api/v1/factory/jobs');
-      if (res.data.ok) {
+      if (res.data.success || res.data.ok) {
         setJobs(res.data.jobs);
       }
     } catch (err) {
@@ -162,29 +162,35 @@ export default function Build() {
         repoName: title.toLowerCase().replace(/[^a-z0-9]/g, '-')
       };
 
-      const response = await apiClient.post('/api/page-builder/create', payload);
+      const response = await apiClient.post('/api/v1/page-builder/create-and-deploy', payload);
 
-      if (response.data.ok) {
+      if (response.data.success || response.data.ok) {
         addLog('✅ تم توليد الكود البرمجي بنجاح!', 'success');
         dispatch({ type: 'SET_PROGRESS', payload: 60 });
 
         // Step 3: GitHub Push
         addLog('📤 جاري رفع الكود البرمجي إلى GitHub...', 'info');
         dispatch({ type: 'SET_PROGRESS', payload: 80 });
-        addLog(`✅ تم الرفع على: ${response.data.githubUrl}`, 'success');
+        addLog(`✅ تم الرفع على: ${response.data.repoUrl || response.data.githubUrl}`, 'success');
 
         // Step 4: Deployment
         addLog('🌐 جاري نشر المشروع...', 'info');
         dispatch({ type: 'SET_PROGRESS', payload: 95 });
 
-        if (response.data.liveUrl) {
-          addLog(`✅ تم نشر المشروع بنجاح على: ${response.data.liveUrl}`, 'success');
+        if (response.data.deploymentUrl || response.data.liveUrl) {
+          addLog(`✅ تم نشر المشروع بنجاح على: ${response.data.deploymentUrl || response.data.liveUrl}`, 'success');
         }
 
         dispatch({ type: 'SET_PROGRESS', payload: 100 });
         addLog('🎉 اكتملت عملية الإنشاء بنجاح!', 'success');
 
-        dispatch({ type: 'SET_RESULT', payload: response.data });
+        dispatch({ type: 'SET_RESULT', payload: {
+          ...response.data,
+          githubUrl: response.data.repoUrl || response.data.githubUrl,
+          liveUrl: response.data.deploymentUrl || response.data.liveUrl,
+          filesGenerated: response.data.filesGenerated || 0,
+          projectType,
+        }});
 
         // Clear form
         setTitle('');
