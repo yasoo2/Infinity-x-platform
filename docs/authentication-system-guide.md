@@ -31,6 +31,11 @@ This authentication system provides a complete, secure, and scalable solution fo
 
 ## Architecture
 
+### Supabase Migrations
+
+- Supabase auth schema is defined in `supabase/migrations/001_create_auth_schema.sql`.
+- Supabase RLS and auth functions are defined in `supabase/migrations/002_create_rls_policies.sql`.
+
 ### Database Schema
 
 #### User Profiles Table

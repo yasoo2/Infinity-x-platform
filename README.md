@@ -67,6 +67,11 @@ This repository is under active development and refactoring to fully integrate t
 1.  **Dependencies**: `cd public-site && npm install` (if needed)
 2.  **Run**: Serve the static files (e.g., using `http-server public-site -p 8080`).
 
+### Supabase Migrations
+
+- Supabase auth schema is defined in `supabase/migrations/001_create_auth_schema.sql`.
+- Supabase RLS and auth functions are defined in `supabase/migrations/002_create_rls_policies.sql`.
+
 ## Contribution
 
 Contributions are welcome! Please follow the existing code style and submit pull requests for review.
