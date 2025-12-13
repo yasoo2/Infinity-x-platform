@@ -1,64 +1,21 @@
   import axios from 'axios';
 
-  // Base URL normalization: prefer explicit env; otherwise use same-origin
+  // Base URL normalization: force local backend unless explicitly overridden
   let resolvedBase;
   let lsBase = null;
   try { lsBase = localStorage.getItem('apiBaseUrl'); } catch { lsBase = null; }
   const envBase = typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL);
   const explicitBase = typeof import.meta !== 'undefined' && import.meta.env?.VITE_EXPLICIT_API_BASE;
-  const isLocal = (u) => { try { const h = new URL(String(u)).hostname; return h === 'localhost' || h === '127.0.0.1'; } catch { return /localhost|127\.0\.0\.1/.test(String(u)); } };
   const isDev = typeof import.meta !== 'undefined' && !!import.meta.env?.DEV;
-  const origin = typeof window !== 'undefined' ? window.location.origin : null;
   
 
-  if (typeof window !== 'undefined' && (isDev || ['localhost','127.0.0.1'].includes(String(window.location.hostname)))) {
-    //resol vedBase = 'http://localhost:4000';
-        resolvedBase = origin;
-    
-  } else if (lsBase && String(lsBase).trim().length > 0) {
-    // Prefer stored base only if not pointing to www; sanitize if needed
-    try {
-      const u = new URL(String(lsBase));
-      const host = u.hostname;
-      if (host === 'www.xelitesolutions.com' || host === 'xelitesolutions.com') {
-        resolvedBase = 'https://api.xelitesolutions.com';
-        try { localStorage.setItem('apiBaseUrl', resolvedBase); } catch { /* noop */ }
-      } else {
-        resolvedBase = lsBase;
-      }
-    } catch {
-      resolvedBase = lsBase;
-    }
-  } else if (explicitBase && String(explicitBase).trim().length > 0) {
-    // Use explicit base URL from environment variable (e.g., from Front Cloud settings)
+  if (explicitBase && String(explicitBase).trim().length > 0) {
     resolvedBase = explicitBase;
-  } else if (envBase && String(envBase).trim().length > 0) {
-    if (typeof window !== 'undefined' && !isLocal(window.location.origin) && isLocal(envBase)) {
-      resolvedBase = window.location.origin;
-    } else {
-      resolvedBase = envBase;
-    }
-  } else if (typeof window !== 'undefined') {
-    resolvedBase = origin;
-    try {
-      const h = window.location.hostname || '';
-      if (h === 'www.xelitesolutions.com' || h === 'xelitesolutions.com') {
-        resolvedBase = 'https://api.xelitesolutions.com';
-      }
-    } catch { /* noop */ }
+  } else if (lsBase && String(lsBase).trim().length > 0) {
+    resolvedBase = lsBase;
   } else {
-    //resolvedBase = 'http://localhost:4000';
-        resolvedBase = origin;
-    
+    resolvedBase = 'http://localhost:4000';
   }
-  // Final sanitation: if resolvedBase still points to www/bare domain, force api
-  try {
-    const u2 = new URL(String(resolvedBase));
-    const host2 = u2.hostname;
-    if (host2 === 'www.xelitesolutions.com' || host2 === 'xelitesolutions.com') {
-      resolvedBase = 'https://api.xelitesolutions.com';
-    }
-  } catch { /* noop */ }
   const BASE_URL = String(resolvedBase).replace(/\/+$/, '');
   let errCount = 0;
   let errStart = 0;
@@ -154,18 +111,7 @@
   let isRedirecting = false;
 
   // Helper: compute safe fallback base URL
-  const computeFallbackBase = () => {
-    try {
-      if (typeof window !== 'undefined') {
-        const h = String(window.location.hostname || '');
-        const isLocalHost = (h === 'localhost' || h === '127.0.0.1');
-        if (isLocalHost) return 'http://localhost:4000';
-        if (h === 'www.xelitesolutions.com' || h === 'xelitesolutions.com') return 'https://api.xelitesolutions.com';
-        return String(window.location.origin || BASE_URL).replace(/\/+$/, '');
-      }
-    } catch { /* noop */ }
-    return BASE_URL;
-  };
+  const computeFallbackBase = () => 'http://localhost:4000';
 
   // Helper: prefer production API when local backend is offline
   const computePreferredApiBase = () => {
@@ -174,9 +120,8 @@
       const envApi = (typeof import.meta !== 'undefined' && (import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL)) || '';
       if (String(explicit).trim().length > 0) return String(explicit).replace(/\/+$/, '');
       if (String(envApi).trim().length > 0) return String(envApi).replace(/\/+$/, '');
-      return 'https://api.xelitesolutions.com';
     } catch { /* noop */ }
-    return 'https://api.xelitesolutions.com';
+    return 'http://localhost:4000';
   };
 
   // Response interceptor
