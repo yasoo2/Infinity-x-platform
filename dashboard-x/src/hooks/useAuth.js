@@ -1,7 +1,27 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import config from '../config';
 
 // API configuration
-const API_BASE_URL = localStorage.getItem('apiBaseUrl') || 'http://localhost:3001';
+const INITIAL_API_BASE = (() => {
+    try {
+        const ls = localStorage.getItem('apiBaseUrl');
+        return ls && ls.trim().length > 0 ? ls : config.apiBaseUrl;
+    } catch {
+        return config.apiBaseUrl;
+    }
+})();
+
+function normalizeUrl(base, endpoint) {
+    const b = String(base).replace(/\/+$/, '');
+    let e = String(endpoint);
+    if (!e.startsWith('/')) e = `/${e}`;
+    const hasV1InBase = /\/api\/v1$/i.test(b);
+    const startsWithV1 = /^\/api\/v1\//i.test(e);
+    if (hasV1InBase && startsWithV1) {
+        e = e.replace(/^\/api\/v1/, '');
+    }
+    return `${b}${e}`;
+}
 
 // Token storage keys
 const TOKEN_KEYS = {
@@ -65,47 +85,78 @@ async function apiRequest(endpoint, options = {}) {
     }
     
     try {
-        const response = await fetch(url, {
-            ...options,
-            headers,
-            credentials: 'include'
-        });
+        const baseCandidates = (() => {
+            const candidates = [];
+            const current = INITIAL_API_BASE;
+            candidates.push(current);
+            try {
+                const origin = typeof window !== 'undefined' ? window.location.origin : '';
+                if (origin) candidates.push(`${origin.replace(/\/+$/, '')}/api/v1`);
+            } catch { /* noop */ }
+            candidates.push('http://localhost:4000/api/v1');
+            candidates.push('http://localhost:3001/api/v1');
+            const unique = Array.from(new Set(candidates.filter(Boolean)));
+            return unique;
+        })();
+
+        let lastError = null;
+        for (const base of baseCandidates) {
+            const fullUrl = normalizeUrl(base, endpoint);
+            try {
+                const response = await fetch(fullUrl, {
+                    ...options,
+                    headers,
+                    credentials: 'include'
+                });
         
-        // Handle rate limiting
-        if (response.status === 429) {
-            const retryAfter = response.headers.get('Retry-After');
-            throw new Error(`${ERROR_MESSAGES.RATE_LIMITED}${retryAfter ? ` Retry after ${retryAfter} seconds.` : ''}`);
+                // Handle rate limiting
+                if (response.status === 429) {
+                    const retryAfter = response.headers.get('Retry-After');
+                    throw new Error(`${ERROR_MESSAGES.RATE_LIMITED}${retryAfter ? ` Retry after ${retryAfter} seconds.` : ''}`);
+                }
+        
+                // Handle maintenance mode
+                if (response.status === 503) {
+                    throw new Error(ERROR_MESSAGES.MAINTENANCE);
+                }
+        
+                // Handle network/server errors
+                if (response.status >= 500) {
+                    throw new Error(ERROR_MESSAGES.SERVER_ERROR);
+                }
+        
+                // Handle unauthorized
+                if (response.status === 401) {
+                    throw new Error(ERROR_MESSAGES.SESSION_EXPIRED);
+                }
+        
+                const data = await response.json();
+        
+                if (!response.ok) {
+                    const msg = data && (data.error || data.message);
+                    // If NOT_FOUND, try next base candidate
+                    if (response.status === 404) {
+                        lastError = new Error(msg || 'HTTP 404');
+                        continue;
+                    }
+                    throw new Error(msg || `HTTP ${response.status}`);
+                }
+        
+                return data;
+            } catch (err) {
+                lastError = err;
+                continue;
+            }
         }
-        
-        // Handle maintenance mode
-        if (response.status === 503) {
-            throw new Error(ERROR_MESSAGES.MAINTENANCE);
-        }
-        
-        // Handle network/server errors
-        if (response.status >= 500) {
-            throw new Error(ERROR_MESSAGES.SERVER_ERROR);
-        }
-        
-        // Handle unauthorized
-        if (response.status === 401) {
-            throw new Error(ERROR_MESSAGES.SESSION_EXPIRED);
-        }
-        
-        const data = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(data.error || `HTTP ${response.status}`);
-        }
-        
-        return data;
-        
+        if (lastError) throw lastError;
+        throw new Error(ERROR_MESSAGES.NETWORK_ERROR);
+
     } catch (error) {
         // Handle network errors
         if (error.name === 'TypeError' && error.message.includes('fetch')) {
             throw new Error(ERROR_MESSAGES.NETWORK_ERROR);
         }
-        
+
         throw error;
     }
 }

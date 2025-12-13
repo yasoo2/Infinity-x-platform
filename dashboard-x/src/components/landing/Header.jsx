@@ -31,14 +31,20 @@ const Header = () => {
     if (loggingIn) return;
     setLoggingIn(true);
     setError('');
-    const normalizedEmail = String(email).trim().toLowerCase();
-    const ok = await login(normalizedEmail, password, remember);
-    if (ok) {
-      navigate('/dashboard/joe');
-    } else {
-      setError(lang === 'ar' ? 'فشل تسجيل الدخول، حاول مرة أخرى' : 'Login failed, please try again');
+    try {
+      const normalizedEmail = String(email).trim().toLowerCase();
+      const ok = await login(normalizedEmail, password, remember);
+      if (ok) {
+        navigate('/dashboard/joe');
+      } else {
+        setError(lang === 'ar' ? 'فشل تسجيل الدخول، حاول مرة أخرى' : 'Login failed, please try again');
+      }
+    } catch (err) {
+      const msg = err?.message || (lang === 'ar' ? 'فشل تسجيل الدخول' : 'Login failed');
+      setError(msg);
+    } finally {
+      setLoggingIn(false);
     }
-    setLoggingIn(false);
   };
 
   const refreshRemembered = useCallback(() => {
